@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { Suspense } from 'react';
 import { LanguageSwitcher } from '@/components/app';
 import { CalendarMonth } from '@/features/calendar';
 import { useAppContext } from '@/providers';
@@ -25,7 +26,13 @@ export default function CalendarPage() {
             <LanguageSwitcher />
           </div>
         </header>
-        <CalendarMonth />
+        <Suspense
+          fallback={
+            <section className="min-h-[70vh] rounded-lg border border-border bg-surface shadow-sm" />
+          }
+        >
+          <CalendarMonth />
+        </Suspense>
       </div>
     </main>
   );

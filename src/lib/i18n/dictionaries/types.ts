@@ -19,7 +19,18 @@ export interface Dictionary {
   dayEditor: {
     title: string;
     addItem: string;
+    addChild: string;
+    checklist: string;
+    close: string;
+    collapseItem: string;
     untitledItem: string;
+    emptyChecklist: string;
+    expandItem: string;
+    itemPlaceholder: string;
+    indentItem: string;
+    outdentItem: string;
+    deleteItem: string;
+    toggleItem: string;
     colors: string;
   };
   goals: {

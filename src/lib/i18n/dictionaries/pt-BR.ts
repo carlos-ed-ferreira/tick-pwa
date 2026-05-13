@@ -21,7 +21,18 @@ export const ptBRDictionary = {
   dayEditor: {
     title: 'Editor do dia',
     addItem: 'Adicionar item',
+    addChild: 'Adicionar filho',
+    checklist: 'Checklist',
+    close: 'Fechar editor do dia',
+    collapseItem: 'Recolher item',
     untitledItem: 'Novo item',
+    emptyChecklist: 'Comece este dia com um item de checklist',
+    expandItem: 'Expandir item',
+    itemPlaceholder: 'Escreva uma tarefa',
+    indentItem: 'Indentar item',
+    outdentItem: 'Recuar item',
+    deleteItem: 'Excluir item',
+    toggleItem: 'Alternar item',
     colors: 'Cores',
   },
   goals: {

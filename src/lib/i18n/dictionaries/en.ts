@@ -21,7 +21,18 @@ export const enDictionary = {
   dayEditor: {
     title: 'Day editor',
     addItem: 'Add item',
+    addChild: 'Add child',
+    checklist: 'Checklist',
+    close: 'Close day editor',
+    collapseItem: 'Collapse item',
     untitledItem: 'New item',
+    emptyChecklist: 'Start this day with a checklist item',
+    expandItem: 'Expand item',
+    itemPlaceholder: 'Write a task',
+    indentItem: 'Indent item',
+    outdentItem: 'Outdent item',
+    deleteItem: 'Delete item',
+    toggleItem: 'Toggle item',
     colors: 'Colors',
   },
   goals: {
