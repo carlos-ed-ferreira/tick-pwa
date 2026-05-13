@@ -2,19 +2,15 @@
 
 import Link from 'next/link';
 import { LanguageSwitcher } from '@/components/app';
+import { CategoryManager } from '@/features/categories';
 import { useAppContext } from '@/providers';
 
-export default function GoalsPage() {
+export default function CategoriesPage() {
   const { dictionary } = useAppContext();
   const activeNavigationItemClassName =
     'inline-flex h-9 items-center rounded-full px-3 text-sm font-medium bg-foreground text-background shadow-sm';
   const navigationItemClassName =
     'inline-flex h-9 items-center rounded-full px-3 text-sm font-medium text-muted transition hover:bg-background hover:text-foreground';
-  const categories = [
-    dictionary.goals.categories.short,
-    dictionary.goals.categories.medium,
-    dictionary.goals.categories.long,
-  ];
 
   return (
     <main className="min-h-dvh bg-background px-5 py-6 text-foreground sm:px-8">
@@ -29,7 +25,7 @@ export default function GoalsPage() {
             </Link>
             <span aria-hidden="true" className="h-4 w-px bg-border" />
             <h1 className="truncate text-xl font-semibold">
-              {dictionary.goals.title}
+              {dictionary.navigation.categories}
             </h1>
           </div>
           <div className="flex flex-wrap items-center gap-3">
@@ -37,29 +33,23 @@ export default function GoalsPage() {
               <Link href="/calendar" className={navigationItemClassName}>
                 {dictionary.navigation.calendar}
               </Link>
+              <Link href="/goals" className={navigationItemClassName}>
+                {dictionary.navigation.goals}
+              </Link>
               <Link
-                href="/goals"
+                href="/categories"
                 aria-current="page"
                 className={activeNavigationItemClassName}
               >
-                {dictionary.navigation.goals}
-              </Link>
-              <Link href="/categories" className={navigationItemClassName}>
                 {dictionary.navigation.categories}
               </Link>
             </nav>
             <LanguageSwitcher />
           </div>
         </header>
-        <section className="grid gap-3 sm:grid-cols-3">
-          {categories.map((category) => (
-            <div
-              key={category}
-              className="min-h-32 rounded-lg border border-border bg-surface p-4 shadow-sm"
-            >
-              <h2 className="font-medium">{category}</h2>
-            </div>
-          ))}
+
+        <section className="rounded-xl border border-border bg-surface p-4 shadow-sm sm:p-5">
+          <CategoryManager />
         </section>
       </div>
     </main>

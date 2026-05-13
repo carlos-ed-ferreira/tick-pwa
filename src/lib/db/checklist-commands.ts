@@ -122,7 +122,7 @@ export async function createChecklistItem({
         text,
         checked: false,
         collapsed: false,
-        colorTagId: null,
+        categoryTagId: null,
         sortRank: createInsertRank({ siblings, afterItemId }),
         createdAt: now,
         updatedAt: now,
@@ -280,20 +280,20 @@ export async function toggleChecklistItemCollapsed({
   });
 }
 
-export async function assignChecklistItemColor({
+export async function assignChecklistItemCategory({
   scope,
   itemId,
-  colorTagId,
+  categoryTagId,
 }: {
   scope: AppScope;
   itemId: string;
-  colorTagId: string | null;
+  categoryTagId: string | null;
 }): Promise<void> {
   await db.transaction(
     'rw',
     db.dailyEntries,
     db.checklistItems,
-    db.colorTags,
+    db.categoryTags,
     db.syncOutbox,
     async () => {
       const item = await getScopedChecklistItem(scope, itemId);
@@ -302,26 +302,30 @@ export async function assignChecklistItemColor({
         return;
       }
 
-      const colorTag = colorTagId ? await db.colorTags.get(colorTagId) : null;
+      const categoryTag = categoryTagId
+        ? await db.categoryTags.get(categoryTagId)
+        : null;
 
       if (
-        colorTagId &&
-        (!colorTag || colorTag.scopeId !== scope.id || colorTag.deletedAt)
+        categoryTagId &&
+        (!categoryTag ||
+          categoryTag.scopeId !== scope.id ||
+          categoryTag.deletedAt)
       ) {
         return;
       }
 
-      const safeColorTagId = colorTag?.id ?? null;
+      const safeCategoryTagId = categoryTag?.id ?? null;
 
-      if (item.colorTagId === safeColorTagId) {
+      if (item.categoryTagId === safeCategoryTagId) {
         return;
       }
 
       const updatedItem = touchChecklistItem(scope, {
         ...item,
-        colorTagId: safeColorTagId,
+        categoryTagId: safeCategoryTagId,
       });
-      await persistChecklistItemUpdate(scope, updatedItem, ['colorTagId']);
+      await persistChecklistItemUpdate(scope, updatedItem, ['categoryTagId']);
       await recalculateDailyEntrySummary({
         scope,
         dailyEntryId: item.dailyEntryId,

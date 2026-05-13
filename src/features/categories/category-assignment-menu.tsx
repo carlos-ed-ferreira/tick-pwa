@@ -3,18 +3,20 @@
 import { Palette, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { IconButton } from '@/components/ui';
-import { assignChecklistItemColor } from '@/lib/db';
+import { assignChecklistItemCategory } from '@/lib/db';
 import type { ChecklistItem } from '@/lib/domain';
 import { useAppContext } from '@/providers';
-import { useColorTags } from './use-color-tags';
+import { useCategoryTags } from './use-category-tags';
 
-export function ColorAssignmentMenu({ item }: { item: ChecklistItem }) {
+export function CategoryAssignmentMenu({ item }: { item: ChecklistItem }) {
   const { dictionary, scope } = useAppContext();
-  const colorTags = useColorTags(scope);
+  const categoryTags = useCategoryTags(scope);
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
-  const selectedColorTag = colorTags.find((tag) => tag.id === item.colorTagId);
+  const selectedCategory = categoryTags.find(
+    (tag) => tag.id === item.categoryTagId,
+  );
 
   useEffect(() => {
     if (!isOpen) {
@@ -53,12 +55,16 @@ export function ColorAssignmentMenu({ item }: { item: ChecklistItem }) {
     };
   }, [isOpen]);
 
-  async function assignColor(colorTagId: string | null) {
+  async function assignCategory(categoryTagId: string | null) {
     if (!scope) {
       return;
     }
 
-    await assignChecklistItemColor({ scope, itemId: item.id, colorTagId });
+    await assignChecklistItemCategory({
+      scope,
+      itemId: item.id,
+      categoryTagId,
+    });
     setIsOpen(false);
   }
 
@@ -66,16 +72,16 @@ export function ColorAssignmentMenu({ item }: { item: ChecklistItem }) {
     <div ref={containerRef} className="relative">
       <IconButton
         aria-expanded={isOpen}
-        aria-label={dictionary.dayEditor.assignColor}
-        className={selectedColorTag ? 'text-foreground' : ''}
+        aria-label={dictionary.dayEditor.assignCategory}
+        className={selectedCategory ? 'text-foreground' : ''}
         ref={triggerRef}
         onClick={() => setIsOpen((currentValue) => !currentValue)}
       >
-        {selectedColorTag ? (
+        {selectedCategory ? (
           <span
             aria-hidden="true"
             className="size-4 rounded-full border border-border"
-            style={{ backgroundColor: selectedColorTag.hex }}
+            style={{ backgroundColor: selectedCategory.colorHex }}
           />
         ) : (
           <Palette aria-hidden="true" className="size-4" />
@@ -87,22 +93,22 @@ export function ColorAssignmentMenu({ item }: { item: ChecklistItem }) {
           <button
             type="button"
             className="flex items-center gap-2 rounded-md px-2 py-2 text-left text-muted transition hover:bg-background hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground"
-            onClick={() => void assignColor(null)}
+            onClick={() => void assignCategory(null)}
           >
             <X aria-hidden="true" className="size-4" />
-            {dictionary.dayEditor.clearColor}
+            {dictionary.dayEditor.clearCategory}
           </button>
-          {colorTags.map((tag) => (
+          {categoryTags.map((tag) => (
             <button
               key={tag.id}
               type="button"
               className="flex items-center gap-2 rounded-md px-2 py-2 text-left transition hover:bg-background focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground"
-              onClick={() => void assignColor(tag.id)}
+              onClick={() => void assignCategory(tag.id)}
             >
               <span
                 aria-hidden="true"
                 className="size-3 rounded-full"
-                style={{ backgroundColor: tag.hex }}
+                style={{ backgroundColor: tag.colorHex }}
               />
               <span className="truncate">{tag.name}</span>
             </button>

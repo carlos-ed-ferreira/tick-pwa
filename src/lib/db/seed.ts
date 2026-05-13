@@ -1,19 +1,19 @@
-import type { AppScope, ColorTag, EntitySyncStatus } from '@/lib/domain';
+import type { AppScope, CategoryTag, EntitySyncStatus } from '@/lib/domain';
 import { createId, createSortRankBetween } from '@/lib/domain';
 import { db } from './database';
 
-const defaultColorTags = [
-  { name: 'Focus', hex: '#2563eb' },
-  { name: 'Health', hex: '#16a34a' },
-  { name: 'Home', hex: '#d97706' },
-  { name: 'People', hex: '#db2777' },
+const defaultCategoryTags = [
+  { name: 'Focus', colorHex: '#2563eb' },
+  { name: 'Health', colorHex: '#16a34a' },
+  { name: 'Home', colorHex: '#d97706' },
+  { name: 'People', colorHex: '#db2777' },
 ];
 
-function createDefaultColorTag(
+function createDefaultCategoryTag(
   scope: AppScope,
-  tag: (typeof defaultColorTags)[number],
+  tag: (typeof defaultCategoryTags)[number],
   position: string,
-): ColorTag {
+): CategoryTag {
   const now = new Date().toISOString();
   const syncStatus: EntitySyncStatus =
     scope.kind === 'guest' ? 'local' : 'pending';
@@ -22,7 +22,7 @@ function createDefaultColorTag(
     id: createId(),
     scopeId: scope.id,
     name: tag.name,
-    hex: tag.hex,
+    colorHex: tag.colorHex,
     position,
     createdAt: now,
     updatedAt: now,
@@ -33,8 +33,8 @@ function createDefaultColorTag(
   };
 }
 
-export async function seedDefaultColorTags(scope: AppScope): Promise<void> {
-  const existingCount = await db.colorTags
+export async function seedDefaultCategoryTags(scope: AppScope): Promise<void> {
+  const existingCount = await db.categoryTags
     .where('scopeId')
     .equals(scope.id)
     .filter((tag) => tag.deletedAt === null)
@@ -45,12 +45,12 @@ export async function seedDefaultColorTags(scope: AppScope): Promise<void> {
   }
 
   let previousPosition: string | null = null;
-  const tags = defaultColorTags.map((tag) => {
+  const tags = defaultCategoryTags.map((tag) => {
     const position = createSortRankBetween(previousPosition, null);
     previousPosition = position;
 
-    return createDefaultColorTag(scope, tag, position);
+    return createDefaultCategoryTag(scope, tag, position);
   });
 
-  await db.colorTags.bulkAdd(tags);
+  await db.categoryTags.bulkAdd(tags);
 }

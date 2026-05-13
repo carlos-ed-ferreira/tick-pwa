@@ -1,7 +1,7 @@
 import type {
   AppScope,
   DailyEntry,
-  DailyEntryColorSummary,
+  DailyEntryCategorySummary,
   LocalDateString,
 } from '@/lib/domain';
 import { compareSortRanks, createId } from '@/lib/domain';
@@ -68,8 +68,8 @@ export async function openOrCreateDailyEntry({
       previewText: '',
       itemCount: 0,
       completedCount: 0,
-      colorTagIds: [],
-      colorSummaries: [],
+      categoryTagIds: [],
+      categorySummaries: [],
       createdAt: now,
       updatedAt: now,
       deletedAt: null,
@@ -116,15 +116,15 @@ export async function recalculateDailyEntrySummary({
   );
   const previewText =
     sortedItems.find((item) => item.text.trim().length > 0)?.text.trim() ?? '';
-  const colorSummaryMap = new Map<string, DailyEntryColorSummary>();
+  const categorySummaryMap = new Map<string, DailyEntryCategorySummary>();
 
   for (const item of sortedItems) {
-    if (!item.colorTagId) {
+    if (!item.categoryTagId) {
       continue;
     }
 
-    const existingSummary = colorSummaryMap.get(item.colorTagId) ?? {
-      colorTagId: item.colorTagId,
+    const existingSummary = categorySummaryMap.get(item.categoryTagId) ?? {
+      categoryTagId: item.categoryTagId,
       itemCount: 0,
       completedCount: 0,
     };
@@ -135,19 +135,21 @@ export async function recalculateDailyEntrySummary({
       existingSummary.completedCount += 1;
     }
 
-    colorSummaryMap.set(item.colorTagId, existingSummary);
+    categorySummaryMap.set(item.categoryTagId, existingSummary);
   }
 
-  const colorSummaries = Array.from(colorSummaryMap.values());
-  const colorTagIds = colorSummaries.map((summary) => summary.colorTagId);
+  const categorySummaries = Array.from(categorySummaryMap.values());
+  const categoryTagIds = categorySummaries.map(
+    (summary) => summary.categoryTagId,
+  );
   const now = createTimestamp();
   const updatedEntry: DailyEntry = {
     ...dailyEntry,
     previewText,
     itemCount: checklistItems.length,
     completedCount: checklistItems.filter((item) => item.checked).length,
-    colorTagIds,
-    colorSummaries,
+    categoryTagIds,
+    categorySummaries,
     updatedAt: now,
     syncStatus: getEntitySyncStatus(scope),
     clientUpdatedAt: now,
@@ -164,8 +166,8 @@ export async function recalculateDailyEntrySummary({
       'previewText',
       'itemCount',
       'completedCount',
-      'colorTagIds',
-      'colorSummaries',
+      'categoryTagIds',
+      'categorySummaries',
     ],
     baseRevision: updatedEntry.remoteRevision,
   });

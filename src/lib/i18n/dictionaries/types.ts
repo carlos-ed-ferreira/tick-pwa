@@ -7,6 +7,7 @@ export interface Dictionary {
     home: string;
     calendar: string;
     goals: string;
+    categories: string;
   };
   calendar: {
     title: string;
@@ -22,9 +23,9 @@ export interface Dictionary {
     title: string;
     addItem: string;
     addChild: string;
-    addColor: string;
-    assignColor: string;
-    clearColor: string;
+    addCategory: string;
+    assignCategory: string;
+    clearCategory: string;
     checklist: string;
     close: string;
     collapseItem: string;
@@ -32,16 +33,16 @@ export interface Dictionary {
     emptyChecklist: string;
     expandItem: string;
     itemPlaceholder: string;
-    newColor: string;
+    newCategory: string;
     indentItem: string;
-    moveColorDown: string;
-    moveColorUp: string;
+    moveCategoryDown: string;
+    moveCategoryUp: string;
     outdentItem: string;
     deleteItem: string;
     toggleItem: string;
-    colors: string;
-    colorNamePlaceholder: string;
-    deleteColor: string;
+    categories: string;
+    categoryNamePlaceholder: string;
+    deleteCategory: string;
   };
   goals: {
     title: string;

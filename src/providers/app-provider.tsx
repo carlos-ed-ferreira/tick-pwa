@@ -14,7 +14,7 @@ import { createGuestScope } from '@/lib/domain';
 import {
   getLocalPreference,
   getOrCreateInstallationId,
-  seedDefaultColorTags,
+  seedDefaultCategoryTags,
   setLocalPreference,
 } from '@/lib/db';
 import {
@@ -51,7 +51,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       try {
         const installationId = await getOrCreateInstallationId();
         const guestScope = createGuestScope(installationId);
-        await seedDefaultColorTags(guestScope);
+        await seedDefaultCategoryTags(guestScope);
 
         const storedLocale = await getLocalPreference<SupportedLocale>(
           'locale',

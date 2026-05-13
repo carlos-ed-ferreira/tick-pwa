@@ -1,6 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createGuestScope } from '@/lib/domain';
-import { db, getOrCreateInstallationId, seedDefaultColorTags } from '@/lib/db';
+import {
+  db,
+  getOrCreateInstallationId,
+  seedDefaultCategoryTags,
+} from '@/lib/db';
 
 describe('local database bootstrap', () => {
   beforeEach(async () => {
@@ -20,18 +24,18 @@ describe('local database bootstrap', () => {
     expect(secondInstallationId).toBe(firstInstallationId);
   });
 
-  it('seeds default color tags once for a guest scope', async () => {
+  it('seeds default categories once for a guest scope', async () => {
     const scope = createGuestScope('local-test');
 
-    await seedDefaultColorTags(scope);
-    await seedDefaultColorTags(scope);
+    await seedDefaultCategoryTags(scope);
+    await seedDefaultCategoryTags(scope);
 
-    const colorTags = await db.colorTags
+    const categoryTags = await db.categoryTags
       .where('scopeId')
       .equals(scope.id)
       .toArray();
 
-    expect(colorTags).toHaveLength(4);
-    expect(colorTags.every((tag) => tag.syncStatus === 'local')).toBe(true);
+    expect(categoryTags).toHaveLength(4);
+    expect(categoryTags.every((tag) => tag.syncStatus === 'local')).toBe(true);
   });
 });

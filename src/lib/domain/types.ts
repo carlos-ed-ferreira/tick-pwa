@@ -28,7 +28,7 @@ export type GoalProgressMode = 'manual' | 'steps';
 export type SyncEntityType =
   | 'dailyEntry'
   | 'checklistItem'
-  | 'colorTag'
+  | 'categoryTag'
   | 'goal'
   | 'goalStep';
 
@@ -72,12 +72,12 @@ export interface DailyEntry extends BaseEntity {
   previewText: string;
   itemCount: number;
   completedCount: number;
-  colorTagIds: string[];
-  colorSummaries?: DailyEntryColorSummary[];
+  categoryTagIds: string[];
+  categorySummaries?: DailyEntryCategorySummary[];
 }
 
-export interface DailyEntryColorSummary {
-  colorTagId: string;
+export interface DailyEntryCategorySummary {
+  categoryTagId: string;
   itemCount: number;
   completedCount: number;
 }
@@ -88,13 +88,13 @@ export interface ChecklistItem extends BaseEntity {
   text: string;
   checked: boolean;
   collapsed: boolean;
-  colorTagId: string | null;
+  categoryTagId: string | null;
   sortRank: string;
 }
 
-export interface ColorTag extends BaseEntity {
+export interface CategoryTag extends BaseEntity {
   name: string;
-  hex: string;
+  colorHex: string;
   position: string;
 }
 
@@ -106,7 +106,7 @@ export interface Goal extends BaseEntity {
   progressMode: GoalProgressMode;
   progressValue: number;
   dueDate: LocalDateString | null;
-  colorTagId: string | null;
+  categoryTagId: string | null;
   sortRank: string;
   archivedAt: string | null;
 }

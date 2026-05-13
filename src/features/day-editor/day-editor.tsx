@@ -1,7 +1,6 @@
 'use client';
 
 import { ChecklistSurface } from '@/features/checklist';
-import { ColorLegend } from '@/features/colors';
 import type { LocalDateString } from '@/lib/domain';
 import { Dialog } from '@/components/ui';
 import { formatLocalDateLabel } from '@/lib/i18n';
@@ -50,7 +49,7 @@ export function DayEditor({
       title={title}
       onClose={onClose}
     >
-      <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden p-4 sm:grid sm:grid-cols-[minmax(0,1fr)_auto] sm:p-5">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-4 sm:p-5">
         {entry ? (
           <ChecklistSurface dailyEntryId={entry.id} />
         ) : (
@@ -58,7 +57,6 @@ export function DayEditor({
             {dictionary.dayEditor.title}
           </div>
         )}
-        <ColorLegend />
       </div>
     </Dialog>
   );

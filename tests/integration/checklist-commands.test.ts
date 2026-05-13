@@ -1,17 +1,17 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createGuestScope } from '@/lib/domain';
 import {
+  assignChecklistItemCategory,
   createChecklistChild,
   createChecklistItem,
-  createColorTag,
-  assignChecklistItemColor,
+  createCategoryTag,
   db,
   indentChecklistItem,
   openOrCreateDailyEntry,
   outdentChecklistItem,
-  reorderColorTag,
+  reorderCategoryTag,
   softDeleteChecklistItem,
-  softDeleteColorTag,
+  softDeleteCategoryTag,
   toggleChecklistItemChecked,
   updateChecklistItemText,
 } from '@/lib/db';
@@ -108,7 +108,7 @@ describe('checklist commands', () => {
     });
   });
 
-  it('assigns color tags and clears references when a tag is deleted', async () => {
+  it('assigns category tags and clears references when a tag is deleted', async () => {
     const scope = createGuestScope('local-test');
     const entry = await openOrCreateDailyEntry({
       scope,
@@ -125,31 +125,31 @@ describe('checklist commands', () => {
       dailyEntryId: entry.id,
       text: 'Another colorful task',
     });
-    const colorTag = await createColorTag({
+    const categoryTag = await createCategoryTag({
       scope,
       name: 'Deep work',
-      hex: '#2563eb',
+      colorHex: '#2563eb',
     });
 
-    await assignChecklistItemColor({
+    await assignChecklistItemCategory({
       scope,
       itemId: firstItem.id,
-      colorTagId: colorTag.id,
+      categoryTagId: categoryTag.id,
     });
-    await assignChecklistItemColor({
+    await assignChecklistItemCategory({
       scope,
       itemId: secondItem.id,
-      colorTagId: colorTag.id,
+      categoryTagId: categoryTag.id,
     });
     await toggleChecklistItemChecked({ scope, itemId: firstItem.id });
 
     const coloredFirstItem = await db.checklistItems.get(firstItem.id);
     const partiallyCompletedEntry = await db.dailyEntries.get(entry.id);
-    expect(coloredFirstItem?.colorTagId).toBe(colorTag.id);
-    expect(partiallyCompletedEntry?.colorTagIds).toEqual([colorTag.id]);
-    expect(partiallyCompletedEntry?.colorSummaries).toEqual([
+    expect(coloredFirstItem?.categoryTagId).toBe(categoryTag.id);
+    expect(partiallyCompletedEntry?.categoryTagIds).toEqual([categoryTag.id]);
+    expect(partiallyCompletedEntry?.categorySummaries).toEqual([
       {
-        colorTagId: colorTag.id,
+        categoryTagId: categoryTag.id,
         itemCount: 2,
         completedCount: 1,
       },
@@ -158,48 +158,48 @@ describe('checklist commands', () => {
     await toggleChecklistItemChecked({ scope, itemId: secondItem.id });
 
     const completedColorEntry = await db.dailyEntries.get(entry.id);
-    expect(completedColorEntry?.colorSummaries).toEqual([
+    expect(completedColorEntry?.categorySummaries).toEqual([
       {
-        colorTagId: colorTag.id,
+        categoryTagId: categoryTag.id,
         itemCount: 2,
         completedCount: 2,
       },
     ]);
 
-    await softDeleteColorTag({ scope, colorTagId: colorTag.id });
+    await softDeleteCategoryTag({ scope, categoryTagId: categoryTag.id });
 
     const clearedItem = await db.checklistItems.get(firstItem.id);
     const clearedEntry = await db.dailyEntries.get(entry.id);
-    expect(clearedItem?.colorTagId).toBeNull();
-    expect(clearedEntry?.colorTagIds).toEqual([]);
-    expect(clearedEntry?.colorSummaries).toEqual([]);
+    expect(clearedItem?.categoryTagId).toBeNull();
+    expect(clearedEntry?.categoryTagIds).toEqual([]);
+    expect(clearedEntry?.categorySummaries).toEqual([]);
   });
 
-  it('reorders color tags by position', async () => {
+  it('reorders category tags by position', async () => {
     const scope = createGuestScope('local-test');
-    const firstTag = await createColorTag({
+    const firstTag = await createCategoryTag({
       scope,
       name: 'First',
-      hex: '#2563eb',
+      colorHex: '#2563eb',
     });
-    const secondTag = await createColorTag({
+    const secondTag = await createCategoryTag({
       scope,
       name: 'Second',
-      hex: '#16a34a',
+      colorHex: '#16a34a',
     });
-    const thirdTag = await createColorTag({
+    const thirdTag = await createCategoryTag({
       scope,
       name: 'Third',
-      hex: '#d97706',
+      colorHex: '#d97706',
     });
 
-    await reorderColorTag({
+    await reorderCategoryTag({
       scope,
-      colorTagId: thirdTag.id,
+      categoryTagId: thirdTag.id,
       direction: 'up',
     });
 
-    const reorderedTags = await db.colorTags
+    const reorderedTags = await db.categoryTags
       .where('scopeId')
       .equals(scope.id)
       .filter((tag) => tag.deletedAt === null)

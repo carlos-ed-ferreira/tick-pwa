@@ -13,7 +13,7 @@ function item(overrides: Partial<ChecklistItem>): ChecklistItem {
     text: '',
     checked: false,
     collapsed: false,
-    colorTagId: null,
+    categoryTagId: null,
     sortRank: 'U',
     createdAt: now,
     updatedAt: now,

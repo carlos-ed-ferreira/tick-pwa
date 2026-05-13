@@ -3,11 +3,11 @@
 import { CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { useCategoryTags } from '@/features/categories';
 import { DayEditor } from '@/features/day-editor';
-import { useColorTags } from '@/features/colors';
 import type {
   DailyEntry,
-  DailyEntryColorSummary,
+  DailyEntryCategorySummary,
   LocalDateString,
 } from '@/lib/domain';
 import { formatMonthLabel } from '@/lib/i18n';
@@ -113,7 +113,9 @@ function getProgressTone(completedRatio: number) {
   };
 }
 
-function isColorComplete(summary: DailyEntryColorSummary | undefined): boolean {
+function isCategoryComplete(
+  summary: DailyEntryCategorySummary | undefined,
+): boolean {
   return Boolean(
     summary &&
     summary.itemCount > 0 &&
@@ -143,11 +145,11 @@ export function CalendarMonth() {
     [visibleMonthIndex, visibleYear],
   );
   const entries = useMonthEntries(scope, visibleMonth);
-  const colorTags = useColorTags(scope);
+  const categoryTags = useCategoryTags(scope);
   const entryMap = useMemo(() => entriesByDate(entries), [entries]);
-  const colorTagMap = useMemo(
-    () => new Map(colorTags.map((tag) => [tag.id, tag])),
-    [colorTags],
+  const categoryTagMap = useMemo(
+    () => new Map(categoryTags.map((tag) => [tag.id, tag])),
+    [categoryTags],
   );
   const monthGrid = useMemo(
     () => createMonthGrid(visibleMonth),
@@ -271,7 +273,7 @@ export function CalendarMonth() {
               key={day.date}
               date={day.date}
               entry={entryMap.get(day.date) ?? null}
-              colorTagMap={colorTagMap}
+              categoryTagMap={categoryTagMap}
               inCurrentMonth={day.inCurrentMonth}
               isSelected={(openDayDate ?? selectedDay) === day.date}
               isToday={todayKey === day.date}
@@ -289,7 +291,7 @@ export function CalendarMonth() {
 function DayCell({
   date,
   entry,
-  colorTagMap,
+  categoryTagMap,
   inCurrentMonth,
   isSelected,
   isToday,
@@ -298,7 +300,7 @@ function DayCell({
 }: {
   date: LocalDateString;
   entry: DailyEntry | null;
-  colorTagMap: Map<string, { hex: string }>;
+  categoryTagMap: Map<string, { colorHex: string }>;
   inCurrentMonth: boolean;
   isSelected: boolean;
   isToday: boolean;
@@ -308,10 +310,10 @@ function DayCell({
   const parsedDate = parseLocalDateKey(date);
   const completedRatio =
     entry && entry.itemCount > 0 ? entry.completedCount / entry.itemCount : 0;
-  const colorTagIds = entry?.colorTagIds ?? [];
-  const colorSummaryMap = new Map(
-    (entry?.colorSummaries ?? []).map((summary) => [
-      summary.colorTagId,
+  const categoryTagIds = entry?.categoryTagIds ?? [];
+  const categorySummaryMap = new Map(
+    (entry?.categorySummaries ?? []).map((summary) => [
+      summary.categoryTagId,
       summary,
     ]),
   );
@@ -368,18 +370,18 @@ function DayCell({
           </span>
         ) : null}
 
-        {colorTagIds.length > 0 ? (
+        {categoryTagIds.length > 0 ? (
           <span className="flex gap-1.5 pt-0.5">
-            {colorTagIds.slice(0, 4).map((colorTagId) =>
+            {categoryTagIds.slice(0, 4).map((categoryTagId) =>
               (() => {
-                const colorHex = colorTagMap.get(colorTagId)?.hex;
-                const completed = isColorComplete(
-                  colorSummaryMap.get(colorTagId),
+                const colorHex = categoryTagMap.get(categoryTagId)?.colorHex;
+                const completed = isCategoryComplete(
+                  categorySummaryMap.get(categoryTagId),
                 );
 
                 return (
                   <span
-                    key={colorTagId}
+                    key={categoryTagId}
                     className="size-3 rounded-full border border-white/60 transition-opacity dark:border-black/20"
                     style={{
                       backgroundColor: colorHex,
