@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { useCallback, useEffect, useState, type KeyboardEvent } from 'react';
 import { Button, Checkbox, IconButton } from '@/components/ui';
+import { ColorAssignmentMenu } from '@/features/colors';
 import {
   createChecklistChild,
   createChecklistItem,
@@ -244,6 +245,7 @@ function ChecklistRow({
         >
           <IndentDecrease aria-hidden="true" className="size-4" />
         </IconButton>
+        <ColorAssignmentMenu item={item} />
         <IconButton
           aria-label={dictionary.dayEditor.deleteItem}
           onClick={() => {

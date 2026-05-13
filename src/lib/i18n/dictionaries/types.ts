@@ -20,6 +20,9 @@ export interface Dictionary {
     title: string;
     addItem: string;
     addChild: string;
+    addColor: string;
+    assignColor: string;
+    clearColor: string;
     checklist: string;
     close: string;
     collapseItem: string;
@@ -27,11 +30,14 @@ export interface Dictionary {
     emptyChecklist: string;
     expandItem: string;
     itemPlaceholder: string;
+    newColor: string;
     indentItem: string;
     outdentItem: string;
     deleteItem: string;
     toggleItem: string;
     colors: string;
+    colorNamePlaceholder: string;
+    deleteColor: string;
   };
   goals: {
     title: string;

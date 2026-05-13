@@ -4,6 +4,7 @@ import { CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { DayEditor } from '@/features/day-editor';
+import { useColorTags } from '@/features/colors';
 import type { DailyEntry, LocalDateString } from '@/lib/domain';
 import { formatMonthLabel } from '@/lib/i18n';
 import {
@@ -58,7 +59,12 @@ export function CalendarMonth() {
     todayKey,
   );
   const entries = useMonthEntries(scope, visibleMonth);
+  const colorTags = useColorTags(scope);
   const entryMap = useMemo(() => entriesByDate(entries), [entries]);
+  const colorTagMap = useMemo(
+    () => new Map(colorTags.map((tag) => [tag.id, tag])),
+    [colorTags],
+  );
   const monthGrid = useMemo(
     () => createMonthGrid(visibleMonth),
     [visibleMonth],
@@ -151,6 +157,7 @@ export function CalendarMonth() {
               date={day.date}
               dictionaryEmptyLabel={dictionary.calendar.emptyDay}
               entry={entryMap.get(day.date) ?? null}
+              colorTagMap={colorTagMap}
               inCurrentMonth={day.inCurrentMonth}
               isSelected={(openDayDate ?? selectedDay) === day.date}
               isToday={todayKey === day.date}
@@ -169,6 +176,7 @@ function DayCell({
   date,
   dictionaryEmptyLabel,
   entry,
+  colorTagMap,
   inCurrentMonth,
   isSelected,
   isToday,
@@ -178,6 +186,7 @@ function DayCell({
   date: LocalDateString;
   dictionaryEmptyLabel: string;
   entry: DailyEntry | null;
+  colorTagMap: Map<string, { hex: string }>;
   inCurrentMonth: boolean;
   isSelected: boolean;
   isToday: boolean;
@@ -237,7 +246,11 @@ function DayCell({
       {colorTagIds.length > 0 ? (
         <span className="mt-2 flex gap-1">
           {colorTagIds.slice(0, 4).map((colorTagId) => (
-            <span key={colorTagId} className="size-1.5 rounded-full bg-muted" />
+            <span
+              key={colorTagId}
+              className="size-1.5 rounded-full bg-muted"
+              style={{ backgroundColor: colorTagMap.get(colorTagId)?.hex }}
+            />
           ))}
         </span>
       ) : null}

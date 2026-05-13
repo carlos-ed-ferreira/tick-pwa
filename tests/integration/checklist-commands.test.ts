@@ -3,11 +3,14 @@ import { createGuestScope } from '@/lib/domain';
 import {
   createChecklistChild,
   createChecklistItem,
+  createColorTag,
+  assignChecklistItemColor,
   db,
   indentChecklistItem,
   openOrCreateDailyEntry,
   outdentChecklistItem,
   softDeleteChecklistItem,
+  softDeleteColorTag,
   toggleChecklistItemChecked,
   updateChecklistItemText,
 } from '@/lib/db';
@@ -102,5 +105,42 @@ describe('checklist commands', () => {
       previewText: 'Second',
       itemCount: 1,
     });
+  });
+
+  it('assigns color tags and clears references when a tag is deleted', async () => {
+    const scope = createGuestScope('local-test');
+    const entry = await openOrCreateDailyEntry({
+      scope,
+      date: '2026-05-13',
+      timezone: 'America/Sao_Paulo',
+    });
+    const item = await createChecklistItem({
+      scope,
+      dailyEntryId: entry.id,
+      text: 'Colorful task',
+    });
+    const colorTag = await createColorTag({
+      scope,
+      name: 'Deep work',
+      hex: '#2563eb',
+    });
+
+    await assignChecklistItemColor({
+      scope,
+      itemId: item.id,
+      colorTagId: colorTag.id,
+    });
+
+    const coloredItem = await db.checklistItems.get(item.id);
+    const coloredEntry = await db.dailyEntries.get(entry.id);
+    expect(coloredItem?.colorTagId).toBe(colorTag.id);
+    expect(coloredEntry?.colorTagIds).toEqual([colorTag.id]);
+
+    await softDeleteColorTag({ scope, colorTagId: colorTag.id });
+
+    const clearedItem = await db.checklistItems.get(item.id);
+    const clearedEntry = await db.dailyEntries.get(entry.id);
+    expect(clearedItem?.colorTagId).toBeNull();
+    expect(clearedEntry?.colorTagIds).toEqual([]);
   });
 });

@@ -280,6 +280,56 @@ export async function toggleChecklistItemCollapsed({
   });
 }
 
+export async function assignChecklistItemColor({
+  scope,
+  itemId,
+  colorTagId,
+}: {
+  scope: AppScope;
+  itemId: string;
+  colorTagId: string | null;
+}): Promise<void> {
+  await db.transaction(
+    'rw',
+    db.dailyEntries,
+    db.checklistItems,
+    db.colorTags,
+    db.syncOutbox,
+    async () => {
+      const item = await getScopedChecklistItem(scope, itemId);
+
+      if (!item) {
+        return;
+      }
+
+      const colorTag = colorTagId ? await db.colorTags.get(colorTagId) : null;
+
+      if (
+        colorTagId &&
+        (!colorTag || colorTag.scopeId !== scope.id || colorTag.deletedAt)
+      ) {
+        return;
+      }
+
+      const safeColorTagId = colorTag?.id ?? null;
+
+      if (item.colorTagId === safeColorTagId) {
+        return;
+      }
+
+      const updatedItem = touchChecklistItem(scope, {
+        ...item,
+        colorTagId: safeColorTagId,
+      });
+      await persistChecklistItemUpdate(scope, updatedItem, ['colorTagId']);
+      await recalculateDailyEntrySummary({
+        scope,
+        dailyEntryId: item.dailyEntryId,
+      });
+    },
+  );
+}
+
 export async function softDeleteChecklistItem({
   scope,
   itemId,
