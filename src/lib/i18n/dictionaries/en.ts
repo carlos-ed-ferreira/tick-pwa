@@ -34,6 +34,8 @@ export const enDictionary = {
     itemPlaceholder: 'Write a task',
     newColor: 'New color',
     indentItem: 'Indent item',
+    moveColorDown: 'Move color down',
+    moveColorUp: 'Move color up',
     outdentItem: 'Outdent item',
     deleteItem: 'Delete item',
     toggleItem: 'Toggle item',

@@ -1,8 +1,13 @@
 'use client';
 
-import { Plus, Trash2 } from 'lucide-react';
+import { ArrowDown, ArrowUp, Plus, Trash2 } from 'lucide-react';
 import { IconButton } from '@/components/ui';
-import { createColorTag, softDeleteColorTag, updateColorTag } from '@/lib/db';
+import {
+  createColorTag,
+  reorderColorTag,
+  softDeleteColorTag,
+  updateColorTag,
+} from '@/lib/db';
 import { useAppContext } from '@/providers';
 import { useColorTags } from './use-color-tags';
 
@@ -37,7 +42,7 @@ export function ColorLegend() {
         </IconButton>
       </div>
       <div className="mt-3 flex gap-2 overflow-x-auto sm:grid sm:overflow-visible">
-        {colorTags.map((tag) => (
+        {colorTags.map((tag, index) => (
           <div
             key={tag.id}
             className="inline-grid min-w-52 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 rounded-md border border-border bg-surface px-2 py-1 text-sm sm:min-w-0"
@@ -72,17 +77,51 @@ export function ColorLegend() {
                 }
               }}
             />
-            <IconButton
-              aria-label={dictionary.dayEditor.deleteColor}
-              className="size-8"
-              onClick={() => {
-                if (scope) {
-                  void softDeleteColorTag({ scope, colorTagId: tag.id });
-                }
-              }}
-            >
-              <Trash2 aria-hidden="true" className="size-4" />
-            </IconButton>
+            <div className="flex items-center justify-end gap-0.5">
+              <IconButton
+                aria-label={dictionary.dayEditor.moveColorUp}
+                className="size-8"
+                disabled={index === 0}
+                onClick={() => {
+                  if (scope) {
+                    void reorderColorTag({
+                      scope,
+                      colorTagId: tag.id,
+                      direction: 'up',
+                    });
+                  }
+                }}
+              >
+                <ArrowUp aria-hidden="true" className="size-4" />
+              </IconButton>
+              <IconButton
+                aria-label={dictionary.dayEditor.moveColorDown}
+                className="size-8"
+                disabled={index === colorTags.length - 1}
+                onClick={() => {
+                  if (scope) {
+                    void reorderColorTag({
+                      scope,
+                      colorTagId: tag.id,
+                      direction: 'down',
+                    });
+                  }
+                }}
+              >
+                <ArrowDown aria-hidden="true" className="size-4" />
+              </IconButton>
+              <IconButton
+                aria-label={dictionary.dayEditor.deleteColor}
+                className="size-8"
+                onClick={() => {
+                  if (scope) {
+                    void softDeleteColorTag({ scope, colorTagId: tag.id });
+                  }
+                }}
+              >
+                <Trash2 aria-hidden="true" className="size-4" />
+              </IconButton>
+            </div>
           </div>
         ))}
       </div>

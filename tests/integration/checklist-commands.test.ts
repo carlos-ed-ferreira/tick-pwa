@@ -9,6 +9,7 @@ import {
   indentChecklistItem,
   openOrCreateDailyEntry,
   outdentChecklistItem,
+  reorderColorTag,
   softDeleteChecklistItem,
   softDeleteColorTag,
   toggleChecklistItemChecked,
@@ -142,5 +143,42 @@ describe('checklist commands', () => {
     const clearedEntry = await db.dailyEntries.get(entry.id);
     expect(clearedItem?.colorTagId).toBeNull();
     expect(clearedEntry?.colorTagIds).toEqual([]);
+  });
+
+  it('reorders color tags by position', async () => {
+    const scope = createGuestScope('local-test');
+    const firstTag = await createColorTag({
+      scope,
+      name: 'First',
+      hex: '#2563eb',
+    });
+    const secondTag = await createColorTag({
+      scope,
+      name: 'Second',
+      hex: '#16a34a',
+    });
+    const thirdTag = await createColorTag({
+      scope,
+      name: 'Third',
+      hex: '#d97706',
+    });
+
+    await reorderColorTag({
+      scope,
+      colorTagId: thirdTag.id,
+      direction: 'up',
+    });
+
+    const reorderedTags = await db.colorTags
+      .where('scopeId')
+      .equals(scope.id)
+      .filter((tag) => tag.deletedAt === null)
+      .sortBy('position');
+
+    expect(reorderedTags.map((tag) => tag.name)).toEqual([
+      firstTag.name,
+      thirdTag.name,
+      secondTag.name,
+    ]);
   });
 });

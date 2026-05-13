@@ -42,7 +42,6 @@ Status: partially implemented.
 Remaining tasks:
 
 - Polish the color assignment interaction so it behaves well on mobile and closes predictably when focus leaves the menu.
-- Add color tag reorder controls using `position` and sort ranks.
 - Improve color legend layout as a sticky side panel on desktop and compact bottom/drawer surface on mobile.
 - Add component or integration tests for assigning, renaming, recoloring, deleting, and reordering color tags.
 

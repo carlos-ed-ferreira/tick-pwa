@@ -32,6 +32,8 @@ export interface Dictionary {
     itemPlaceholder: string;
     newColor: string;
     indentItem: string;
+    moveColorDown: string;
+    moveColorUp: string;
     outdentItem: string;
     deleteItem: string;
     toggleItem: string;

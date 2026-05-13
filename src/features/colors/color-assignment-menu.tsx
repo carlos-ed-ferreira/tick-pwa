@@ -1,7 +1,7 @@
 'use client';
 
 import { Palette, X } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { IconButton } from '@/components/ui';
 import { assignChecklistItemColor } from '@/lib/db';
 import type { ChecklistItem } from '@/lib/domain';
@@ -12,7 +12,46 @@ export function ColorAssignmentMenu({ item }: { item: ChecklistItem }) {
   const { dictionary, scope } = useAppContext();
   const colorTags = useColorTags(scope);
   const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
   const selectedColorTag = colorTags.find((tag) => tag.id === item.colorTagId);
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    function handlePointerDown(event: PointerEvent) {
+      if (!containerRef.current?.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+
+    function handleFocusIn(event: FocusEvent) {
+      if (!containerRef.current?.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key !== 'Escape') {
+        return;
+      }
+
+      setIsOpen(false);
+      triggerRef.current?.focus();
+    }
+
+    document.addEventListener('pointerdown', handlePointerDown);
+    document.addEventListener('focusin', handleFocusIn);
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown);
+      document.removeEventListener('focusin', handleFocusIn);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isOpen]);
 
   async function assignColor(colorTagId: string | null) {
     if (!scope) {
@@ -24,11 +63,12 @@ export function ColorAssignmentMenu({ item }: { item: ChecklistItem }) {
   }
 
   return (
-    <div className="relative">
+    <div ref={containerRef} className="relative">
       <IconButton
         aria-expanded={isOpen}
         aria-label={dictionary.dayEditor.assignColor}
         className={selectedColorTag ? 'text-foreground' : ''}
+        ref={triggerRef}
         onClick={() => setIsOpen((currentValue) => !currentValue)}
       >
         {selectedColorTag ? (

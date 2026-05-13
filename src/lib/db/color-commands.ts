@@ -138,6 +138,47 @@ export async function updateColorTag({
   });
 }
 
+export async function reorderColorTag({
+  scope,
+  colorTagId,
+  direction,
+}: {
+  scope: AppScope;
+  colorTagId: string;
+  direction: 'up' | 'down';
+}): Promise<void> {
+  await db.transaction('rw', db.colorTags, db.syncOutbox, async () => {
+    const colorTags = await getActiveColorTags(scope);
+    const currentIndex = colorTags.findIndex((tag) => tag.id === colorTagId);
+
+    if (currentIndex === -1) {
+      return;
+    }
+
+    const nextIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+
+    if (nextIndex < 0 || nextIndex >= colorTags.length) {
+      return;
+    }
+
+    const colorTag = colorTags[currentIndex];
+    const reorderedTags = colorTags.filter((tag) => tag.id !== colorTagId);
+    reorderedTags.splice(nextIndex, 0, colorTag);
+
+    const previousTag = reorderedTags[nextIndex - 1] ?? null;
+    const followingTag = reorderedTags[nextIndex + 1] ?? null;
+    const updatedColorTag = touchColorTag(scope, {
+      ...colorTag,
+      position: createSortRankBetween(
+        previousTag?.position ?? null,
+        followingTag?.position ?? null,
+      ),
+    });
+
+    await persistColorTagUpdate(scope, updatedColorTag, ['position']);
+  });
+}
+
 export async function softDeleteColorTag({
   scope,
   colorTagId,

@@ -34,6 +34,8 @@ export const ptBRDictionary = {
     itemPlaceholder: 'Escreva uma tarefa',
     newColor: 'Nova cor',
     indentItem: 'Indentar item',
+    moveColorDown: 'Mover cor para baixo',
+    moveColorUp: 'Mover cor para cima',
     outdentItem: 'Recuar item',
     deleteItem: 'Excluir item',
     toggleItem: 'Alternar item',
