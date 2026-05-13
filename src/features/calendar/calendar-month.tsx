@@ -5,7 +5,11 @@ import { useCallback, useMemo, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { DayEditor } from '@/features/day-editor';
 import { useColorTags } from '@/features/colors';
-import type { DailyEntry, LocalDateString } from '@/lib/domain';
+import type {
+  DailyEntry,
+  DailyEntryColorSummary,
+  LocalDateString,
+} from '@/lib/domain';
 import { formatMonthLabel } from '@/lib/i18n';
 import {
   createLocalDateKey,
@@ -25,17 +29,31 @@ function createMonthLabelDate(monthDate: LocalDateString): Date {
   );
 }
 
-function shiftMonth(
-  monthDate: LocalDateString,
-  offset: number,
-): LocalDateString {
+function createMonthKey(year: number, monthIndex: number): LocalDateString {
+  return createLocalDateKey(year, monthIndex, 1);
+}
+
+function getMonthParts(monthDate: LocalDateString) {
   const parsedDate = parseLocalDateKey(monthDate);
 
-  return createLocalDateKey(
-    parsedDate.getFullYear(),
-    parsedDate.getMonth() + offset,
-    1,
-  );
+  return {
+    year: parsedDate.getFullYear(),
+    monthIndex: parsedDate.getMonth(),
+  };
+}
+
+function formatMonthButtonLabel(
+  monthIndex: number,
+  locale: string,
+  timezone: string,
+): string {
+  return new Intl.DateTimeFormat(locale, {
+    month: 'short',
+    timeZone: timezone,
+  })
+    .format(new Date(Date.UTC(2026, monthIndex, 15, 12)))
+    .replaceAll('.', '')
+    .slice(0, 3);
 }
 
 function entriesByDate(
@@ -44,19 +62,85 @@ function entriesByDate(
   return new Map(entries.map((entry) => [entry.date, entry]));
 }
 
+function getProgressTone(completedRatio: number) {
+  if (completedRatio >= 1) {
+    return {
+      badgeStyle: {
+        color: '#15803d',
+        backgroundColor: 'rgba(34, 197, 94, 0.14)',
+        borderColor: 'rgba(34, 197, 94, 0.22)',
+      },
+      trackStyle: {
+        backgroundColor: 'rgba(34, 197, 94, 0.16)',
+      },
+      fillStyle: {
+        background: 'linear-gradient(90deg, #4ade80 0%, #22c55e 100%)',
+        boxShadow: '0 0 14px rgba(34, 197, 94, 0.28)',
+      },
+    };
+  }
+
+  if (completedRatio > 0) {
+    return {
+      badgeStyle: {
+        color: '#b45309',
+        backgroundColor: 'rgba(245, 158, 11, 0.14)',
+        borderColor: 'rgba(245, 158, 11, 0.24)',
+      },
+      trackStyle: {
+        backgroundColor: 'rgba(245, 158, 11, 0.16)',
+      },
+      fillStyle: {
+        background: 'linear-gradient(90deg, #fcd34d 0%, #f59e0b 100%)',
+        boxShadow: '0 0 14px rgba(245, 158, 11, 0.24)',
+      },
+    };
+  }
+
+  return {
+    badgeStyle: {
+      color: 'var(--muted)',
+      backgroundColor: 'rgba(113, 113, 122, 0.12)',
+      borderColor: 'rgba(113, 113, 122, 0.18)',
+    },
+    trackStyle: {
+      backgroundColor: 'rgba(113, 113, 122, 0.14)',
+    },
+    fillStyle: {
+      background: 'linear-gradient(90deg, #a1a1aa 0%, #71717a 100%)',
+      boxShadow: 'none',
+    },
+  };
+}
+
+function isColorComplete(summary: DailyEntryColorSummary | undefined): boolean {
+  return Boolean(
+    summary &&
+    summary.itemCount > 0 &&
+    summary.completedCount >= summary.itemCount,
+  );
+}
+
 export function CalendarMonth() {
   const { dictionary, locale, scope, timezonePreference } = useAppContext();
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
   const todayKey = getTodayKey(timezonePreference.timezone);
+  const { year: todayYear, monthIndex: todayMonthIndex } =
+    getMonthParts(todayKey);
   const dayParam = searchParams.get('day');
   const openDayDate = dayParam && isLocalDateString(dayParam) ? dayParam : null;
-  const [visibleMonth, setVisibleMonth] = useState<LocalDateString>(
-    () => todayKey,
+  const [visibleYear, setVisibleYear] = useState<number>(() => todayYear);
+  const [visibleMonthIndex, setVisibleMonthIndex] = useState<number>(
+    () => todayMonthIndex,
   );
   const [selectedDay, setSelectedDay] = useState<LocalDateString | null>(
     todayKey,
+  );
+  const visibleMonth = useMemo(
+    () => createMonthKey(visibleYear, visibleMonthIndex),
+    [visibleMonthIndex, visibleYear],
   );
   const entries = useMonthEntries(scope, visibleMonth);
   const colorTags = useColorTags(scope);
@@ -73,6 +157,18 @@ export function CalendarMonth() {
     createMonthLabelDate(visibleMonth),
     locale,
     timezonePreference.timezone,
+  );
+  const monthOptions = useMemo(
+    () =>
+      Array.from({ length: 12 }, (_, monthIndex) => ({
+        monthIndex,
+        label: formatMonthButtonLabel(
+          monthIndex,
+          locale,
+          timezonePreference.timezone,
+        ),
+      })),
+    [locale, timezonePreference.timezone],
   );
   const closeDay = useCallback(() => {
     const nextSearchParams = new URLSearchParams(searchParams.toString());
@@ -101,44 +197,63 @@ export function CalendarMonth() {
   return (
     <>
       <section className="flex min-h-[70vh] flex-col overflow-hidden rounded-lg border border-border bg-surface shadow-sm">
-        <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
-          <div className="flex min-w-0 items-center gap-3">
-            <CalendarDays aria-hidden="true" className="size-5 text-muted" />
-            <h2 className="truncate text-lg font-semibold capitalize">
-              {monthLabel}
-            </h2>
+        <header className="flex flex-col gap-3 border-b border-border px-4 py-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex min-w-0 items-center gap-3">
+              <CalendarDays aria-hidden="true" className="size-5 text-muted" />
+              <h2 className="truncate text-lg font-semibold capitalize">
+                {monthLabel}
+              </h2>
+            </div>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                aria-label={dictionary.calendar.previousYear}
+                className="inline-flex size-10 items-center justify-center rounded-md border border-border text-muted transition hover:border-foreground/30 hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground"
+                onClick={() => setVisibleYear((currentYear) => currentYear - 1)}
+              >
+                <ChevronLeft aria-hidden="true" className="size-4" />
+              </button>
+              <div className="min-w-16 text-center text-sm font-semibold tabular-nums text-foreground">
+                {visibleYear}
+              </div>
+              <button
+                type="button"
+                aria-label={dictionary.calendar.nextYear}
+                className="inline-flex size-10 items-center justify-center rounded-md border border-border text-muted transition hover:border-foreground/30 hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground"
+                onClick={() => setVisibleYear((currentYear) => currentYear + 1)}
+              >
+                <ChevronRight aria-hidden="true" className="size-4" />
+              </button>
+              <button
+                type="button"
+                className="h-10 rounded-md border border-border px-3 text-sm font-medium transition hover:border-foreground/30 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground"
+                onClick={() => {
+                  setVisibleYear(todayYear);
+                  setVisibleMonthIndex(todayMonthIndex);
+                  setSelectedDay(todayKey);
+                }}
+              >
+                {dictionary.calendar.today}
+              </button>
+            </div>
           </div>
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              aria-label={dictionary.calendar.previousMonth}
-              className="inline-flex size-10 items-center justify-center rounded-md border border-border text-muted transition hover:border-foreground/30 hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground"
-              onClick={() =>
-                setVisibleMonth((currentMonth) => shiftMonth(currentMonth, -1))
-              }
-            >
-              <ChevronLeft aria-hidden="true" className="size-4" />
-            </button>
-            <button
-              type="button"
-              className="h-10 rounded-md border border-border px-3 text-sm font-medium transition hover:border-foreground/30 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground"
-              onClick={() => {
-                setVisibleMonth(todayKey);
-                setSelectedDay(todayKey);
-              }}
-            >
-              {dictionary.calendar.today}
-            </button>
-            <button
-              type="button"
-              aria-label={dictionary.calendar.nextMonth}
-              className="inline-flex size-10 items-center justify-center rounded-md border border-border text-muted transition hover:border-foreground/30 hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground"
-              onClick={() =>
-                setVisibleMonth((currentMonth) => shiftMonth(currentMonth, 1))
-              }
-            >
-              <ChevronRight aria-hidden="true" className="size-4" />
-            </button>
+          <div className="grid grid-cols-4 gap-2 sm:grid-cols-6 xl:grid-cols-12">
+            {monthOptions.map((monthOption) => (
+              <button
+                key={monthOption.monthIndex}
+                type="button"
+                aria-pressed={visibleMonthIndex === monthOption.monthIndex}
+                className={`h-10 rounded-md border px-3 text-sm font-medium uppercase tracking-wide transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground ${
+                  visibleMonthIndex === monthOption.monthIndex
+                    ? 'border-foreground bg-foreground text-background shadow-sm'
+                    : 'border-border text-muted hover:border-foreground/30 hover:text-foreground'
+                }`}
+                onClick={() => setVisibleMonthIndex(monthOption.monthIndex)}
+              >
+                {monthOption.label}
+              </button>
+            ))}
           </div>
         </header>
 
@@ -155,7 +270,6 @@ export function CalendarMonth() {
             <DayCell
               key={day.date}
               date={day.date}
-              dictionaryEmptyLabel={dictionary.calendar.emptyDay}
               entry={entryMap.get(day.date) ?? null}
               colorTagMap={colorTagMap}
               inCurrentMonth={day.inCurrentMonth}
@@ -174,7 +288,6 @@ export function CalendarMonth() {
 
 function DayCell({
   date,
-  dictionaryEmptyLabel,
   entry,
   colorTagMap,
   inCurrentMonth,
@@ -184,7 +297,6 @@ function DayCell({
   onSelectDay,
 }: {
   date: LocalDateString;
-  dictionaryEmptyLabel: string;
   entry: DailyEntry | null;
   colorTagMap: Map<string, { hex: string }>;
   inCurrentMonth: boolean;
@@ -197,6 +309,13 @@ function DayCell({
   const completedRatio =
     entry && entry.itemCount > 0 ? entry.completedCount / entry.itemCount : 0;
   const colorTagIds = entry?.colorTagIds ?? [];
+  const colorSummaryMap = new Map(
+    (entry?.colorSummaries ?? []).map((summary) => [
+      summary.colorTagId,
+      summary,
+    ]),
+  );
+  const progressTone = getProgressTone(completedRatio);
 
   return (
     <button
@@ -225,35 +344,58 @@ function DayCell({
         {parsedDate.getDate()}
       </span>
 
-      <span className="mt-2 line-clamp-2 min-h-8 text-xs leading-4 text-muted sm:text-sm">
-        {entry?.previewText || dictionaryEmptyLabel}
-      </span>
-
-      {entry && entry.itemCount > 0 ? (
-        <span className="mt-auto flex items-center gap-2 pt-2 text-xs text-muted">
-          <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-border">
+      <div className="mt-auto flex flex-col gap-2 pt-4">
+        {entry && entry.itemCount > 0 ? (
+          <span className="flex flex-col gap-1.5 pt-2 text-xs">
             <span
-              className="block h-full rounded-full bg-foreground"
-              style={{ width: `${Math.round(completedRatio * 100)}%` }}
-            />
-          </span>
-          <span>
-            {entry.completedCount}/{entry.itemCount}
-          </span>
-        </span>
-      ) : null}
-
-      {colorTagIds.length > 0 ? (
-        <span className="mt-2 flex gap-1">
-          {colorTagIds.slice(0, 4).map((colorTagId) => (
+              className="inline-flex w-fit items-center rounded-full border px-2 py-1 text-[11px] font-semibold leading-none tabular-nums"
+              style={progressTone.badgeStyle}
+            >
+              {entry.completedCount}/{entry.itemCount}
+            </span>
             <span
-              key={colorTagId}
-              className="size-1.5 rounded-full bg-muted"
-              style={{ backgroundColor: colorTagMap.get(colorTagId)?.hex }}
-            />
-          ))}
-        </span>
-      ) : null}
+              className="h-2 w-full overflow-hidden rounded-full"
+              style={progressTone.trackStyle}
+            >
+              <span
+                className="block h-full rounded-full transition-[width] duration-200"
+                style={{
+                  ...progressTone.fillStyle,
+                  width: `${Math.round(completedRatio * 100)}%`,
+                }}
+              />
+            </span>
+          </span>
+        ) : null}
+
+        {colorTagIds.length > 0 ? (
+          <span className="flex gap-1.5 pt-0.5">
+            {colorTagIds.slice(0, 4).map((colorTagId) =>
+              (() => {
+                const colorHex = colorTagMap.get(colorTagId)?.hex;
+                const completed = isColorComplete(
+                  colorSummaryMap.get(colorTagId),
+                );
+
+                return (
+                  <span
+                    key={colorTagId}
+                    className="size-3 rounded-full border border-white/60 transition-opacity dark:border-black/20"
+                    style={{
+                      backgroundColor: colorHex,
+                      opacity: completed ? 1 : 0.28,
+                      boxShadow:
+                        completed && colorHex
+                          ? `0 0 0 1px rgba(255, 255, 255, 0.28), 0 0 10px ${colorHex}33`
+                          : 'none',
+                    }}
+                  />
+                );
+              })(),
+            )}
+          </span>
+        ) : null}
+      </div>
     </button>
   );
 }

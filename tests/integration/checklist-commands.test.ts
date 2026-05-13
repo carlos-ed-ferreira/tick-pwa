@@ -115,10 +115,15 @@ describe('checklist commands', () => {
       date: '2026-05-13',
       timezone: 'America/Sao_Paulo',
     });
-    const item = await createChecklistItem({
+    const firstItem = await createChecklistItem({
       scope,
       dailyEntryId: entry.id,
       text: 'Colorful task',
+    });
+    const secondItem = await createChecklistItem({
+      scope,
+      dailyEntryId: entry.id,
+      text: 'Another colorful task',
     });
     const colorTag = await createColorTag({
       scope,
@@ -128,21 +133,46 @@ describe('checklist commands', () => {
 
     await assignChecklistItemColor({
       scope,
-      itemId: item.id,
+      itemId: firstItem.id,
       colorTagId: colorTag.id,
     });
+    await assignChecklistItemColor({
+      scope,
+      itemId: secondItem.id,
+      colorTagId: colorTag.id,
+    });
+    await toggleChecklistItemChecked({ scope, itemId: firstItem.id });
 
-    const coloredItem = await db.checklistItems.get(item.id);
-    const coloredEntry = await db.dailyEntries.get(entry.id);
-    expect(coloredItem?.colorTagId).toBe(colorTag.id);
-    expect(coloredEntry?.colorTagIds).toEqual([colorTag.id]);
+    const coloredFirstItem = await db.checklistItems.get(firstItem.id);
+    const partiallyCompletedEntry = await db.dailyEntries.get(entry.id);
+    expect(coloredFirstItem?.colorTagId).toBe(colorTag.id);
+    expect(partiallyCompletedEntry?.colorTagIds).toEqual([colorTag.id]);
+    expect(partiallyCompletedEntry?.colorSummaries).toEqual([
+      {
+        colorTagId: colorTag.id,
+        itemCount: 2,
+        completedCount: 1,
+      },
+    ]);
+
+    await toggleChecklistItemChecked({ scope, itemId: secondItem.id });
+
+    const completedColorEntry = await db.dailyEntries.get(entry.id);
+    expect(completedColorEntry?.colorSummaries).toEqual([
+      {
+        colorTagId: colorTag.id,
+        itemCount: 2,
+        completedCount: 2,
+      },
+    ]);
 
     await softDeleteColorTag({ scope, colorTagId: colorTag.id });
 
-    const clearedItem = await db.checklistItems.get(item.id);
+    const clearedItem = await db.checklistItems.get(firstItem.id);
     const clearedEntry = await db.dailyEntries.get(entry.id);
     expect(clearedItem?.colorTagId).toBeNull();
     expect(clearedEntry?.colorTagIds).toEqual([]);
+    expect(clearedEntry?.colorSummaries).toEqual([]);
   });
 
   it('reorders color tags by position', async () => {

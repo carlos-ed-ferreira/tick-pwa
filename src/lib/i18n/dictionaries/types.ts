@@ -13,6 +13,8 @@ export interface Dictionary {
     today: string;
     previousMonth: string;
     nextMonth: string;
+    previousYear: string;
+    nextYear: string;
     emptyDay: string;
     weekdays: readonly [string, string, string, string, string, string, string];
   };

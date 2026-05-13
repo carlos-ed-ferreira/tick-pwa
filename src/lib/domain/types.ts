@@ -73,6 +73,13 @@ export interface DailyEntry extends BaseEntity {
   itemCount: number;
   completedCount: number;
   colorTagIds: string[];
+  colorSummaries?: DailyEntryColorSummary[];
+}
+
+export interface DailyEntryColorSummary {
+  colorTagId: string;
+  itemCount: number;
+  completedCount: number;
 }
 
 export interface ChecklistItem extends BaseEntity {

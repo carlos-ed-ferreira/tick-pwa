@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { useCallback, useEffect, useState, type KeyboardEvent } from 'react';
 import { Button, Checkbox, IconButton } from '@/components/ui';
+import { useColorTags } from '@/features/colors';
 import { ColorAssignmentMenu } from '@/features/colors';
 import {
   createChecklistChild,
@@ -26,9 +27,32 @@ import { useAppContext } from '@/providers';
 import type { VisibleChecklistRow } from './checklist-tree';
 import { useChecklistTree } from './use-checklist-tree';
 
+function toAlphaColor(hex: string, opacity: number): string {
+  const normalizedHex = hex.replace('#', '');
+
+  if (normalizedHex.length !== 3 && normalizedHex.length !== 6) {
+    return hex;
+  }
+
+  const expandedHex =
+    normalizedHex.length === 3
+      ? normalizedHex
+          .split('')
+          .map((character) => `${character}${character}`)
+          .join('')
+      : normalizedHex;
+  const red = Number.parseInt(expandedHex.slice(0, 2), 16);
+  const green = Number.parseInt(expandedHex.slice(2, 4), 16);
+  const blue = Number.parseInt(expandedHex.slice(4, 6), 16);
+
+  return `rgba(${red}, ${green}, ${blue}, ${opacity})`;
+}
+
 export function ChecklistSurface({ dailyEntryId }: { dailyEntryId: string }) {
   const { dictionary, scope } = useAppContext();
   const rows = useChecklistTree(scope, dailyEntryId);
+  const colorTags = useColorTags(scope);
+  const colorTagMap = new Map(colorTags.map((tag) => [tag.id, tag]));
 
   const createRootItem = useCallback(async () => {
     if (!scope) {
@@ -68,6 +92,7 @@ export function ChecklistSurface({ dailyEntryId }: { dailyEntryId: string }) {
             {rows.map((row) => (
               <ChecklistRow
                 key={row.item.id}
+                colorTagMap={colorTagMap}
                 dailyEntryId={dailyEntryId}
                 row={row}
               />
@@ -80,15 +105,20 @@ export function ChecklistSurface({ dailyEntryId }: { dailyEntryId: string }) {
 }
 
 function ChecklistRow({
+  colorTagMap,
   dailyEntryId,
   row,
 }: {
+  colorTagMap: Map<string, { hex: string; name: string }>;
   dailyEntryId: string;
   row: VisibleChecklistRow;
 }) {
   const { dictionary, scope } = useAppContext();
   const { item, depth, hasChildren } = row;
   const [text, setText] = useState(item.text);
+  const selectedColorTag = item.colorTagId
+    ? (colorTagMap.get(item.colorTagId) ?? null)
+    : null;
 
   const flushText = useCallback(async () => {
     if (!scope || text === item.text) {
@@ -171,7 +201,12 @@ function ChecklistRow({
   return (
     <div
       className="group flex min-w-0 items-center gap-1 rounded-md px-1 py-1 transition hover:bg-surface"
-      style={{ paddingLeft: `min(${depth * 16}px, 56px)` }}
+      style={{
+        paddingLeft: `min(${depth * 16}px, 56px)`,
+        backgroundColor: selectedColorTag
+          ? toAlphaColor(selectedColorTag.hex, 0.12)
+          : undefined,
+      }}
     >
       <IconButton
         aria-label={
@@ -217,6 +252,19 @@ function ChecklistRow({
         onChange={(event) => setText(event.target.value)}
         onKeyDown={(event) => void handleKeyDown(event)}
       />
+
+      {selectedColorTag ? (
+        <span
+          className="shrink-0 rounded-full border px-2 py-1 text-[11px] font-medium leading-none"
+          style={{
+            borderColor: selectedColorTag.hex,
+            backgroundColor: toAlphaColor(selectedColorTag.hex, 0.18),
+            color: selectedColorTag.hex,
+          }}
+        >
+          {selectedColorTag.name}
+        </span>
+      ) : null}
 
       <div className="flex shrink-0 items-center gap-0 opacity-100 sm:opacity-0 sm:transition sm:group-hover:opacity-100 sm:focus-within:opacity-100">
         <IconButton

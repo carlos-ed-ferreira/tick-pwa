@@ -15,6 +15,8 @@ export const ptBRDictionary = {
     today: 'Hoje',
     previousMonth: 'Mês anterior',
     nextMonth: 'Próximo mês',
+    previousYear: 'Ano anterior',
+    nextYear: 'Próximo ano',
     emptyDay: 'Sem itens',
     weekdays: ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'],
   },

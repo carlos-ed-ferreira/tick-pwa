@@ -1,4 +1,9 @@
-import type { AppScope, DailyEntry, LocalDateString } from '@/lib/domain';
+import type {
+  AppScope,
+  DailyEntry,
+  DailyEntryColorSummary,
+  LocalDateString,
+} from '@/lib/domain';
 import { compareSortRanks, createId } from '@/lib/domain';
 import { db } from './database';
 import {
@@ -64,6 +69,7 @@ export async function openOrCreateDailyEntry({
       itemCount: 0,
       completedCount: 0,
       colorTagIds: [],
+      colorSummaries: [],
       createdAt: now,
       updatedAt: now,
       deletedAt: null,
@@ -110,13 +116,30 @@ export async function recalculateDailyEntrySummary({
   );
   const previewText =
     sortedItems.find((item) => item.text.trim().length > 0)?.text.trim() ?? '';
-  const colorTagIds = Array.from(
-    new Set(
-      sortedItems
-        .map((item) => item.colorTagId)
-        .filter((colorTagId): colorTagId is string => Boolean(colorTagId)),
-    ),
-  );
+  const colorSummaryMap = new Map<string, DailyEntryColorSummary>();
+
+  for (const item of sortedItems) {
+    if (!item.colorTagId) {
+      continue;
+    }
+
+    const existingSummary = colorSummaryMap.get(item.colorTagId) ?? {
+      colorTagId: item.colorTagId,
+      itemCount: 0,
+      completedCount: 0,
+    };
+
+    existingSummary.itemCount += 1;
+
+    if (item.checked) {
+      existingSummary.completedCount += 1;
+    }
+
+    colorSummaryMap.set(item.colorTagId, existingSummary);
+  }
+
+  const colorSummaries = Array.from(colorSummaryMap.values());
+  const colorTagIds = colorSummaries.map((summary) => summary.colorTagId);
   const now = createTimestamp();
   const updatedEntry: DailyEntry = {
     ...dailyEntry,
@@ -124,6 +147,7 @@ export async function recalculateDailyEntrySummary({
     itemCount: checklistItems.length,
     completedCount: checklistItems.filter((item) => item.checked).length,
     colorTagIds,
+    colorSummaries,
     updatedAt: now,
     syncStatus: getEntitySyncStatus(scope),
     clientUpdatedAt: now,
@@ -141,6 +165,7 @@ export async function recalculateDailyEntrySummary({
       'itemCount',
       'completedCount',
       'colorTagIds',
+      'colorSummaries',
     ],
     baseRevision: updatedEntry.remoteRevision,
   });

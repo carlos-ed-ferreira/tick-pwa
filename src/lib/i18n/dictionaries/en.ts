@@ -15,6 +15,8 @@ export const enDictionary = {
     today: 'Today',
     previousMonth: 'Previous month',
     nextMonth: 'Next month',
+    previousYear: 'Previous year',
+    nextYear: 'Next year',
     emptyDay: 'No items',
     weekdays: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
   },

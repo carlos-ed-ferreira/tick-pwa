@@ -41,3 +41,13 @@ body {
 a {
   -webkit-tap-highlight-color: transparent;
 }
+
+a[href],
+button:not(:disabled),
+[role='button']:not([aria-disabled='true']),
+summary,
+input[type='checkbox']:not(:disabled),
+input[type='radio']:not(:disabled),
+label[for] {
+  cursor: pointer;
+}
