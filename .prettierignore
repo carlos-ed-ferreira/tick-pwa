@@ -1,0 +1,17 @@
+# Dependencies
+node_modules/
+
+# Next.js and production output
+.next/
+out/
+build/
+dist/
+
+# Coverage and caches
+coverage/
+.turbo/
+*.tsbuildinfo
+
+# Generated PWA files
+public/sw*.js
+public/swe-worker*.js

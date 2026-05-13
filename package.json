@@ -7,7 +7,11 @@
     "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "check": "npm run typecheck && npm run lint && npm run format:check && npm run build",
+    "clean": "rm -rf .next out build coverage public/sw.js public/sw.js.map public/swe-worker*.js"
   },
   "dependencies": {
     "@serwist/next": "^9.5.11",
@@ -22,6 +26,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.2.6",
+    "prettier": "^3.8.3",
     "serwist": "^9.5.11",
     "tailwindcss": "^4",
     "typescript": "^5"

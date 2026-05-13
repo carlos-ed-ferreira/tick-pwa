@@ -1,13 +1,13 @@
-import Link from "next/link";
+import Link from 'next/link';
 
 const destinations = [
   {
-    href: "/calendar",
-    label: "Daily Calendar",
+    href: '/calendar',
+    label: 'Daily Calendar',
   },
   {
-    href: "/goals",
-    label: "Goals",
+    href: '/goals',
+    label: 'Goals',
   },
 ];
 
@@ -27,10 +27,13 @@ export default function Home() {
             <Link
               key={destination.href}
               href={destination.href}
-              className="group flex min-h-16 items-center justify-between rounded-lg border border-border bg-surface px-4 text-lg font-medium shadow-sm transition hover:border-foreground/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground"
+              className="group flex min-h-16 items-center justify-between rounded-lg border border-border bg-surface px-4 text-lg font-medium shadow-sm transition hover:border-foreground/30 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground"
             >
               <span>{destination.label}</span>
-              <span aria-hidden="true" className="text-muted transition group-hover:text-foreground">
+              <span
+                aria-hidden="true"
+                className="text-muted transition group-hover:text-foreground"
+              >
                 -&gt;
               </span>
             </Link>

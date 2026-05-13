@@ -387,16 +387,16 @@ Use Dexie for the local database. Create migrations from the start, even in the 
 
 Recommended tables:
 
-| Table | Purpose | Important indexes |
-| --- | --- | --- |
-| `dailyEntries` | Calendar day summaries and metadata | `scopeId`, `[scopeId+date]`, `[scopeId+updatedAt]` |
-| `checklistItems` | Flat recursive checklist rows | `scopeId`, `[scopeId+dailyEntryId]`, `[scopeId+parentId]`, `[scopeId+updatedAt]` |
-| `colorTags` | Reusable global colors | `scopeId`, `[scopeId+position]`, `[scopeId+updatedAt]` |
-| `goals` | Goal entities | `scopeId`, `[scopeId+category]`, `[scopeId+status]`, `[scopeId+updatedAt]` |
-| `goalSteps` | Goal steps | `scopeId`, `[scopeId+goalId]`, `[scopeId+updatedAt]` |
-| `syncOutbox` | Pending authenticated sync operations | `scopeId`, `[scopeId+status]`, `[scopeId+createdAt]` |
-| `syncCursors` | Pull cursors | `scopeId`, `[scopeId+entityType]` |
-| `localPreferences` | Tiny structured local preferences if needed | `key` |
+| Table              | Purpose                                     | Important indexes                                                                |
+| ------------------ | ------------------------------------------- | -------------------------------------------------------------------------------- |
+| `dailyEntries`     | Calendar day summaries and metadata         | `scopeId`, `[scopeId+date]`, `[scopeId+updatedAt]`                               |
+| `checklistItems`   | Flat recursive checklist rows               | `scopeId`, `[scopeId+dailyEntryId]`, `[scopeId+parentId]`, `[scopeId+updatedAt]` |
+| `colorTags`        | Reusable global colors                      | `scopeId`, `[scopeId+position]`, `[scopeId+updatedAt]`                           |
+| `goals`            | Goal entities                               | `scopeId`, `[scopeId+category]`, `[scopeId+status]`, `[scopeId+updatedAt]`       |
+| `goalSteps`        | Goal steps                                  | `scopeId`, `[scopeId+goalId]`, `[scopeId+updatedAt]`                             |
+| `syncOutbox`       | Pending authenticated sync operations       | `scopeId`, `[scopeId+status]`, `[scopeId+createdAt]`                             |
+| `syncCursors`      | Pull cursors                                | `scopeId`, `[scopeId+entityType]`                                                |
+| `localPreferences` | Tiny structured local preferences if needed | `key`                                                                            |
 
 ### IndexedDB rules
 

@@ -1,20 +1,20 @@
-import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
-import "./globals.css";
+import type { Metadata, Viewport } from 'next';
+import { Geist, Geist_Mono } from 'next/font/google';
+import './globals.css';
 
 const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
+  variable: '--font-geist-sans',
+  subsets: ['latin'],
 });
 
 const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+  variable: '--font-geist-mono',
+  subsets: ['latin'],
 });
 
-const appName = "Tick";
+const appName = 'Tick';
 const appDescription =
-  "An offline-first personal productivity PWA for daily tasks and goals.";
+  'An offline-first personal productivity PWA for daily tasks and goals.';
 
 export const metadata: Metadata = {
   applicationName: appName,
@@ -25,30 +25,30 @@ export const metadata: Metadata = {
   description: appDescription,
   appleWebApp: {
     capable: true,
-    statusBarStyle: "default",
+    statusBarStyle: 'default',
     title: appName,
   },
   formatDetection: {
     telephone: false,
   },
   openGraph: {
-    type: "website",
+    type: 'website',
     siteName: appName,
     title: appName,
     description: appDescription,
   },
   twitter: {
-    card: "summary",
+    card: 'summary',
     title: appName,
     description: appDescription,
   },
 };
 
 export const viewport: Viewport = {
-  width: "device-width",
+  width: 'device-width',
   initialScale: 1,
-  viewportFit: "cover",
-  themeColor: "#f9faf9",
+  viewportFit: 'cover',
+  themeColor: '#f9faf9',
 };
 
 export default function RootLayout({
