@@ -18,6 +18,7 @@ import {
   setLocalPreference,
 } from '@/lib/db';
 import {
+  DEFAULT_LOCALE,
   detectInitialLocale,
   getDictionary,
   writeStoredLocale,
@@ -36,8 +37,13 @@ interface AppContextValue {
 
 const AppContext = createContext<AppContextValue | null>(null);
 
-export function AppProvider({ children }: { children: ReactNode }) {
-  const initialLocale = detectInitialLocale();
+export function AppProvider({
+  children,
+  initialLocale = DEFAULT_LOCALE,
+}: {
+  children: ReactNode;
+  initialLocale?: SupportedLocale;
+}) {
   const [scope, setScope] = useState<AppScope | null>(null);
   const [isReady, setIsReady] = useState(false);
   const [locale, setLocaleState] = useState<SupportedLocale>(initialLocale);
@@ -71,6 +77,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
             guestScope,
           );
         }
+
+        writeStoredLocale(nextLocale);
 
         if (isActive) {
           setScope(guestScope);

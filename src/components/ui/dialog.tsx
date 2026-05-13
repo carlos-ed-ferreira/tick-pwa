@@ -26,7 +26,10 @@ export function Dialog({
     }
 
     previousActiveElementRef.current = document.activeElement;
-    panelRef.current?.focus();
+
+    const frameId = window.requestAnimationFrame(() => {
+      panelRef.current?.focus();
+    });
 
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape') {
@@ -38,6 +41,7 @@ export function Dialog({
     document.body.style.overflow = 'hidden';
 
     return () => {
+      window.cancelAnimationFrame(frameId);
       document.removeEventListener('keydown', handleKeyDown);
       document.body.style.overflow = '';
 

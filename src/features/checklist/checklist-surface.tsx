@@ -3,7 +3,6 @@
 import {
   ChevronDown,
   ChevronRight,
-  CornerDownRight,
   IndentDecrease,
   IndentIncrease,
   Plus,
@@ -25,6 +24,8 @@ import {
 import { useAppContext } from '@/providers';
 import type { VisibleChecklistRow } from './checklist-tree';
 import { useChecklistTree } from './use-checklist-tree';
+
+const checklistInputSelector = '[data-checklist-input="true"]';
 
 function toAlphaColor(hex: string, opacity: number): string {
   const normalizedHex = hex.replace('#', '');
@@ -180,14 +181,25 @@ function ChecklistRow({
     }
 
     if (event.key === 'Tab') {
+      const checklistInputs = Array.from(
+        document.querySelectorAll<HTMLInputElement>(checklistInputSelector),
+      );
+      const currentIndex = checklistInputs.indexOf(event.currentTarget);
+      const targetInput =
+        checklistInputs[currentIndex + (event.shiftKey ? -1 : 1)];
+
+      if (!targetInput) {
+        return;
+      }
+
       event.preventDefault();
       await flushText();
 
-      if (event.shiftKey) {
-        await outdentChecklistItem({ scope, itemId: item.id });
-      } else {
-        await indentChecklistItem({ scope, itemId: item.id });
-      }
+      window.requestAnimationFrame(() => {
+        targetInput.focus();
+        const caretPosition = targetInput.value.length;
+        targetInput.setSelectionRange(caretPosition, caretPosition);
+      });
       return;
     }
 
@@ -213,6 +225,7 @@ function ChecklistRow({
             ? dictionary.dayEditor.expandItem
             : dictionary.dayEditor.collapseItem
         }
+        className={!hasChildren ? 'disabled:opacity-100' : ''}
         disabled={!hasChildren}
         onClick={() => {
           if (scope) {
@@ -220,14 +233,13 @@ function ChecklistRow({
           }
         }}
       >
-        {hasChildren ? (
-          item.collapsed ? (
-            <ChevronRight aria-hidden="true" className="size-4" />
-          ) : (
-            <ChevronDown aria-hidden="true" className="size-4" />
-          )
+        {item.collapsed || !hasChildren ? (
+          <ChevronRight
+            aria-hidden="true"
+            className={`size-4 ${hasChildren ? '' : 'opacity-45'}`}
+          />
         ) : (
-          <CornerDownRight aria-hidden="true" className="size-4 opacity-0" />
+          <ChevronDown aria-hidden="true" className="size-4" />
         )}
       </IconButton>
 
@@ -242,6 +254,7 @@ function ChecklistRow({
       />
 
       <input
+        data-checklist-input="true"
         value={text}
         placeholder={dictionary.dayEditor.itemPlaceholder}
         className={`min-w-0 flex-1 rounded-md bg-transparent px-2 py-2 text-sm outline-none transition focus:bg-surface focus:shadow-sm ${
@@ -265,7 +278,7 @@ function ChecklistRow({
         </span>
       ) : null}
 
-      <div className="flex shrink-0 items-center gap-0 opacity-100 sm:opacity-0 sm:transition sm:group-hover:opacity-100 sm:focus-within:opacity-100">
+      <div className="flex shrink-0 items-center gap-0">
         <IconButton
           aria-label={dictionary.dayEditor.addChild}
           onClick={createChild}

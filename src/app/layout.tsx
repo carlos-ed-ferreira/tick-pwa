@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from 'next';
+import { cookies, headers } from 'next/headers';
 import { Geist, Geist_Mono } from 'next/font/google';
+import { detectRequestLocale, LOCALE_COOKIE_KEY } from '@/lib/i18n';
 import { AppProvider } from '@/providers';
 import './globals.css';
 
@@ -52,18 +54,26 @@ export const viewport: Viewport = {
   themeColor: '#f9faf9',
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const cookieStore = await cookies();
+  const headerStore = await headers();
+  const initialLocale = detectRequestLocale({
+    cookieLocale: cookieStore.get(LOCALE_COOKIE_KEY)?.value ?? null,
+    acceptLanguage: headerStore.get('accept-language'),
+  });
+
   return (
     <html
-      lang="en"
+      lang={initialLocale}
+      suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full bg-background text-foreground">
-        <AppProvider>{children}</AppProvider>
+        <AppProvider initialLocale={initialLocale}>{children}</AppProvider>
       </body>
     </html>
   );
