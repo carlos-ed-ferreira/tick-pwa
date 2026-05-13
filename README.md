@@ -181,6 +181,28 @@ npm run check
 make check
 ```
 
+## Deploy
+
+O deploy inicial é direcionado para a Vercel.
+
+Configuração recomendada:
+
+- Framework Preset: Next.js
+- Install Command: `npm install`
+- Build Command: `npm run build`
+- Output Directory: padrão da Vercel para Next.js
+- Node.js: `>=20.9.0`
+
+No estado atual do produto, o modo guest local-first já funciona sem variáveis de ambiente. Supabase, autenticação e sincronização ainda fazem parte do backlog, então as variáveis `NEXT_PUBLIC_SUPABASE_URL` e `NEXT_PUBLIC_SUPABASE_ANON_KEY` não são necessárias para este primeiro deploy.
+
+Antes de publicar, rode:
+
+```bash
+npm run check
+```
+
+O service worker é gerado durante `npm run build` pelo Serwist. Os arquivos gerados em `public/sw*` são artefatos de build e permanecem ignorados pelo Git.
+
 ## Qualidade de código
 
 Objetivos principais:

@@ -83,7 +83,6 @@ Tasks:
 - Add `useNetworkStatus` and an `OfflineBadge`.
 - Add `useInstallPrompt` and a subtle install prompt.
 - Add update-available prompt for a new service worker version.
-- Review Serwist runtime caching so Supabase/API responses are not treated as the app data cache.
 - Validate reload behavior for `/`, `/calendar`, `/goals`, and `/~offline`.
 - Check Android standalone layout, safe areas, viewport behavior, and virtual keyboard behavior in the day editor.
 
