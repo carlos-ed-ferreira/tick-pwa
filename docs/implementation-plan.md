@@ -55,9 +55,11 @@ tick/
     lib/
       db/
       domain/
+      i18n/
       pwa/
       supabase/
       sync/
+      time/
     styles/
   supabase/
     migrations/
@@ -94,8 +96,10 @@ Each feature folder should own its UI, hooks, and small helpers that are not sha
 - `components/app`: app shell pieces such as navigation, offline badge, sync indicator, install prompt, and update prompt.
 - `lib/db`: Dexie schema, migrations, local repositories, local transactions.
 - `lib/domain`: shared domain types, date utilities, id utilities, sort-rank utilities.
+- `lib/i18n`: supported locales, dictionaries, locale detection, and formatting helpers.
 - `lib/supabase`: Supabase clients and generated database types.
 - `lib/sync`: outbox, sync scheduler, push/pull engine, conflict helpers, mappers.
+- `lib/time`: app timezone policy, local-day calculation, and timezone-aware date utilities.
 - `lib/pwa`: service worker registration, install prompt handling, network status helpers.
 - `hooks`: cross-feature hooks only. Feature-specific hooks should stay inside feature folders.
 
@@ -159,6 +163,82 @@ Examples of commands:
 - Update goal progress.
 - Archive goal.
 
+### Development workflow
+
+The project includes a small `Makefile` for convenience. It should remain a thin wrapper around npm scripts and must not introduce Docker, Laradock, PHP, Laravel, Vite, MySQL, or unrelated service commands.
+
+Recommended commands:
+
+- `make install`: install npm dependencies.
+- `make dev`: start the Next.js development server.
+- `make build`: create a production build with PWA output.
+- `make start`: start the production server after a build.
+- `make lint`: run ESLint.
+- `make typecheck`: run TypeScript without emitting files.
+- `make format`: format with Prettier.
+- `make format-check`: verify Prettier formatting.
+- `make check`: run typecheck, lint, format check, and production build.
+- `make clean`: remove local build artifacts and generated service worker files.
+
+The canonical npm scripts should stay available in `package.json`; Makefile targets are developer ergonomics, not a separate build system.
+
+### Internationalization and timezone strategy
+
+Tick must support two application languages in v1:
+
+- Brazilian Portuguese: `pt-BR`
+- English: `en`
+
+The app should let users switch language manually. On first launch, the default language should be inferred from the user's current region when possible.
+
+Recommended default detection order:
+
+1. Existing app preference from the active local scope.
+2. Browser languages from `navigator.languages`.
+3. Browser locale/region from `Intl.Locale` when available.
+4. Browser timezone from `Intl.DateTimeFormat().resolvedOptions().timeZone`.
+5. Fallback to `en` if no regional signal is clear.
+
+The selected locale also participates in the timezone used to identify the current day.
+
+Recommended v1 policy:
+
+- `pt-BR` uses the Brazil profile with `America/Sao_Paulo` and practical offset `UTC-03:00` for day-boundary decisions.
+- `en` uses the browser-detected timezone when available.
+- If browser timezone is unavailable and the selected locale is `pt-BR`, fall back to `America/Sao_Paulo`.
+- If browser timezone is unavailable and the selected locale is `en`, fall back to `UTC` only as a last resort.
+
+The product may later expose timezone as an advanced preference, but v1 can keep timezone coupled to locale plus browser region to preserve simplicity.
+
+All day-sensitive behavior must use the app timezone:
+
+- Today highlighting.
+- Daily entry `date` creation.
+- Calendar month boundaries.
+- Day editor URL state.
+- Goal due-date display.
+- Sync payload date fields.
+
+Do not derive calendar dates with `new Date().toISOString().slice(0, 10)` because that uses UTC and can place the user on the wrong day.
+
+Daily entities should continue to store local date strings such as `YYYY-MM-DD`, plus a timezone field where relevant.
+
+Language and timezone are small UI preferences and may be stored in localStorage for guest mode. Authenticated users may later sync language/timezone through profile preferences in Supabase, but guest preferences must not be automatically uploaded on sign-in.
+
+Use a lightweight localization layer first. Avoid introducing a heavy i18n framework unless the product clearly needs routing, extraction, pluralization, or translation workflow features beyond simple dictionaries.
+
+Recommended structure:
+
+- `src/lib/i18n/locales.ts`: supported locale constants and labels.
+- `src/lib/i18n/dictionaries/en.ts`: English strings.
+- `src/lib/i18n/dictionaries/pt-BR.ts`: Brazilian Portuguese strings.
+- `src/lib/i18n/detect-locale.ts`: browser/region detection.
+- `src/lib/i18n/format.ts`: locale-aware date, number, and relative formatting helpers.
+- `src/lib/time/timezone.ts`: active timezone policy.
+- `src/lib/time/local-day.ts`: timezone-aware `today` and `YYYY-MM-DD` helpers.
+
+Visible UI text should be loaded from dictionaries instead of being scattered across feature components.
+
 ## 4. Application Flow
 
 ### First launch
@@ -167,8 +247,9 @@ Examples of commands:
 2. App creates or retrieves a local installation id.
 3. App creates or opens a guest scope.
 4. Default local color tags are seeded if needed.
-5. Home appears immediately.
-6. Auth session hydration may happen in the background.
+5. App detects locale and timezone preference.
+6. Home appears immediately in the selected language.
+7. Auth session hydration may happen in the background.
 
 ### Home flow
 
@@ -230,6 +311,20 @@ Recommended values:
 - `user:<supabaseUserId>`
 
 All local data queries should be scoped by `scopeId`. Guest and authenticated data must never mix accidentally.
+
+### LocalePreference
+
+Represents the active language and timezone profile for the current scope.
+
+Recommended fields:
+
+- `locale`, one of `pt-BR` or `en`
+- `timezone`, for example `America/Sao_Paulo`
+- `timezoneOffset`, for example `-03:00`
+- `detectedFrom`, for example `browser`, `region`, or `manual`
+- `updatedAt`
+
+For guest mode this can remain a tiny local preference. For authenticated mode this may later be mirrored in the user profile, but it must not cause guest data or guest preferences to upload automatically.
 
 ### DailyEntry
 
@@ -387,16 +482,16 @@ Use Dexie for the local database. Create migrations from the start, even in the 
 
 Recommended tables:
 
-| Table              | Purpose                                     | Important indexes                                                                |
-| ------------------ | ------------------------------------------- | -------------------------------------------------------------------------------- |
-| `dailyEntries`     | Calendar day summaries and metadata         | `scopeId`, `[scopeId+date]`, `[scopeId+updatedAt]`                               |
-| `checklistItems`   | Flat recursive checklist rows               | `scopeId`, `[scopeId+dailyEntryId]`, `[scopeId+parentId]`, `[scopeId+updatedAt]` |
-| `colorTags`        | Reusable global colors                      | `scopeId`, `[scopeId+position]`, `[scopeId+updatedAt]`                           |
-| `goals`            | Goal entities                               | `scopeId`, `[scopeId+category]`, `[scopeId+status]`, `[scopeId+updatedAt]`       |
-| `goalSteps`        | Goal steps                                  | `scopeId`, `[scopeId+goalId]`, `[scopeId+updatedAt]`                             |
-| `syncOutbox`       | Pending authenticated sync operations       | `scopeId`, `[scopeId+status]`, `[scopeId+createdAt]`                             |
-| `syncCursors`      | Pull cursors                                | `scopeId`, `[scopeId+entityType]`                                                |
-| `localPreferences` | Tiny structured local preferences if needed | `key`                                                                            |
+| Table              | Purpose                                                                | Important indexes                                                                |
+| ------------------ | ---------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| `dailyEntries`     | Calendar day summaries and metadata                                    | `scopeId`, `[scopeId+date]`, `[scopeId+updatedAt]`                               |
+| `checklistItems`   | Flat recursive checklist rows                                          | `scopeId`, `[scopeId+dailyEntryId]`, `[scopeId+parentId]`, `[scopeId+updatedAt]` |
+| `colorTags`        | Reusable global colors                                                 | `scopeId`, `[scopeId+position]`, `[scopeId+updatedAt]`                           |
+| `goals`            | Goal entities                                                          | `scopeId`, `[scopeId+category]`, `[scopeId+status]`, `[scopeId+updatedAt]`       |
+| `goalSteps`        | Goal steps                                                             | `scopeId`, `[scopeId+goalId]`, `[scopeId+updatedAt]`                             |
+| `syncOutbox`       | Pending authenticated sync operations                                  | `scopeId`, `[scopeId+status]`, `[scopeId+createdAt]`                             |
+| `syncCursors`      | Pull cursors                                                           | `scopeId`, `[scopeId+entityType]`                                                |
+| `localPreferences` | Tiny structured local preferences, including locale/timezone if needed | `key`                                                                            |
 
 ### IndexedDB rules
 
@@ -451,6 +546,11 @@ Every syncable Supabase table should include:
 - Unique constraint on `(user_id, date)`.
 - Store local date string and timezone.
 - Store summary fields used by the calendar.
+
+`profiles`:
+
+- Store authenticated user preferences such as locale and timezone when profile sync is introduced.
+- Do not populate profile preferences from guest data automatically on sign-in.
 
 `checklist_items`:
 
@@ -585,6 +685,7 @@ Guest data rules:
 3. Never automatically migrate guest data on sign-in.
 4. Keep guest data available after logout.
 5. Seed default local color tags for a new guest scope.
+6. Keep guest language/timezone preferences local unless the user explicitly changes them inside an authenticated scope later.
 
 ### Authenticated mode
 
@@ -645,6 +746,8 @@ Use small React contexts only where they reduce real friction:
 - `AppScopeProvider`
 - `SessionProvider`
 - `ThemeProvider`
+- `LocaleProvider`
+- `TimezoneProvider`, or a combined locale/time provider if simpler
 - `NetworkStatusProvider`
 - `SyncStatusProvider`
 
@@ -925,6 +1028,7 @@ The status should be visible but quiet.
 - `OfflineBadge`
 - `InstallPrompt`
 - `UpdateAvailablePrompt`
+- `LanguageSwitcher`
 
 ### Home components
 
@@ -987,6 +1091,7 @@ The home screen should feel like an app launcher, not a web landing page.
 - `SegmentedControl`
 - `Tabs`
 - `ColorSwatch`
+- `LocaleSelect`
 
 ## 17. Suggested Hooks Structure
 
@@ -997,12 +1102,15 @@ The home screen should feel like an app launcher, not a web landing page.
 - `useNetworkStatus`: online/offline hint and request health.
 - `useSyncStatus`: pending count, syncing state, failed count.
 - `useInstallPrompt`: PWA install prompt state.
+- `useLocale`: current locale, dictionary, and language switching.
+- `useAppTimezone`: active timezone profile for day calculations.
 
 ### Calendar hooks
 
 - `useMonthEntries(month)`: daily summaries for visible month.
 - `useDayEntry(date)`: selected day entry, with lazy creation support.
 - `useCalendarNavigation`: current month, next/previous/today behavior.
+- `useTodayKey`: current `YYYY-MM-DD` calculated from app timezone.
 
 ### Checklist hooks
 
@@ -1032,6 +1140,7 @@ The home screen should feel like an app launcher, not a web landing page.
 - Calm visual hierarchy.
 - Subtle shadows and transitions.
 - No excessive decorative elements.
+- Language switching should be easy to find but quiet, likely in an app/settings/account surface rather than primary content.
 
 ### Controls
 
@@ -1175,6 +1284,12 @@ Accessibility should be included from the beginning because the app relies heavi
 - Keyboard creation, editing, toggling, indenting, and navigation should work.
 - Color tags need text labels.
 
+### Localization
+
+- Language names should be presented in their own language, such as `Português (Brasil)` and `English`.
+- The active document language should match the selected locale.
+- Date and number formatting should follow the selected locale.
+
 ### Motion and contrast
 
 - Respect `prefers-reduced-motion`.
@@ -1195,6 +1310,8 @@ Potential future features:
 - Richer goal metrics.
 - Attachments.
 - Calendar history insights.
+- Additional locales beyond `pt-BR` and `en`.
+- Explicit timezone selector if users need a timezone independent from language/region.
 
 Keep out of scope:
 
@@ -1234,9 +1351,20 @@ The sync engine can be generic enough to support multiple entity types, but avoi
 3. Add id utilities.
 4. Add local date utilities.
 5. Add sort-rank utilities.
-6. Add Dexie schema and migrations.
-7. Add local repositories.
-8. Add local command functions.
+6. Add locale and timezone policy utilities.
+7. Add Dexie schema and migrations.
+8. Add local repositories.
+9. Add local command functions.
+
+### Phase 2.5: Localization foundation
+
+1. Define supported locales: `pt-BR` and `en`.
+2. Add dictionary files for visible UI strings.
+3. Add browser region detection.
+4. Add language switching preference.
+5. Add timezone-aware local-day utilities.
+6. Ensure `pt-BR` maps to the Brazil profile, `UTC-03:00` / `America/Sao_Paulo`.
+7. Replace hardcoded visible route/app text with dictionary lookups.
 
 ### Phase 3: Local tests
 
@@ -1344,6 +1472,8 @@ The sync engine can be generic enough to support multiple entity types, but avoi
 ### Unit tests
 
 - Date handling.
+- Locale detection.
+- Timezone-aware current-day calculation for `pt-BR` and `en`.
 - Sort-rank generation.
 - Checklist tree building.
 - Checklist command behavior.
@@ -1379,6 +1509,8 @@ The sync engine can be generic enough to support multiple entity types, but avoi
 - Mobile day editor behavior.
 - Offline guest editing and reload.
 - Authenticated offline edit and later sync.
+- Locale switching between Brazilian Portuguese and English.
+- Today/date behavior under `pt-BR` using `UTC-03:00`.
 
 ### PWA tests
 
@@ -1407,7 +1539,11 @@ The first full implementation is acceptable when:
 12. The app shell loads offline after installation or initial cache.
 13. The UI avoids marketing, dashboard, and enterprise patterns.
 14. Core editing uses autosave and local-first persistence.
-15. Typecheck, lint, build, and core tests pass.
+15. Users can switch between Brazilian Portuguese and English.
+16. First launch selects a default language from the user's current region when possible.
+17. The selected language/region controls the app timezone used to identify the current day.
+18. `pt-BR` uses the Brazil profile with `UTC-03:00` / `America/Sao_Paulo` for day calculations.
+19. Typecheck, lint, build, and core tests pass.
 
 ## 26. Key Decisions to Preserve
 
@@ -1421,3 +1557,6 @@ The first full implementation is acceptable when:
 - No marketing landing page at `/`.
 - Mobile Android PWA behavior is first-class.
 - Simplicity is preferred over premature scalability.
+- Supported v1 languages are `pt-BR` and `en`.
+- Calendar day identity must use the selected locale/timezone policy, not raw UTC.
+- The Makefile remains a thin npm wrapper for local developer ergonomics only.

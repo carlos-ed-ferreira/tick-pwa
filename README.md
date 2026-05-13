@@ -127,6 +127,26 @@ Requisitos:
 
 O projeto NÃO será publicado inicialmente na Google Play Store.
 
+## Idioma e fuso horário
+
+O Tick deve oferecer controle de idioma para:
+
+- Português do Brasil (`pt-BR`)
+- Inglês (`en`)
+
+O idioma padrão deve ser inferido pela região atual do usuário quando possível, usando preferências do navegador e APIs de internacionalização do ambiente.
+
+O usuário deve poder trocar o idioma manualmente dentro do aplicativo.
+
+O idioma selecionado também influencia o fuso horário usado para identificar o dia atual:
+
+- `pt-BR` usa o perfil Brasil, com fuso padrão `UTC-03:00` (`America/Sao_Paulo`)
+- `en` usa o fuso horário detectado pelo navegador quando disponível
+
+Todas as decisões de calendário diário devem usar o fuso do aplicativo, nunca apenas UTC. O dia atual deve ser calculado a partir do idioma/região/fuso ativo para evitar que tarefas mudem de dia incorretamente.
+
+Preferências simples como idioma e fuso podem ser mantidas em `localStorage`. Entidades principais, como tarefas, metas e checklists, continuam obrigatoriamente em IndexedDB.
+
 ## Desenvolvimento
 
 ```bash
@@ -134,11 +154,31 @@ npm install
 npm run dev
 ```
 
+Também existem atalhos via `make`:
+
+```bash
+make install
+make dev
+make build
+make check
+make format
+make clean
+```
+
+Os comandos `make` apenas encapsulam scripts `npm`; o projeto não usa Docker, Laradock, Laravel, PHP, Vite ou banco local via Makefile.
+
 ## Build
 
 ```bash
 npm run build
 npm run start
+```
+
+Verificação completa:
+
+```bash
+npm run check
+make check
 ```
 
 ## Qualidade de código

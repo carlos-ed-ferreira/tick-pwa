@@ -247,6 +247,26 @@ Important:
 
 The project is NOT intended for Play Store publishing initially.
 
+## Localization and Timezone
+
+The app must support two languages in v1:
+
+- Brazilian Portuguese (`pt-BR`)
+- English (`en`)
+
+The default language should be inferred from the user's current browser/region when possible.
+
+Users must be able to switch language manually.
+
+The selected language/region also affects the timezone used to identify the current day:
+
+- `pt-BR` uses the Brazil profile with `UTC-03:00` / `America/Sao_Paulo`
+- `en` uses the browser-detected timezone when available
+
+Never calculate daily calendar dates from raw UTC date slicing. Use app timezone-aware helpers for today, daily entries, calendar boundaries, and goal due-date display.
+
+Language and timezone preferences are small UI preferences. They may use localStorage for guest mode, but application entities must remain in IndexedDB.
+
 ## Performance
 
 Prioritize:
@@ -289,6 +309,24 @@ Avoid:
 - enterprise architecture patterns
 
 Code should be self-explanatory through structure and naming.
+
+## Development Commands
+
+The project includes a Makefile as a thin wrapper around npm scripts.
+
+Useful commands:
+
+- `make install`
+- `make dev`
+- `make build`
+- `make lint`
+- `make typecheck`
+- `make format`
+- `make format-check`
+- `make check`
+- `make clean`
+
+Do not add Laravel, PHP, Laradock, Docker, Vite, MySQL, or unrelated backend commands to the Makefile. Keep it aligned with the Next.js PWA workflow.
 
 ## Important UX Rules
 
