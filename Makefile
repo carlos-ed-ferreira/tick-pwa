@@ -1,6 +1,6 @@
 NPM = npm
 
-.PHONY: help install dev build start lint typecheck format format-check check clean
+.PHONY: help install dev build start lint typecheck test test-e2e format format-check check clean
 .DEFAULT_GOAL := help
 
 help:
@@ -11,6 +11,8 @@ help:
 	@printf "  %-18s %s\n" "make start" "Inicia o servidor de producao apos o build"
 	@printf "  %-18s %s\n" "make lint" "Roda ESLint"
 	@printf "  %-18s %s\n" "make typecheck" "Roda TypeScript sem emitir arquivos"
+	@printf "  %-18s %s\n" "make test" "Roda testes unitarios e de integracao"
+	@printf "  %-18s %s\n" "make test-e2e" "Roda testes end-to-end"
 	@printf "  %-18s %s\n" "make format" "Formata o codigo com Prettier"
 	@printf "  %-18s %s\n" "make format-check" "Verifica formatacao com Prettier"
 	@printf "  %-18s %s\n" "make check" "Roda typecheck, lint, format-check e build"
@@ -34,6 +36,12 @@ lint:
 
 typecheck:
 	$(NPM) run typecheck
+
+test:
+	$(NPM) run test
+
+test-e2e:
+	$(NPM) run test:e2e
 
 format:
 	$(NPM) run format

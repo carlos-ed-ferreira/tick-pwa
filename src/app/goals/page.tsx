@@ -1,6 +1,17 @@
+'use client';
+
 import Link from 'next/link';
+import { LanguageSwitcher } from '@/components/app';
+import { useAppContext } from '@/providers';
 
 export default function GoalsPage() {
+  const { dictionary } = useAppContext();
+  const categories = [
+    dictionary.goals.categories.short,
+    dictionary.goals.categories.medium,
+    dictionary.goals.categories.long,
+  ];
+
   return (
     <main className="min-h-dvh bg-background px-5 py-6 text-foreground sm:px-8">
       <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
@@ -9,12 +20,15 @@ export default function GoalsPage() {
             href="/"
             className="text-sm font-medium text-muted hover:text-foreground"
           >
-            Tick
+            {dictionary.navigation.home}
           </Link>
-          <h1 className="text-xl font-semibold">Goals</h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-xl font-semibold">{dictionary.goals.title}</h1>
+            <LanguageSwitcher />
+          </div>
         </header>
         <section className="grid gap-3 sm:grid-cols-3">
-          {['Short term', 'Medium term', 'Long term'].map((category) => (
+          {categories.map((category) => (
             <div
               key={category}
               className="min-h-32 rounded-lg border border-border bg-surface p-4 shadow-sm"
