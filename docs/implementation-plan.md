@@ -22,6 +22,8 @@ Implemented and no longer part of the future backlog:
 - Basic checklist inline UI with debounce autosave, keyboard handling, touch-friendly row actions, and no save button.
 - Basic color legend and color tag assignment/management for checklist rows.
 - Initial unit/integration tests for dates, sort ranks, database bootstrap, checklist tree derivation, checklist commands, and color cleanup.
+- Initial Supabase schema migration for Google-authenticated usage, including `account_access` allowlist, RLS policies, profiles, daily entries, checklist items, category tags, goals, and goal steps.
+- Auth-aware app entry flow with Google login, explicit local demo mode, unauthorized-account state, account status controls, and route gating.
 
 ## Decisions To Preserve
 
@@ -88,33 +90,39 @@ Tasks:
 
 ### 5. Supabase Schema And Authentication
 
-Status: dependency installed, implementation not started.
+Status: partially implemented.
+
+Implemented:
+
+- Supabase browser client and Google login helper.
+- Login-only app access model through `account_access` allowlist.
+- RLS policies that block application tables for non-allowed users.
+- App provider scope switching for authenticated, local demo, and unauthorized states.
+- Entry UI copy that explains the private prototype, allowlist-only login, and local demo behavior.
 
 Tasks:
 
-- Create migrations for `profiles`, `daily_entries`, `checklist_items`, `color_tags`, `goals`, and `goal_steps`.
-- Include `user_id`, `created_at`, `updated_at`, `deleted_at`, `client_updated_at`, and `revision` columns on syncable tables.
-- Add constraints, foreign keys, and `unique(user_id, date)` for daily entries.
-- Enable RLS and policies that allow access only when `user_id = auth.uid()`.
-- Block anonymous access to application data tables.
-- Create Supabase browser client and generated database types.
-- Add auth/session provider and minimal auth UI.
-- Implement sign-in scope switching from guest scope to `user:<supabaseUserId>` without uploading guest data.
-- Implement logout flow that preserves guest data and handles pending authenticated outbox items safely.
+- Configure Supabase Google OAuth in the hosted project.
+- Apply the migrations to Supabase production.
+- Generate database types from the live Supabase schema.
+- Add integration tests for allowlist access, user-scope writes, and local demo isolation.
+- Tighten logout/cache behavior after the first production auth pass.
 
 ### 6. Sync Engine
 
-Status: local outbox table and guest guard exist; push/pull not implemented.
+Status: initial push/pull implementation added; production hardening still needed.
+
+Implemented:
+
+- User-scope writes queue outbox items; guest/local demo writes remain local-only.
+- Basic push/pull sync mappers for category tags, daily entries, checklist items, goals, and goal steps.
+- App provider sync scheduling on startup, online, focus, and foreground interval.
 
 Tasks:
 
-- Enable outbox creation for authenticated command writes while keeping guest writes local-only.
-- Add explicit local-to-remote and remote-to-local mappers for every entity.
-- Implement push order: `color_tags`, `daily_entries`, `checklist_items`, `goals`, `goal_steps`.
-- Implement incremental pull using `SyncCursor`.
-- Apply tombstones locally for remote deletes.
-- Add basic conflict handling using `remoteRevision` and `clientUpdatedAt`.
-- Add sync scheduler for startup, authenticated session availability, online event, visibility/focus, and a light foreground interval.
+- Validate sync against the real Supabase project.
+- Replace full-table pull with incremental pull using `SyncCursor` when data volume justifies it.
+- Harden conflict handling using `remoteRevision` and `clientUpdatedAt`.
 - Add `SyncStatusIndicator` states: `offline`, `synced`, `syncing`, `pending`, and `needs attention`.
 - Add integration tests confirming guest writes never create upload outbox and authenticated writes do.
 

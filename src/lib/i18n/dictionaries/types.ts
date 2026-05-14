@@ -3,6 +3,27 @@ export interface Dictionary {
     name: string;
     localFirst: string;
   };
+  auth: {
+    title: string;
+    subtitle: string;
+    signInWithGoogle: string;
+    signInDescription: string;
+    localMode: string;
+    localModeDescription: string;
+    allowedOnly: string;
+    noSignup: string;
+    prototypeNotice: string;
+    localModeBadge: string;
+    cloudModeBadge: string;
+    signingIn: string;
+    signInUnavailable: string;
+    signOut: string;
+    continueLocal: string;
+    switchToLogin: string;
+    unauthorizedTitle: string;
+    unauthorizedDescription: string;
+    loading: string;
+  };
   navigation: {
     home: string;
     calendar: string;

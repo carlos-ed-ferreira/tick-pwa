@@ -5,6 +5,31 @@ export const enDictionary = {
     name: 'Tick',
     localFirst: 'Local-first',
   },
+  auth: {
+    title: 'Sign in to sync your data',
+    subtitle:
+      'Tick is currently a prototype. Only approved users can sign in with Google to save and sync cloud data.',
+    signInWithGoogle: 'Continue with Google',
+    signInDescription:
+      'Use an approved account to keep backups and sync across devices.',
+    localMode: 'Use local mode',
+    localModeDescription:
+      'Explore the demo without an account. Data stays only on this device and is not synced.',
+    allowedOnly: 'Login is available only for approved users.',
+    noSignup: 'Public signup is not available yet.',
+    prototypeNotice: 'Private prototype',
+    localModeBadge: 'Local mode',
+    cloudModeBadge: 'Connected account',
+    signingIn: 'Opening login...',
+    signInUnavailable: 'Login is unavailable in this environment',
+    signOut: 'Sign out',
+    continueLocal: 'Continue in local mode',
+    switchToLogin: 'Sign in to sync',
+    unauthorizedTitle: 'Account is not approved yet',
+    unauthorizedDescription:
+      'This Google account is not on the approved user list for saving cloud data. You can still test the prototype in local mode.',
+    loading: 'Preparing Tick',
+  },
   navigation: {
     home: 'Tick',
     calendar: 'Daily Calendar',

@@ -1,6 +1,7 @@
 import type { AppScope, CategoryTag, EntitySyncStatus } from '@/lib/domain';
 import { createId, createSortRankBetween } from '@/lib/domain';
 import { db } from './database';
+import { queueSyncOutboxItem } from './sync-outbox';
 
 const defaultCategoryTags = [
   { name: 'Focus', colorHex: '#2563eb' },
@@ -52,5 +53,19 @@ export async function seedDefaultCategoryTags(scope: AppScope): Promise<void> {
     return createDefaultCategoryTag(scope, tag, position);
   });
 
-  await db.categoryTags.bulkAdd(tags);
+  await db.transaction('rw', db.categoryTags, db.syncOutbox, async () => {
+    await db.categoryTags.bulkAdd(tags);
+
+    for (const tag of tags) {
+      await queueSyncOutboxItem({
+        scope,
+        entityType: 'categoryTag',
+        entityId: tag.id,
+        operation: 'upsert',
+        payload: tag as unknown as Record<string, unknown>,
+        changedFields: ['created'],
+        baseRevision: null,
+      });
+    }
+  });
 }

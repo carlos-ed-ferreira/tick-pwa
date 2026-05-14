@@ -5,6 +5,31 @@ export const ptBRDictionary = {
     name: 'Tick',
     localFirst: 'Local-first',
   },
+  auth: {
+    title: 'Entre para sincronizar seus dados',
+    subtitle:
+      'O Tick está em protótipo. Apenas usuários permitidos podem entrar com Google para salvar e sincronizar dados na nuvem.',
+    signInWithGoogle: 'Entrar com Google',
+    signInDescription:
+      'Use uma conta autorizada para manter backup e sincronização entre dispositivos.',
+    localMode: 'Usar em modo local',
+    localModeDescription:
+      'Explore a demonstração sem conta. Os dados ficam apenas neste dispositivo e não são sincronizados.',
+    allowedOnly: 'Login disponível apenas para usuários permitidos.',
+    noSignup: 'Cadastro público ainda não está disponível.',
+    prototypeNotice: 'Protótipo privado',
+    localModeBadge: 'Modo local',
+    cloudModeBadge: 'Conta conectada',
+    signingIn: 'Abrindo login...',
+    signInUnavailable: 'Login indisponível neste ambiente',
+    signOut: 'Sair',
+    continueLocal: 'Continuar em modo local',
+    switchToLogin: 'Entrar para sincronizar',
+    unauthorizedTitle: 'Conta ainda não permitida',
+    unauthorizedDescription:
+      'Esta conta Google não está na lista de usuários permitidos para salvar dados na nuvem. Você ainda pode testar o protótipo em modo local.',
+    loading: 'Preparando o Tick',
+  },
   navigation: {
     home: 'Tick',
     calendar: 'Calendário diário',

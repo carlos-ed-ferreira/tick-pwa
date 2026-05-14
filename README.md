@@ -193,7 +193,35 @@ Configuração recomendada:
 - Output Directory: padrão da Vercel para Next.js
 - Node.js: `>=20.9.0`
 
-No estado atual do produto, o modo guest local-first já funciona sem variáveis de ambiente. Supabase, autenticação e sincronização ainda fazem parte do backlog, então as variáveis `NEXT_PUBLIC_SUPABASE_URL` e `NEXT_PUBLIC_SUPABASE_ANON_KEY` não são necessárias para este primeiro deploy.
+O modo real autenticado usa Supabase e login com Google. Configure as variáveis abaixo no `.env.local` e também na Vercel:
+
+```bash
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+SUPABASE_PROJECT_REF=
+SUPABASE_ACCESS_TOKEN=
+SUPABASE_DB_PASSWORD=
+```
+
+O Supabase deve estar com Google OAuth habilitado e as URLs de redirect configuradas para produção e desenvolvimento. O app não possui cadastro público: apenas e-mails ativos na tabela `account_access` podem entrar para salvar e sincronizar dados na nuvem. Usuários fora da allowlist ainda podem usar o modo local de demonstração, com dados salvos apenas no próprio dispositivo.
+
+Para evitar rodar migration manualmente no SQL Editor, use o Supabase CLI via os comandos do projeto:
+
+```bash
+make supabase-link
+make supabase-dry-run
+make supabase-push
+make supabase-types
+```
+
+Esses comandos leem o `.env.local` e executam `supabase link`, `db push` e geração de tipos automaticamente.
+
+Onde encontrar cada valor:
+
+- `SUPABASE_PROJECT_REF`: subdomínio do projeto no painel do Supabase.
+- `SUPABASE_ACCESS_TOKEN`: token pessoal em Account > Access Tokens no Supabase.
+- `SUPABASE_DB_PASSWORD`: senha do banco configurada na criação do projeto.
+- `NEXT_PUBLIC_SUPABASE_URL` e `NEXT_PUBLIC_SUPABASE_ANON_KEY`: Settings > API no projeto Supabase.
 
 Antes de publicar, rode:
 

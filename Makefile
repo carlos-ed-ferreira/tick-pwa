@@ -1,6 +1,6 @@
 NPM = npm
 
-.PHONY: help install dev build start lint typecheck test test-e2e format format-check check clean
+.PHONY: help install dev build start lint typecheck test test-e2e format format-check check clean supabase-link supabase-push supabase-dry-run supabase-types supabase-migrations
 .DEFAULT_GOAL := help
 
 help:
@@ -16,6 +16,11 @@ help:
 	@printf "  %-18s %s\n" "make format" "Formata o codigo com Prettier"
 	@printf "  %-18s %s\n" "make format-check" "Verifica formatacao com Prettier"
 	@printf "  %-18s %s\n" "make check" "Roda typecheck, lint, format-check e build"
+	@printf "  %-18s %s\n" "make supabase-link" "Vincula o projeto local ao projeto Supabase remoto"
+	@printf "  %-18s %s\n" "make supabase-push" "Aplica migrations locais no projeto Supabase remoto"
+	@printf "  %-18s %s\n" "make supabase-dry-run" "Mostra quais migrations seriam aplicadas no Supabase"
+	@printf "  %-18s %s\n" "make supabase-types" "Gera tipos TypeScript do schema Supabase remoto"
+	@printf "  %-18s %s\n" "make supabase-migrations" "Lista migrations locais e remotas do projeto Supabase"
 	@printf "  %-18s %s\n" "make clean" "Remove artefatos locais de build"
 	@printf "\n"
 
@@ -51,6 +56,21 @@ format-check:
 
 check:
 	$(NPM) run check
+
+supabase-link:
+	$(NPM) run supabase:link
+
+supabase-push:
+	$(NPM) run supabase:db:push
+
+supabase-dry-run:
+	$(NPM) run supabase:db:dry-run
+
+supabase-types:
+	$(NPM) run supabase:types
+
+supabase-migrations:
+	$(NPM) run supabase:migration:list
 
 clean:
 	$(NPM) run clean

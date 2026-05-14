@@ -19,6 +19,11 @@
     "test:e2e": "playwright test",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "supabase:link": "node scripts/supabase-cli.mjs link",
+    "supabase:db:push": "node scripts/supabase-cli.mjs db:push",
+    "supabase:db:dry-run": "node scripts/supabase-cli.mjs db:dry-run",
+    "supabase:migration:list": "node scripts/supabase-cli.mjs migration:list",
+    "supabase:types": "node scripts/supabase-cli.mjs types",
     "check": "npm run typecheck && npm run lint && npm run test && npm run format:check && npm run build",
     "clean": "rm -rf .next out build coverage public/sw.js public/sw.js.map public/swe-worker*.js"
   },
@@ -46,6 +51,7 @@
     "jsdom": "^29.1.1",
     "prettier": "^3.8.3",
     "serwist": "^9.5.11",
+    "supabase": "^2.98.2",
     "tailwindcss": "^4",
     "typescript": "^5",
     "vitest": "^4.1.6"

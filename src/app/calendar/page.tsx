@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { Suspense } from 'react';
 import { LanguageSwitcher } from '@/components/app';
+import { AccountStatus, AuthGate } from '@/features/auth';
 import { CalendarMonth } from '@/features/calendar';
 import { useAppContext } from '@/providers';
 
@@ -14,48 +15,51 @@ export default function CalendarPage() {
     'inline-flex h-9 items-center rounded-full px-3 text-sm font-medium text-muted transition hover:bg-background hover:text-foreground';
 
   return (
-    <main className="min-h-dvh bg-background px-5 py-6 text-foreground sm:px-8">
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
-        <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex min-w-0 items-center gap-3">
-            <Link
-              href="/"
-              className="text-sm font-semibold tracking-wide text-muted transition hover:text-foreground"
-            >
-              {dictionary.navigation.home}
-            </Link>
-            <span aria-hidden="true" className="h-4 w-px bg-border" />
-            <h1 className="truncate text-xl font-semibold">
-              {dictionary.calendar.title}
-            </h1>
-          </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <nav className="flex flex-wrap items-center gap-1 rounded-full border border-border bg-surface p-1 shadow-sm">
+    <AuthGate>
+      <main className="min-h-dvh bg-background px-5 py-6 text-foreground sm:px-8">
+        <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
+          <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex min-w-0 items-center gap-3">
               <Link
-                href="/calendar"
-                aria-current="page"
-                className={activeNavigationItemClassName}
+                href="/"
+                className="text-sm font-semibold tracking-wide text-muted transition hover:text-foreground"
               >
-                {dictionary.navigation.calendar}
+                {dictionary.navigation.home}
               </Link>
-              <Link href="/goals" className={navigationItemClassName}>
-                {dictionary.navigation.goals}
-              </Link>
-              <Link href="/categories" className={navigationItemClassName}>
-                {dictionary.navigation.categories}
-              </Link>
-            </nav>
-            <LanguageSwitcher />
-          </div>
-        </header>
-        <Suspense
-          fallback={
-            <section className="min-h-[70vh] rounded-lg border border-border bg-surface shadow-sm" />
-          }
-        >
-          <CalendarMonth />
-        </Suspense>
-      </div>
-    </main>
+              <span aria-hidden="true" className="h-4 w-px bg-border" />
+              <h1 className="truncate text-xl font-semibold">
+                {dictionary.calendar.title}
+              </h1>
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <nav className="flex flex-wrap items-center gap-1 rounded-full border border-border bg-surface p-1 shadow-sm">
+                <Link
+                  href="/calendar"
+                  aria-current="page"
+                  className={activeNavigationItemClassName}
+                >
+                  {dictionary.navigation.calendar}
+                </Link>
+                <Link href="/goals" className={navigationItemClassName}>
+                  {dictionary.navigation.goals}
+                </Link>
+                <Link href="/categories" className={navigationItemClassName}>
+                  {dictionary.navigation.categories}
+                </Link>
+              </nav>
+              <AccountStatus />
+              <LanguageSwitcher />
+            </div>
+          </header>
+          <Suspense
+            fallback={
+              <section className="min-h-[70vh] rounded-lg border border-border bg-surface shadow-sm" />
+            }
+          >
+            <CalendarMonth />
+          </Suspense>
+        </div>
+      </main>
+    </AuthGate>
   );
 }
