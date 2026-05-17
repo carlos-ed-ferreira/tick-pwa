@@ -193,7 +193,7 @@ Configuração recomendada:
 - Output Directory: padrão da Vercel para Next.js
 - Node.js: `>=20.9.0`
 
-O modo real autenticado usa Supabase e login com Google. Configure as variáveis abaixo no `.env.local` e também na Vercel:
+O modo real autenticado usa Supabase e login com Google ou e-mail e senha. Configure as variáveis abaixo no `.env.local`:
 
 ```bash
 NEXT_PUBLIC_SUPABASE_URL=
@@ -203,7 +203,24 @@ SUPABASE_ACCESS_TOKEN=
 SUPABASE_DB_PASSWORD=
 ```
 
+Na Vercel, configure apenas as variáveis públicas do frontend:
+
+```bash
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+```
+
 O Supabase deve estar com Google OAuth habilitado e as URLs de redirect configuradas para produção e desenvolvimento. O app não possui cadastro público: apenas e-mails ativos na tabela `account_access` podem entrar para salvar e sincronizar dados na nuvem. Usuários fora da allowlist ainda podem usar o modo local de demonstração, com dados salvos apenas no próprio dispositivo.
+
+Se você quiser usar login com e-mail e senha, crie os usuários no Supabase Auth e mantenha o e-mail correspondente ativo na tabela `account_access`. O fluxo continua sem cadastro público dentro do app.
+
+Para manter Google e e-mail/senha na mesma conta, prefira este fluxo:
+
+- crie primeiro o usuário com e-mail e senha no Supabase Auth
+- mantenha esse e-mail ativo em `account_access`
+- depois permita login com Google usando o mesmo e-mail
+
+O Supabase faz o vínculo automático das identidades quando o e-mail coincide e pode ser verificado com segurança. Para contas que já existem apenas com Google, entre no app com Google e use a ação de definir senha na conta autenticada em vez de tentar criar outro usuário separado com o mesmo e-mail.
 
 Para evitar rodar migration manualmente no SQL Editor, use o Supabase CLI via os comandos do projeto:
 
@@ -221,7 +238,30 @@ Onde encontrar cada valor:
 - `SUPABASE_PROJECT_REF`: subdomínio do projeto no painel do Supabase.
 - `SUPABASE_ACCESS_TOKEN`: token pessoal em Account > Access Tokens no Supabase.
 - `SUPABASE_DB_PASSWORD`: senha do banco configurada na criação do projeto.
-- `NEXT_PUBLIC_SUPABASE_URL` e `NEXT_PUBLIC_SUPABASE_ANON_KEY`: Settings > API no projeto Supabase.
+- `NEXT_PUBLIC_SUPABASE_URL`: `API URL` do projeto no painel do Supabase. Use a URL base do projeto, como `https://<project-ref>.supabase.co`, sem `/rest/v1`.
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`: chave pública `anon` ou `publishable` do projeto no painel do Supabase.
+
+Configuração mínima de Google OAuth:
+
+- `Authorized JavaScript origins` no Google Cloud:
+  - `http://localhost:3000`
+  - `https://tickapp.com.br`
+- `Authorized redirect URIs` no Google Cloud:
+  - `https://<project-ref>.supabase.co/auth/v1/callback`
+- `Site URL` no Supabase Auth:
+  - `https://tickapp.com.br`
+- `Redirect URLs` no Supabase Auth:
+  - `http://localhost:3000`
+  - `https://tickapp.com.br`
+
+Para liberar um usuário autenticado no app, adicione seu e-mail na allowlist:
+
+```sql
+insert into public.account_access (email, active)
+values ('carlosedalmeidafer@gmail.com', true)
+on conflict (email)
+do update set active = excluded.active;
+```
 
 Antes de publicar, rode:
 

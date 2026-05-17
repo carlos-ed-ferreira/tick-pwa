@@ -8,7 +8,26 @@ export const ptBRDictionary = {
   auth: {
     title: 'Entre para sincronizar seus dados',
     subtitle:
-      'O Tick está em protótipo. Apenas usuários permitidos podem entrar com Google para salvar e sincronizar dados na nuvem.',
+      'O Tick está em protótipo. Apenas usuários permitidos podem entrar com uma conta autorizada para salvar e sincronizar dados na nuvem.',
+    emailLabel: 'E-mail',
+    emailPlaceholder: 'voce@exemplo.com',
+    managePassword: 'Definir senha',
+    passwordLabel: 'Senha',
+    passwordPlaceholder: 'Sua senha',
+    confirmPasswordLabel: 'Confirmar senha',
+    confirmPasswordPlaceholder: 'Repita sua senha',
+    passwordDialogTitle: 'Defina uma senha para esta conta',
+    passwordDialogDescription:
+      'Salve uma senha nesta mesma conta para poder entrar tanto com Google quanto com e-mail e senha.',
+    savePassword: 'Salvar senha',
+    savingPassword: 'Salvando...',
+    passwordUpdated: 'Senha salva nesta conta.',
+    passwordMismatch: 'A confirmação de senha não confere.',
+    signInWithPassword: 'Entrar com e-mail',
+    passwordSignInDescription:
+      'Use seu e-mail aprovado e senha para acessar a sincronização na nuvem.',
+    signingInWithPassword: 'Entrando...',
+    orContinueWith: 'ou continue com',
     signInWithGoogle: 'Entrar com Google',
     signInDescription:
       'Use uma conta autorizada para manter backup e sincronização entre dispositivos.',
@@ -27,7 +46,7 @@ export const ptBRDictionary = {
     switchToLogin: 'Entrar para sincronizar',
     unauthorizedTitle: 'Conta ainda não permitida',
     unauthorizedDescription:
-      'Esta conta Google não está na lista de usuários permitidos para salvar dados na nuvem. Você ainda pode testar o protótipo em modo local.',
+      'Esta conta não está na lista de usuários permitidos para salvar dados na nuvem. Você ainda pode testar o protótipo em modo local.',
     loading: 'Preparando o Tick',
   },
   navigation: {

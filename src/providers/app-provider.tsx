@@ -60,7 +60,10 @@ interface AppContextValue {
   authError: string | null;
   isLoginConfigured: boolean;
   setLocale: (locale: SupportedLocale) => void;
+  openAuthEntry: () => Promise<void>;
+  setAccountPassword: (password: string) => Promise<string | null>;
   signInWithGoogle: () => Promise<void>;
+  signInWithPassword: (email: string, password: string) => Promise<void>;
   enterLocalMode: () => Promise<void>;
   signOut: () => Promise<void>;
 }
@@ -348,6 +351,49 @@ export function AppProvider({
     }
   }, []);
 
+  const signInWithPassword = useCallback(
+    async (email: string, password: string) => {
+      const client = getSupabaseBrowserClient();
+
+      if (!client) {
+        setAuthError('Supabase is not configured for this environment.');
+        return;
+      }
+
+      setAuthError(null);
+
+      const { error } = await client.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      });
+
+      if (error) {
+        setAuthError(error.message);
+      }
+    },
+    [],
+  );
+
+  const openAuthEntry = useCallback(async () => {
+    await setLocalPreference<AccessModePreference>(
+      ACCESS_MODE_PREFERENCE_KEY,
+      'entry',
+    );
+    await activateEntryMode();
+  }, [activateEntryMode]);
+
+  const setAccountPassword = useCallback(async (password: string) => {
+    const client = getSupabaseBrowserClient();
+
+    if (!client) {
+      return 'Supabase is not configured for this environment.';
+    }
+
+    const { error } = await client.auth.updateUser({ password });
+
+    return error?.message ?? null;
+  }, []);
+
   const enterLocalMode = useCallback(async () => {
     const client = getSupabaseBrowserClient();
 
@@ -386,7 +432,10 @@ export function AppProvider({
       isReady,
       isLoginConfigured: isSupabaseConfigured(),
       setLocale,
+      openAuthEntry,
+      setAccountPassword,
       signInWithGoogle,
+      signInWithPassword,
       enterLocalMode,
       signOut,
     }),
@@ -398,9 +447,12 @@ export function AppProvider({
       enterLocalMode,
       isReady,
       locale,
+      openAuthEntry,
       scope,
+      setAccountPassword,
       setLocale,
       signInWithGoogle,
+      signInWithPassword,
       signOut,
       timezonePreference,
     ],

@@ -24,6 +24,8 @@ Implemented and no longer part of the future backlog:
 - Initial unit/integration tests for dates, sort ranks, database bootstrap, checklist tree derivation, checklist commands, and color cleanup.
 - Initial Supabase schema migration for Google-authenticated usage, including `account_access` allowlist, RLS policies, profiles, daily entries, checklist items, category tags, goals, and goal steps.
 - Auth-aware app entry flow with Google login, explicit local demo mode, unauthorized-account state, account status controls, and route gating.
+- Supabase CLI workflow for `link`, `db push`, migration inspection, and type generation driven by `.env.local`.
+- Hosted Supabase project configured with Google OAuth, production allowlist, applied schema migration, and generated database types from the live schema.
 
 ## Decisions To Preserve
 
@@ -90,7 +92,7 @@ Tasks:
 
 ### 5. Supabase Schema And Authentication
 
-Status: partially implemented.
+Status: core infrastructure implemented; production hardening still pending.
 
 Implemented:
 
@@ -99,14 +101,15 @@ Implemented:
 - RLS policies that block application tables for non-allowed users.
 - App provider scope switching for authenticated, local demo, and unauthorized states.
 - Entry UI copy that explains the private prototype, allowlist-only login, and local demo behavior.
+- Hosted Google OAuth provider configured and validated against the production domain.
+- Initial Supabase migration applied to the hosted project and `database.types.ts` generated from the live schema.
+- Project-level CLI wrappers added for `make supabase-link`, `make supabase-dry-run`, `make supabase-push`, `make supabase-types`, and migration inspection.
 
 Tasks:
 
-- Configure Supabase Google OAuth in the hosted project.
-- Apply the migrations to Supabase production.
-- Generate database types from the live Supabase schema.
 - Add integration tests for allowlist access, user-scope writes, and local demo isolation.
 - Tighten logout/cache behavior after the first production auth pass.
+- Add a small operational note or admin workflow for managing `account_access` entries without manual hunting in SQL tools.
 
 ### 6. Sync Engine
 
@@ -144,8 +147,8 @@ Tasks:
 2. Refine checklist focus/keyboard/reorder behavior.
 3. Implement local-first Goals.
 4. Add PWA app shell polish.
-5. Add Supabase schema/auth.
-6. Add sync engine.
+5. Harden sync engine against real-world conflicts and larger datasets.
+6. Add auth/sync integration coverage and post-login cache cleanup.
 7. Expand E2E and mobile/offline verification.
 
 ## Verification Commands
@@ -170,3 +173,5 @@ Before considering the local guest MVP complete, run `npm run check` and a brows
 - Goals create/progress/archive.
 - Locale switch between `en` and `pt-BR`.
 - Offline reload after the app shell has been cached.
+- Google login in production with an allowlisted account.
+- Unauthorized-account fallback after successful Google auth.

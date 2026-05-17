@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { FormEvent, useState } from 'react';
 import { Button } from '@/components/ui';
 import { useAppContext } from '@/providers';
 
@@ -11,13 +11,24 @@ export function AuthEntry() {
     enterLocalMode,
     isLoginConfigured,
     signInWithGoogle,
+    signInWithPassword,
   } = useAppContext();
-  const [isSigningIn, setIsSigningIn] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [isGoogleSigningIn, setIsGoogleSigningIn] = useState(false);
+  const [isPasswordSigningIn, setIsPasswordSigningIn] = useState(false);
 
-  async function handleSignIn() {
-    setIsSigningIn(true);
+  async function handleGoogleSignIn() {
+    setIsGoogleSigningIn(true);
     await signInWithGoogle();
-    setIsSigningIn(false);
+    setIsGoogleSigningIn(false);
+  }
+
+  async function handlePasswordSignIn(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setIsPasswordSigningIn(true);
+    await signInWithPassword(email, password);
+    setIsPasswordSigningIn(false);
   }
 
   return (
@@ -39,14 +50,77 @@ export function AuthEntry() {
         </header>
 
         <div className="grid gap-3">
+          <form className="grid gap-3" onSubmit={handlePasswordSignIn}>
+            <label className="grid gap-1.5 text-sm text-muted">
+              <span>{dictionary.auth.emailLabel}</span>
+              <input
+                autoComplete="email"
+                className="min-h-12 rounded-md border border-border bg-surface px-3 text-base text-foreground outline-none transition focus:border-foreground/30 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground"
+                disabled={
+                  !isLoginConfigured || isGoogleSigningIn || isPasswordSigningIn
+                }
+                placeholder={dictionary.auth.emailPlaceholder}
+                required
+                type="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+              />
+            </label>
+
+            <label className="grid gap-1.5 text-sm text-muted">
+              <span>{dictionary.auth.passwordLabel}</span>
+              <input
+                autoComplete="current-password"
+                className="min-h-12 rounded-md border border-border bg-surface px-3 text-base text-foreground outline-none transition focus:border-foreground/30 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground"
+                disabled={
+                  !isLoginConfigured || isGoogleSigningIn || isPasswordSigningIn
+                }
+                placeholder={dictionary.auth.passwordPlaceholder}
+                required
+                type="password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+              />
+            </label>
+
+            <Button
+              className="min-h-12 justify-start px-4 text-left"
+              disabled={
+                !isLoginConfigured || isGoogleSigningIn || isPasswordSigningIn
+              }
+              type="submit"
+            >
+              <span className="flex min-w-0 flex-col items-start gap-1">
+                <span className="text-base font-semibold">
+                  {isPasswordSigningIn
+                    ? dictionary.auth.signingInWithPassword
+                    : dictionary.auth.signInWithPassword}
+                </span>
+                <span className="text-sm font-normal text-muted">
+                  {isLoginConfigured
+                    ? dictionary.auth.passwordSignInDescription
+                    : dictionary.auth.signInUnavailable}
+                </span>
+              </span>
+            </Button>
+          </form>
+
+          <div className="flex items-center gap-3 text-xs uppercase tracking-[0.24em] text-muted/70">
+            <span className="h-px flex-1 bg-border" />
+            <span>{dictionary.auth.orContinueWith}</span>
+            <span className="h-px flex-1 bg-border" />
+          </div>
+
           <Button
             className="min-h-16 justify-start bg-foreground px-4 text-left text-background hover:bg-foreground/90"
-            disabled={!isLoginConfigured || isSigningIn}
-            onClick={handleSignIn}
+            disabled={
+              !isLoginConfigured || isGoogleSigningIn || isPasswordSigningIn
+            }
+            onClick={handleGoogleSignIn}
           >
             <span className="flex min-w-0 flex-col items-start gap-1">
               <span className="text-base font-semibold">
-                {isSigningIn
+                {isGoogleSigningIn
                   ? dictionary.auth.signingIn
                   : dictionary.auth.signInWithGoogle}
               </span>

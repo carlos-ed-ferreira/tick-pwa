@@ -8,7 +8,26 @@ export const enDictionary = {
   auth: {
     title: 'Sign in to sync your data',
     subtitle:
-      'Tick is currently a prototype. Only approved users can sign in with Google to save and sync cloud data.',
+      'Tick is currently a prototype. Only approved users can sign in with an authorized account to save and sync cloud data.',
+    emailLabel: 'Email',
+    emailPlaceholder: 'you@example.com',
+    managePassword: 'Set password',
+    passwordLabel: 'Password',
+    passwordPlaceholder: 'Your password',
+    confirmPasswordLabel: 'Confirm password',
+    confirmPasswordPlaceholder: 'Repeat your password',
+    passwordDialogTitle: 'Set a password for this account',
+    passwordDialogDescription:
+      'Save a password on this same account so you can sign in with either Google or email and password.',
+    savePassword: 'Save password',
+    savingPassword: 'Saving...',
+    passwordUpdated: 'Password saved for this account.',
+    passwordMismatch: 'The password confirmation does not match.',
+    signInWithPassword: 'Continue with email',
+    passwordSignInDescription:
+      'Use your approved email and password to access cloud sync.',
+    signingInWithPassword: 'Signing in...',
+    orContinueWith: 'or continue with',
     signInWithGoogle: 'Continue with Google',
     signInDescription:
       'Use an approved account to keep backups and sync across devices.',
@@ -27,7 +46,7 @@ export const enDictionary = {
     switchToLogin: 'Sign in to sync',
     unauthorizedTitle: 'Account is not approved yet',
     unauthorizedDescription:
-      'This Google account is not on the approved user list for saving cloud data. You can still test the prototype in local mode.',
+      'This account is not on the approved user list for saving cloud data. You can still test the prototype in local mode.',
     loading: 'Preparing Tick',
   },
   navigation: {
