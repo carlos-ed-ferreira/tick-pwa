@@ -61,7 +61,6 @@ interface AppContextValue {
   isLoginConfigured: boolean;
   setLocale: (locale: SupportedLocale) => void;
   openAuthEntry: () => Promise<void>;
-  setAccountPassword: (password: string) => Promise<string | null>;
   signInWithGoogle: () => Promise<void>;
   signInWithPassword: (email: string, password: string) => Promise<void>;
   enterLocalMode: () => Promise<void>;
@@ -382,18 +381,6 @@ export function AppProvider({
     await activateEntryMode();
   }, [activateEntryMode]);
 
-  const setAccountPassword = useCallback(async (password: string) => {
-    const client = getSupabaseBrowserClient();
-
-    if (!client) {
-      return 'Supabase is not configured for this environment.';
-    }
-
-    const { error } = await client.auth.updateUser({ password });
-
-    return error?.message ?? null;
-  }, []);
-
   const enterLocalMode = useCallback(async () => {
     const client = getSupabaseBrowserClient();
 
@@ -433,7 +420,6 @@ export function AppProvider({
       isLoginConfigured: isSupabaseConfigured(),
       setLocale,
       openAuthEntry,
-      setAccountPassword,
       signInWithGoogle,
       signInWithPassword,
       enterLocalMode,
@@ -449,7 +435,6 @@ export function AppProvider({
       locale,
       openAuthEntry,
       scope,
-      setAccountPassword,
       setLocale,
       signInWithGoogle,
       signInWithPassword,

@@ -11,18 +11,8 @@ export const ptBRDictionary = {
       'O Tick está em protótipo. Apenas usuários permitidos podem entrar com uma conta autorizada para salvar e sincronizar dados na nuvem.',
     emailLabel: 'E-mail',
     emailPlaceholder: 'voce@exemplo.com',
-    managePassword: 'Definir senha',
     passwordLabel: 'Senha',
     passwordPlaceholder: 'Sua senha',
-    confirmPasswordLabel: 'Confirmar senha',
-    confirmPasswordPlaceholder: 'Repita sua senha',
-    passwordDialogTitle: 'Defina uma senha para esta conta',
-    passwordDialogDescription:
-      'Salve uma senha nesta mesma conta para poder entrar tanto com Google quanto com e-mail e senha.',
-    savePassword: 'Salvar senha',
-    savingPassword: 'Salvando...',
-    passwordUpdated: 'Senha salva nesta conta.',
-    passwordMismatch: 'A confirmação de senha não confere.',
     signInWithPassword: 'Entrar com e-mail',
     passwordSignInDescription:
       'Use seu e-mail aprovado e senha para acessar a sincronização na nuvem.',

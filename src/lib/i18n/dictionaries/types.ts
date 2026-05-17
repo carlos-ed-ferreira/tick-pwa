@@ -8,17 +8,8 @@ export interface Dictionary {
     subtitle: string;
     emailLabel: string;
     emailPlaceholder: string;
-    managePassword: string;
     passwordLabel: string;
     passwordPlaceholder: string;
-    confirmPasswordLabel: string;
-    confirmPasswordPlaceholder: string;
-    passwordDialogTitle: string;
-    passwordDialogDescription: string;
-    savePassword: string;
-    savingPassword: string;
-    passwordUpdated: string;
-    passwordMismatch: string;
     signInWithPassword: string;
     passwordSignInDescription: string;
     signingInWithPassword: string;

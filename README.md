@@ -220,7 +220,7 @@ Para manter Google e e-mail/senha na mesma conta, prefira este fluxo:
 - mantenha esse e-mail ativo em `account_access`
 - depois permita login com Google usando o mesmo e-mail
 
-O Supabase faz o vínculo automático das identidades quando o e-mail coincide e pode ser verificado com segurança. Para contas que já existem apenas com Google, entre no app com Google e use a ação de definir senha na conta autenticada em vez de tentar criar outro usuário separado com o mesmo e-mail.
+O Supabase faz o vínculo automático das identidades quando o e-mail coincide e pode ser verificado com segurança. Para contas que já existem apenas com Google, qualquer criação ou gestão de senha deve ser feita diretamente no Supabase Auth, fora do app, para evitar contas separadas com o mesmo e-mail.
 
 Para evitar rodar migration manualmente no SQL Editor, use o Supabase CLI via os comandos do projeto:
 
