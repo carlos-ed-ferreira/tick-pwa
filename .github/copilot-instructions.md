@@ -2,7 +2,7 @@
 
 Tick is an offline-first personal productivity PWA focused on daily task tracking and goals management.
 
-The application must feel closer to a native mobile app than a traditional website.
+The application is running in production on Vercel and must feel closer to a native mobile app than a traditional website.
 
 ## Core Stack
 
@@ -25,6 +25,8 @@ Persistent cloud storage:
 
 - Supabase PostgreSQL
 
+Authenticated users use `user:<supabaseUserId>` scope. Writes are local-first in IndexedDB, queued through the sync outbox, and synchronized with Supabase when the authenticated app is online.
+
 ### Guest users
 
 Local-only persistence:
@@ -32,6 +34,8 @@ Local-only persistence:
 - IndexedDB via Dexie
 
 Guest data must NEVER be sent to the backend.
+
+Guest/local demo users use `guest:<installationId>` scope.
 
 ## Offline-first principles
 
@@ -183,7 +187,7 @@ Categories:
 - medium term
 - long term
 
-Goals should support progress tracking and structured organization.
+Goal entities exist in the local database and sync schema. Keep goals visually and behaviorally separate from daily checklist data.
 
 ## Component Guidelines
 
@@ -245,11 +249,11 @@ The app must support:
 
 Important:
 
-The project is NOT intended for Play Store publishing initially.
+The project is deployed as a web PWA and is not managed as a Play Store application.
 
 ## Localization and Timezone
 
-The app must support two languages in v1:
+The app supports two languages:
 
 - Brazilian Portuguese (`pt-BR`)
 - English (`en`)
@@ -323,10 +327,37 @@ Useful commands:
 - `make typecheck`
 - `make format`
 - `make format-check`
+- `make test`
+- `make test-e2e`
 - `make check`
 - `make clean`
 
 Do not add Laravel, PHP, Laradock, Docker, Vite, MySQL, or unrelated backend commands to the Makefile. Keep it aligned with the Next.js PWA workflow.
+
+## Development Workflow Requirements
+
+When changing code, always add or update relevant automated tests in the same work slice.
+
+Use the smallest test level that covers the risk:
+
+- unit tests for pure logic, time helpers, tree derivation, sorting, and mappers
+- integration tests for Dexie commands, persistence behavior, sync queues, auth isolation, and local-first flows
+- Playwright tests for critical user flows and regressions that require real browser behavior
+
+Before finishing code changes, run the applicable checks. Prefer `make check` or `npm run check` for complete verification when the change is not purely documentation-only.
+
+For every completed change:
+
+- report which verification commands were run
+- update `README.md` when user-visible behavior, setup, deployment, authentication, persistence, commands, or architecture changes
+- update `.github/copilot-instructions.md` when project rules, architectural decisions, persistence boundaries, workflow requirements, or UX principles change
+- keep documentation focused on current behavior and verified project rules
+
+For Supabase schema changes:
+
+- create a timestamped SQL migration in `supabase/migrations/`
+- run `make supabase-types` after applying or updating the schema
+- keep generated database types in sync with the remote schema
 
 ## Important UX Rules
 
@@ -338,14 +369,13 @@ Do not add Laravel, PHP, Laradock, Docker, Vite, MySQL, or unrelated backend com
 - mobile UX is first-class
 - desktop UX should still feel excellent
 
-## Future mindset
+## Simplicity Guardrails
 
 Build for simplicity first.
 
 Avoid:
 
 - overengineering
-- premature scaling
 - unnecessary infrastructure
 - unnecessary backend complexity
 

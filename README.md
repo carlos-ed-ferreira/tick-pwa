@@ -1,8 +1,6 @@
 # Tick
 
-Tick é uma aplicação pessoal de produtividade construída como uma Progressive Web App (PWA), focada em controle diário de tarefas, metas e organização pessoal.
-
-O projeto foi desenhado com arquitetura offline-first e mobile-first, permitindo uso fluido tanto em desktop quanto Android sem necessidade de publicação na Play Store.
+Tick é uma Progressive Web App pessoal de produtividade, focada em calendário diário, checklists e organização de metas. O projeto é offline-first, mobile-first e está rodando em produção na Vercel com Supabase para autenticação e persistência remota de usuários permitidos.
 
 ## Stack
 
@@ -10,142 +8,96 @@ O projeto foi desenhado com arquitetura offline-first e mobile-first, permitindo
 - TypeScript
 - Tailwind CSS
 - Supabase
-- IndexedDB (Dexie)
-- PWA
+- IndexedDB com Dexie
+- Serwist PWA
 - Vercel
 
-## Filosofia do projeto
+## Produto
 
-O Tick prioriza:
+O Tick prioriza rapidez, baixa fricção, auto-save e uma experiência próxima de aplicativo nativo. A interface evita fluxos de dashboard e ações pesadas, favorecendo edição inline, interações contextuais e uso confortável em Android e desktop.
 
-- rapidez
-- baixa fricção
-- mínimo de cliques
-- persistência offline
-- UX moderna
-- interface limpa
-- experiência semelhante a aplicativo nativo
+Áreas principais:
 
-O sistema evita excesso de botões e prioriza interações contextuais, como double click, edição inline e auto-save.
+- Home: rota inicial de navegação para calendário e metas, sem estrutura de landing page.
+- Calendário diário: grade mensal com preview de conteúdo por dia e abertura do editor pelo estado da URL em `/calendar?day=YYYY-MM-DD`.
+- Editor do dia: modal amplo com checklists aninhados sem limite artificial, edição inline, auto-save, collapse/expand, indentação e cores por linha.
+- Categorias: gerenciamento global de tags de cor reutilizáveis para os itens de checklist.
+- Metas: área separada das tarefas diárias, organizada por curto, médio e longo prazo.
 
 ## Arquitetura
 
-O projeto segue uma arquitetura híbrida:
+O projeto usa uma arquitetura híbrida de persistência.
 
 ### Usuário autenticado
 
-Dados persistidos em:
+Usuários autenticados usam escopo `user:<supabaseUserId>`. As alterações são gravadas primeiro no IndexedDB e entram na fila local de sincronização. O Supabase PostgreSQL funciona como persistência remota, com RLS e allowlist de acesso.
 
-- Supabase PostgreSQL
+A sincronização usa o outbox local e roda em momentos como inicialização da sessão autenticada, retorno ao foco, evento `online` e intervalo enquanto a aplicação está aberta. A rede é tratada como melhoria, não como requisito para interação.
 
-Incluindo:
+### Modo local
 
-- tarefas diárias
-- metas
-- preferências
-- cores globais
-- estrutura de checklists
+Usuários sem acesso autenticado podem entrar no modo local de demonstração. Esse modo usa escopo `guest:<installationId>` e mantém dados exclusivamente no IndexedDB via Dexie.
 
-### Guest mode
+Dados do modo local nunca são enviados ao backend.
 
-Usuários não autenticados utilizam persistência exclusivamente local.
+### Persistência
 
-Dados ficam armazenados em:
+Use IndexedDB para entidades da aplicação:
 
-- IndexedDB via Dexie
+- entradas diárias
+- itens de checklist
+- tags de cor
+- metas e passos de metas
+- filas de sincronização
+- entidades em cache
 
-Nenhum dado guest é enviado ao backend.
+Use `localStorage` apenas para preferências pequenas, como idioma, tema ou flags de UI. Entidades da aplicação não devem ser armazenadas em `localStorage`.
+
+## Autenticação e acesso
+
+O app suporta autenticação pelo Supabase Auth com:
+
+- Google OAuth
+- e-mail e senha
+
+Não existe cadastro público dentro do app. Para salvar e sincronizar dados na nuvem, o e-mail do usuário precisa estar ativo na tabela `public.account_access`. Usuários fora da allowlist podem usar o modo local, com dados salvos apenas no dispositivo.
+
+Para liberar um usuário autenticado:
+
+```sql
+insert into public.account_access (email, active)
+values ('usuario@example.com', true)
+on conflict (email)
+do update set active = excluded.active;
+```
+
+Para manter Google e e-mail/senha na mesma conta, prefira criar primeiro o usuário com e-mail e senha no Supabase Auth, manter esse e-mail ativo em `account_access` e depois permitir login com Google usando o mesmo e-mail.
 
 ## Offline-first
 
-O projeto foi planejado como offline-first desde o início.
+O Tick permanece utilizável sem internet. Escritas são locais primeiro, a UI é otimista e as interações não devem aguardar chamadas de rede. O service worker é gerado pelo Serwist durante o build e a aplicação mantém a rota offline em `/~offline`.
 
-A aplicação deve:
-
-- continuar funcional sem internet
-- permitir edição offline
-- sincronizar automaticamente quando necessário
-- priorizar persistência local antes da rede
-
-Tecnologias utilizadas:
+Tecnologias usadas:
 
 - Service Worker
 - Cache API
 - IndexedDB
-- Background sync
-
-## Estrutura principal do produto
-
-## Home
-
-Tela inicial do sistema.
-
-O usuário escolhe entre:
-
-- Calendário diário
-- Metas
-
-## Calendário diário
-
-Visualização mensal moderna em grid tradicional.
-
-Características:
-
-- calendário grande
-- preview do conteúdo diário
-- double click abre modal do dia
-- edição inline
-- auto-save
-- checklists infinitamente aninhados
-- cores globais reutilizáveis
-- legenda contextual no modal
-- interface extremamente fluida
-
-## Metas
-
-Sistema separado das tarefas diárias.
-
-Categorias:
-
-- curto prazo
-- médio prazo
-- longo prazo
-
-Metas possuem progresso e organização independente do calendário diário.
-
-## PWA
-
-A aplicação deve funcionar como app instalável no Android.
-
-Requisitos:
-
-- manifest.json
-- service worker
-- offline support
-- install prompt
-- mobile experience otimizada
-
-O projeto NÃO será publicado inicialmente na Google Play Store.
+- Dexie
+- Outbox local de sincronização
 
 ## Idioma e fuso horário
 
-O Tick deve oferecer controle de idioma para:
+O Tick suporta:
 
 - Português do Brasil (`pt-BR`)
 - Inglês (`en`)
 
-O idioma padrão deve ser inferido pela região atual do usuário quando possível, usando preferências do navegador e APIs de internacionalização do ambiente.
+O idioma padrão é inferido do navegador quando possível, e o usuário pode trocar manualmente no app. A preferência de idioma também afeta o fuso usado para calcular o dia atual:
 
-O usuário deve poder trocar o idioma manualmente dentro do aplicativo.
+- `pt-BR` usa o perfil Brasil com `America/Sao_Paulo`.
+- `en` usa o fuso horário detectado pelo navegador quando disponível.
 
-O idioma selecionado também influencia o fuso horário usado para identificar o dia atual:
-
-- `pt-BR` usa o perfil Brasil, com fuso padrão `UTC-03:00` (`America/Sao_Paulo`)
-- `en` usa o fuso horário detectado pelo navegador quando disponível
-
-Todas as decisões de calendário diário devem usar o fuso do aplicativo, nunca apenas UTC. O dia atual deve ser calculado a partir do idioma/região/fuso ativo para evitar que tarefas mudem de dia incorretamente.
-
-Preferências simples como idioma e fuso podem ser mantidas em `localStorage`. Entidades principais, como tarefas, metas e checklists, continuam obrigatoriamente em IndexedDB.
+Decisões de calendário diário devem usar os helpers timezone-aware do app. Não use recorte direto de string UTC para calcular dias, entradas diárias, limites de calendário ou exibição de vencimento de metas.
 
 ## Desenvolvimento
 
@@ -160,32 +112,49 @@ Também existem atalhos via `make`:
 make install
 make dev
 make build
-make check
+make start
+make lint
+make typecheck
+make test
+make test-e2e
 make format
+make format-check
+make check
 make clean
 ```
 
 Os comandos `make` apenas encapsulam scripts `npm`; o projeto não usa Docker, Laradock, Laravel, PHP, Vite ou banco local via Makefile.
 
-## Build
+## Qualidade
+
+Ao alterar código, adicione ou atualize testes automatizados relevantes. Use testes unitários para lógica pura, integração para comandos IndexedDB/sync e Playwright para fluxos críticos de interface.
+
+Antes de finalizar uma mudança de código, rode os comandos aplicáveis:
 
 ```bash
-npm run build
-npm run start
+npm run typecheck
+npm run lint
+npm run test
+npm run format:check
 ```
 
-Verificação completa:
+Para verificação completa:
 
 ```bash
 npm run check
 make check
 ```
 
-## Deploy
+Atualize este README quando a mudança alterar comportamento visível, setup, autenticação, persistência, deploy ou comandos de desenvolvimento. Atualize `.github/copilot-instructions.md` quando a mudança alterar regras arquiteturais, padrões de persistência, workflow de desenvolvimento ou diretrizes de UX.
 
-O deploy inicial é direcionado para a Vercel.
+## Build e produção
 
-Configuração recomendada:
+```bash
+npm run build
+npm run start
+```
+
+A produção roda na Vercel com configuração padrão de Next.js:
 
 - Framework Preset: Next.js
 - Install Command: `npm install`
@@ -193,7 +162,11 @@ Configuração recomendada:
 - Output Directory: padrão da Vercel para Next.js
 - Node.js: `>=20.9.0`
 
-O modo real autenticado usa Supabase e login com Google ou e-mail e senha. Configure as variáveis abaixo no `.env.local`:
+O service worker é gerado durante `npm run build` pelo Serwist. Os arquivos gerados em `public/sw*` são artefatos de build e permanecem ignorados pelo Git.
+
+## Variáveis de ambiente
+
+Para desenvolvimento local com Supabase:
 
 ```bash
 NEXT_PUBLIC_SUPABASE_URL=
@@ -203,35 +176,12 @@ SUPABASE_ACCESS_TOKEN=
 SUPABASE_DB_PASSWORD=
 ```
 
-Na Vercel, configure apenas as variáveis públicas do frontend:
+Na Vercel, configure apenas as variáveis públicas usadas pelo frontend:
 
 ```bash
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
 ```
-
-O Supabase deve estar com Google OAuth habilitado e as URLs de redirect configuradas para produção e desenvolvimento. O app não possui cadastro público: apenas e-mails ativos na tabela `account_access` podem entrar para salvar e sincronizar dados na nuvem. Usuários fora da allowlist ainda podem usar o modo local de demonstração, com dados salvos apenas no próprio dispositivo.
-
-Se você quiser usar login com e-mail e senha, crie os usuários no Supabase Auth e mantenha o e-mail correspondente ativo na tabela `account_access`. O fluxo continua sem cadastro público dentro do app.
-
-Para manter Google e e-mail/senha na mesma conta, prefira este fluxo:
-
-- crie primeiro o usuário com e-mail e senha no Supabase Auth
-- mantenha esse e-mail ativo em `account_access`
-- depois permita login com Google usando o mesmo e-mail
-
-O Supabase faz o vínculo automático das identidades quando o e-mail coincide e pode ser verificado com segurança. Para contas que já existem apenas com Google, qualquer criação ou gestão de senha deve ser feita diretamente no Supabase Auth, fora do app, para evitar contas separadas com o mesmo e-mail.
-
-Para evitar rodar migration manualmente no SQL Editor, use o Supabase CLI via os comandos do projeto:
-
-```bash
-make supabase-link
-make supabase-dry-run
-make supabase-push
-make supabase-types
-```
-
-Esses comandos leem o `.env.local` e executam `supabase link`, `db push` e geração de tipos automaticamente.
 
 Onde encontrar cada valor:
 
@@ -240,6 +190,20 @@ Onde encontrar cada valor:
 - `SUPABASE_DB_PASSWORD`: senha do banco configurada na criação do projeto.
 - `NEXT_PUBLIC_SUPABASE_URL`: `API URL` do projeto no painel do Supabase. Use a URL base do projeto, como `https://<project-ref>.supabase.co`, sem `/rest/v1`.
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`: chave pública `anon` ou `publishable` do projeto no painel do Supabase.
+
+## Supabase
+
+O schema remoto usa migration SQL versionada, RLS e tabela `account_access` para controlar quem pode salvar e sincronizar dados. Para evitar rodar migration manualmente no SQL Editor, use o Supabase CLI via os comandos do projeto:
+
+```bash
+make supabase-link
+make supabase-dry-run
+make supabase-push
+make supabase-types
+make supabase-migrations
+```
+
+Esses comandos leem o `.env.local` e executam `supabase link`, `db push`, listagem de migrations e geração de tipos automaticamente.
 
 Configuração mínima de Google OAuth:
 
@@ -254,65 +218,13 @@ Configuração mínima de Google OAuth:
   - `http://localhost:3000`
   - `https://tickapp.com.br`
 
-Para liberar um usuário autenticado no app, adicione seu e-mail na allowlist:
+Se usar login com e-mail e senha, crie os usuários no Supabase Auth e mantenha o e-mail correspondente ativo em `account_access`.
 
-```sql
-insert into public.account_access (email, active)
-values ('carlosedalmeidafer@gmail.com', true)
-on conflict (email)
-do update set active = excluded.active;
-```
+## Diretrizes de código
 
-Antes de publicar, rode:
-
-```bash
-npm run check
-```
-
-O service worker é gerado durante `npm run build` pelo Serwist. Os arquivos gerados em `public/sw*` são artefatos de build e permanecem ignorados pelo Git.
-
-## Qualidade de código
-
-Objetivos principais:
-
-- componentes pequenos
-- tipagem forte
-- baixa complexidade
-- mínima abstração desnecessária
-- arquitetura previsível
-- performance
-- UX fluida
-
-## Regras importantes
-
-- evitar excesso de modais desnecessários
-- evitar excesso de botões
-- priorizar auto-save
-- priorizar edição inline
-- evitar loaders agressivos
-- manter experiência instantânea
-- UI deve parecer um app moderno e premium
-- design deve funcionar extremamente bem em mobile
-
-## Persistência local
-
-Guest mode utiliza IndexedDB como source of truth local.
-
-localStorage deve ser usado apenas para:
-
-- preferências simples
-- tema
-- flags pequenas
-
-Nunca para estruturas principais do sistema.
-
-## Futuro
-
-O projeto deve permanecer simples e pessoal.
-
-Evitar:
-
-- microservices
-- overengineering
-- arquiteturas enterprise desnecessárias
-- complexidade prematura
+- Prefira componentes pequenos, tipagem forte e implementações diretas.
+- Evite abstrações prematuras, estado global pesado e arquitetura enterprise.
+- Preserve auto-save, edição inline, baixa fricção e comportamento mobile-first.
+- Mantenha o backend fino: autenticação, sincronização, persistência e validação de ownership.
+- Use os comandos locais de persistência em vez de escrever diretamente nas tabelas do Dexie a partir da UI.
+- Mantenha a experiência funcional offline e trate rede como aprimoramento.
