@@ -5,6 +5,10 @@ export const ptBRDictionary = {
     name: 'Tick',
     localFirst: 'Local-first',
   },
+  actions: {
+    cancel: 'Cancelar',
+    delete: 'Excluir',
+  },
   auth: {
     title: 'Entre para sincronizar seus dados',
     subtitle:
@@ -79,6 +83,7 @@ export const ptBRDictionary = {
     categories: 'Categorias',
     categoryNamePlaceholder: 'Nome da categoria',
     deleteCategory: 'Excluir categoria',
+    confirmDeleteItem: 'Este item tem conteúdo. Excluir mesmo assim?',
   },
   goals: {
     title: 'Metas',
@@ -88,6 +93,13 @@ export const ptBRDictionary = {
       long: 'Longo prazo',
     },
     addGoal: 'Adicionar meta',
+    addGoalAfter: 'Adicionar meta abaixo',
+    addStep: 'Adicionar item',
+    emptyCategory: 'Comece esta seção com um item de checklist',
+    emptyGoal: 'Comece esta meta com um item de checklist',
+    goalPlaceholder: 'Escreva uma meta',
+    deleteGoal: 'Excluir meta',
+    confirmDeleteGoal: 'Esta meta tem conteúdo. Excluir mesmo assim?',
     progress: 'Progresso',
   },
   status: {

@@ -22,7 +22,7 @@ O Tick prioriza rapidez, baixa fricção, auto-save e uma experiência próxima 
 - Calendário diário: grade mensal com preview de conteúdo por dia e abertura do editor pelo estado da URL em `/calendar?day=YYYY-MM-DD`.
 - Editor do dia: modal amplo com checklists aninhados sem limite artificial, edição inline, auto-save, collapse/expand, indentação e cores por linha.
 - Categorias: gerenciamento global de tags de cor reutilizáveis para os itens de checklist.
-- Metas: área separada das tarefas diárias, organizada por curto, médio e longo prazo.
+- Metas: área separada das tarefas diárias, com seções empilhadas por curto, médio e longo prazo, lista única de itens por seção, subitens aninhados, categorias por item e persistência local-first.
 
 ## Arquitetura
 

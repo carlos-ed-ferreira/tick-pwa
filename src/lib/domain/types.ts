@@ -113,8 +113,11 @@ export interface Goal extends BaseEntity {
 
 export interface GoalStep extends BaseEntity {
   goalId: string;
+  parentId: string | null;
   text: string;
   completed: boolean;
+  collapsed: boolean;
+  categoryTagId: string | null;
   sortRank: string;
 }
 

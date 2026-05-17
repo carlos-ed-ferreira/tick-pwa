@@ -7,12 +7,14 @@ import { IconButton } from './icon-button';
 export function Dialog({
   children,
   closeLabel = 'Close',
+  panelClassName = '',
   title,
   open,
   onClose,
 }: {
   children: ReactNode;
   closeLabel?: string;
+  panelClassName?: string;
   title: string;
   open: boolean;
   onClose: () => void;
@@ -72,7 +74,7 @@ export function Dialog({
         aria-modal="true"
         aria-label={title}
         tabIndex={-1}
-        className="flex h-dvh w-full flex-col overflow-hidden bg-surface shadow-2xl outline-none sm:h-[min(84vh,760px)] sm:max-w-5xl sm:rounded-lg sm:border sm:border-border"
+        className={`flex h-dvh w-full flex-col overflow-hidden bg-surface shadow-2xl outline-none sm:h-[min(84vh,760px)] sm:max-w-5xl sm:rounded-lg sm:border sm:border-border ${panelClassName}`}
       >
         <div className="flex items-center justify-between border-b border-border px-4 py-3">
           <h2 className="truncate text-lg font-semibold">{title}</h2>

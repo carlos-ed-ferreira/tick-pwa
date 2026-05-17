@@ -2,6 +2,7 @@ export * from './checklist-commands';
 export * from './category-commands';
 export * from './database';
 export * from './daily-entry-commands';
+export * from './goal-commands';
 export * from './local-preferences';
 export * from './seed';
 export * from './sync-outbox';

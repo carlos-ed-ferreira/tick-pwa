@@ -17,22 +17,27 @@ import {
 } from '@/components/ui';
 import { CategoryAssignmentMenu, useCategoryTags } from '@/features/categories';
 import {
-  assignChecklistItemCategory,
-  createChecklistChild,
-  createChecklistItem,
-  indentChecklistItem,
-  outdentChecklistItem,
-  softDeleteChecklistItem,
-  toggleChecklistItemChecked,
-  toggleChecklistItemCollapsed,
-  updateChecklistItemText,
+  assignGoalStepCategory,
+  createGoal,
+  createGoalStep,
+  createGoalStepChild,
+  indentGoalStep,
+  mergeGoalsInCategory,
+  outdentGoalStep,
+  softDeleteGoalStep,
+  toggleGoalStepChecked,
+  toggleGoalStepCollapsed,
+  updateGoalStepText,
 } from '@/lib/db';
+import type { GoalCategory } from '@/lib/domain';
 import { requiresDeleteConfirmation } from '@/lib/confirm-delete';
 import { useAppContext } from '@/providers';
-import type { VisibleChecklistRow } from './checklist-tree';
-import { useChecklistTree } from './use-checklist-tree';
+import type { VisibleGoalStepRow } from './goal-step-tree';
+import { useGoalStepTree } from './use-goal-step-tree';
+import { useGoals } from './use-goals';
 
-const checklistInputSelector = '[data-checklist-input="true"]';
+const goalStepInputSelector = '[data-goal-step-input="true"]';
+const goalCategories: GoalCategory[] = ['short', 'medium', 'long'];
 
 function toAlphaColor(hex: string, opacity: number): string {
   const normalizedHex = hex.replace('#', '');
@@ -55,52 +60,89 @@ function toAlphaColor(hex: string, opacity: number): string {
   return `rgba(${red}, ${green}, ${blue}, ${opacity})`;
 }
 
-export function ChecklistSurface({ dailyEntryId }: { dailyEntryId: string }) {
+export function GoalsSurface() {
   const { dictionary, scope } = useAppContext();
-  const rows = useChecklistTree(scope, dailyEntryId);
   const categoryTags = useCategoryTags(scope);
   const categoryTagMap = new Map(categoryTags.map((tag) => [tag.id, tag]));
-
-  const createRootItem = useCallback(async () => {
-    if (!scope) {
-      return;
-    }
-
-    await createChecklistItem({ scope, dailyEntryId });
-  }, [dailyEntryId, scope]);
 
   if (!scope) {
     return null;
   }
 
   return (
-    <section className="flex min-h-0 flex-1 flex-col gap-3">
-      <div className="flex items-center justify-between gap-3">
-        <h3 className="text-sm font-medium text-muted">
-          {dictionary.dayEditor.checklist}
-        </h3>
-        <Button className="min-h-9 px-2" onClick={createRootItem}>
+    <section className="grid gap-4">
+      {goalCategories.map((category) => (
+        <GoalCategoryColumn
+          key={category}
+          categoryTagMap={categoryTagMap}
+          category={category}
+          label={dictionary.goals.categories[category]}
+        />
+      ))}
+    </section>
+  );
+}
+
+function GoalCategoryColumn({
+  categoryTagMap,
+  category,
+  label,
+}: {
+  categoryTagMap: Map<string, { colorHex: string; name: string }>;
+  category: GoalCategory;
+  label: string;
+}) {
+  const { dictionary, scope } = useAppContext();
+  const goals = useGoals(scope, category);
+  const primaryGoal = goals[0] ?? null;
+  const goalStepRows = useGoalStepTree(scope, primaryGoal?.id ?? null);
+
+  useEffect(() => {
+    if (!scope || goals.length < 2) {
+      return;
+    }
+
+    void mergeGoalsInCategory({ scope, category });
+  }, [category, goals.length, scope]);
+
+  const createRootGoalStep = useCallback(async () => {
+    if (!scope) {
+      return;
+    }
+
+    const goal = primaryGoal ?? (await createGoal({ scope, category }));
+    await createGoalStep({ scope, goalId: goal.id });
+  }, [category, primaryGoal, scope]);
+
+  return (
+    <section
+      aria-label={label}
+      className="flex min-h-80 flex-col rounded-xl border border-border bg-surface p-3 shadow-sm sm:p-4"
+    >
+      <div className="flex items-center justify-between gap-3 pb-3">
+        <h2 className="text-base font-semibold">{label}</h2>
+        <Button className="min-h-9 px-2" onClick={createRootGoalStep}>
           <Plus aria-hidden="true" className="size-4" />
-          {dictionary.dayEditor.addItem}
+          {dictionary.goals.addStep}
         </Button>
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto rounded-lg border border-border bg-background/50 p-2">
-        {rows.length === 0 ? (
+        {goalStepRows.length === 0 ? (
           <button
             type="button"
             className="flex min-h-32 w-full items-center justify-center rounded-md border border-dashed border-border px-4 text-sm text-muted transition hover:border-foreground/30 hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground"
-            onClick={createRootItem}
+            onClick={createRootGoalStep}
           >
-            {dictionary.dayEditor.emptyChecklist}
+            {dictionary.goals.emptyCategory}
           </button>
         ) : (
           <div className="grid gap-1">
-            {rows.map((row) => (
-              <ChecklistRow
-                key={row.item.id}
+            {goalStepRows.map((row) => (
+              <GoalStepRow
+                key={row.goalStep.id}
                 categoryTagMap={categoryTagMap}
-                dailyEntryId={dailyEntryId}
+                goalId={primaryGoal?.id ?? row.goalStep.goalId}
                 row={row}
               />
             ))}
@@ -111,42 +153,42 @@ export function ChecklistSurface({ dailyEntryId }: { dailyEntryId: string }) {
   );
 }
 
-function ChecklistRow({
+function GoalStepRow({
   categoryTagMap,
-  dailyEntryId,
+  goalId,
   row,
 }: {
   categoryTagMap: Map<string, { colorHex: string; name: string }>;
-  dailyEntryId: string;
-  row: VisibleChecklistRow;
+  goalId: string;
+  row: VisibleGoalStepRow;
 }) {
   const { dictionary, scope } = useAppContext();
-  const { item, depth, hasChildren } = row;
+  const { goalStep, depth, hasChildren } = row;
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [text, setText] = useState(item.text);
-  const selectedCategory = item.categoryTagId
-    ? (categoryTagMap.get(item.categoryTagId) ?? null)
+  const [text, setText] = useState(goalStep.text);
+  const selectedCategory = goalStep.categoryTagId
+    ? (categoryTagMap.get(goalStep.categoryTagId) ?? null)
     : null;
 
   const flushText = useCallback(async () => {
-    if (!scope || text === item.text) {
+    if (!scope || text === goalStep.text) {
       return;
     }
 
-    await updateChecklistItemText({ scope, itemId: item.id, text });
-  }, [item.id, item.text, scope, text]);
+    await updateGoalStepText({ scope, goalStepId: goalStep.id, text });
+  }, [goalStep.id, goalStep.text, scope, text]);
 
   useEffect(() => {
-    if (!scope || text === item.text) {
+    if (!scope || text === goalStep.text) {
       return;
     }
 
     const timeoutId = window.setTimeout(() => {
-      void updateChecklistItemText({ scope, itemId: item.id, text });
+      void updateGoalStepText({ scope, goalStepId: goalStep.id, text });
     }, 500);
 
     return () => window.clearTimeout(timeoutId);
-  }, [item.id, item.text, scope, text]);
+  }, [goalStep.id, goalStep.text, scope, text]);
 
   const createSibling = useCallback(async () => {
     if (!scope) {
@@ -154,13 +196,13 @@ function ChecklistRow({
     }
 
     await flushText();
-    await createChecklistItem({
+    await createGoalStep({
       scope,
-      dailyEntryId,
-      parentId: item.parentId,
-      afterItemId: item.id,
+      goalId,
+      parentId: goalStep.parentId,
+      afterGoalStepId: goalStep.id,
     });
-  }, [dailyEntryId, flushText, item.id, item.parentId, scope]);
+  }, [flushText, goalId, goalStep.id, goalStep.parentId, scope]);
 
   const createChild = useCallback(async () => {
     if (!scope) {
@@ -168,10 +210,14 @@ function ChecklistRow({
     }
 
     await flushText();
-    await createChecklistChild({ scope, dailyEntryId, parentItemId: item.id });
-  }, [dailyEntryId, flushText, item.id, scope]);
+    await createGoalStepChild({
+      scope,
+      goalId,
+      parentGoalStepId: goalStep.id,
+    });
+  }, [flushText, goalId, goalStep.id, scope]);
 
-  const deleteItem = useCallback(async () => {
+  const requestDelete = useCallback(async () => {
     if (!scope) {
       return;
     }
@@ -181,17 +227,17 @@ function ChecklistRow({
       return;
     }
 
-    await softDeleteChecklistItem({ scope, itemId: item.id });
-  }, [item.id, scope, text]);
+    await softDeleteGoalStep({ scope, goalStepId: goalStep.id });
+  }, [goalStep.id, scope, text]);
 
-  const confirmDeleteItem = useCallback(async () => {
+  const confirmDelete = useCallback(async () => {
     if (!scope) {
       return;
     }
 
     setIsDeleteDialogOpen(false);
-    await softDeleteChecklistItem({ scope, itemId: item.id });
-  }, [item.id, scope]);
+    await softDeleteGoalStep({ scope, goalStepId: goalStep.id });
+  }, [goalStep.id, scope]);
 
   async function handleKeyDown(event: KeyboardEvent<HTMLInputElement>) {
     if (!scope) {
@@ -200,7 +246,7 @@ function ChecklistRow({
 
     if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
       event.preventDefault();
-      await toggleChecklistItemChecked({ scope, itemId: item.id });
+      await toggleGoalStepChecked({ scope, goalStepId: goalStep.id });
       return;
     }
 
@@ -211,12 +257,12 @@ function ChecklistRow({
     }
 
     if (event.key === 'Tab') {
-      const checklistInputs = Array.from(
-        document.querySelectorAll<HTMLInputElement>(checklistInputSelector),
+      const goalStepInputs = Array.from(
+        document.querySelectorAll<HTMLInputElement>(goalStepInputSelector),
       );
-      const currentIndex = checklistInputs.indexOf(event.currentTarget);
+      const currentIndex = goalStepInputs.indexOf(event.currentTarget);
       const targetInput =
-        checklistInputs[currentIndex + (event.shiftKey ? -1 : 1)];
+        goalStepInputs[currentIndex + (event.shiftKey ? -1 : 1)];
 
       if (!targetInput) {
         return;
@@ -235,7 +281,7 @@ function ChecklistRow({
 
     if (event.key === 'Backspace' && text.length === 0) {
       event.preventDefault();
-      await softDeleteChecklistItem({ scope, itemId: item.id });
+      await softDeleteGoalStep({ scope, goalStepId: goalStep.id });
     }
   }
 
@@ -252,7 +298,7 @@ function ChecklistRow({
       >
         <IconButton
           aria-label={
-            item.collapsed
+            goalStep.collapsed
               ? dictionary.dayEditor.expandItem
               : dictionary.dayEditor.collapseItem
           }
@@ -260,11 +306,14 @@ function ChecklistRow({
           disabled={!hasChildren}
           onClick={() => {
             if (scope) {
-              void toggleChecklistItemCollapsed({ scope, itemId: item.id });
+              void toggleGoalStepCollapsed({
+                scope,
+                goalStepId: goalStep.id,
+              });
             }
           }}
         >
-          {item.collapsed || !hasChildren ? (
+          {goalStep.collapsed || !hasChildren ? (
             <ChevronRight
               aria-hidden="true"
               className={`size-4 ${hasChildren ? '' : 'opacity-45'}`}
@@ -276,20 +325,23 @@ function ChecklistRow({
 
         <Checkbox
           aria-label={dictionary.dayEditor.toggleItem}
-          checked={item.checked}
+          checked={goalStep.completed}
           onChange={() => {
             if (scope) {
-              void toggleChecklistItemChecked({ scope, itemId: item.id });
+              void toggleGoalStepChecked({
+                scope,
+                goalStepId: goalStep.id,
+              });
             }
           }}
         />
 
         <input
-          data-checklist-input="true"
+          data-goal-step-input="true"
           value={text}
           placeholder={dictionary.dayEditor.itemPlaceholder}
           className={`min-w-0 flex-1 rounded-md bg-transparent px-2 py-2 text-sm outline-none transition focus:bg-surface focus:shadow-sm ${
-            item.checked ? 'text-muted line-through' : 'text-foreground'
+            goalStep.completed ? 'text-muted line-through' : 'text-foreground'
           }`}
           onBlur={() => void flushText()}
           onChange={(event) => setText(event.target.value)}
@@ -320,7 +372,7 @@ function ChecklistRow({
             aria-label={dictionary.dayEditor.indentItem}
             onClick={() => {
               if (scope) {
-                void indentChecklistItem({ scope, itemId: item.id });
+                void indentGoalStep({ scope, goalStepId: goalStep.id });
               }
             }}
           >
@@ -330,7 +382,7 @@ function ChecklistRow({
             aria-label={dictionary.dayEditor.outdentItem}
             onClick={() => {
               if (scope) {
-                void outdentChecklistItem({ scope, itemId: item.id });
+                void outdentGoalStep({ scope, goalStepId: goalStep.id });
               }
             }}
           >
@@ -339,12 +391,12 @@ function ChecklistRow({
           <CategoryAssignmentMenu
             assignLabel={dictionary.dayEditor.assignCategory}
             clearLabel={dictionary.dayEditor.clearCategory}
-            selectedCategoryTagId={item.categoryTagId}
+            selectedCategoryTagId={goalStep.categoryTagId}
             onAssign={(categoryTagId) => {
               if (scope) {
-                return assignChecklistItemCategory({
+                return assignGoalStepCategory({
                   scope,
-                  itemId: item.id,
+                  goalStepId: goalStep.id,
                   categoryTagId,
                 });
               }
@@ -354,7 +406,7 @@ function ChecklistRow({
           />
           <IconButton
             aria-label={dictionary.dayEditor.deleteItem}
-            onClick={() => void deleteItem()}
+            onClick={() => void requestDelete()}
           >
             <Trash2 aria-hidden="true" className="size-4" />
           </IconButton>
@@ -368,7 +420,7 @@ function ChecklistRow({
         open={isDeleteDialogOpen}
         title={dictionary.dayEditor.deleteItem}
         onClose={() => setIsDeleteDialogOpen(false)}
-        onConfirm={() => void confirmDeleteItem()}
+        onConfirm={() => void confirmDelete()}
       />
     </>
   );

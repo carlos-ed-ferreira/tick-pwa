@@ -1,0 +1,148 @@
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { GoalsSurface } from '@/features/goals';
+
+const {
+  createGoalMock,
+  createGoalStepMock,
+  mergeGoalsInCategoryMock,
+  useGoalsMock,
+  useGoalStepTreeMock,
+} = vi.hoisted(() => ({
+  createGoalMock: vi.fn(),
+  createGoalStepMock: vi.fn(),
+  mergeGoalsInCategoryMock: vi.fn().mockResolvedValue(null),
+  useGoalsMock: vi.fn(),
+  useGoalStepTreeMock: vi.fn(),
+}));
+
+vi.mock('@/lib/db', () => ({
+  assignGoalStepCategory: vi.fn().mockResolvedValue(undefined),
+  createGoal: createGoalMock,
+  createGoalStep: createGoalStepMock,
+  createGoalStepChild: vi.fn().mockResolvedValue(undefined),
+  indentGoalStep: vi.fn().mockResolvedValue(undefined),
+  mergeGoalsInCategory: mergeGoalsInCategoryMock,
+  outdentGoalStep: vi.fn().mockResolvedValue(undefined),
+  softDeleteGoalStep: vi.fn().mockResolvedValue(undefined),
+  toggleGoalStepChecked: vi.fn().mockResolvedValue(undefined),
+  toggleGoalStepCollapsed: vi.fn().mockResolvedValue(undefined),
+  updateGoalStepText: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock('@/providers', () => ({
+  useAppContext: () => ({
+    dictionary: {
+      dayEditor: {
+        expandItem: 'Expand item',
+        collapseItem: 'Collapse item',
+        toggleItem: 'Toggle item',
+        itemPlaceholder: 'Write a task',
+        addChild: 'Add child',
+        indentItem: 'Indent item',
+        outdentItem: 'Outdent item',
+        deleteItem: 'Delete item',
+        assignCategory: 'Assign category',
+        clearCategory: 'Clear category',
+        confirmDeleteItem: 'This item has content. Delete it anyway?',
+      },
+      goals: {
+        categories: {
+          short: 'Short term',
+          medium: 'Medium term',
+          long: 'Long term',
+        },
+        addGoal: 'Add goal',
+        addGoalAfter: 'Add goal below',
+        addStep: 'Add item',
+        emptyCategory: 'Start this section with a checklist item',
+        emptyGoal: 'Start this goal with a checklist item',
+        goalPlaceholder: 'Write a goal',
+        deleteGoal: 'Delete goal',
+        confirmDeleteGoal: 'This goal has content. Delete it anyway?',
+        progress: 'Progress',
+        title: 'Goals',
+      },
+      actions: {
+        cancel: 'Cancel',
+        delete: 'Delete',
+      },
+    },
+    scope: {
+      id: 'guest:test',
+      kind: 'guest',
+      ownerId: 'test',
+    },
+  }),
+}));
+
+vi.mock('@/features/categories', () => ({
+  CategoryAssignmentMenu: () => null,
+  useCategoryTags: () => [],
+}));
+
+vi.mock('@/features/goals/use-goals', () => ({
+  useGoals: useGoalsMock,
+}));
+
+vi.mock('@/features/goals/use-goal-step-tree', () => ({
+  useGoalStepTree: useGoalStepTreeMock,
+}));
+
+describe('GoalsSurface', () => {
+  beforeEach(() => {
+    createGoalMock.mockReset();
+    createGoalMock.mockResolvedValue({ id: 'goal-short' });
+    createGoalStepMock.mockReset();
+    createGoalStepMock.mockResolvedValue(undefined);
+    mergeGoalsInCategoryMock.mockClear();
+    useGoalsMock.mockReset();
+    useGoalsMock.mockImplementation((_scope, category) =>
+      category === 'short' ? [] : [{ id: `${category}-goal` }],
+    );
+    useGoalStepTreeMock.mockReset();
+    useGoalStepTreeMock.mockReturnValue([]);
+  });
+
+  afterEach(() => {
+    cleanup();
+  });
+
+  it('creates the first item directly inside a term section without rendering goal inputs', async () => {
+    render(<GoalsSurface />);
+
+    expect(
+      screen.queryByPlaceholderText('Write a goal'),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Add goal' }),
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Add item' })[0]);
+
+    await waitFor(() => {
+      expect(createGoalMock).toHaveBeenCalledWith({
+        scope: {
+          id: 'guest:test',
+          kind: 'guest',
+          ownerId: 'test',
+        },
+        category: 'short',
+      });
+    });
+    expect(createGoalStepMock).toHaveBeenCalledWith({
+      scope: {
+        id: 'guest:test',
+        kind: 'guest',
+        ownerId: 'test',
+      },
+      goalId: 'goal-short',
+    });
+  });
+});

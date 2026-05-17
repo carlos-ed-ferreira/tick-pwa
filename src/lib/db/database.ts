@@ -34,6 +34,16 @@ type LegacyGoal = Omit<Goal, 'categoryTagId'> & {
   colorTagId?: string | null;
 };
 
+type LegacyGoalStep = Omit<
+  GoalStep,
+  'parentId' | 'collapsed' | 'categoryTagId'
+> & {
+  parentId?: string | null;
+  collapsed?: boolean;
+  categoryTagId?: string | null;
+  colorTagId?: string | null;
+};
+
 type LegacyCategoryTag = Omit<CategoryTag, 'colorHex'> & {
   colorHex?: string;
   hex?: string;
@@ -97,6 +107,17 @@ function migrateCategoryTag(categoryTag: LegacyCategoryTag): CategoryTag {
   };
 }
 
+function migrateGoalStep(goalStep: LegacyGoalStep): GoalStep {
+  const { categoryTagId, collapsed, colorTagId, parentId, ...rest } = goalStep;
+
+  return {
+    ...rest,
+    parentId: parentId ?? null,
+    collapsed: collapsed ?? false,
+    categoryTagId: categoryTagId ?? colorTagId ?? null,
+  };
+}
+
 function renameChangedField(field: string): string {
   if (field === 'colorTagId') {
     return 'categoryTagId';
@@ -136,6 +157,13 @@ function migrateOutboxPayload(
 
   if (entityType === 'goal') {
     return migrateGoal(payload as LegacyGoal) as unknown as Record<
+      string,
+      unknown
+    >;
+  }
+
+  if (entityType === 'goalStep') {
+    return migrateGoalStep(payload as LegacyGoalStep) as unknown as Record<
       string,
       unknown
     >;
@@ -274,6 +302,44 @@ export class TickDatabase extends Dexie {
         for (const cursor of await syncCursorsTable.toArray()) {
           await syncCursorsTable.put(
             migrateSyncCursor(cursor) as LegacySyncCursor,
+          );
+        }
+      });
+
+    this.version(3)
+      .stores({
+        dailyEntries:
+          'id, scopeId, date, updatedAt, deletedAt, [scopeId+date], [scopeId+updatedAt]',
+        checklistItems:
+          'id, scopeId, dailyEntryId, parentId, updatedAt, deletedAt, [scopeId+dailyEntryId], [scopeId+parentId], [scopeId+updatedAt]',
+        colorTags:
+          'id, scopeId, position, updatedAt, deletedAt, [scopeId+position], [scopeId+updatedAt]',
+        goals:
+          'id, scopeId, category, status, updatedAt, deletedAt, [scopeId+category], [scopeId+status], [scopeId+updatedAt]',
+        goalSteps:
+          'id, scopeId, goalId, parentId, updatedAt, deletedAt, [scopeId+goalId], [scopeId+parentId], [scopeId+updatedAt]',
+        syncOutbox:
+          'id, scopeId, entityType, status, createdAt, [scopeId+status], [scopeId+createdAt]',
+        syncCursors: 'id, scopeId, entityType, [scopeId+entityType]',
+        localPreferences: 'key, scopeId, updatedAt',
+      })
+      .upgrade(async (transaction) => {
+        const goalStepsTable = transaction.table('goalSteps') as Table<
+          LegacyGoalStep,
+          string
+        >;
+        const syncOutboxTable = transaction.table('syncOutbox') as Table<
+          LegacySyncOutboxItem,
+          string
+        >;
+
+        for (const goalStep of await goalStepsTable.toArray()) {
+          await goalStepsTable.put(migrateGoalStep(goalStep) as LegacyGoalStep);
+        }
+
+        for (const outboxItem of await syncOutboxTable.toArray()) {
+          await syncOutboxTable.put(
+            migrateSyncOutboxItem(outboxItem) as LegacySyncOutboxItem,
           );
         }
       });

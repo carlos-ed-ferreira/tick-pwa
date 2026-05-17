@@ -69,8 +69,11 @@ export interface RemoteGoal extends RemoteBaseRow {
 
 export interface RemoteGoalStep extends RemoteBaseRow {
   goal_id: string;
+  parent_id: string | null;
   text: string;
   completed: boolean;
+  collapsed: boolean;
+  category_tag_id: string | null;
   sort_rank: string;
 }
 
@@ -219,8 +222,11 @@ export function toRemotePayload(
   return {
     ...serializeBaseEntity(scope, goalStep),
     goal_id: goalStep.goalId,
+    parent_id: goalStep.parentId,
     text: goalStep.text,
     completed: goalStep.completed,
+    collapsed: goalStep.collapsed,
+    category_tag_id: goalStep.categoryTagId,
     sort_rank: goalStep.sortRank,
   };
 }
@@ -307,8 +313,11 @@ export function goalStepFromRemote(
   return {
     ...baseFromRemote(scope, row),
     goalId: row.goal_id,
+    parentId: row.parent_id,
     text: row.text,
     completed: row.completed,
+    collapsed: row.collapsed,
+    categoryTagId: row.category_tag_id,
     sortRank: row.sort_rank,
   };
 }

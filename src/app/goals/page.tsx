@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { LanguageSwitcher } from '@/components/app';
 import { AccountStatus, AuthGate } from '@/features/auth';
+import { GoalsSurface } from '@/features/goals';
 import { useAppContext } from '@/providers';
 
 export default function GoalsPage() {
@@ -11,12 +12,6 @@ export default function GoalsPage() {
     'inline-flex h-9 items-center rounded-full px-3 text-sm font-medium bg-foreground text-background shadow-sm';
   const navigationItemClassName =
     'inline-flex h-9 items-center rounded-full px-3 text-sm font-medium text-muted transition hover:bg-background hover:text-foreground';
-  const categories = [
-    dictionary.goals.categories.short,
-    dictionary.goals.categories.medium,
-    dictionary.goals.categories.long,
-  ];
-
   return (
     <AuthGate>
       <main className="min-h-dvh bg-background px-5 py-6 text-foreground sm:px-8">
@@ -54,16 +49,7 @@ export default function GoalsPage() {
               <LanguageSwitcher />
             </div>
           </header>
-          <section className="grid gap-3 sm:grid-cols-3">
-            {categories.map((category) => (
-              <div
-                key={category}
-                className="min-h-32 rounded-lg border border-border bg-surface p-4 shadow-sm"
-              >
-                <h2 className="font-medium">{category}</h2>
-              </div>
-            ))}
-          </section>
+          <GoalsSurface />
         </div>
       </main>
     </AuthGate>

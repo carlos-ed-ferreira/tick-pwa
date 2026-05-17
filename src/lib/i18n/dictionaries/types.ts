@@ -3,6 +3,10 @@ export interface Dictionary {
     name: string;
     localFirst: string;
   };
+  actions: {
+    cancel: string;
+    delete: string;
+  };
   auth: {
     title: string;
     subtitle: string;
@@ -72,6 +76,7 @@ export interface Dictionary {
     categories: string;
     categoryNamePlaceholder: string;
     deleteCategory: string;
+    confirmDeleteItem: string;
   };
   goals: {
     title: string;
@@ -81,6 +86,13 @@ export interface Dictionary {
       long: string;
     };
     addGoal: string;
+    addGoalAfter: string;
+    addStep: string;
+    emptyCategory: string;
+    emptyGoal: string;
+    goalPlaceholder: string;
+    deleteGoal: string;
+    confirmDeleteGoal: string;
     progress: string;
   };
   status: {

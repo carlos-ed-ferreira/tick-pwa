@@ -5,6 +5,10 @@ export const enDictionary = {
     name: 'Tick',
     localFirst: 'Local-first',
   },
+  actions: {
+    cancel: 'Cancel',
+    delete: 'Delete',
+  },
   auth: {
     title: 'Sign in to sync your data',
     subtitle:
@@ -79,6 +83,7 @@ export const enDictionary = {
     categories: 'Categories',
     categoryNamePlaceholder: 'Category name',
     deleteCategory: 'Delete category',
+    confirmDeleteItem: 'This item has content. Delete it anyway?',
   },
   goals: {
     title: 'Goals',
@@ -88,6 +93,13 @@ export const enDictionary = {
       long: 'Long term',
     },
     addGoal: 'Add goal',
+    addGoalAfter: 'Add goal below',
+    addStep: 'Add item',
+    emptyCategory: 'Start this section with a checklist item',
+    emptyGoal: 'Start this goal with a checklist item',
+    goalPlaceholder: 'Write a goal',
+    deleteGoal: 'Delete goal',
+    confirmDeleteGoal: 'This goal has content. Delete it anyway?',
     progress: 'Progress',
   },
   status: {

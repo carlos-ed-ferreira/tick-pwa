@@ -1,21 +1,94 @@
 'use client';
 
 import { Palette, X } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { IconButton } from '@/components/ui';
-import { assignChecklistItemCategory } from '@/lib/db';
-import type { ChecklistItem } from '@/lib/domain';
 import { useAppContext } from '@/providers';
 import { useCategoryTags } from './use-category-tags';
 
-export function CategoryAssignmentMenu({ item }: { item: ChecklistItem }) {
-  const { dictionary, scope } = useAppContext();
+const menuOffset = 8;
+const viewportPadding = 16;
+
+export function CategoryAssignmentMenu({
+  assignLabel,
+  clearLabel,
+  selectedCategoryTagId,
+  onAssign,
+}: {
+  assignLabel: string;
+  clearLabel: string;
+  selectedCategoryTagId: string | null;
+  onAssign: (categoryTagId: string | null) => Promise<void> | void;
+}) {
+  const { scope } = useAppContext();
   const categoryTags = useCategoryTags(scope);
   const [isOpen, setIsOpen] = useState(false);
+  const [menuStyle, setMenuStyle] = useState<
+    | {
+        top: number;
+        right: number;
+      }
+    | {
+        bottom: number;
+        right: number;
+      }
+    | null
+  >(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const selectedCategory = categoryTags.find(
-    (tag) => tag.id === item.categoryTagId,
+    (tag) => tag.id === selectedCategoryTagId,
+  );
+
+  const getMenuStyle = useCallback(() => {
+    const trigger = triggerRef.current;
+
+    if (!trigger || typeof window === 'undefined') {
+      return null;
+    }
+
+    const triggerRect = trigger.getBoundingClientRect();
+    const estimatedMenuHeight = Math.min(
+      56 + categoryTags.length * 40,
+      window.innerHeight - viewportPadding * 2,
+    );
+    const shouldOpenUpward =
+      triggerRect.bottom + menuOffset + estimatedMenuHeight >
+        window.innerHeight - viewportPadding &&
+      triggerRect.top > window.innerHeight - triggerRect.bottom;
+    const right = Math.max(
+      viewportPadding,
+      window.innerWidth - triggerRect.right,
+    );
+
+    if (shouldOpenUpward) {
+      return {
+        bottom: Math.max(
+          viewportPadding,
+          window.innerHeight - triggerRect.top + menuOffset,
+        ),
+        right,
+      };
+    }
+
+    return {
+      top: Math.max(viewportPadding, triggerRect.bottom + menuOffset),
+      right,
+    };
+  }, [categoryTags.length]);
+
+  const closeMenu = useCallback(
+    ({ restoreFocus = false }: { restoreFocus?: boolean } = {}) => {
+      setIsOpen(false);
+      setMenuStyle(null);
+
+      if (restoreFocus) {
+        triggerRef.current?.focus();
+      }
+    },
+    [],
   );
 
   useEffect(() => {
@@ -24,14 +97,24 @@ export function CategoryAssignmentMenu({ item }: { item: ChecklistItem }) {
     }
 
     function handlePointerDown(event: PointerEvent) {
-      if (!containerRef.current?.contains(event.target as Node)) {
-        setIsOpen(false);
+      const target = event.target as Node;
+
+      if (
+        !containerRef.current?.contains(target) &&
+        !menuRef.current?.contains(target)
+      ) {
+        closeMenu();
       }
     }
 
     function handleFocusIn(event: FocusEvent) {
-      if (!containerRef.current?.contains(event.target as Node)) {
-        setIsOpen(false);
+      const target = event.target as Node;
+
+      if (
+        !containerRef.current?.contains(target) &&
+        !menuRef.current?.contains(target)
+      ) {
+        closeMenu();
       }
     }
 
@@ -40,8 +123,7 @@ export function CategoryAssignmentMenu({ item }: { item: ChecklistItem }) {
         return;
       }
 
-      setIsOpen(false);
-      triggerRef.current?.focus();
+      closeMenu({ restoreFocus: true });
     }
 
     document.addEventListener('pointerdown', handlePointerDown);
@@ -53,29 +135,87 @@ export function CategoryAssignmentMenu({ item }: { item: ChecklistItem }) {
       document.removeEventListener('focusin', handleFocusIn);
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [isOpen]);
+  }, [closeMenu, isOpen]);
 
-  async function assignCategory(categoryTagId: string | null) {
-    if (!scope) {
+  useEffect(() => {
+    if (!isOpen) {
       return;
     }
 
-    await assignChecklistItemCategory({
-      scope,
-      itemId: item.id,
-      categoryTagId,
-    });
-    setIsOpen(false);
+    function updateMenuStyle() {
+      const nextMenuStyle = getMenuStyle();
+
+      if (nextMenuStyle) {
+        setMenuStyle(nextMenuStyle);
+      }
+    }
+
+    window.addEventListener('resize', updateMenuStyle);
+    window.addEventListener('scroll', updateMenuStyle, true);
+
+    return () => {
+      window.removeEventListener('resize', updateMenuStyle);
+      window.removeEventListener('scroll', updateMenuStyle, true);
+    };
+  }, [getMenuStyle, isOpen]);
+
+  async function assignCategory(categoryTagId: string | null) {
+    await onAssign(categoryTagId);
+    closeMenu();
   }
+
+  const menu =
+    isOpen && menuStyle && typeof document !== 'undefined'
+      ? createPortal(
+          <div
+            ref={menuRef}
+            className="fixed z-60 grid max-h-[min(20rem,calc(100vh-2rem))] min-w-48 gap-1 overflow-y-auto rounded-lg border border-border bg-surface p-2 text-sm shadow-xl"
+            style={menuStyle}
+          >
+            <button
+              type="button"
+              className="flex items-center gap-2 rounded-md px-2 py-2 text-left text-muted transition hover:bg-background hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground"
+              onClick={() => void assignCategory(null)}
+            >
+              <X aria-hidden="true" className="size-4" />
+              {clearLabel}
+            </button>
+            {categoryTags.map((tag) => (
+              <button
+                key={tag.id}
+                type="button"
+                className="flex items-center gap-2 rounded-md px-2 py-2 text-left transition hover:bg-background focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground"
+                onClick={() => void assignCategory(tag.id)}
+              >
+                <span
+                  aria-hidden="true"
+                  className="size-3 rounded-full"
+                  style={{ backgroundColor: tag.colorHex }}
+                />
+                <span className="truncate">{tag.name}</span>
+              </button>
+            ))}
+          </div>,
+          document.body,
+        )
+      : null;
 
   return (
     <div ref={containerRef} className="relative">
       <IconButton
         aria-expanded={isOpen}
-        aria-label={dictionary.dayEditor.assignCategory}
+        aria-label={assignLabel}
         className={selectedCategory ? 'text-foreground' : ''}
         ref={triggerRef}
-        onClick={() => setIsOpen((currentValue) => !currentValue)}
+        onClick={() => {
+          if (isOpen) {
+            closeMenu();
+            return;
+          }
+
+          setMenuStyle(getMenuStyle());
+          setIsOpen(true);
+        }}
       >
         {selectedCategory ? (
           <span
@@ -88,33 +228,7 @@ export function CategoryAssignmentMenu({ item }: { item: ChecklistItem }) {
         )}
       </IconButton>
 
-      {isOpen ? (
-        <div className="absolute right-0 top-10 z-20 grid min-w-48 gap-1 rounded-lg border border-border bg-surface p-2 text-sm shadow-xl">
-          <button
-            type="button"
-            className="flex items-center gap-2 rounded-md px-2 py-2 text-left text-muted transition hover:bg-background hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground"
-            onClick={() => void assignCategory(null)}
-          >
-            <X aria-hidden="true" className="size-4" />
-            {dictionary.dayEditor.clearCategory}
-          </button>
-          {categoryTags.map((tag) => (
-            <button
-              key={tag.id}
-              type="button"
-              className="flex items-center gap-2 rounded-md px-2 py-2 text-left transition hover:bg-background focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground"
-              onClick={() => void assignCategory(tag.id)}
-            >
-              <span
-                aria-hidden="true"
-                className="size-3 rounded-full"
-                style={{ backgroundColor: tag.colorHex }}
-              />
-              <span className="truncate">{tag.name}</span>
-            </button>
-          ))}
-        </div>
-      ) : null}
+      {menu}
     </div>
   );
 }
