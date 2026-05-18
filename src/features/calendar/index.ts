@@ -1,2 +1,3 @@
+export * from './bulk-calendar-editor';
 export * from './calendar-month';
 export * from './use-month-entries';

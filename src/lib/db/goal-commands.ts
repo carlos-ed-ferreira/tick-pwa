@@ -127,6 +127,40 @@ function createGoalStepInsertRank({
   );
 }
 
+function createReorderedGoalStepRank({
+  siblings,
+  goalStepId,
+  direction,
+}: {
+  siblings: GoalStep[];
+  goalStepId: string;
+  direction: 'up' | 'down';
+}): string | null {
+  const sortedSiblings = sortGoalSteps(siblings);
+  const currentIndex = sortedSiblings.findIndex(
+    (goalStep) => goalStep.id === goalStepId,
+  );
+
+  if (currentIndex === -1) {
+    return null;
+  }
+
+  const nextIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+
+  if (nextIndex < 0 || nextIndex >= sortedSiblings.length) {
+    return null;
+  }
+
+  const reorderedSiblings = [...sortedSiblings];
+  const [movedGoalStep] = reorderedSiblings.splice(currentIndex, 1);
+  reorderedSiblings.splice(nextIndex, 0, movedGoalStep);
+
+  return createSortRankBetween(
+    reorderedSiblings[nextIndex - 1]?.sortRank ?? null,
+    reorderedSiblings[nextIndex + 1]?.sortRank ?? null,
+  );
+}
+
 async function persistGoalUpdate(
   scope: AppScope,
   goal: Goal,
@@ -850,5 +884,43 @@ export async function outdentGoalStep({
       'parentId',
       'sortRank',
     ]);
+  });
+}
+
+export async function reorderGoalStep({
+  scope,
+  goalStepId,
+  direction,
+}: {
+  scope: AppScope;
+  goalStepId: string;
+  direction: 'up' | 'down';
+}): Promise<void> {
+  await db.transaction('rw', db.goalSteps, db.syncOutbox, async () => {
+    const goalStep = await getScopedGoalStep(scope, goalStepId);
+
+    if (!goalStep) {
+      return;
+    }
+
+    const activeGoalSteps = await getActiveGoalSteps(scope, goalStep.goalId);
+    const siblings = activeGoalSteps.filter(
+      (activeGoalStep) => activeGoalStep.parentId === goalStep.parentId,
+    );
+    const sortRank = createReorderedGoalStepRank({
+      siblings,
+      goalStepId: goalStep.id,
+      direction,
+    });
+
+    if (!sortRank) {
+      return;
+    }
+
+    const updatedGoalStep = touchGoalStep(scope, {
+      ...goalStep,
+      sortRank,
+    });
+    await persistGoalStepUpdate(scope, updatedGoalStep, ['sortRank']);
   });
 }

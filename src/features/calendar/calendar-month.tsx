@@ -1,9 +1,11 @@
 'use client';
 
-import { CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react';
+import { CalendarDays, ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { Button } from '@/components/ui';
 import { useCategoryTags } from '@/features/categories';
+import { BulkCalendarEditor } from '@/features/calendar/bulk-calendar-editor';
 import { DayEditor } from '@/features/day-editor';
 import type {
   DailyEntry,
@@ -133,6 +135,7 @@ export function CalendarMonth() {
     getMonthParts(todayKey);
   const dayParam = searchParams.get('day');
   const openDayDate = dayParam && isLocalDateString(dayParam) ? dayParam : null;
+  const [isBulkEditorOpen, setIsBulkEditorOpen] = useState(false);
   const [visibleYear, setVisibleYear] = useState<number>(() => todayYear);
   const [visibleMonthIndex, setVisibleMonthIndex] = useState<number>(
     () => todayMonthIndex,
@@ -208,6 +211,13 @@ export function CalendarMonth() {
               </h2>
             </div>
             <div className="flex items-center gap-1">
+              <Button
+                className="min-h-10 px-3"
+                onClick={() => setIsBulkEditorOpen(true)}
+              >
+                <Plus aria-hidden="true" className="size-4" />
+                {dictionary.calendar.bulkCreate}
+              </Button>
               <button
                 type="button"
                 aria-label={dictionary.calendar.previousYear}
@@ -283,6 +293,10 @@ export function CalendarMonth() {
           ))}
         </div>
       </section>
+      <BulkCalendarEditor
+        open={isBulkEditorOpen}
+        onClose={() => setIsBulkEditorOpen(false)}
+      />
       <DayEditor date={openDayDate} onClose={closeDay} />
     </>
   );

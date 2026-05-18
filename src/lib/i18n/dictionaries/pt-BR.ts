@@ -51,6 +51,22 @@ export const ptBRDictionary = {
   },
   calendar: {
     title: 'Calendário diário',
+    bulkApply: 'Aplicar nas datas',
+    bulkCreate: 'Aplicar intervalo',
+    bulkDatePlaceholder: 'DD-MM-YYYY',
+    bulkEditorTitle: 'Aplicar checklist em intervalo de datas',
+    bulkEndDate: 'Data final',
+    bulkInvalidDates: 'Informe datas válidas em DD-MM-YYYY.',
+    bulkInvalidRange:
+      'A data final deve ser igual ou posterior à data inicial.',
+    bulkNoMatchingDates:
+      'Nenhuma data do intervalo corresponde aos dias da semana selecionados.',
+    bulkRequireItems:
+      'Adicione pelo menos um item antes de aplicar o intervalo.',
+    bulkRequiredDates: 'Data inicial e data final são obrigatórias.',
+    bulkSelectWeekdays: 'Selecione pelo menos um dia da semana.',
+    bulkStartDate: 'Data inicial',
+    bulkWeekdays: 'Dias da semana',
     today: 'Hoje',
     previousMonth: 'Mês anterior',
     nextMonth: 'Próximo mês',
@@ -75,6 +91,8 @@ export const ptBRDictionary = {
     itemPlaceholder: 'Escreva uma tarefa',
     newCategory: 'Nova categoria',
     indentItem: 'Indentar item',
+    moveItemDown: 'Mover item para baixo',
+    moveItemUp: 'Mover item para cima',
     moveCategoryDown: 'Mover categoria para baixo',
     moveCategoryUp: 'Mover categoria para cima',
     outdentItem: 'Recuar item',

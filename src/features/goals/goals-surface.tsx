@@ -1,6 +1,8 @@
 'use client';
 
 import {
+  ArrowDown,
+  ArrowUp,
   ChevronDown,
   ChevronRight,
   IndentDecrease,
@@ -24,6 +26,7 @@ import {
   indentGoalStep,
   mergeGoalsInCategory,
   outdentGoalStep,
+  reorderGoalStep,
   softDeleteGoalStep,
   toggleGoalStepChecked,
   toggleGoalStepCollapsed,
@@ -163,7 +166,7 @@ function GoalStepRow({
   row: VisibleGoalStepRow;
 }) {
   const { dictionary, scope } = useAppContext();
-  const { goalStep, depth, hasChildren } = row;
+  const { goalStep, depth, hasChildren, isFirstSibling, isLastSibling } = row;
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [text, setText] = useState(goalStep.text);
   const selectedCategory = goalStep.categoryTagId
@@ -362,6 +365,36 @@ function GoalStepRow({
         ) : null}
 
         <div className="flex shrink-0 items-center gap-0">
+          <IconButton
+            aria-label={dictionary.dayEditor.moveItemUp}
+            disabled={isFirstSibling}
+            onClick={() => {
+              if (scope) {
+                void reorderGoalStep({
+                  scope,
+                  goalStepId: goalStep.id,
+                  direction: 'up',
+                });
+              }
+            }}
+          >
+            <ArrowUp aria-hidden="true" className="size-4" />
+          </IconButton>
+          <IconButton
+            aria-label={dictionary.dayEditor.moveItemDown}
+            disabled={isLastSibling}
+            onClick={() => {
+              if (scope) {
+                void reorderGoalStep({
+                  scope,
+                  goalStepId: goalStep.id,
+                  direction: 'down',
+                });
+              }
+            }}
+          >
+            <ArrowDown aria-hidden="true" className="size-4" />
+          </IconButton>
           <IconButton
             aria-label={dictionary.dayEditor.addChild}
             onClick={createChild}

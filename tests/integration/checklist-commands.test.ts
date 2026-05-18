@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createGuestScope } from '@/lib/domain';
 import {
+  applyChecklistTemplateToDateRange,
   assignChecklistItemCategory,
   createChecklistChild,
   createChecklistItem,
@@ -9,6 +10,7 @@ import {
   indentChecklistItem,
   openOrCreateDailyEntry,
   outdentChecklistItem,
+  reorderChecklistItem,
   reorderCategoryTag,
   softDeleteChecklistItem,
   softDeleteCategoryTag,
@@ -210,5 +212,211 @@ describe('checklist commands', () => {
       thirdTag.name,
       secondTag.name,
     ]);
+  });
+
+  it('reorders checklist siblings at the same level', async () => {
+    const scope = createGuestScope('local-test');
+    const entry = await openOrCreateDailyEntry({
+      scope,
+      date: '2026-05-13',
+      timezone: 'America/Sao_Paulo',
+    });
+    const first = await createChecklistItem({
+      scope,
+      dailyEntryId: entry.id,
+      text: 'First',
+    });
+    const second = await createChecklistItem({
+      scope,
+      dailyEntryId: entry.id,
+      afterItemId: first.id,
+      text: 'Second',
+    });
+    await createChecklistItem({
+      scope,
+      dailyEntryId: entry.id,
+      afterItemId: second.id,
+      text: 'Third',
+    });
+
+    await reorderChecklistItem({
+      scope,
+      itemId: first.id,
+      direction: 'down',
+    });
+
+    let reorderedItems = await db.checklistItems
+      .where('[scopeId+dailyEntryId]')
+      .equals([scope.id, entry.id])
+      .filter((item) => item.deletedAt === null && item.parentId === null)
+      .sortBy('sortRank');
+
+    expect(reorderedItems.map((item) => item.text)).toEqual([
+      'Second',
+      'First',
+      'Third',
+    ]);
+
+    let updatedEntry = await db.dailyEntries.get(entry.id);
+
+    expect(updatedEntry?.previewText).toBe('Second');
+
+    const nestedSecond = await createChecklistChild({
+      scope,
+      dailyEntryId: entry.id,
+      parentItemId: first.id,
+    });
+    await updateChecklistItemText({
+      scope,
+      itemId: nestedSecond.id,
+      text: 'Nested second',
+    });
+    const nestedThird = await createChecklistChild({
+      scope,
+      dailyEntryId: entry.id,
+      parentItemId: first.id,
+    });
+    await updateChecklistItemText({
+      scope,
+      itemId: nestedThird.id,
+      text: 'Nested third',
+    });
+
+    await reorderChecklistItem({
+      scope,
+      itemId: nestedThird.id,
+      direction: 'up',
+    });
+
+    reorderedItems = await db.checklistItems
+      .where('[scopeId+dailyEntryId]')
+      .equals([scope.id, entry.id])
+      .filter((item) => item.deletedAt === null && item.parentId === first.id)
+      .sortBy('sortRank');
+
+    expect(reorderedItems.map((item) => item.text)).toEqual([
+      'Nested third',
+      'Nested second',
+    ]);
+
+    updatedEntry = await db.dailyEntries.get(entry.id);
+
+    expect(updatedEntry?.itemCount).toBe(5);
+  });
+
+  it('applies a checklist template across a weekday-filtered range', async () => {
+    const scope = createGuestScope('bulk-range-test');
+    const categoryTag = await createCategoryTag({
+      scope,
+      name: 'Health',
+      colorHex: '#4b6f52',
+    });
+    const existingEntry = await openOrCreateDailyEntry({
+      scope,
+      date: '2026-01-02',
+      timezone: 'America/Sao_Paulo',
+    });
+    await createChecklistItem({
+      scope,
+      dailyEntryId: existingEntry.id,
+      text: 'Existing',
+    });
+
+    const affectedDates = await applyChecklistTemplateToDateRange({
+      scope,
+      startDate: '2026-01-01',
+      endDate: '2026-01-05',
+      selectedWeekdays: [1, 5],
+      timezone: 'America/Sao_Paulo',
+      templateItems: [
+        {
+          id: 'root-1',
+          parentId: null,
+          text: 'Root task',
+          checked: false,
+          collapsed: false,
+          categoryTagId: null,
+          sortRank: 'U',
+        },
+        {
+          id: 'child-1',
+          parentId: 'root-1',
+          text: 'Nested task',
+          checked: true,
+          collapsed: false,
+          categoryTagId: categoryTag.id,
+          sortRank: 'U',
+        },
+        {
+          id: 'root-2',
+          parentId: null,
+          text: 'Later task',
+          checked: false,
+          collapsed: true,
+          categoryTagId: categoryTag.id,
+          sortRank: 'j',
+        },
+      ],
+    });
+
+    expect(affectedDates).toEqual(['2026-01-02', '2026-01-05']);
+
+    const fridayEntry = await db.dailyEntries
+      .where('[scopeId+date]')
+      .equals([scope.id, '2026-01-02'])
+      .first();
+    const mondayEntry = await db.dailyEntries
+      .where('[scopeId+date]')
+      .equals([scope.id, '2026-01-05'])
+      .first();
+    const createdThursdayEntry = await db.dailyEntries
+      .where('[scopeId+date]')
+      .equals([scope.id, '2026-01-01'])
+      .first();
+
+    expect(createdThursdayEntry).toBeUndefined();
+    expect(fridayEntry).toBeTruthy();
+    expect(mondayEntry).toBeTruthy();
+
+    const fridayRootItems = await db.checklistItems
+      .where('[scopeId+dailyEntryId]')
+      .equals([scope.id, fridayEntry!.id])
+      .filter((item) => item.deletedAt === null && item.parentId === null)
+      .sortBy('sortRank');
+    const fridayNestedItems = await db.checklistItems
+      .where('[scopeId+dailyEntryId]')
+      .equals([scope.id, fridayEntry!.id])
+      .filter(
+        (item) =>
+          item.deletedAt === null && item.parentId === fridayRootItems[1]?.id,
+      )
+      .sortBy('sortRank');
+
+    expect(fridayRootItems.map((item) => item.text)).toEqual([
+      'Existing',
+      'Root task',
+      'Later task',
+    ]);
+    expect(fridayNestedItems).toMatchObject([
+      {
+        text: 'Nested task',
+        checked: true,
+        categoryTagId: categoryTag.id,
+      },
+    ]);
+    expect(fridayRootItems[2]?.collapsed).toBe(true);
+    expect(fridayEntry).toMatchObject({
+      itemCount: 4,
+      completedCount: 1,
+      categoryTagIds: [categoryTag.id],
+    });
+
+    const mondayItems = await db.checklistItems
+      .where('[scopeId+dailyEntryId]')
+      .equals([scope.id, mondayEntry!.id])
+      .filter((item) => item.deletedAt === null)
+      .sortBy('sortRank');
+
+    expect(mondayItems).toHaveLength(3);
   });
 });

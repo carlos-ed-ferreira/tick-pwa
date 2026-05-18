@@ -11,6 +11,7 @@ import {
   indentGoalStep,
   mergeGoalsInCategory,
   outdentGoalStep,
+  reorderGoalStep,
   softDeleteGoal,
   softDeleteGoalStep,
   toggleGoalStepChecked,
@@ -277,5 +278,92 @@ describe('goal commands', () => {
       secondRootStep.id,
     ]);
     expect(deletedLegacyGoal?.deletedAt).not.toBeNull();
+  });
+
+  it('reorders goal steps at the same level', async () => {
+    const scope = createGuestScope('goals-reorder-test');
+    const goal = await createGoal({
+      scope,
+      category: 'short',
+      title: 'Goal',
+    });
+    const firstGoalStep = await createGoalStep({
+      scope,
+      goalId: goal.id,
+      text: 'First step',
+    });
+    const secondGoalStep = await createGoalStep({
+      scope,
+      goalId: goal.id,
+      afterGoalStepId: firstGoalStep.id,
+      text: 'Second step',
+    });
+    const thirdGoalStep = await createGoalStep({
+      scope,
+      goalId: goal.id,
+      afterGoalStepId: secondGoalStep.id,
+      text: 'Third step',
+    });
+
+    await reorderGoalStep({
+      scope,
+      goalStepId: thirdGoalStep.id,
+      direction: 'up',
+    });
+
+    let reorderedGoalSteps = await db.goalSteps
+      .where('[scopeId+goalId]')
+      .equals([scope.id, goal.id])
+      .filter(
+        (goalStep) => goalStep.deletedAt === null && goalStep.parentId === null,
+      )
+      .sortBy('sortRank');
+
+    expect(reorderedGoalSteps.map((goalStep) => goalStep.text)).toEqual([
+      'First step',
+      'Third step',
+      'Second step',
+    ]);
+
+    const nestedSecondGoalStep = await createGoalStepChild({
+      scope,
+      goalId: goal.id,
+      parentGoalStepId: firstGoalStep.id,
+    });
+    await updateGoalStepText({
+      scope,
+      goalStepId: nestedSecondGoalStep.id,
+      text: 'Nested second step',
+    });
+    const nestedThirdGoalStep = await createGoalStepChild({
+      scope,
+      goalId: goal.id,
+      parentGoalStepId: firstGoalStep.id,
+    });
+    await updateGoalStepText({
+      scope,
+      goalStepId: nestedThirdGoalStep.id,
+      text: 'Nested third step',
+    });
+
+    await reorderGoalStep({
+      scope,
+      goalStepId: nestedThirdGoalStep.id,
+      direction: 'up',
+    });
+
+    reorderedGoalSteps = await db.goalSteps
+      .where('[scopeId+goalId]')
+      .equals([scope.id, goal.id])
+      .filter(
+        (goalStep) =>
+          goalStep.deletedAt === null && goalStep.parentId === firstGoalStep.id,
+      )
+      .sortBy('sortRank');
+
+    expect(reorderedGoalSteps.map((goalStep) => goalStep.text)).toEqual([
+      'Nested third step',
+      'Nested second step',
+    ]);
   });
 });

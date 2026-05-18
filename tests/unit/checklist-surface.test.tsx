@@ -8,12 +8,15 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ChecklistSurface } from '@/features/checklist/checklist-surface';
 
-const { softDeleteChecklistItemMock, useChecklistTreeMock } = vi.hoisted(
-  () => ({
-    softDeleteChecklistItemMock: vi.fn().mockResolvedValue(undefined),
-    useChecklistTreeMock: vi.fn(),
-  }),
-);
+const {
+  reorderChecklistItemMock,
+  softDeleteChecklistItemMock,
+  useChecklistTreeMock,
+} = vi.hoisted(() => ({
+  reorderChecklistItemMock: vi.fn().mockResolvedValue(undefined),
+  softDeleteChecklistItemMock: vi.fn().mockResolvedValue(undefined),
+  useChecklistTreeMock: vi.fn(),
+}));
 
 vi.mock('@/lib/db', () => ({
   assignChecklistItemCategory: vi.fn().mockResolvedValue(undefined),
@@ -21,6 +24,7 @@ vi.mock('@/lib/db', () => ({
   createChecklistItem: vi.fn().mockResolvedValue(undefined),
   indentChecklistItem: vi.fn().mockResolvedValue(undefined),
   outdentChecklistItem: vi.fn().mockResolvedValue(undefined),
+  reorderChecklistItem: reorderChecklistItemMock,
   softDeleteChecklistItem: softDeleteChecklistItemMock,
   toggleChecklistItemChecked: vi.fn().mockResolvedValue(undefined),
   toggleChecklistItemCollapsed: vi.fn().mockResolvedValue(undefined),
@@ -40,6 +44,8 @@ vi.mock('@/providers', () => ({
         itemPlaceholder: 'Write a task',
         addChild: 'Add child',
         indentItem: 'Indent item',
+        moveItemDown: 'Move item down',
+        moveItemUp: 'Move item up',
         outdentItem: 'Outdent item',
         deleteItem: 'Delete item',
         assignCategory: 'Assign category',
@@ -92,12 +98,15 @@ function createRow(text: string) {
     depth: 0,
     childCount: 0,
     hasChildren: false,
+    isFirstSibling: false,
+    isLastSibling: false,
   };
 }
 
 describe('ChecklistSurface delete confirmation', () => {
   beforeEach(() => {
     useChecklistTreeMock.mockReset();
+    reorderChecklistItemMock.mockClear();
     softDeleteChecklistItemMock.mockClear();
   });
 
@@ -152,5 +161,25 @@ describe('ChecklistSurface delete confirmation', () => {
     expect(
       screen.queryByText('This item has content. Delete it anyway?'),
     ).not.toBeInTheDocument();
+  });
+
+  it('reorders a row when clicking the move controls', async () => {
+    useChecklistTreeMock.mockReturnValue([createRow('Important task')]);
+
+    render(<ChecklistSurface dailyEntryId="entry-1" />);
+
+    fireEvent.click(screen.getByLabelText('Move item up'));
+
+    await waitFor(() => {
+      expect(reorderChecklistItemMock).toHaveBeenCalledWith({
+        scope: {
+          id: 'guest:test',
+          kind: 'guest',
+          ownerId: 'test',
+        },
+        itemId: 'item-Important task',
+        direction: 'up',
+      });
+    });
   });
 });

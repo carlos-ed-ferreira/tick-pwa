@@ -12,12 +12,14 @@ const {
   createGoalMock,
   createGoalStepMock,
   mergeGoalsInCategoryMock,
+  reorderGoalStepMock,
   useGoalsMock,
   useGoalStepTreeMock,
 } = vi.hoisted(() => ({
   createGoalMock: vi.fn(),
   createGoalStepMock: vi.fn(),
   mergeGoalsInCategoryMock: vi.fn().mockResolvedValue(null),
+  reorderGoalStepMock: vi.fn().mockResolvedValue(undefined),
   useGoalsMock: vi.fn(),
   useGoalStepTreeMock: vi.fn(),
 }));
@@ -30,6 +32,7 @@ vi.mock('@/lib/db', () => ({
   indentGoalStep: vi.fn().mockResolvedValue(undefined),
   mergeGoalsInCategory: mergeGoalsInCategoryMock,
   outdentGoalStep: vi.fn().mockResolvedValue(undefined),
+  reorderGoalStep: reorderGoalStepMock,
   softDeleteGoalStep: vi.fn().mockResolvedValue(undefined),
   toggleGoalStepChecked: vi.fn().mockResolvedValue(undefined),
   toggleGoalStepCollapsed: vi.fn().mockResolvedValue(undefined),
@@ -46,6 +49,8 @@ vi.mock('@/providers', () => ({
         itemPlaceholder: 'Write a task',
         addChild: 'Add child',
         indentItem: 'Indent item',
+        moveItemDown: 'Move item down',
+        moveItemUp: 'Move item up',
         outdentItem: 'Outdent item',
         deleteItem: 'Delete item',
         assignCategory: 'Assign category',
@@ -102,6 +107,7 @@ describe('GoalsSurface', () => {
     createGoalStepMock.mockReset();
     createGoalStepMock.mockResolvedValue(undefined);
     mergeGoalsInCategoryMock.mockClear();
+    reorderGoalStepMock.mockClear();
     useGoalsMock.mockReset();
     useGoalsMock.mockImplementation((_scope, category) =>
       category === 'short' ? [] : [{ id: `${category}-goal` }],
@@ -143,6 +149,45 @@ describe('GoalsSurface', () => {
         ownerId: 'test',
       },
       goalId: 'goal-short',
+    });
+  });
+
+  it('reorders a goal step when clicking the move controls', async () => {
+    useGoalsMock.mockImplementation(() => [{ id: 'goal-medium' }]);
+    useGoalStepTreeMock.mockReturnValue([
+      {
+        goalStep: {
+          id: 'goal-step-1',
+          goalId: 'goal-medium',
+          parentId: null,
+          text: 'Existing step',
+          completed: false,
+          collapsed: false,
+          categoryTagId: null,
+          sortRank: 'U',
+        },
+        depth: 0,
+        childCount: 0,
+        hasChildren: false,
+        isFirstSibling: false,
+        isLastSibling: false,
+      },
+    ]);
+
+    render(<GoalsSurface />);
+
+    fireEvent.click(screen.getAllByLabelText('Move item up')[0]);
+
+    await waitFor(() => {
+      expect(reorderGoalStepMock).toHaveBeenCalledWith({
+        scope: {
+          id: 'guest:test',
+          kind: 'guest',
+          ownerId: 'test',
+        },
+        goalStepId: 'goal-step-1',
+        direction: 'up',
+      });
     });
   });
 });

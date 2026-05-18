@@ -44,6 +44,19 @@ export interface Dictionary {
   };
   calendar: {
     title: string;
+    bulkApply: string;
+    bulkCreate: string;
+    bulkDatePlaceholder: string;
+    bulkEditorTitle: string;
+    bulkEndDate: string;
+    bulkInvalidDates: string;
+    bulkInvalidRange: string;
+    bulkNoMatchingDates: string;
+    bulkRequireItems: string;
+    bulkRequiredDates: string;
+    bulkSelectWeekdays: string;
+    bulkStartDate: string;
+    bulkWeekdays: string;
     today: string;
     previousMonth: string;
     nextMonth: string;
@@ -68,6 +81,8 @@ export interface Dictionary {
     itemPlaceholder: string;
     newCategory: string;
     indentItem: string;
+    moveItemDown: string;
+    moveItemUp: string;
     moveCategoryDown: string;
     moveCategoryUp: string;
     outdentItem: string;

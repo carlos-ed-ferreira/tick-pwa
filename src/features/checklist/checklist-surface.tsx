@@ -1,6 +1,8 @@
 'use client';
 
 import {
+  ArrowDown,
+  ArrowUp,
   ChevronDown,
   ChevronRight,
   IndentDecrease,
@@ -22,6 +24,7 @@ import {
   createChecklistItem,
   indentChecklistItem,
   outdentChecklistItem,
+  reorderChecklistItem,
   softDeleteChecklistItem,
   toggleChecklistItemChecked,
   toggleChecklistItemCollapsed,
@@ -121,7 +124,7 @@ function ChecklistRow({
   row: VisibleChecklistRow;
 }) {
   const { dictionary, scope } = useAppContext();
-  const { item, depth, hasChildren } = row;
+  const { item, depth, hasChildren, isFirstSibling, isLastSibling } = row;
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [text, setText] = useState(item.text);
   const selectedCategory = item.categoryTagId
@@ -310,6 +313,36 @@ function ChecklistRow({
         ) : null}
 
         <div className="flex shrink-0 items-center gap-0">
+          <IconButton
+            aria-label={dictionary.dayEditor.moveItemUp}
+            disabled={isFirstSibling}
+            onClick={() => {
+              if (scope) {
+                void reorderChecklistItem({
+                  scope,
+                  itemId: item.id,
+                  direction: 'up',
+                });
+              }
+            }}
+          >
+            <ArrowUp aria-hidden="true" className="size-4" />
+          </IconButton>
+          <IconButton
+            aria-label={dictionary.dayEditor.moveItemDown}
+            disabled={isLastSibling}
+            onClick={() => {
+              if (scope) {
+                void reorderChecklistItem({
+                  scope,
+                  itemId: item.id,
+                  direction: 'down',
+                });
+              }
+            }}
+          >
+            <ArrowDown aria-hidden="true" className="size-4" />
+          </IconButton>
           <IconButton
             aria-label={dictionary.dayEditor.addChild}
             onClick={createChild}

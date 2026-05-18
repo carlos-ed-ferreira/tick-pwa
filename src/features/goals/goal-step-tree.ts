@@ -6,6 +6,8 @@ export interface VisibleGoalStepRow {
   depth: number;
   childCount: number;
   hasChildren: boolean;
+  isFirstSibling: boolean;
+  isLastSibling: boolean;
 }
 
 function parentKey(parentId: string | null): string {
@@ -38,7 +40,9 @@ export function buildVisibleGoalStepRows(
   const visitedGoalStepIds = new Set<string>();
 
   function appendRows(parentId: string | null, depth: number) {
-    for (const goalStep of childrenByParent.get(parentKey(parentId)) ?? []) {
+    const siblings = childrenByParent.get(parentKey(parentId)) ?? [];
+
+    for (const [index, goalStep] of siblings.entries()) {
       if (visitedGoalStepIds.has(goalStep.id)) {
         continue;
       }
@@ -50,6 +54,8 @@ export function buildVisibleGoalStepRows(
         depth,
         childCount: children.length,
         hasChildren: children.length > 0,
+        isFirstSibling: index === 0,
+        isLastSibling: index === siblings.length - 1,
       });
 
       if (!goalStep.collapsed) {
