@@ -49,6 +49,7 @@ export interface RemoteChecklistItem extends RemoteBaseRow {
   parent_id: string | null;
   text: string;
   checked: boolean;
+  priority: boolean;
   collapsed: boolean;
   category_tag_id: string | null;
   sort_rank: string;
@@ -193,6 +194,7 @@ export function toRemotePayload(
       parent_id: item.parentId,
       text: item.text,
       checked: item.checked,
+      priority: item.priority,
       collapsed: item.collapsed,
       category_tag_id: item.categoryTagId,
       sort_rank: item.sortRank,
@@ -284,6 +286,7 @@ export function checklistItemFromRemote(
     parentId: row.parent_id,
     text: row.text,
     checked: row.checked,
+    priority: row.priority ?? false,
     collapsed: row.collapsed,
     categoryTagId: row.category_tag_id,
     sortRank: row.sort_rank,

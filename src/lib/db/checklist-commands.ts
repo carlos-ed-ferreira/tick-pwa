@@ -126,6 +126,7 @@ export interface ChecklistTemplateItem {
   parentId: string | null;
   text: string;
   checked: boolean;
+  priority: boolean;
   collapsed: boolean;
   categoryTagId: string | null;
   sortRank: string;
@@ -178,6 +179,7 @@ export async function createChecklistItem({
         parentId: safeParentId,
         text,
         checked: false,
+        priority: false,
         collapsed: false,
         categoryTagId: null,
         sortRank: createInsertRank({ siblings, afterItemId }),
@@ -313,6 +315,28 @@ export async function toggleChecklistItemChecked({
       });
     },
   );
+}
+
+export async function toggleChecklistItemPriority({
+  scope,
+  itemId,
+}: {
+  scope: AppScope;
+  itemId: string;
+}): Promise<void> {
+  await db.transaction('rw', db.checklistItems, db.syncOutbox, async () => {
+    const item = await getScopedChecklistItem(scope, itemId);
+
+    if (!item) {
+      return;
+    }
+
+    const updatedItem = touchChecklistItem(scope, {
+      ...item,
+      priority: !item.priority,
+    });
+    await persistChecklistItemUpdate(scope, updatedItem, ['priority']);
+  });
 }
 
 export async function toggleChecklistItemCollapsed({
@@ -659,6 +683,7 @@ export async function applyChecklistTemplateToDateRange({
               parentId: targetParentId,
               text: templateItem.text,
               checked: templateItem.checked,
+              priority: templateItem.priority,
               collapsed: templateItem.collapsed,
               categoryTagId: templateItem.categoryTagId,
               sortRank: createSortRankBetween(previousSortRank, null),

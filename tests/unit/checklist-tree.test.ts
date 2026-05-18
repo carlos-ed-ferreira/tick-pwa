@@ -12,6 +12,7 @@ function item(overrides: Partial<ChecklistItem>): ChecklistItem {
     parentId: null,
     text: '',
     checked: false,
+    priority: false,
     collapsed: false,
     categoryTagId: null,
     sortRank: 'U',

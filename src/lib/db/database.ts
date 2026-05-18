@@ -24,9 +24,10 @@ type LegacyDailyEntry = Omit<
   }>;
 };
 
-type LegacyChecklistItem = Omit<ChecklistItem, 'categoryTagId'> & {
+type LegacyChecklistItem = Omit<ChecklistItem, 'categoryTagId' | 'priority'> & {
   categoryTagId?: string | null;
   colorTagId?: string | null;
+  priority?: boolean;
 };
 
 type LegacyGoal = Omit<Goal, 'categoryTagId'> & {
@@ -81,11 +82,12 @@ function migrateDailyEntry(entry: LegacyDailyEntry): DailyEntry {
 }
 
 function migrateChecklistItem(item: LegacyChecklistItem): ChecklistItem {
-  const { categoryTagId, colorTagId, ...rest } = item;
+  const { categoryTagId, colorTagId, priority, ...rest } = item;
 
   return {
     ...rest,
     categoryTagId: categoryTagId ?? colorTagId ?? null,
+    priority: priority ?? false,
   };
 }
 
@@ -335,6 +337,45 @@ export class TickDatabase extends Dexie {
 
         for (const goalStep of await goalStepsTable.toArray()) {
           await goalStepsTable.put(migrateGoalStep(goalStep) as LegacyGoalStep);
+        }
+
+        for (const outboxItem of await syncOutboxTable.toArray()) {
+          await syncOutboxTable.put(
+            migrateSyncOutboxItem(outboxItem) as LegacySyncOutboxItem,
+          );
+        }
+      });
+
+    this.version(4)
+      .stores({
+        dailyEntries:
+          'id, scopeId, date, updatedAt, deletedAt, [scopeId+date], [scopeId+updatedAt]',
+        checklistItems:
+          'id, scopeId, dailyEntryId, parentId, updatedAt, deletedAt, [scopeId+dailyEntryId], [scopeId+parentId], [scopeId+updatedAt]',
+        colorTags:
+          'id, scopeId, position, updatedAt, deletedAt, [scopeId+position], [scopeId+updatedAt]',
+        goals:
+          'id, scopeId, category, status, updatedAt, deletedAt, [scopeId+category], [scopeId+status], [scopeId+updatedAt]',
+        goalSteps:
+          'id, scopeId, goalId, parentId, updatedAt, deletedAt, [scopeId+goalId], [scopeId+parentId], [scopeId+updatedAt]',
+        syncOutbox:
+          'id, scopeId, entityType, status, createdAt, [scopeId+status], [scopeId+createdAt]',
+        syncCursors: 'id, scopeId, entityType, [scopeId+entityType]',
+        localPreferences: 'key, scopeId, updatedAt',
+      })
+      .upgrade(async (transaction) => {
+        const checklistItemsTable = transaction.table(
+          'checklistItems',
+        ) as Table<LegacyChecklistItem, string>;
+        const syncOutboxTable = transaction.table('syncOutbox') as Table<
+          LegacySyncOutboxItem,
+          string
+        >;
+
+        for (const item of await checklistItemsTable.toArray()) {
+          await checklistItemsTable.put(
+            migrateChecklistItem(item) as LegacyChecklistItem,
+          );
         }
 
         for (const outboxItem of await syncOutboxTable.toArray()) {

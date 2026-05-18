@@ -9,6 +9,7 @@ export interface BulkChecklistDraftItem {
   parentId: string | null;
   text: string;
   checked: boolean;
+  priority: boolean;
   collapsed: boolean;
   categoryTagId: string | null;
   sortRank: string;
@@ -205,6 +206,7 @@ export function createBulkChecklistDraftItem(
     parentId: safeParentId,
     text,
     checked: false,
+    priority: false,
     collapsed: false,
     categoryTagId: null,
     sortRank: createInsertRank({ siblings, afterItemId }),
@@ -239,6 +241,16 @@ export function toggleBulkChecklistDraftItemChecked(
   return updateDraftItem(items, itemId, (item) => ({
     ...item,
     checked: !item.checked,
+  }));
+}
+
+export function toggleBulkChecklistDraftItemPriority(
+  items: BulkChecklistDraftItem[],
+  itemId: string,
+): BulkChecklistDraftItem[] {
+  return updateDraftItem(items, itemId, (item) => ({
+    ...item,
+    priority: !item.priority,
   }));
 }
 

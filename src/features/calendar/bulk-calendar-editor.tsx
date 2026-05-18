@@ -8,6 +8,7 @@ import {
   IndentDecrease,
   IndentIncrease,
   Plus,
+  Star,
   Trash2,
 } from 'lucide-react';
 import { useCallback, useMemo, useState, type KeyboardEvent } from 'react';
@@ -39,6 +40,7 @@ import {
   reorderBulkChecklistDraftItem,
   toggleBulkChecklistDraftItemChecked,
   toggleBulkChecklistDraftItemCollapsed,
+  toggleBulkChecklistDraftItemPriority,
   updateBulkChecklistDraftItemText,
   type BulkChecklistDraftItem,
   type VisibleBulkChecklistDraftRow,
@@ -440,6 +442,9 @@ function BulkChecklistRow({
           backgroundColor: selectedCategory
             ? toAlphaColor(selectedCategory.colorHex, 0.12)
             : undefined,
+          boxShadow: item.priority
+            ? 'inset 3px 0 0 0 rgba(245, 158, 11, 0.9)'
+            : undefined,
         }}
       >
         <IconButton
@@ -509,6 +514,23 @@ function BulkChecklistRow({
         ) : null}
 
         <div className="flex shrink-0 items-center gap-0">
+          <IconButton
+            aria-label={
+              item.priority
+                ? dictionary.dayEditor.unmarkPriority
+                : dictionary.dayEditor.markPriority
+            }
+            onClick={() =>
+              setDraftItems((currentItems) =>
+                toggleBulkChecklistDraftItemPriority(currentItems, item.id),
+              )
+            }
+          >
+            <Star
+              aria-hidden="true"
+              className={`size-4 ${item.priority ? 'fill-current text-amber-500' : 'opacity-60'}`}
+            />
+          </IconButton>
           <IconButton
             aria-label={dictionary.dayEditor.moveItemUp}
             disabled={isFirstSibling}

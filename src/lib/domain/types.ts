@@ -87,6 +87,7 @@ export interface ChecklistItem extends BaseEntity {
   parentId: string | null;
   text: string;
   checked: boolean;
+  priority: boolean;
   collapsed: boolean;
   categoryTagId: string | null;
   sortRank: string;

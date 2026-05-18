@@ -15,6 +15,7 @@ import {
   softDeleteChecklistItem,
   softDeleteCategoryTag,
   toggleChecklistItemChecked,
+  toggleChecklistItemPriority,
   updateChecklistItemText,
 } from '@/lib/db';
 
@@ -177,6 +178,28 @@ describe('checklist commands', () => {
     expect(clearedEntry?.categorySummaries).toEqual([]);
   });
 
+  it('toggles checklist item priority locally', async () => {
+    const scope = createGuestScope('local-test');
+    const entry = await openOrCreateDailyEntry({
+      scope,
+      date: '2026-05-13',
+      timezone: 'America/Sao_Paulo',
+    });
+    const item = await createChecklistItem({
+      scope,
+      dailyEntryId: entry.id,
+      text: 'Priority task',
+    });
+
+    await toggleChecklistItemPriority({ scope, itemId: item.id });
+
+    expect((await db.checklistItems.get(item.id))?.priority).toBe(true);
+
+    await toggleChecklistItemPriority({ scope, itemId: item.id });
+
+    expect((await db.checklistItems.get(item.id))?.priority).toBe(false);
+  });
+
   it('reorders category tags by position', async () => {
     const scope = createGuestScope('local-test');
     const firstTag = await createCategoryTag({
@@ -334,6 +357,7 @@ describe('checklist commands', () => {
           parentId: null,
           text: 'Root task',
           checked: false,
+          priority: false,
           collapsed: false,
           categoryTagId: null,
           sortRank: 'U',
@@ -343,6 +367,7 @@ describe('checklist commands', () => {
           parentId: 'root-1',
           text: 'Nested task',
           checked: true,
+          priority: true,
           collapsed: false,
           categoryTagId: categoryTag.id,
           sortRank: 'U',
@@ -352,6 +377,7 @@ describe('checklist commands', () => {
           parentId: null,
           text: 'Later task',
           checked: false,
+          priority: true,
           collapsed: true,
           categoryTagId: categoryTag.id,
           sortRank: 'j',
@@ -401,10 +427,12 @@ describe('checklist commands', () => {
       {
         text: 'Nested task',
         checked: true,
+        priority: true,
         categoryTagId: categoryTag.id,
       },
     ]);
     expect(fridayRootItems[2]?.collapsed).toBe(true);
+    expect(fridayRootItems[2]?.priority).toBe(true);
     expect(fridayEntry).toMatchObject({
       itemCount: 4,
       completedCount: 1,

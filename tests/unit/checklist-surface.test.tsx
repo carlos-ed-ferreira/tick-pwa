@@ -11,10 +11,12 @@ import { ChecklistSurface } from '@/features/checklist/checklist-surface';
 const {
   reorderChecklistItemMock,
   softDeleteChecklistItemMock,
+  toggleChecklistItemPriorityMock,
   useChecklistTreeMock,
 } = vi.hoisted(() => ({
   reorderChecklistItemMock: vi.fn().mockResolvedValue(undefined),
   softDeleteChecklistItemMock: vi.fn().mockResolvedValue(undefined),
+  toggleChecklistItemPriorityMock: vi.fn().mockResolvedValue(undefined),
   useChecklistTreeMock: vi.fn(),
 }));
 
@@ -28,6 +30,7 @@ vi.mock('@/lib/db', () => ({
   softDeleteChecklistItem: softDeleteChecklistItemMock,
   toggleChecklistItemChecked: vi.fn().mockResolvedValue(undefined),
   toggleChecklistItemCollapsed: vi.fn().mockResolvedValue(undefined),
+  toggleChecklistItemPriority: toggleChecklistItemPriorityMock,
   updateChecklistItemText: vi.fn().mockResolvedValue(undefined),
 }));
 
@@ -44,9 +47,11 @@ vi.mock('@/providers', () => ({
         itemPlaceholder: 'Write a task',
         addChild: 'Add child',
         indentItem: 'Indent item',
+        markPriority: 'Mark as priority',
         moveItemDown: 'Move item down',
         moveItemUp: 'Move item up',
         outdentItem: 'Outdent item',
+        unmarkPriority: 'Remove priority',
         deleteItem: 'Delete item',
         assignCategory: 'Assign category',
         clearCategory: 'Clear category',
@@ -74,7 +79,10 @@ vi.mock('@/features/checklist/use-checklist-tree', () => ({
   useChecklistTree: useChecklistTreeMock,
 }));
 
-function createRow(text: string) {
+function createRow(
+  text: string,
+  overrides: Partial<{ priority: boolean; categoryTagId: string | null }> = {},
+) {
   const now = new Date().toISOString();
 
   return {
@@ -85,8 +93,9 @@ function createRow(text: string) {
       parentId: null,
       text,
       checked: false,
+      priority: overrides.priority ?? false,
       collapsed: false,
-      categoryTagId: null,
+      categoryTagId: overrides.categoryTagId ?? null,
       sortRank: 'U',
       createdAt: now,
       updatedAt: now,
@@ -108,6 +117,7 @@ describe('ChecklistSurface delete confirmation', () => {
     useChecklistTreeMock.mockReset();
     reorderChecklistItemMock.mockClear();
     softDeleteChecklistItemMock.mockClear();
+    toggleChecklistItemPriorityMock.mockClear();
   });
 
   afterEach(() => {
@@ -181,5 +191,41 @@ describe('ChecklistSurface delete confirmation', () => {
         direction: 'up',
       });
     });
+  });
+
+  it('toggles item priority from the row controls', async () => {
+    useChecklistTreeMock.mockReturnValue([createRow('Important task')]);
+
+    render(<ChecklistSurface dailyEntryId="entry-1" />);
+
+    fireEvent.click(screen.getByLabelText('Mark as priority'));
+
+    await waitFor(() => {
+      expect(toggleChecklistItemPriorityMock).toHaveBeenCalledWith({
+        scope: {
+          id: 'guest:test',
+          kind: 'guest',
+          ownerId: 'test',
+        },
+        itemId: 'item-Important task',
+      });
+    });
+  });
+
+  it('keeps only the left highlight when a priority item has no category', () => {
+    useChecklistTreeMock.mockReturnValue([
+      createRow('Important task', { priority: true }),
+    ]);
+
+    render(<ChecklistSurface dailyEntryId="entry-1" />);
+
+    const input = screen.getByDisplayValue('Important task');
+    const row = input.closest('div[style]');
+
+    expect(row).toHaveStyle({
+      boxShadow: 'inset 3px 0 0 0 rgba(245, 158, 11, 0.9)',
+    });
+    expect(row?.style.backgroundColor).toBe('');
+    expect(input.className.includes('font-medium')).toBe(false);
   });
 });

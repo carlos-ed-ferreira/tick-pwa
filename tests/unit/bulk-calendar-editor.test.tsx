@@ -63,6 +63,7 @@ vi.mock('@/providers', () => ({
         expandItem: 'Expand item',
         indentItem: 'Indent item',
         itemPlaceholder: 'Write a task',
+        markPriority: 'Mark as priority',
         moveCategoryDown: 'Move category down',
         moveCategoryUp: 'Move category up',
         moveItemDown: 'Move item down',
@@ -71,6 +72,7 @@ vi.mock('@/providers', () => ({
         outdentItem: 'Outdent item',
         title: 'Day editor',
         toggleItem: 'Toggle item',
+        unmarkPriority: 'Remove priority',
         untitledItem: 'New item',
         categories: 'Categories',
         categoryNamePlaceholder: 'Category name',
@@ -122,6 +124,7 @@ describe('BulkCalendarEditor', () => {
     fireEvent.change(screen.getByPlaceholderText('Write a task'), {
       target: { value: 'My recurring task' },
     });
+    fireEvent.click(screen.getByLabelText('Mark as priority'));
     fireEvent.change(screen.getByLabelText('Start date'), {
       target: { value: '01012026' },
     });
@@ -149,11 +152,31 @@ describe('BulkCalendarEditor', () => {
           expect.objectContaining({
             text: 'My recurring task',
             parentId: null,
+            priority: true,
           }),
         ],
         timezone: 'America/Sao_Paulo',
       });
     });
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps only the left highlight when a priority draft item has no category', () => {
+    render(<BulkCalendarEditor open onClose={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add item' }));
+    fireEvent.change(screen.getByPlaceholderText('Write a task'), {
+      target: { value: 'My recurring task' },
+    });
+    fireEvent.click(screen.getByLabelText('Mark as priority'));
+
+    const input = screen.getByDisplayValue('My recurring task');
+    const row = input.closest('div[style]');
+
+    expect(row).toHaveStyle({
+      boxShadow: 'inset 3px 0 0 0 rgba(245, 158, 11, 0.9)',
+    });
+    expect(row?.style.backgroundColor).toBe('');
+    expect(input.className.includes('font-medium')).toBe(false);
   });
 });

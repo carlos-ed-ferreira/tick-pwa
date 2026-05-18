@@ -81,11 +81,13 @@ export interface Dictionary {
     itemPlaceholder: string;
     newCategory: string;
     indentItem: string;
+    markPriority: string;
     moveItemDown: string;
     moveItemUp: string;
     moveCategoryDown: string;
     moveCategoryUp: string;
     outdentItem: string;
+    unmarkPriority: string;
     deleteItem: string;
     toggleItem: string;
     categories: string;
