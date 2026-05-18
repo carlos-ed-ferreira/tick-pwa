@@ -219,8 +219,10 @@ describe('ChecklistSurface delete confirmation', () => {
 
     render(<ChecklistSurface dailyEntryId="entry-1" />);
 
-    const input = screen.getByDisplayValue('Important task');
-    const row = input.closest('div[style]');
+    const input = screen.getByDisplayValue(
+      'Important task',
+    ) as HTMLInputElement;
+    const row = input.closest('div[style]') as HTMLDivElement | null;
 
     expect(row).toHaveStyle({
       boxShadow: 'inset 3px 0 0 0 rgba(245, 158, 11, 0.9)',

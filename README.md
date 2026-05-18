@@ -32,11 +32,15 @@ O projeto usa uma arquitetura híbrida de persistência.
 
 Usuários autenticados usam escopo `user:<supabaseUserId>`. As alterações são gravadas primeiro no IndexedDB e entram na fila local de sincronização. O Supabase PostgreSQL funciona como persistência remota, com RLS e allowlist de acesso.
 
+Categorias não são criadas automaticamente no modo autenticado. Uma conta nova começa sem categorias e só recebe dados criados manualmente pelo usuário ou vindos da sincronização.
+
 A sincronização usa o outbox local e roda em momentos como inicialização da sessão autenticada, retorno ao foco, evento `online` e intervalo enquanto a aplicação está aberta. A rede é tratada como melhoria, não como requisito para interação.
 
 ### Modo local
 
 Usuários sem acesso autenticado podem entrar no modo local de demonstração. Esse modo usa escopo `guest:<installationId>` e mantém dados exclusivamente no IndexedDB via Dexie.
+
+No modo local, o app cria uma vez as categorias base de demonstração de acordo com o idioma ativo do usuário. Se o idioma do modo local mudar depois, as categorias base ainda rastreadas como padrão são renomeadas automaticamente para o novo idioma.
 
 Dados do modo local nunca são enviados ao backend.
 

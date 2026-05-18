@@ -14,7 +14,6 @@ import {
 import type { AppScope, LocalePreference, SupportedLocale } from '@/lib/domain';
 import { createGuestScope, createUserScope } from '@/lib/domain';
 import {
-  db,
   getLocalPreference,
   getOrCreateInstallationId,
   seedDefaultCategoryTags,
@@ -109,6 +108,8 @@ export function AppProvider({
       writeStoredLocale(nextLocale);
       setLocaleState(nextLocale);
       setTimezonePreference(nextTimezonePreference);
+
+      return nextLocale;
     },
     [],
   );
@@ -133,9 +134,9 @@ export function AppProvider({
     async ({ persistChoice }: { persistChoice: boolean }) => {
       const installationId = await getOrCreateInstallationId();
       const guestScope = createGuestScope(installationId);
+      const nextLocale = await applyScopedPreferences(guestScope);
 
-      await seedDefaultCategoryTags(guestScope);
-      await applyScopedPreferences(guestScope);
+      await seedDefaultCategoryTags(guestScope, nextLocale);
 
       if (persistChoice) {
         await setLocalPreference<AccessModePreference>(
@@ -187,17 +188,6 @@ export function AppProvider({
       await ensureUserProfile(user);
       await applyScopedPreferences(userScope);
       await runScopedSync(userScope);
-
-      const existingCategoryCount = await db.categoryTags
-        .where('scopeId')
-        .equals(userScope.id)
-        .filter((tag) => tag.deletedAt === null)
-        .count();
-
-      if (existingCategoryCount === 0) {
-        await seedDefaultCategoryTags(userScope);
-        await runScopedSync(userScope);
-      }
 
       await setLocalPreference<AccessModePreference>(
         ACCESS_MODE_PREFERENCE_KEY,
@@ -317,12 +307,18 @@ export function AppProvider({
       writeStoredLocale(nextLocale);
 
       if (scope) {
-        void setLocalPreference('locale', nextLocale, scope);
-        void setLocalPreference(
-          'timezonePreference',
-          nextTimezonePreference,
-          scope,
-        );
+        void (async () => {
+          await setLocalPreference('locale', nextLocale, scope);
+          await setLocalPreference(
+            'timezonePreference',
+            nextTimezonePreference,
+            scope,
+          );
+
+          if (scope.kind === 'guest') {
+            await seedDefaultCategoryTags(scope, nextLocale);
+          }
+        })();
       }
     },
     [scope],

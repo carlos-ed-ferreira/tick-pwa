@@ -11,6 +11,7 @@ import {
   createTimestamp,
   getEntitySyncStatus,
 } from './entity-metadata';
+import { clearGuestDefaultCategoryTagTracking } from './seed';
 import { queueSyncOutboxItem } from './sync-outbox';
 
 function normalizeColorHex(colorHex: string): string {
@@ -21,6 +22,10 @@ function normalizeColorHex(colorHex: string): string {
   }
 
   return '#71717a';
+}
+
+function normalizeCategoryTagName(name: string): string {
+  return name.normalize('NFC').trim().toLocaleUpperCase();
 }
 
 async function getActiveCategoryTags(scope: AppScope): Promise<CategoryTag[]> {
@@ -81,7 +86,7 @@ export async function createCategoryTag({
     const categoryTag: CategoryTag = {
       id: createId(),
       scopeId: scope.id,
-      name: name.trim() || 'Category',
+      name: normalizeCategoryTagName(name) || 'CATEGORY',
       colorHex: normalizeColorHex(colorHex),
       position: createSortRankBetween(
         categoryTags.at(-1)?.position ?? null,
@@ -119,37 +124,63 @@ export async function updateCategoryTag({
   name?: string;
   colorHex?: string;
 }): Promise<void> {
-  await db.transaction('rw', db.categoryTags, db.syncOutbox, async () => {
-    const categoryTag = await db.categoryTags.get(categoryTagId);
+  await db.transaction(
+    'rw',
+    db.categoryTags,
+    db.localPreferences,
+    db.syncOutbox,
+    async () => {
+      const categoryTag = await db.categoryTags.get(categoryTagId);
 
-    if (
-      !categoryTag ||
-      categoryTag.scopeId !== scope.id ||
-      categoryTag.deletedAt
-    ) {
-      return;
-    }
+      if (
+        !categoryTag ||
+        categoryTag.scopeId !== scope.id ||
+        categoryTag.deletedAt
+      ) {
+        return;
+      }
 
-    const updatedCategoryTag = touchCategoryTag(scope, {
-      ...categoryTag,
-      name:
-        name === undefined ? categoryTag.name : name.trim() || categoryTag.name,
-      colorHex:
+      const nextName =
+        name === undefined
+          ? categoryTag.name
+          : normalizeCategoryTagName(name) || categoryTag.name;
+      const nextColorHex =
         colorHex === undefined
           ? categoryTag.colorHex
-          : normalizeColorHex(colorHex),
-    });
-    const changedFields = [
-      ...(name === undefined ? [] : ['name']),
-      ...(colorHex === undefined ? [] : ['colorHex']),
-    ];
+          : normalizeColorHex(colorHex);
 
-    if (changedFields.length === 0) {
-      return;
-    }
+      if (
+        nextName === categoryTag.name &&
+        nextColorHex === categoryTag.colorHex
+      ) {
+        return;
+      }
 
-    await persistCategoryTagUpdate(scope, updatedCategoryTag, changedFields);
-  });
+      const updatedCategoryTag = touchCategoryTag(scope, {
+        ...categoryTag,
+        name: nextName,
+        colorHex: nextColorHex,
+      });
+      const changedFields = [
+        ...(name === undefined ? [] : ['name']),
+        ...(colorHex === undefined ? [] : ['colorHex']),
+      ];
+
+      if (changedFields.length === 0) {
+        return;
+      }
+
+      await persistCategoryTagUpdate(scope, updatedCategoryTag, changedFields);
+
+      if (
+        scope.kind === 'guest' &&
+        name !== undefined &&
+        nextName !== categoryTag.name
+      ) {
+        await clearGuestDefaultCategoryTagTracking(scope, categoryTag.id);
+      }
+    },
+  );
 }
 
 export async function reorderCategoryTag({
@@ -206,10 +237,13 @@ export async function softDeleteCategoryTag({
 }): Promise<void> {
   await db.transaction(
     'rw',
-    db.dailyEntries,
-    db.checklistItems,
-    db.categoryTags,
-    db.syncOutbox,
+    [
+      db.dailyEntries,
+      db.checklistItems,
+      db.categoryTags,
+      db.localPreferences,
+      db.syncOutbox,
+    ],
     async () => {
       const categoryTag = await db.categoryTags.get(categoryTagId);
 
@@ -227,6 +261,10 @@ export async function softDeleteCategoryTag({
         deletedAt: now,
       });
       await persistCategoryTagUpdate(scope, deletedCategoryTag, ['deletedAt']);
+
+      if (scope.kind === 'guest') {
+        await clearGuestDefaultCategoryTagTracking(scope, categoryTag.id);
+      }
 
       const affectedItems = await db.checklistItems
         .where('scopeId')

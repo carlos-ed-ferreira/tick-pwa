@@ -16,6 +16,7 @@ import {
   softDeleteCategoryTag,
   toggleChecklistItemChecked,
   toggleChecklistItemPriority,
+  updateCategoryTag,
   updateChecklistItemText,
 } from '@/lib/db';
 
@@ -176,6 +177,35 @@ describe('checklist commands', () => {
     expect(clearedItem?.categoryTagId).toBeNull();
     expect(clearedEntry?.categoryTagIds).toEqual([]);
     expect(clearedEntry?.categorySummaries).toEqual([]);
+  });
+
+  it('normalizes category names to uppercase and ignores empty updates', async () => {
+    const scope = createGuestScope('local-test');
+    const categoryTag = await createCategoryTag({
+      scope,
+      name: 'Matemática',
+      colorHex: '#2563eb',
+    });
+
+    expect((await db.categoryTags.get(categoryTag.id))?.name).toBe(
+      'MATEMÁTICA',
+    );
+
+    await updateCategoryTag({
+      scope,
+      categoryTagId: categoryTag.id,
+      name: 'saúde',
+    });
+
+    expect((await db.categoryTags.get(categoryTag.id))?.name).toBe('SAÚDE');
+
+    await updateCategoryTag({
+      scope,
+      categoryTagId: categoryTag.id,
+      name: '   ',
+    });
+
+    expect((await db.categoryTags.get(categoryTag.id))?.name).toBe('SAÚDE');
   });
 
   it('toggles checklist item priority locally', async () => {

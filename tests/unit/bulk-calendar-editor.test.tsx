@@ -170,8 +170,10 @@ describe('BulkCalendarEditor', () => {
     });
     fireEvent.click(screen.getByLabelText('Mark as priority'));
 
-    const input = screen.getByDisplayValue('My recurring task');
-    const row = input.closest('div[style]');
+    const input = screen.getByDisplayValue(
+      'My recurring task',
+    ) as HTMLInputElement;
+    const row = input.closest('div[style]') as HTMLDivElement | null;
 
     expect(row).toHaveStyle({
       boxShadow: 'inset 3px 0 0 0 rgba(245, 158, 11, 0.9)',
