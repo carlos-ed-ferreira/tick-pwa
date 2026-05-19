@@ -482,6 +482,12 @@ function GoalStepRow({
 
         <div className="flex shrink-0 items-center gap-0">
           <IconButton
+            aria-label={dictionary.dayEditor.addChild}
+            onClick={createChild}
+          >
+            <Plus aria-hidden="true" className="size-4" />
+          </IconButton>
+          <IconButton
             aria-label={dictionary.dayEditor.moveItemUp}
             disabled={isFirstSibling}
             onClick={() => {
@@ -512,13 +518,8 @@ function GoalStepRow({
             <ArrowDown aria-hidden="true" className="size-4" />
           </IconButton>
           <IconButton
-            aria-label={dictionary.dayEditor.addChild}
-            onClick={createChild}
-          >
-            <Plus aria-hidden="true" className="size-4" />
-          </IconButton>
-          <IconButton
             aria-label={dictionary.dayEditor.indentItem}
+            disabled={isFirstSibling}
             onClick={() => {
               if (scope) {
                 void indentGoalStep({ scope, goalStepId: goalStep.id });
@@ -529,6 +530,7 @@ function GoalStepRow({
           </IconButton>
           <IconButton
             aria-label={dictionary.dayEditor.outdentItem}
+            disabled={depth === 0}
             onClick={() => {
               if (scope) {
                 void outdentGoalStep({ scope, goalStepId: goalStep.id });
@@ -544,14 +546,18 @@ function GoalStepRow({
                 ? dictionary.dayEditor.deselectItem
                 : dictionary.dayEditor.selectItem
             }
-            className={`flex size-3.5 shrink-0 items-center justify-center rounded-full border-2 transition ${
-              isSelected
-                ? 'border-foreground bg-foreground text-background'
-                : 'border-muted hover:border-foreground'
-            }`}
+            className="group inline-flex size-9 shrink-0 items-center justify-center rounded-md transition hover:bg-background"
             onClick={(e) => onToggleSelect(goalStep.id, e.shiftKey)}
           >
-            {isSelected && <Check aria-hidden="true" className="size-2" />}
+            <span
+              className={`flex size-3.5 items-center justify-center rounded-full border-2 transition ${
+                isSelected
+                  ? 'border-foreground bg-foreground text-background'
+                  : 'border-muted group-hover:border-foreground'
+              }`}
+            >
+              {isSelected && <Check aria-hidden="true" className="size-2" />}
+            </span>
           </button>
           <CategoryAssignmentMenu
             assignLabel={dictionary.dayEditor.assignCategory}
