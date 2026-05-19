@@ -21,6 +21,7 @@ import {
 } from '@/components/ui';
 import { CategoryAssignmentMenu, useCategoryTags } from '@/features/categories';
 import { applyChecklistTemplateToDateRange } from '@/lib/db';
+import { createId } from '@/lib/domain';
 import { requiresDeleteConfirmation } from '@/lib/confirm-delete';
 import type { WeekdayIndex } from '@/lib/time';
 import {
@@ -356,12 +357,15 @@ function BulkChecklistRow({
     : null;
 
   const createSibling = useCallback(() => {
+    const newId = createId();
     setDraftItems((currentItems) =>
       createBulkChecklistDraftItem(currentItems, {
+        id: newId,
         parentId: item.parentId,
         afterItemId: item.id,
       }),
     );
+    return newId;
   }, [item.id, item.parentId, setDraftItems]);
 
   const createChild = useCallback(() => {
@@ -399,7 +403,20 @@ function BulkChecklistRow({
 
     if (event.key === 'Enter') {
       event.preventDefault();
-      createSibling();
+      const newItemId = createSibling();
+      let retries = 0;
+      const tryFocus = () => {
+        const newInput = document.querySelector<HTMLInputElement>(
+          `[data-item-id="${newItemId}"]`,
+        );
+        if (newInput) {
+          newInput.focus();
+        } else if (retries < 20) {
+          retries++;
+          window.requestAnimationFrame(tryFocus);
+        }
+      };
+      window.requestAnimationFrame(tryFocus);
       return;
     }
 
@@ -483,6 +500,7 @@ function BulkChecklistRow({
 
         <input
           data-bulk-checklist-input="true"
+          data-item-id={item.id}
           spellCheck={false}
           value={item.text}
           placeholder={dictionary.dayEditor.itemPlaceholder}

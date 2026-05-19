@@ -155,16 +155,17 @@ function ChecklistRow({
 
   const createSibling = useCallback(async () => {
     if (!scope) {
-      return;
+      return null;
     }
 
     await flushText();
-    await createChecklistItem({
+    const newItem = await createChecklistItem({
       scope,
       dailyEntryId,
       parentId: item.parentId,
       afterItemId: item.id,
     });
+    return newItem.id;
   }, [dailyEntryId, flushText, item.id, item.parentId, scope]);
 
   const createChild = useCallback(async () => {
@@ -211,7 +212,22 @@ function ChecklistRow({
 
     if (event.key === 'Enter') {
       event.preventDefault();
-      await createSibling();
+      const newItemId = await createSibling();
+      if (newItemId) {
+        let retries = 0;
+        const tryFocus = () => {
+          const newInput = document.querySelector<HTMLInputElement>(
+            `[data-item-id="${newItemId}"]`,
+          );
+          if (newInput) {
+            newInput.focus();
+          } else if (retries < 20) {
+            retries++;
+            window.requestAnimationFrame(tryFocus);
+          }
+        };
+        window.requestAnimationFrame(tryFocus);
+      }
       return;
     }
 
@@ -294,6 +310,7 @@ function ChecklistRow({
 
         <input
           data-checklist-input="true"
+          data-item-id={item.id}
           spellCheck={false}
           value={text}
           placeholder={dictionary.dayEditor.itemPlaceholder}

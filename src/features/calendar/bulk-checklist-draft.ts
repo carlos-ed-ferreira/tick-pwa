@@ -187,10 +187,12 @@ export function buildVisibleBulkChecklistDraftRows(
 export function createBulkChecklistDraftItem(
   items: BulkChecklistDraftItem[],
   {
+    id,
     parentId = null,
     afterItemId = null,
     text = '',
   }: {
+    id?: string;
     parentId?: string | null;
     afterItemId?: string | null;
     text?: string;
@@ -202,7 +204,7 @@ export function createBulkChecklistDraftItem(
   const safeParentId = parentItem?.id ?? null;
   const siblings = items.filter((item) => item.parentId === safeParentId);
   const nextItem: BulkChecklistDraftItem = {
-    id: createId(),
+    id: id ?? createId(),
     parentId: safeParentId,
     text,
     checked: false,

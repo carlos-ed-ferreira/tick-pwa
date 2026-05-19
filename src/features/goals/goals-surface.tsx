@@ -195,16 +195,17 @@ function GoalStepRow({
 
   const createSibling = useCallback(async () => {
     if (!scope) {
-      return;
+      return null;
     }
 
     await flushText();
-    await createGoalStep({
+    const newStep = await createGoalStep({
       scope,
       goalId,
       parentId: goalStep.parentId,
       afterGoalStepId: goalStep.id,
     });
+    return newStep.id;
   }, [flushText, goalId, goalStep.id, goalStep.parentId, scope]);
 
   const createChild = useCallback(async () => {
@@ -255,7 +256,22 @@ function GoalStepRow({
 
     if (event.key === 'Enter') {
       event.preventDefault();
-      await createSibling();
+      const newStepId = await createSibling();
+      if (newStepId) {
+        let retries = 0;
+        const tryFocus = () => {
+          const newInput = document.querySelector<HTMLInputElement>(
+            `[data-item-id="${newStepId}"]`,
+          );
+          if (newInput) {
+            newInput.focus();
+          } else if (retries < 20) {
+            retries++;
+            window.requestAnimationFrame(tryFocus);
+          }
+        };
+        window.requestAnimationFrame(tryFocus);
+      }
       return;
     }
 
@@ -341,6 +357,7 @@ function GoalStepRow({
 
         <input
           data-goal-step-input="true"
+          data-item-id={goalStep.id}
           spellCheck={false}
           value={text}
           placeholder={dictionary.dayEditor.itemPlaceholder}
