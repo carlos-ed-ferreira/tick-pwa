@@ -483,6 +483,7 @@ function BulkChecklistRow({
 
         <input
           data-bulk-checklist-input="true"
+          spellCheck={false}
           value={item.text}
           placeholder={dictionary.dayEditor.itemPlaceholder}
           className={`min-w-0 flex-1 rounded-md bg-transparent px-2 py-2 text-sm outline-none transition focus:bg-surface focus:shadow-sm ${
