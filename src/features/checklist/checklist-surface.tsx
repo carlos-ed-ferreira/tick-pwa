@@ -3,6 +3,7 @@
 import {
   ArrowDown,
   ArrowUp,
+  Check,
   ChevronDown,
   ChevronRight,
   IndentDecrease,
@@ -10,14 +11,10 @@ import {
   Plus,
   Star,
   Trash2,
+  X,
 } from 'lucide-react';
 import { useCallback, useEffect, useState, type KeyboardEvent } from 'react';
-import {
-  Button,
-  Checkbox,
-  ConfirmationDialog,
-  IconButton,
-} from '@/components/ui';
+import { Checkbox, ConfirmationDialog, IconButton } from '@/components/ui';
 import { CategoryAssignmentMenu, useCategoryTags } from '@/features/categories';
 import {
   assignChecklistItemCategory,
@@ -66,6 +63,58 @@ export function ChecklistSurface({ dailyEntryId }: { dailyEntryId: string }) {
   const categoryTags = useCategoryTags(scope);
   const categoryTagMap = new Map(categoryTags.map((tag) => [tag.id, tag]));
 
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [lastSelectedId, setLastSelectedId] = useState<string | null>(null);
+  const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false);
+  const isSelectionMode = selectedIds.size > 0;
+
+  const toggleSelect = useCallback(
+    (itemId: string, shiftKey: boolean) => {
+      if (shiftKey && lastSelectedId) {
+        const allIds = rows.map((r) => r.item.id);
+        const from = allIds.indexOf(lastSelectedId);
+        const to = allIds.indexOf(itemId);
+        if (from !== -1 && to !== -1) {
+          const [start, end] = from < to ? [from, to] : [to, from];
+          setSelectedIds(
+            (prev) => new Set([...prev, ...allIds.slice(start, end + 1)]),
+          );
+        }
+      } else {
+        setSelectedIds((prev) => {
+          const next = new Set(prev);
+          if (next.has(itemId)) next.delete(itemId);
+          else next.add(itemId);
+          return next;
+        });
+        setLastSelectedId(itemId);
+      }
+    },
+    [lastSelectedId, rows],
+  );
+
+  const confirmBulkDelete = useCallback(async () => {
+    if (!scope) return;
+    for (const id of selectedIds) {
+      await softDeleteChecklistItem({ scope, itemId: id });
+    }
+    setSelectedIds(new Set());
+    setLastSelectedId(null);
+    setIsBulkDeleteDialogOpen(false);
+  }, [scope, selectedIds]);
+
+  const handleBulkAssignCategory = useCallback(
+    async (categoryTagId: string | null) => {
+      if (!scope) return;
+      for (const id of selectedIds) {
+        await assignChecklistItemCategory({ scope, itemId: id, categoryTagId });
+      }
+      setSelectedIds(new Set());
+      setLastSelectedId(null);
+    },
+    [scope, selectedIds],
+  );
+
   const createRootItem = useCallback(async () => {
     if (!scope) {
       return;
@@ -80,15 +129,9 @@ export function ChecklistSurface({ dailyEntryId }: { dailyEntryId: string }) {
 
   return (
     <section className="flex min-h-0 flex-1 flex-col gap-3">
-      <div className="flex items-center justify-between gap-3">
-        <h3 className="text-sm font-medium text-muted">
-          {dictionary.dayEditor.checklist}
-        </h3>
-        <Button className="min-h-9 px-2" onClick={createRootItem}>
-          <Plus aria-hidden="true" className="size-4" />
-          {dictionary.dayEditor.addItem}
-        </Button>
-      </div>
+      <h3 className="text-sm font-medium text-muted">
+        {dictionary.dayEditor.checklist}
+      </h3>
 
       <div className="min-h-0 flex-1 overflow-y-auto rounded-lg border border-border bg-background/50 p-2">
         {rows.length === 0 ? (
@@ -106,12 +149,55 @@ export function ChecklistSurface({ dailyEntryId }: { dailyEntryId: string }) {
                 key={row.item.id}
                 categoryTagMap={categoryTagMap}
                 dailyEntryId={dailyEntryId}
+                isSelected={selectedIds.has(row.item.id)}
+                isSelectionMode={isSelectionMode}
                 row={row}
+                onBulkAssignCategory={handleBulkAssignCategory}
+                onBulkDelete={() => setIsBulkDeleteDialogOpen(true)}
+                onToggleSelect={toggleSelect}
               />
             ))}
           </div>
         )}
+        {rows.length > 0 && (
+          <div className="flex items-center justify-between px-1 pt-1">
+            <button
+              type="button"
+              className="flex items-center gap-1.5 rounded border border-border px-2 py-1.5 text-sm text-muted transition hover:border-foreground/40 hover:text-foreground"
+              onClick={createRootItem}
+            >
+              <Plus aria-hidden="true" className="size-3.5" />
+              {dictionary.dayEditor.addItem}
+            </button>
+            {isSelectionMode && (
+              <button
+                type="button"
+                className="flex items-center gap-1.5 rounded border border-border px-2 py-1.5 text-sm text-muted transition hover:border-foreground/40 hover:text-foreground"
+                onClick={() => {
+                  setSelectedIds(new Set());
+                  setLastSelectedId(null);
+                }}
+              >
+                <X aria-hidden="true" className="size-3.5" />
+                {dictionary.dayEditor.clearSelection}
+              </button>
+            )}
+          </div>
+        )}
       </div>
+
+      <ConfirmationDialog
+        cancelLabel={dictionary.actions.cancel}
+        confirmLabel={dictionary.actions.delete}
+        description={dictionary.dayEditor.confirmBulkDeleteItems.replace(
+          '{count}',
+          String(selectedIds.size),
+        )}
+        open={isBulkDeleteDialogOpen}
+        title={dictionary.dayEditor.bulkDeleteItems}
+        onClose={() => setIsBulkDeleteDialogOpen(false)}
+        onConfirm={() => void confirmBulkDelete()}
+      />
     </section>
   );
 }
@@ -119,11 +205,21 @@ export function ChecklistSurface({ dailyEntryId }: { dailyEntryId: string }) {
 function ChecklistRow({
   categoryTagMap,
   dailyEntryId,
+  isSelected,
+  isSelectionMode,
   row,
+  onBulkAssignCategory,
+  onBulkDelete,
+  onToggleSelect,
 }: {
   categoryTagMap: Map<string, { colorHex: string; name: string }>;
   dailyEntryId: string;
+  isSelected: boolean;
+  isSelectionMode: boolean;
   row: VisibleChecklistRow;
+  onBulkAssignCategory: (categoryTagId: string | null) => Promise<void>;
+  onBulkDelete: () => void;
+  onToggleSelect: (id: string, shiftKey: boolean) => void;
 }) {
   const { dictionary, scope } = useAppContext();
   const { item, depth, hasChildren, isFirstSibling, isLastSibling } = row;
@@ -266,9 +362,11 @@ function ChecklistRow({
         className="group flex min-w-0 items-center gap-1 rounded-md px-1 py-1 transition hover:bg-surface"
         style={{
           paddingLeft: `min(${depth * 16}px, 56px)`,
-          backgroundColor: selectedCategory
-            ? toAlphaColor(selectedCategory.colorHex, 0.12)
-            : undefined,
+          backgroundColor: isSelected
+            ? 'color-mix(in srgb, var(--color-foreground) 8%, transparent)'
+            : selectedCategory
+              ? toAlphaColor(selectedCategory.colorHex, 0.12)
+              : undefined,
           boxShadow: item.priority
             ? 'inset 3px 0 0 0 rgba(245, 158, 11, 0.9)'
             : undefined,
@@ -409,11 +507,32 @@ function ChecklistRow({
           >
             <IndentDecrease aria-hidden="true" className="size-4" />
           </IconButton>
+          <button
+            type="button"
+            aria-label={
+              isSelected
+                ? dictionary.dayEditor.deselectItem
+                : dictionary.dayEditor.selectItem
+            }
+            className={`flex size-3.5 shrink-0 items-center justify-center rounded-full border-2 transition ${
+              isSelected
+                ? 'border-foreground bg-foreground text-background'
+                : 'border-muted hover:border-foreground'
+            }`}
+            onClick={(e) => onToggleSelect(item.id, e.shiftKey)}
+          >
+            {isSelected && <Check aria-hidden="true" className="size-2" />}
+          </button>
           <CategoryAssignmentMenu
             assignLabel={dictionary.dayEditor.assignCategory}
             clearLabel={dictionary.dayEditor.clearCategory}
+            disabled={isSelectionMode && !isSelected}
             selectedCategoryTagId={item.categoryTagId}
             onAssign={(categoryTagId) => {
+              if (isSelectionMode) {
+                return onBulkAssignCategory(categoryTagId);
+              }
+
               if (scope) {
                 return assignChecklistItemCategory({
                   scope,
@@ -427,7 +546,10 @@ function ChecklistRow({
           />
           <IconButton
             aria-label={dictionary.dayEditor.deleteItem}
-            onClick={() => void deleteItem()}
+            disabled={isSelectionMode && !isSelected}
+            onClick={() =>
+              isSelectionMode ? onBulkDelete() : void deleteItem()
+            }
           >
             <Trash2 aria-hidden="true" className="size-4" />
           </IconButton>

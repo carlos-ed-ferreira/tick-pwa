@@ -94,6 +94,12 @@ export interface Dictionary {
     categoryNamePlaceholder: string;
     deleteCategory: string;
     confirmDeleteItem: string;
+    selectItem: string;
+    deselectItem: string;
+    itemsSelected: string;
+    bulkDeleteItems: string;
+    confirmBulkDeleteItems: string;
+    clearSelection: string;
   };
   goals: {
     title: string;

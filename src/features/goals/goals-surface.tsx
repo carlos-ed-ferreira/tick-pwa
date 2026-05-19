@@ -3,20 +3,17 @@
 import {
   ArrowDown,
   ArrowUp,
+  Check,
   ChevronDown,
   ChevronRight,
   IndentDecrease,
   IndentIncrease,
   Plus,
   Trash2,
+  X,
 } from 'lucide-react';
 import { useCallback, useEffect, useState, type KeyboardEvent } from 'react';
-import {
-  Button,
-  Checkbox,
-  ConfirmationDialog,
-  IconButton,
-} from '@/components/ui';
+import { Checkbox, ConfirmationDialog, IconButton } from '@/components/ui';
 import { CategoryAssignmentMenu, useCategoryTags } from '@/features/categories';
 import {
   assignGoalStepCategory,
@@ -100,6 +97,58 @@ function GoalCategoryColumn({
   const primaryGoal = goals[0] ?? null;
   const goalStepRows = useGoalStepTree(scope, primaryGoal?.id ?? null);
 
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [lastSelectedId, setLastSelectedId] = useState<string | null>(null);
+  const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false);
+  const isSelectionMode = selectedIds.size > 0;
+
+  const toggleSelect = useCallback(
+    (stepId: string, shiftKey: boolean) => {
+      if (shiftKey && lastSelectedId) {
+        const allIds = goalStepRows.map((r) => r.goalStep.id);
+        const from = allIds.indexOf(lastSelectedId);
+        const to = allIds.indexOf(stepId);
+        if (from !== -1 && to !== -1) {
+          const [start, end] = from < to ? [from, to] : [to, from];
+          setSelectedIds(
+            (prev) => new Set([...prev, ...allIds.slice(start, end + 1)]),
+          );
+        }
+      } else {
+        setSelectedIds((prev) => {
+          const next = new Set(prev);
+          if (next.has(stepId)) next.delete(stepId);
+          else next.add(stepId);
+          return next;
+        });
+        setLastSelectedId(stepId);
+      }
+    },
+    [lastSelectedId, goalStepRows],
+  );
+
+  const confirmBulkDelete = useCallback(async () => {
+    if (!scope) return;
+    for (const id of selectedIds) {
+      await softDeleteGoalStep({ scope, goalStepId: id });
+    }
+    setSelectedIds(new Set());
+    setLastSelectedId(null);
+    setIsBulkDeleteDialogOpen(false);
+  }, [scope, selectedIds]);
+
+  const handleBulkAssignCategory = useCallback(
+    async (categoryTagId: string | null) => {
+      if (!scope) return;
+      for (const id of selectedIds) {
+        await assignGoalStepCategory({ scope, goalStepId: id, categoryTagId });
+      }
+      setSelectedIds(new Set());
+      setLastSelectedId(null);
+    },
+    [scope, selectedIds],
+  );
+
   useEffect(() => {
     if (!scope || goals.length < 2) {
       return;
@@ -122,13 +171,7 @@ function GoalCategoryColumn({
       aria-label={label}
       className="flex min-h-80 flex-col rounded-xl border border-border bg-surface p-3 shadow-sm sm:p-4"
     >
-      <div className="flex items-center justify-between gap-3 pb-3">
-        <h2 className="text-base font-semibold">{label}</h2>
-        <Button className="min-h-9 px-2" onClick={createRootGoalStep}>
-          <Plus aria-hidden="true" className="size-4" />
-          {dictionary.goals.addStep}
-        </Button>
-      </div>
+      <h2 className="pb-3 text-base font-semibold">{label}</h2>
 
       <div className="min-h-0 flex-1 overflow-y-auto rounded-lg border border-border bg-background/50 p-2">
         {goalStepRows.length === 0 ? (
@@ -146,12 +189,55 @@ function GoalCategoryColumn({
                 key={row.goalStep.id}
                 categoryTagMap={categoryTagMap}
                 goalId={primaryGoal?.id ?? row.goalStep.goalId}
+                isSelected={selectedIds.has(row.goalStep.id)}
+                isSelectionMode={isSelectionMode}
                 row={row}
+                onBulkAssignCategory={handleBulkAssignCategory}
+                onBulkDelete={() => setIsBulkDeleteDialogOpen(true)}
+                onToggleSelect={toggleSelect}
               />
             ))}
           </div>
         )}
+        {goalStepRows.length > 0 && (
+          <div className="flex items-center justify-between px-1 pt-1">
+            <button
+              type="button"
+              className="flex items-center gap-1.5 rounded border border-border px-2 py-1.5 text-sm text-muted transition hover:border-foreground/40 hover:text-foreground"
+              onClick={createRootGoalStep}
+            >
+              <Plus aria-hidden="true" className="size-3.5" />
+              {dictionary.goals.addStep}
+            </button>
+            {isSelectionMode && (
+              <button
+                type="button"
+                className="flex items-center gap-1.5 rounded border border-border px-2 py-1.5 text-sm text-muted transition hover:border-foreground/40 hover:text-foreground"
+                onClick={() => {
+                  setSelectedIds(new Set());
+                  setLastSelectedId(null);
+                }}
+              >
+                <X aria-hidden="true" className="size-3.5" />
+                {dictionary.dayEditor.clearSelection}
+              </button>
+            )}
+          </div>
+        )}
       </div>
+
+      <ConfirmationDialog
+        cancelLabel={dictionary.actions.cancel}
+        confirmLabel={dictionary.actions.delete}
+        description={dictionary.dayEditor.confirmBulkDeleteItems.replace(
+          '{count}',
+          String(selectedIds.size),
+        )}
+        open={isBulkDeleteDialogOpen}
+        title={dictionary.dayEditor.bulkDeleteItems}
+        onClose={() => setIsBulkDeleteDialogOpen(false)}
+        onConfirm={() => void confirmBulkDelete()}
+      />
     </section>
   );
 }
@@ -159,11 +245,21 @@ function GoalCategoryColumn({
 function GoalStepRow({
   categoryTagMap,
   goalId,
+  isSelected,
+  isSelectionMode,
   row,
+  onBulkAssignCategory,
+  onBulkDelete,
+  onToggleSelect,
 }: {
   categoryTagMap: Map<string, { colorHex: string; name: string }>;
   goalId: string;
+  isSelected: boolean;
+  isSelectionMode: boolean;
   row: VisibleGoalStepRow;
+  onBulkAssignCategory: (categoryTagId: string | null) => Promise<void>;
+  onBulkDelete: () => void;
+  onToggleSelect: (id: string, shiftKey: boolean) => void;
 }) {
   const { dictionary, scope } = useAppContext();
   const { goalStep, depth, hasChildren, isFirstSibling, isLastSibling } = row;
@@ -310,9 +406,11 @@ function GoalStepRow({
         className="group flex min-w-0 items-center gap-1 rounded-md px-1 py-1 transition hover:bg-surface"
         style={{
           paddingLeft: `min(${depth * 16}px, 56px)`,
-          backgroundColor: selectedCategory
-            ? toAlphaColor(selectedCategory.colorHex, 0.12)
-            : undefined,
+          backgroundColor: isSelected
+            ? 'color-mix(in srgb, var(--color-foreground) 8%, transparent)'
+            : selectedCategory
+              ? toAlphaColor(selectedCategory.colorHex, 0.12)
+              : undefined,
         }}
       >
         <IconButton
@@ -439,11 +537,32 @@ function GoalStepRow({
           >
             <IndentDecrease aria-hidden="true" className="size-4" />
           </IconButton>
+          <button
+            type="button"
+            aria-label={
+              isSelected
+                ? dictionary.dayEditor.deselectItem
+                : dictionary.dayEditor.selectItem
+            }
+            className={`flex size-3.5 shrink-0 items-center justify-center rounded-full border-2 transition ${
+              isSelected
+                ? 'border-foreground bg-foreground text-background'
+                : 'border-muted hover:border-foreground'
+            }`}
+            onClick={(e) => onToggleSelect(goalStep.id, e.shiftKey)}
+          >
+            {isSelected && <Check aria-hidden="true" className="size-2" />}
+          </button>
           <CategoryAssignmentMenu
             assignLabel={dictionary.dayEditor.assignCategory}
             clearLabel={dictionary.dayEditor.clearCategory}
+            disabled={isSelectionMode && !isSelected}
             selectedCategoryTagId={goalStep.categoryTagId}
             onAssign={(categoryTagId) => {
+              if (isSelectionMode) {
+                return onBulkAssignCategory(categoryTagId);
+              }
+
               if (scope) {
                 return assignGoalStepCategory({
                   scope,
@@ -457,7 +576,10 @@ function GoalStepRow({
           />
           <IconButton
             aria-label={dictionary.dayEditor.deleteItem}
-            onClick={() => void requestDelete()}
+            disabled={isSelectionMode && !isSelected}
+            onClick={() =>
+              isSelectionMode ? onBulkDelete() : void requestDelete()
+            }
           >
             <Trash2 aria-hidden="true" className="size-4" />
           </IconButton>

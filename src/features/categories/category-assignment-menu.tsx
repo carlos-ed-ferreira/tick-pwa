@@ -13,11 +13,13 @@ const viewportPadding = 16;
 export function CategoryAssignmentMenu({
   assignLabel,
   clearLabel,
+  disabled,
   selectedCategoryTagId,
   onAssign,
 }: {
   assignLabel: string;
   clearLabel: string;
+  disabled?: boolean;
   selectedCategoryTagId: string | null;
   onAssign: (categoryTagId: string | null) => Promise<void> | void;
 }) {
@@ -206,6 +208,7 @@ export function CategoryAssignmentMenu({
         aria-expanded={isOpen}
         aria-label={assignLabel}
         className={selectedCategory ? 'text-foreground' : ''}
+        disabled={disabled}
         ref={triggerRef}
         onClick={() => {
           if (isOpen) {

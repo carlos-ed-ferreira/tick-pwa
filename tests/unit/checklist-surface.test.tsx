@@ -56,6 +56,12 @@ vi.mock('@/providers', () => ({
         assignCategory: 'Assign category',
         clearCategory: 'Clear category',
         confirmDeleteItem: 'This item has content. Delete it anyway?',
+        selectItem: 'Select item',
+        deselectItem: 'Deselect item',
+        itemsSelected: '{count} selected',
+        bulkDeleteItems: 'Delete selected',
+        confirmBulkDeleteItems: 'This will delete {count} items. Continue?',
+        clearSelection: 'Clear selection',
       },
       actions: {
         cancel: 'Cancel',

@@ -56,6 +56,12 @@ vi.mock('@/providers', () => ({
         assignCategory: 'Assign category',
         clearCategory: 'Clear category',
         confirmDeleteItem: 'This item has content. Delete it anyway?',
+        selectItem: 'Select item',
+        deselectItem: 'Deselect item',
+        itemsSelected: '{count} selected',
+        bulkDeleteItems: 'Delete selected',
+        confirmBulkDeleteItems: 'This will delete {count} items. Continue?',
+        clearSelection: 'Clear selection',
       },
       goals: {
         categories: {
@@ -130,7 +136,11 @@ describe('GoalsSurface', () => {
       screen.queryByRole('button', { name: 'Add goal' }),
     ).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getAllByRole('button', { name: 'Add item' })[0]);
+    fireEvent.click(
+      screen.getAllByRole('button', {
+        name: 'Start this section with a checklist item',
+      })[0],
+    );
 
     await waitFor(() => {
       expect(createGoalMock).toHaveBeenCalledWith({

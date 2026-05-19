@@ -104,6 +104,12 @@ export const ptBRDictionary = {
     categoryNamePlaceholder: 'Nome da categoria',
     deleteCategory: 'Excluir categoria',
     confirmDeleteItem: 'Este item tem conteúdo. Excluir mesmo assim?',
+    selectItem: 'Selecionar item',
+    deselectItem: 'Desmarcar item',
+    itemsSelected: '{count} selecionados',
+    bulkDeleteItems: 'Excluir selecionados',
+    confirmBulkDeleteItems: 'Isso excluirá {count} itens. Deseja continuar?',
+    clearSelection: 'Limpar seleção',
   },
   goals: {
     title: 'Metas',
