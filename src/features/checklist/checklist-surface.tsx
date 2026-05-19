@@ -297,7 +297,7 @@ function ChecklistRow({
           value={text}
           placeholder={dictionary.dayEditor.itemPlaceholder}
           className={`min-w-0 flex-1 rounded-md bg-transparent px-2 py-2 text-sm outline-none transition focus:bg-surface focus:shadow-sm ${
-            item.checked ? 'text-muted line-through' : 'text-foreground'
+            item.checked ? 'opacity-50' : 'text-foreground'
           }`}
           onBlur={() => void flushText()}
           onChange={(event) => setText(event.target.value)}
