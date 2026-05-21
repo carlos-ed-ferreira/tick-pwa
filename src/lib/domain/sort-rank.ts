@@ -74,3 +74,77 @@ export function compareSortRanks(
 
   return 0;
 }
+
+export interface RankedItem {
+  id: string;
+  sortRank: string;
+}
+
+export type ReorderDirection = 'up' | 'down';
+
+export function sortByRank<TItem extends { sortRank: string }>(
+  items: readonly TItem[],
+): TItem[] {
+  return [...items].sort((firstItem, secondItem) =>
+    compareSortRanks(firstItem.sortRank, secondItem.sortRank),
+  );
+}
+
+export function createRankAfter<TItem extends RankedItem>({
+  afterItemId,
+  items,
+}: {
+  afterItemId?: string | null;
+  items: readonly TItem[];
+}): string {
+  const sortedItems = sortByRank(items);
+
+  if (!afterItemId) {
+    return createSortRankBetween(sortedItems.at(-1)?.sortRank ?? null, null);
+  }
+
+  const previousIndex = sortedItems.findIndex(
+    (item) => item.id === afterItemId,
+  );
+
+  if (previousIndex === -1) {
+    return createSortRankBetween(sortedItems.at(-1)?.sortRank ?? null, null);
+  }
+
+  return createSortRankBetween(
+    sortedItems[previousIndex].sortRank,
+    sortedItems[previousIndex + 1]?.sortRank ?? null,
+  );
+}
+
+export function createReorderedRank<TItem extends RankedItem>({
+  direction,
+  itemId,
+  items,
+}: {
+  direction: ReorderDirection;
+  itemId: string;
+  items: readonly TItem[];
+}): string | null {
+  const sortedItems = sortByRank(items);
+  const currentIndex = sortedItems.findIndex((item) => item.id === itemId);
+
+  if (currentIndex === -1) {
+    return null;
+  }
+
+  const nextIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+
+  if (nextIndex < 0 || nextIndex >= sortedItems.length) {
+    return null;
+  }
+
+  const reorderedItems = [...sortedItems];
+  const [movedItem] = reorderedItems.splice(currentIndex, 1);
+  reorderedItems.splice(nextIndex, 0, movedItem);
+
+  return createSortRankBetween(
+    reorderedItems[nextIndex - 1]?.sortRank ?? null,
+    reorderedItems[nextIndex + 1]?.sortRank ?? null,
+  );
+}

@@ -1,4 +1,5 @@
 import {
+  act,
   cleanup,
   fireEvent,
   render,
@@ -180,5 +181,37 @@ describe('BulkCalendarEditor', () => {
     });
     expect(row?.style.backgroundColor).toBe('');
     expect(input.className.includes('font-medium')).toBe(false);
+  });
+
+  it('focuses a sibling draft item after creating it with Enter', async () => {
+    const originalRequestAnimationFrame = window.requestAnimationFrame;
+    const frameCallbacks: FrameRequestCallback[] = [];
+    window.requestAnimationFrame = ((callback: FrameRequestCallback) => {
+      frameCallbacks.push(callback);
+      return frameCallbacks.length;
+    }) as typeof window.requestAnimationFrame;
+
+    try {
+      render(<BulkCalendarEditor open onClose={vi.fn()} />);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Add item' }));
+      fireEvent.keyDown(screen.getByPlaceholderText('Write a task'), {
+        key: 'Enter',
+      });
+
+      await waitFor(() => {
+        expect(screen.getAllByPlaceholderText('Write a task')).toHaveLength(2);
+      });
+
+      act(() => {
+        while (frameCallbacks.length > 0) {
+          frameCallbacks.shift()?.(0);
+        }
+      });
+
+      expect(screen.getAllByPlaceholderText('Write a task')[1]).toHaveFocus();
+    } finally {
+      window.requestAnimationFrame = originalRequestAnimationFrame;
+    }
   });
 });

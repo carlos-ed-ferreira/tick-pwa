@@ -3,8 +3,6 @@
 import {
   ArrowDown,
   ArrowUp,
-  ChevronDown,
-  ChevronRight,
   IndentDecrease,
   IndentIncrease,
   Plus,
@@ -13,6 +11,12 @@ import {
 } from 'lucide-react';
 import { useCallback, useMemo, useState, type KeyboardEvent } from 'react';
 import {
+  TaskTreeActionGroup,
+  TaskTreeCategoryChip,
+  TaskTreeCollapseButton,
+  TaskTreeRowLayout,
+} from '@/components/app';
+import {
   Button,
   Checkbox,
   ConfirmationDialog,
@@ -20,6 +24,7 @@ import {
   IconButton,
 } from '@/components/ui';
 import { CategoryAssignmentMenu, useCategoryTags } from '@/features/categories';
+import { useFocusAfterCreate } from '@/hooks/use-focus-after-create';
 import { applyChecklistTemplateToDateRange } from '@/lib/db';
 import { createId } from '@/lib/domain';
 import { requiresDeleteConfirmation } from '@/lib/confirm-delete';
@@ -49,27 +54,6 @@ import {
 
 const bulkChecklistInputSelector = '[data-bulk-checklist-input="true"]';
 const weekdayOptions: WeekdayIndex[] = [0, 1, 2, 3, 4, 5, 6];
-
-function toAlphaColor(hex: string, opacity: number): string {
-  const normalizedHex = hex.replace('#', '');
-
-  if (normalizedHex.length !== 3 && normalizedHex.length !== 6) {
-    return hex;
-  }
-
-  const expandedHex =
-    normalizedHex.length === 3
-      ? normalizedHex
-          .split('')
-          .map((character) => `${character}${character}`)
-          .join('')
-      : normalizedHex;
-  const red = Number.parseInt(expandedHex.slice(0, 2), 16);
-  const green = Number.parseInt(expandedHex.slice(2, 4), 16);
-  const blue = Number.parseInt(expandedHex.slice(4, 6), 16);
-
-  return `rgba(${red}, ${green}, ${blue}, ${opacity})`;
-}
 
 export function BulkCalendarEditor({
   open,
@@ -352,6 +336,7 @@ function BulkChecklistRow({
   const { dictionary } = useAppContext();
   const { item, depth, hasChildren, isFirstSibling, isLastSibling } = row;
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const focusAfterCreate = useFocusAfterCreate();
   const selectedCategory = item.categoryTagId
     ? (categoryTagMap.get(item.categoryTagId) ?? null)
     : null;
@@ -404,19 +389,7 @@ function BulkChecklistRow({
     if (event.key === 'Enter') {
       event.preventDefault();
       const newItemId = createSibling();
-      let retries = 0;
-      const tryFocus = () => {
-        const newInput = document.querySelector<HTMLInputElement>(
-          `[data-item-id="${newItemId}"]`,
-        );
-        if (newInput) {
-          newInput.focus();
-        } else if (retries < 20) {
-          retries++;
-          window.requestAnimationFrame(tryFocus);
-        }
-      };
-      window.requestAnimationFrame(tryFocus);
+      focusAfterCreate(newItemId);
       return;
     }
 
@@ -452,41 +425,22 @@ function BulkChecklistRow({
 
   return (
     <>
-      <div
-        className="group flex min-w-0 items-center gap-1 rounded-md px-1 py-1 transition hover:bg-surface"
-        style={{
-          paddingLeft: `min(${depth * 16}px, 56px)`,
-          backgroundColor: selectedCategory
-            ? toAlphaColor(selectedCategory.colorHex, 0.12)
-            : undefined,
-          boxShadow: item.priority
-            ? 'inset 3px 0 0 0 rgba(245, 158, 11, 0.9)'
-            : undefined,
-        }}
+      <TaskTreeRowLayout
+        categoryColorHex={selectedCategory?.colorHex}
+        depth={depth}
+        isPriority={item.priority}
       >
-        <IconButton
-          aria-label={
-            item.collapsed
-              ? dictionary.dayEditor.expandItem
-              : dictionary.dayEditor.collapseItem
-          }
-          className={!hasChildren ? 'disabled:opacity-100' : ''}
-          disabled={!hasChildren}
+        <TaskTreeCollapseButton
+          collapseLabel={dictionary.dayEditor.collapseItem}
+          expandLabel={dictionary.dayEditor.expandItem}
+          hasChildren={hasChildren}
+          isCollapsed={item.collapsed}
           onClick={() =>
             setDraftItems((currentItems) =>
               toggleBulkChecklistDraftItemCollapsed(currentItems, item.id),
             )
           }
-        >
-          {item.collapsed || !hasChildren ? (
-            <ChevronRight
-              aria-hidden="true"
-              className={`size-4 ${hasChildren ? '' : 'opacity-45'}`}
-            />
-          ) : (
-            <ChevronDown aria-hidden="true" className="size-4" />
-          )}
-        </IconButton>
+        />
 
         <Checkbox
           aria-label={dictionary.dayEditor.toggleItem}
@@ -520,19 +474,13 @@ function BulkChecklistRow({
         />
 
         {selectedCategory ? (
-          <span
-            className="shrink-0 rounded-full border px-2 py-1 text-[11px] font-medium leading-none"
-            style={{
-              borderColor: selectedCategory.colorHex,
-              backgroundColor: toAlphaColor(selectedCategory.colorHex, 0.18),
-              color: selectedCategory.colorHex,
-            }}
-          >
-            {selectedCategory.name}
-          </span>
+          <TaskTreeCategoryChip
+            colorHex={selectedCategory.colorHex}
+            name={selectedCategory.name}
+          />
         ) : null}
 
-        <div className="flex shrink-0 items-center gap-0">
+        <TaskTreeActionGroup>
           <IconButton
             aria-label={
               item.priority
@@ -618,8 +566,8 @@ function BulkChecklistRow({
           >
             <Trash2 aria-hidden="true" className="size-4" />
           </IconButton>
-        </div>
-      </div>
+        </TaskTreeActionGroup>
+      </TaskTreeRowLayout>
 
       <ConfirmationDialog
         cancelLabel={dictionary.actions.cancel}

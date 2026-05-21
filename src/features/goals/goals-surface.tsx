@@ -3,18 +3,31 @@
 import {
   ArrowDown,
   ArrowUp,
-  Check,
-  ChevronDown,
-  ChevronRight,
   IndentDecrease,
   IndentIncrease,
   Plus,
   Trash2,
-  X,
 } from 'lucide-react';
-import { useCallback, useEffect, useState, type KeyboardEvent } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type KeyboardEvent,
+} from 'react';
+import {
+  TaskTreeActionGroup,
+  TaskTreeCategoryChip,
+  TaskTreeCollapseButton,
+  TaskTreeRowLayout,
+  TaskTreeSelectionButton,
+  TreeListPanel,
+} from '@/components/app';
 import { Checkbox, ConfirmationDialog, IconButton } from '@/components/ui';
 import { CategoryAssignmentMenu, useCategoryTags } from '@/features/categories';
+import { useDebouncedInlineEdit } from '@/hooks/use-debounced-inline-edit';
+import { useFocusAfterCreate } from '@/hooks/use-focus-after-create';
+import { useTreeSelection } from '@/hooks/use-tree-selection';
 import {
   assignGoalStepCategory,
   createGoal,
@@ -38,27 +51,6 @@ import { useGoals } from './use-goals';
 
 const goalStepInputSelector = '[data-goal-step-input="true"]';
 const goalCategories: GoalCategory[] = ['short', 'medium', 'long'];
-
-function toAlphaColor(hex: string, opacity: number): string {
-  const normalizedHex = hex.replace('#', '');
-
-  if (normalizedHex.length !== 3 && normalizedHex.length !== 6) {
-    return hex;
-  }
-
-  const expandedHex =
-    normalizedHex.length === 3
-      ? normalizedHex
-          .split('')
-          .map((character) => `${character}${character}`)
-          .join('')
-      : normalizedHex;
-  const red = Number.parseInt(expandedHex.slice(0, 2), 16);
-  const green = Number.parseInt(expandedHex.slice(2, 4), 16);
-  const blue = Number.parseInt(expandedHex.slice(4, 6), 16);
-
-  return `rgba(${red}, ${green}, ${blue}, ${opacity})`;
-}
 
 export function GoalsSurface() {
   const { dictionary, scope } = useAppContext();
@@ -96,46 +88,29 @@ function GoalCategoryColumn({
   const goals = useGoals(scope, category);
   const primaryGoal = goals[0] ?? null;
   const goalStepRows = useGoalStepTree(scope, primaryGoal?.id ?? null);
-
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [lastSelectedId, setLastSelectedId] = useState<string | null>(null);
-  const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false);
-  const isSelectionMode = selectedIds.size > 0;
-
-  const toggleSelect = useCallback(
-    (stepId: string, shiftKey: boolean) => {
-      if (shiftKey && lastSelectedId) {
-        const allIds = goalStepRows.map((r) => r.goalStep.id);
-        const from = allIds.indexOf(lastSelectedId);
-        const to = allIds.indexOf(stepId);
-        if (from !== -1 && to !== -1) {
-          const [start, end] = from < to ? [from, to] : [to, from];
-          setSelectedIds(
-            (prev) => new Set([...prev, ...allIds.slice(start, end + 1)]),
-          );
-        }
-      } else {
-        setSelectedIds((prev) => {
-          const next = new Set(prev);
-          if (next.has(stepId)) next.delete(stepId);
-          else next.add(stepId);
-          return next;
-        });
-        setLastSelectedId(stepId);
-      }
-    },
-    [lastSelectedId, goalStepRows],
+  const visibleGoalStepIds = useMemo(
+    () => goalStepRows.map((row) => row.goalStep.id),
+    [goalStepRows],
   );
+  const {
+    clearSelection,
+    isSelected,
+    isSelectionMode,
+    selectedCount,
+    selectedIds,
+    toggleSelect,
+  } = useTreeSelection(visibleGoalStepIds);
+
+  const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false);
 
   const confirmBulkDelete = useCallback(async () => {
     if (!scope) return;
     for (const id of selectedIds) {
       await softDeleteGoalStep({ scope, goalStepId: id });
     }
-    setSelectedIds(new Set());
-    setLastSelectedId(null);
+    clearSelection();
     setIsBulkDeleteDialogOpen(false);
-  }, [scope, selectedIds]);
+  }, [clearSelection, scope, selectedIds]);
 
   const handleBulkAssignCategory = useCallback(
     async (categoryTagId: string | null) => {
@@ -143,10 +118,9 @@ function GoalCategoryColumn({
       for (const id of selectedIds) {
         await assignGoalStepCategory({ scope, goalStepId: id, categoryTagId });
       }
-      setSelectedIds(new Set());
-      setLastSelectedId(null);
+      clearSelection();
     },
-    [scope, selectedIds],
+    [clearSelection, scope, selectedIds],
   );
 
   useEffect(() => {
@@ -173,71 +147,41 @@ function GoalCategoryColumn({
     >
       <h2 className="pb-3 text-base font-semibold">{label}</h2>
 
-      <div className="min-h-0 flex-1 overflow-y-auto rounded-lg border border-border bg-background/50 p-2">
-        {goalStepRows.length === 0 ? (
-          <button
-            type="button"
-            className="flex min-h-32 w-full items-center justify-center rounded-md border border-dashed border-border px-4 text-sm text-muted transition hover:border-foreground/30 hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground"
-            onClick={createRootGoalStep}
-          >
-            {dictionary.goals.emptyCategory}
-          </button>
-        ) : (
-          <div className="grid gap-1">
-            {goalStepRows.map((row) => (
-              <GoalStepRow
-                key={row.goalStep.id}
-                categoryTagMap={categoryTagMap}
-                goalId={primaryGoal?.id ?? row.goalStep.goalId}
-                isSelected={selectedIds.has(row.goalStep.id)}
-                isSelectionMode={isSelectionMode}
-                row={row}
-                onBulkAssignCategory={handleBulkAssignCategory}
-                onBulkDelete={() => setIsBulkDeleteDialogOpen(true)}
-                onToggleSelect={toggleSelect}
-              />
-            ))}
-          </div>
-        )}
-        {goalStepRows.length > 0 && (
-          <div className="flex items-center justify-between px-1 pt-1">
-            <button
-              type="button"
-              className="flex items-center gap-1.5 rounded border border-border px-2 py-1.5 text-sm text-muted transition hover:border-foreground/40 hover:text-foreground"
-              onClick={createRootGoalStep}
-            >
-              <Plus aria-hidden="true" className="size-3.5" />
-              {dictionary.goals.addStep}
-            </button>
-            {isSelectionMode && (
-              <button
-                type="button"
-                className="flex items-center gap-1.5 rounded border border-border px-2 py-1.5 text-sm text-muted transition hover:border-foreground/40 hover:text-foreground"
-                onClick={() => {
-                  setSelectedIds(new Set());
-                  setLastSelectedId(null);
-                }}
-              >
-                <X aria-hidden="true" className="size-3.5" />
-                {dictionary.dayEditor.clearSelection}
-              </button>
-            )}
-          </div>
-        )}
-      </div>
-
-      <ConfirmationDialog
-        cancelLabel={dictionary.actions.cancel}
-        confirmLabel={dictionary.actions.delete}
-        description={dictionary.dayEditor.confirmBulkDeleteItems.replace(
-          '{count}',
-          String(selectedIds.size),
-        )}
-        open={isBulkDeleteDialogOpen}
-        title={dictionary.dayEditor.bulkDeleteItems}
-        onClose={() => setIsBulkDeleteDialogOpen(false)}
-        onConfirm={() => void confirmBulkDelete()}
-      />
+      <TreeListPanel
+        addLabel={dictionary.goals.addStep}
+        bulkDeleteDialog={{
+          cancelLabel: dictionary.actions.cancel,
+          confirmLabel: dictionary.actions.delete,
+          description: dictionary.dayEditor.confirmBulkDeleteItems.replace(
+            '{count}',
+            String(selectedCount),
+          ),
+          open: isBulkDeleteDialogOpen,
+          title: dictionary.dayEditor.bulkDeleteItems,
+          onClose: () => setIsBulkDeleteDialogOpen(false),
+          onConfirm: () => void confirmBulkDelete(),
+        }}
+        clearSelectionLabel={dictionary.dayEditor.clearSelection}
+        emptyLabel={dictionary.goals.emptyCategory}
+        hasRows={goalStepRows.length > 0}
+        isSelectionMode={isSelectionMode}
+        onAddRoot={createRootGoalStep}
+        onClearSelection={clearSelection}
+      >
+        {goalStepRows.map((row) => (
+          <GoalStepRow
+            key={row.goalStep.id}
+            categoryTagMap={categoryTagMap}
+            goalId={primaryGoal?.id ?? row.goalStep.goalId}
+            isSelected={isSelected(row.goalStep.id)}
+            isSelectionMode={isSelectionMode}
+            row={row}
+            onBulkAssignCategory={handleBulkAssignCategory}
+            onBulkDelete={() => setIsBulkDeleteDialogOpen(true)}
+            onToggleSelect={toggleSelect}
+          />
+        ))}
+      </TreeListPanel>
     </section>
   );
 }
@@ -264,30 +208,33 @@ function GoalStepRow({
   const { dictionary, scope } = useAppContext();
   const { goalStep, depth, hasChildren, isFirstSibling, isLastSibling } = row;
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [text, setText] = useState(goalStep.text);
+  const focusAfterCreate = useFocusAfterCreate();
   const selectedCategory = goalStep.categoryTagId
     ? (categoryTagMap.get(goalStep.categoryTagId) ?? null)
     : null;
+  const saveText = useCallback(
+    async (nextText: string) => {
+      if (!scope) {
+        return;
+      }
 
-  const flushText = useCallback(async () => {
-    if (!scope || text === goalStep.text) {
-      return;
-    }
-
-    await updateGoalStepText({ scope, goalStepId: goalStep.id, text });
-  }, [goalStep.id, goalStep.text, scope, text]);
-
-  useEffect(() => {
-    if (!scope || text === goalStep.text) {
-      return;
-    }
-
-    const timeoutId = window.setTimeout(() => {
-      void updateGoalStepText({ scope, goalStepId: goalStep.id, text });
-    }, 500);
-
-    return () => window.clearTimeout(timeoutId);
-  }, [goalStep.id, goalStep.text, scope, text]);
+      await updateGoalStepText({
+        scope,
+        goalStepId: goalStep.id,
+        text: nextText,
+      });
+    },
+    [goalStep.id, scope],
+  );
+  const {
+    flush: flushText,
+    setText,
+    text,
+  } = useDebouncedInlineEdit({
+    enabled: Boolean(scope),
+    onSave: saveText,
+    value: goalStep.text,
+  });
 
   const createSibling = useCallback(async () => {
     if (!scope) {
@@ -354,19 +301,7 @@ function GoalStepRow({
       event.preventDefault();
       const newStepId = await createSibling();
       if (newStepId) {
-        let retries = 0;
-        const tryFocus = () => {
-          const newInput = document.querySelector<HTMLInputElement>(
-            `[data-item-id="${newStepId}"]`,
-          );
-          if (newInput) {
-            newInput.focus();
-          } else if (retries < 20) {
-            retries++;
-            window.requestAnimationFrame(tryFocus);
-          }
-        };
-        window.requestAnimationFrame(tryFocus);
+        focusAfterCreate(newStepId);
       }
       return;
     }
@@ -402,25 +337,16 @@ function GoalStepRow({
 
   return (
     <>
-      <div
-        className="group flex min-w-0 items-center gap-1 rounded-md px-1 py-1 transition hover:bg-surface"
-        style={{
-          paddingLeft: `min(${depth * 16}px, 56px)`,
-          backgroundColor: isSelected
-            ? 'color-mix(in srgb, var(--color-foreground) 8%, transparent)'
-            : selectedCategory
-              ? toAlphaColor(selectedCategory.colorHex, 0.12)
-              : undefined,
-        }}
+      <TaskTreeRowLayout
+        categoryColorHex={selectedCategory?.colorHex}
+        depth={depth}
+        isSelected={isSelected}
       >
-        <IconButton
-          aria-label={
-            goalStep.collapsed
-              ? dictionary.dayEditor.expandItem
-              : dictionary.dayEditor.collapseItem
-          }
-          className={!hasChildren ? 'disabled:opacity-100' : ''}
-          disabled={!hasChildren}
+        <TaskTreeCollapseButton
+          collapseLabel={dictionary.dayEditor.collapseItem}
+          expandLabel={dictionary.dayEditor.expandItem}
+          hasChildren={hasChildren}
+          isCollapsed={goalStep.collapsed}
           onClick={() => {
             if (scope) {
               void toggleGoalStepCollapsed({
@@ -429,16 +355,7 @@ function GoalStepRow({
               });
             }
           }}
-        >
-          {goalStep.collapsed || !hasChildren ? (
-            <ChevronRight
-              aria-hidden="true"
-              className={`size-4 ${hasChildren ? '' : 'opacity-45'}`}
-            />
-          ) : (
-            <ChevronDown aria-hidden="true" className="size-4" />
-          )}
-        </IconButton>
+        />
 
         <Checkbox
           aria-label={dictionary.dayEditor.toggleItem}
@@ -468,19 +385,13 @@ function GoalStepRow({
         />
 
         {selectedCategory ? (
-          <span
-            className="shrink-0 rounded-full border px-2 py-1 text-[11px] font-medium leading-none"
-            style={{
-              borderColor: selectedCategory.colorHex,
-              backgroundColor: toAlphaColor(selectedCategory.colorHex, 0.18),
-              color: selectedCategory.colorHex,
-            }}
-          >
-            {selectedCategory.name}
-          </span>
+          <TaskTreeCategoryChip
+            colorHex={selectedCategory.colorHex}
+            name={selectedCategory.name}
+          />
         ) : null}
 
-        <div className="flex shrink-0 items-center gap-0">
+        <TaskTreeActionGroup>
           <IconButton
             aria-label={dictionary.dayEditor.addChild}
             onClick={createChild}
@@ -539,26 +450,12 @@ function GoalStepRow({
           >
             <IndentDecrease aria-hidden="true" className="size-4" />
           </IconButton>
-          <button
-            type="button"
-            aria-label={
-              isSelected
-                ? dictionary.dayEditor.deselectItem
-                : dictionary.dayEditor.selectItem
-            }
-            className="group inline-flex size-9 shrink-0 items-center justify-center rounded-md transition hover:bg-background"
-            onClick={(e) => onToggleSelect(goalStep.id, e.shiftKey)}
-          >
-            <span
-              className={`flex size-3.5 items-center justify-center rounded-full border-2 transition ${
-                isSelected
-                  ? 'border-foreground bg-foreground text-background'
-                  : 'border-muted group-hover:border-foreground'
-              }`}
-            >
-              {isSelected && <Check aria-hidden="true" className="size-2" />}
-            </span>
-          </button>
+          <TaskTreeSelectionButton
+            deselectLabel={dictionary.dayEditor.deselectItem}
+            isSelected={isSelected}
+            selectLabel={dictionary.dayEditor.selectItem}
+            onToggle={(shiftKey) => onToggleSelect(goalStep.id, shiftKey)}
+          />
           <CategoryAssignmentMenu
             assignLabel={dictionary.dayEditor.assignCategory}
             clearLabel={dictionary.dayEditor.clearCategory}
@@ -589,8 +486,8 @@ function GoalStepRow({
           >
             <Trash2 aria-hidden="true" className="size-4" />
           </IconButton>
-        </div>
-      </div>
+        </TaskTreeActionGroup>
+      </TaskTreeRowLayout>
 
       <ConfirmationDialog
         cancelLabel={dictionary.actions.cancel}

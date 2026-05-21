@@ -1,8 +1,10 @@
 import type { AppScope, ChecklistItem, LocalDateString } from '@/lib/domain';
 import {
-  compareSortRanks,
+  createRankAfter,
   createId,
+  createReorderedRank,
   createSortRankBetween,
+  sortByRank,
 } from '@/lib/domain';
 import { getDatesInRangeForWeekdays, type WeekdayIndex } from '@/lib/time';
 import { db } from './database';
@@ -18,9 +20,7 @@ import {
 import { queueSyncOutboxItem } from './sync-outbox';
 
 function sortChecklistItems(items: ChecklistItem[]): ChecklistItem[] {
-  return [...items].sort((firstItem, secondItem) =>
-    compareSortRanks(firstItem.sortRank, secondItem.sortRank),
-  );
+  return sortByRank(items);
 }
 
 async function getActiveChecklistItems(
@@ -41,56 +41,7 @@ function createInsertRank({
   siblings: ChecklistItem[];
   afterItemId?: string | null;
 }): string {
-  const sortedSiblings = sortChecklistItems(siblings);
-
-  if (!afterItemId) {
-    return createSortRankBetween(sortedSiblings.at(-1)?.sortRank ?? null, null);
-  }
-
-  const previousIndex = sortedSiblings.findIndex(
-    (item) => item.id === afterItemId,
-  );
-
-  if (previousIndex === -1) {
-    return createSortRankBetween(sortedSiblings.at(-1)?.sortRank ?? null, null);
-  }
-
-  return createSortRankBetween(
-    sortedSiblings[previousIndex].sortRank,
-    sortedSiblings[previousIndex + 1]?.sortRank ?? null,
-  );
-}
-
-function createReorderedChecklistItemRank({
-  siblings,
-  itemId,
-  direction,
-}: {
-  siblings: ChecklistItem[];
-  itemId: string;
-  direction: 'up' | 'down';
-}): string | null {
-  const sortedSiblings = sortChecklistItems(siblings);
-  const currentIndex = sortedSiblings.findIndex((item) => item.id === itemId);
-
-  if (currentIndex === -1) {
-    return null;
-  }
-
-  const nextIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
-
-  if (nextIndex < 0 || nextIndex >= sortedSiblings.length) {
-    return null;
-  }
-
-  const reorderedSiblings = [...sortedSiblings];
-  const [movedItem] = reorderedSiblings.splice(currentIndex, 1);
-  reorderedSiblings.splice(nextIndex, 0, movedItem);
-
-  return createSortRankBetween(
-    reorderedSiblings[nextIndex - 1]?.sortRank ?? null,
-    reorderedSiblings[nextIndex + 1]?.sortRank ?? null,
-  );
+  return createRankAfter({ items: siblings, afterItemId });
 }
 
 async function persistChecklistItemUpdate(
@@ -114,11 +65,7 @@ function getSortedTemplateChildren(
   templateItems: ChecklistTemplateItem[],
   parentId: string | null,
 ): ChecklistTemplateItem[] {
-  return [...templateItems]
-    .filter((item) => item.parentId === parentId)
-    .sort((firstItem, secondItem) =>
-      compareSortRanks(firstItem.sortRank, secondItem.sortRank),
-    );
+  return sortByRank(templateItems.filter((item) => item.parentId === parentId));
 }
 
 export interface ChecklistTemplateItem {
@@ -596,8 +543,8 @@ export async function reorderChecklistItem({
       const siblings = activeItems.filter(
         (activeItem) => activeItem.parentId === item.parentId,
       );
-      const sortRank = createReorderedChecklistItemRank({
-        siblings,
+      const sortRank = createReorderedRank({
+        items: siblings,
         itemId: item.id,
         direction,
       });

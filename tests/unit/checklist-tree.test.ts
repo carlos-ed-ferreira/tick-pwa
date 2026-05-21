@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { ChecklistItem } from '@/lib/domain';
+import { buildVisibleTreeRows, type ChecklistItem } from '@/lib/domain';
 import { buildVisibleChecklistRows } from '@/features/checklist';
 
 function item(overrides: Partial<ChecklistItem>): ChecklistItem {
@@ -53,5 +53,18 @@ describe('checklist tree', () => {
       childCount: 1,
       hasChildren: true,
     });
+  });
+
+  it('builds generic visible tree rows while skipping deleted items', () => {
+    const rows = buildVisibleTreeRows([
+      item({ id: 'deleted', deletedAt: '2026-05-13T13:00:00.000Z' }),
+      item({ id: 'parent', sortRank: 'U' }),
+      item({ id: 'child', parentId: 'parent', sortRank: 'U' }),
+    ]);
+
+    expect(rows.map((row) => [row.item.id, row.depth])).toEqual([
+      ['parent', 0],
+      ['child', 1],
+    ]);
   });
 });

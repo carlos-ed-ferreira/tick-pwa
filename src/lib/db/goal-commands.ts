@@ -1,8 +1,10 @@
 import type { AppScope, Goal, GoalCategory, GoalStep } from '@/lib/domain';
 import {
-  compareSortRanks,
+  createRankAfter,
   createId,
+  createReorderedRank,
   createSortRankBetween,
+  sortByRank,
 } from '@/lib/domain';
 import { db } from './database';
 import {
@@ -13,15 +15,11 @@ import {
 import { queueSyncOutboxItem } from './sync-outbox';
 
 function sortGoals(goals: Goal[]): Goal[] {
-  return [...goals].sort((firstGoal, secondGoal) =>
-    compareSortRanks(firstGoal.sortRank, secondGoal.sortRank),
-  );
+  return sortByRank(goals);
 }
 
 function sortGoalSteps(goalSteps: GoalStep[]): GoalStep[] {
-  return [...goalSteps].sort((firstGoalStep, secondGoalStep) =>
-    compareSortRanks(firstGoalStep.sortRank, secondGoalStep.sortRank),
-  );
+  return sortByRank(goalSteps);
 }
 
 async function getActiveGoals(
@@ -80,24 +78,7 @@ function createGoalInsertRank({
   siblings: Goal[];
   afterGoalId?: string | null;
 }): string {
-  const sortedSiblings = sortGoals(siblings);
-
-  if (!afterGoalId) {
-    return createSortRankBetween(sortedSiblings.at(-1)?.sortRank ?? null, null);
-  }
-
-  const previousIndex = sortedSiblings.findIndex(
-    (goal) => goal.id === afterGoalId,
-  );
-
-  if (previousIndex === -1) {
-    return createSortRankBetween(sortedSiblings.at(-1)?.sortRank ?? null, null);
-  }
-
-  return createSortRankBetween(
-    sortedSiblings[previousIndex].sortRank,
-    sortedSiblings[previousIndex + 1]?.sortRank ?? null,
-  );
+  return createRankAfter({ items: siblings, afterItemId: afterGoalId });
 }
 
 function createGoalStepInsertRank({
@@ -107,58 +88,7 @@ function createGoalStepInsertRank({
   siblings: GoalStep[];
   afterGoalStepId?: string | null;
 }): string {
-  const sortedSiblings = sortGoalSteps(siblings);
-
-  if (!afterGoalStepId) {
-    return createSortRankBetween(sortedSiblings.at(-1)?.sortRank ?? null, null);
-  }
-
-  const previousIndex = sortedSiblings.findIndex(
-    (goalStep) => goalStep.id === afterGoalStepId,
-  );
-
-  if (previousIndex === -1) {
-    return createSortRankBetween(sortedSiblings.at(-1)?.sortRank ?? null, null);
-  }
-
-  return createSortRankBetween(
-    sortedSiblings[previousIndex].sortRank,
-    sortedSiblings[previousIndex + 1]?.sortRank ?? null,
-  );
-}
-
-function createReorderedGoalStepRank({
-  siblings,
-  goalStepId,
-  direction,
-}: {
-  siblings: GoalStep[];
-  goalStepId: string;
-  direction: 'up' | 'down';
-}): string | null {
-  const sortedSiblings = sortGoalSteps(siblings);
-  const currentIndex = sortedSiblings.findIndex(
-    (goalStep) => goalStep.id === goalStepId,
-  );
-
-  if (currentIndex === -1) {
-    return null;
-  }
-
-  const nextIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
-
-  if (nextIndex < 0 || nextIndex >= sortedSiblings.length) {
-    return null;
-  }
-
-  const reorderedSiblings = [...sortedSiblings];
-  const [movedGoalStep] = reorderedSiblings.splice(currentIndex, 1);
-  reorderedSiblings.splice(nextIndex, 0, movedGoalStep);
-
-  return createSortRankBetween(
-    reorderedSiblings[nextIndex - 1]?.sortRank ?? null,
-    reorderedSiblings[nextIndex + 1]?.sortRank ?? null,
-  );
+  return createRankAfter({ items: siblings, afterItemId: afterGoalStepId });
 }
 
 async function persistGoalUpdate(
@@ -907,9 +837,9 @@ export async function reorderGoalStep({
     const siblings = activeGoalSteps.filter(
       (activeGoalStep) => activeGoalStep.parentId === goalStep.parentId,
     );
-    const sortRank = createReorderedGoalStepRank({
-      siblings,
-      goalStepId: goalStep.id,
+    const sortRank = createReorderedRank({
+      items: siblings,
+      itemId: goalStep.id,
       direction,
     });
 

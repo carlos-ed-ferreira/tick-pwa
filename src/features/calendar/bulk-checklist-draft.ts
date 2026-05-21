@@ -1,7 +1,11 @@
 import {
-  compareSortRanks,
+  createRankAfter,
   createId,
+  createReorderedRank,
   createSortRankBetween,
+  sortByRank,
+  buildVisibleTreeRows,
+  type VisibleTreeRow,
 } from '@/lib/domain';
 
 export interface BulkChecklistDraftItem {
@@ -15,21 +19,13 @@ export interface BulkChecklistDraftItem {
   sortRank: string;
 }
 
-export interface VisibleBulkChecklistDraftRow {
-  item: BulkChecklistDraftItem;
-  depth: number;
-  childCount: number;
-  hasChildren: boolean;
-  isFirstSibling: boolean;
-  isLastSibling: boolean;
-}
+export type VisibleBulkChecklistDraftRow =
+  VisibleTreeRow<BulkChecklistDraftItem>;
 
 function sortDraftItems(
   items: BulkChecklistDraftItem[],
 ): BulkChecklistDraftItem[] {
-  return [...items].sort((firstItem, secondItem) =>
-    compareSortRanks(firstItem.sortRank, secondItem.sortRank),
-  );
+  return sortByRank(items);
 }
 
 function createInsertRank({
@@ -39,56 +35,7 @@ function createInsertRank({
   siblings: BulkChecklistDraftItem[];
   afterItemId?: string | null;
 }): string {
-  const sortedSiblings = sortDraftItems(siblings);
-
-  if (!afterItemId) {
-    return createSortRankBetween(sortedSiblings.at(-1)?.sortRank ?? null, null);
-  }
-
-  const previousIndex = sortedSiblings.findIndex(
-    (item) => item.id === afterItemId,
-  );
-
-  if (previousIndex === -1) {
-    return createSortRankBetween(sortedSiblings.at(-1)?.sortRank ?? null, null);
-  }
-
-  return createSortRankBetween(
-    sortedSiblings[previousIndex].sortRank,
-    sortedSiblings[previousIndex + 1]?.sortRank ?? null,
-  );
-}
-
-function createReorderedDraftItemRank({
-  direction,
-  itemId,
-  siblings,
-}: {
-  direction: 'up' | 'down';
-  itemId: string;
-  siblings: BulkChecklistDraftItem[];
-}): string | null {
-  const sortedSiblings = sortDraftItems(siblings);
-  const currentIndex = sortedSiblings.findIndex((item) => item.id === itemId);
-
-  if (currentIndex === -1) {
-    return null;
-  }
-
-  const nextIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
-
-  if (nextIndex < 0 || nextIndex >= sortedSiblings.length) {
-    return null;
-  }
-
-  const reorderedSiblings = [...sortedSiblings];
-  const [movedItem] = reorderedSiblings.splice(currentIndex, 1);
-  reorderedSiblings.splice(nextIndex, 0, movedItem);
-
-  return createSortRankBetween(
-    reorderedSiblings[nextIndex - 1]?.sortRank ?? null,
-    reorderedSiblings[nextIndex + 1]?.sortRank ?? null,
-  );
+  return createRankAfter({ items: siblings, afterItemId });
 }
 
 function updateDraftItem(
@@ -135,53 +82,10 @@ function collectDraftDescendantIds(
   return descendantIds;
 }
 
-function parentKey(parentId: string | null): string {
-  return parentId ?? 'root';
-}
-
 export function buildVisibleBulkChecklistDraftRows(
   items: BulkChecklistDraftItem[],
 ): VisibleBulkChecklistDraftRow[] {
-  const childrenByParent = new Map<string, BulkChecklistDraftItem[]>();
-
-  for (const item of items) {
-    const key = parentKey(item.parentId);
-    const children = childrenByParent.get(key) ?? [];
-    children.push(item);
-    childrenByParent.set(key, children);
-  }
-
-  for (const children of childrenByParent.values()) {
-    children.sort((firstItem, secondItem) =>
-      compareSortRanks(firstItem.sortRank, secondItem.sortRank),
-    );
-  }
-
-  const rows: VisibleBulkChecklistDraftRow[] = [];
-
-  function appendRows(parentId: string | null, depth: number) {
-    const siblings = childrenByParent.get(parentKey(parentId)) ?? [];
-
-    for (const [index, item] of siblings.entries()) {
-      const children = childrenByParent.get(parentKey(item.id)) ?? [];
-      rows.push({
-        item,
-        depth,
-        childCount: children.length,
-        hasChildren: children.length > 0,
-        isFirstSibling: index === 0,
-        isLastSibling: index === siblings.length - 1,
-      });
-
-      if (!item.collapsed) {
-        appendRows(item.id, depth + 1);
-      }
-    }
-  }
-
-  appendRows(null, 0);
-
-  return rows;
+  return buildVisibleTreeRows(items);
 }
 
 export function createBulkChecklistDraftItem(
@@ -376,8 +280,8 @@ export function reorderBulkChecklistDraftItem(
   const siblings = items.filter(
     (currentItem) => currentItem.parentId === item.parentId,
   );
-  const sortRank = createReorderedDraftItemRank({
-    siblings,
+  const sortRank = createReorderedRank({
+    items: siblings,
     itemId,
     direction,
   });

@@ -13,6 +13,8 @@ const {
   createGoalStepMock,
   mergeGoalsInCategoryMock,
   reorderGoalStepMock,
+  softDeleteGoalStepMock,
+  updateGoalStepTextMock,
   useGoalsMock,
   useGoalStepTreeMock,
 } = vi.hoisted(() => ({
@@ -20,6 +22,8 @@ const {
   createGoalStepMock: vi.fn(),
   mergeGoalsInCategoryMock: vi.fn().mockResolvedValue(null),
   reorderGoalStepMock: vi.fn().mockResolvedValue(undefined),
+  softDeleteGoalStepMock: vi.fn().mockResolvedValue(undefined),
+  updateGoalStepTextMock: vi.fn().mockResolvedValue(undefined),
   useGoalsMock: vi.fn(),
   useGoalStepTreeMock: vi.fn(),
 }));
@@ -33,10 +37,10 @@ vi.mock('@/lib/db', () => ({
   mergeGoalsInCategory: mergeGoalsInCategoryMock,
   outdentGoalStep: vi.fn().mockResolvedValue(undefined),
   reorderGoalStep: reorderGoalStepMock,
-  softDeleteGoalStep: vi.fn().mockResolvedValue(undefined),
+  softDeleteGoalStep: softDeleteGoalStepMock,
   toggleGoalStepChecked: vi.fn().mockResolvedValue(undefined),
   toggleGoalStepCollapsed: vi.fn().mockResolvedValue(undefined),
-  updateGoalStepText: vi.fn().mockResolvedValue(undefined),
+  updateGoalStepText: updateGoalStepTextMock,
 }));
 
 vi.mock('@/providers', () => ({
@@ -114,6 +118,8 @@ describe('GoalsSurface', () => {
     createGoalStepMock.mockResolvedValue(undefined);
     mergeGoalsInCategoryMock.mockClear();
     reorderGoalStepMock.mockClear();
+    softDeleteGoalStepMock.mockClear();
+    updateGoalStepTextMock.mockClear();
     useGoalsMock.mockReset();
     useGoalsMock.mockImplementation((_scope, category) =>
       category === 'short' ? [] : [{ id: `${category}-goal` }],
@@ -197,6 +203,106 @@ describe('GoalsSurface', () => {
         },
         goalStepId: 'goal-step-1',
         direction: 'up',
+      });
+    });
+  });
+
+  it('flushes edited goal step text before creating a sibling with Enter', async () => {
+    useGoalsMock.mockImplementation(() => [{ id: 'goal-medium' }]);
+    createGoalStepMock.mockResolvedValue({ id: 'new-goal-step' });
+    useGoalStepTreeMock.mockReturnValue([
+      {
+        goalStep: {
+          id: 'goal-step-1',
+          goalId: 'goal-medium',
+          parentId: null,
+          text: 'Existing step',
+          completed: false,
+          collapsed: false,
+          categoryTagId: null,
+          sortRank: 'U',
+        },
+        depth: 0,
+        childCount: 0,
+        hasChildren: false,
+        isFirstSibling: false,
+        isLastSibling: false,
+      },
+    ]);
+
+    render(<GoalsSurface />);
+
+    const input = screen.getAllByDisplayValue('Existing step')[0];
+    fireEvent.change(input, { target: { value: 'Edited step' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+
+    await waitFor(() => {
+      expect(createGoalStepMock).toHaveBeenCalledWith({
+        scope: {
+          id: 'guest:test',
+          kind: 'guest',
+          ownerId: 'test',
+        },
+        goalId: 'goal-medium',
+        parentId: null,
+        afterGoalStepId: 'goal-step-1',
+      });
+    });
+    expect(updateGoalStepTextMock).toHaveBeenCalledWith({
+      scope: {
+        id: 'guest:test',
+        kind: 'guest',
+        ownerId: 'test',
+      },
+      goalStepId: 'goal-step-1',
+      text: 'Edited step',
+    });
+    expect(updateGoalStepTextMock.mock.invocationCallOrder[0]).toBeLessThan(
+      createGoalStepMock.mock.invocationCallOrder[0],
+    );
+  });
+
+  it('bulk deletes a selected goal step from selection mode', async () => {
+    useGoalsMock.mockImplementation(() => [{ id: 'goal-medium' }]);
+    useGoalStepTreeMock.mockReturnValue([
+      {
+        goalStep: {
+          id: 'goal-step-1',
+          goalId: 'goal-medium',
+          parentId: null,
+          text: 'Existing step',
+          completed: false,
+          collapsed: false,
+          categoryTagId: null,
+          sortRank: 'U',
+        },
+        depth: 0,
+        childCount: 0,
+        hasChildren: false,
+        isFirstSibling: false,
+        isLastSibling: false,
+      },
+    ]);
+
+    render(<GoalsSurface />);
+
+    fireEvent.click(screen.getAllByLabelText('Select item')[0]);
+    fireEvent.click(screen.getAllByLabelText('Delete item')[0]);
+
+    expect(
+      await screen.findByText('This will delete 1 items. Continue?'),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+
+    await waitFor(() => {
+      expect(softDeleteGoalStepMock).toHaveBeenCalledWith({
+        scope: {
+          id: 'guest:test',
+          kind: 'guest',
+          ownerId: 'test',
+        },
+        goalStepId: 'goal-step-1',
       });
     });
   });
