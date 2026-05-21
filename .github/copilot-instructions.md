@@ -35,7 +35,13 @@ Local-only persistence:
 
 Guest data must NEVER be sent to the backend.
 
+Guest writes must remain `syncStatus: local` and must not create `syncOutbox` rows. Authenticated writes should use `syncStatus: pending` and queue outbox items for synchronization.
+
 Guest/local demo users use `guest:<installationId>` scope.
+
+App auth modes are `entry`, `guest`, `authenticated`, and `unauthorized`. `AppProvider` owns auth/session startup, scope selection, locale/timezone preferences, and authenticated sync scheduling. Startup must never leave the user stuck on loading indefinitely; network/auth initialization should fall back to the entry experience when it cannot complete promptly.
+
+Do not add automatic guest-to-auth migration unless explicitly requested as a product decision. Current guest data remains local in IndexedDB until browser/site data is cleared or a future explicit migration/cleanup flow is implemented.
 
 ## Offline-first principles
 
@@ -75,6 +81,8 @@ Use localStorage ONLY for:
 - non-structured preferences
 
 Never use localStorage for application entities.
+
+Application entity writes from UI must go through local command functions in `src/lib/db`; components should not write directly to Dexie tables. This preserves summaries, sync metadata, scope checks, and outbox behavior.
 
 ## UI Philosophy
 
@@ -296,6 +304,8 @@ Responsibilities:
 
 Most interaction logic should remain frontend-driven.
 
+Allowlist access is enforced both in frontend auth checks and Supabase RLS. Changes to allowlist, RLS policies, or auth activation must include automated coverage for allowed users, inactive/missing allowlist rows, query errors, and local fallback for unauthorized users.
+
 ## Code Style
 
 Prefer:
@@ -341,8 +351,10 @@ When changing code, always add or update relevant automated tests in the same wo
 Use the smallest test level that covers the risk:
 
 - unit tests for pure logic, time helpers, tree derivation, sorting, and mappers
-- integration tests for Dexie commands, persistence behavior, sync queues, auth isolation, and local-first flows
+- integration tests for Dexie commands, persistence behavior, scope isolation, sync queues, mocked sync engine behavior, allowlist checks, auth isolation, and local-first flows
 - Playwright tests for critical user flows and regressions that require real browser behavior
+
+Playwright is configured for desktop Chromium and mobile Chrome local-mode smoke coverage. It starts Next.js on `127.0.0.1:3100`, uses `NEXT_PUBLIC_TICK_DISABLE_SUPABASE=1` for local-only flows, and writes artifacts under `.next/playwright-*` so `next dev` does not watch generated traces/videos/screenshots and enter Fast Refresh loops. Keep new Playwright artifacts out of watched project folders such as `test-results/`.
 
 Before finishing code changes, run the applicable checks. Prefer `make check` or `npm run check` for complete verification when the change is not purely documentation-only.
 

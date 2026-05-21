@@ -47,6 +47,39 @@ export type AuthMode =
 type AccessModePreference = 'entry' | 'local';
 
 const ACCESS_MODE_PREFERENCE_KEY = 'accessMode';
+const APP_INITIALIZATION_TIMEOUT_MS = 3000;
+const INITIAL_AUTH_SESSION_TIMEOUT_MS = 2000;
+
+async function getInitialAuthUser(): Promise<User | null> {
+  const client = getSupabaseBrowserClient();
+
+  if (!client) {
+    return null;
+  }
+
+  let timeoutId: number | null = null;
+  const sessionPromise = client.auth
+    .getSession()
+    .then((sessionResponse) => sessionResponse.data.session?.user ?? null)
+    .catch((error) => {
+      console.error('Failed to read Supabase auth session.', error);
+      return null;
+    });
+  const timeoutPromise = new Promise<null>((resolve) => {
+    timeoutId = window.setTimeout(
+      () => resolve(null),
+      INITIAL_AUTH_SESSION_TIMEOUT_MS,
+    );
+  });
+
+  try {
+    return await Promise.race([sessionPromise, timeoutPromise]);
+  } finally {
+    if (timeoutId !== null) {
+      window.clearTimeout(timeoutId);
+    }
+  }
+}
 
 interface AppContextValue {
   scope: AppScope | null;
@@ -205,19 +238,38 @@ export function AppProvider({
 
   useEffect(() => {
     let isActive = true;
+    let didResolveInitialScope = false;
+    const initializationTimeoutId = window.setTimeout(() => {
+      if (!isActive || didResolveInitialScope) {
+        return;
+      }
+
+      didResolveInitialScope = true;
+      void activateEntryMode();
+    }, APP_INITIALIZATION_TIMEOUT_MS);
+
+    async function resolveInitialScope(action: () => Promise<void>) {
+      if (!isActive || didResolveInitialScope) {
+        return;
+      }
+
+      didResolveInitialScope = true;
+      window.clearTimeout(initializationTimeoutId);
+      await action();
+    }
 
     async function initializeAppScope() {
       try {
-        const client = getSupabaseBrowserClient();
-        const sessionResponse = client ? await client.auth.getSession() : null;
-        const session = sessionResponse?.data.session ?? null;
+        const sessionUser = await getInitialAuthUser();
 
         if (!isActive) {
           return;
         }
 
-        if (session?.user) {
-          await activateAuthenticatedMode(session.user);
+        if (sessionUser) {
+          await resolveInitialScope(() =>
+            activateAuthenticatedMode(sessionUser),
+          );
           return;
         }
 
@@ -230,17 +282,18 @@ export function AppProvider({
         }
 
         if (accessMode === 'local') {
-          await activateLocalMode({ persistChoice: false });
+          await resolveInitialScope(() =>
+            activateLocalMode({ persistChoice: false }),
+          );
           return;
         }
 
-        await activateEntryMode();
+        await resolveInitialScope(activateEntryMode);
       } catch (error) {
         console.error('Failed to initialize Tick app scope.', error);
 
         if (isActive) {
-          await activateEntryMode();
-          setIsReady(true);
+          await resolveInitialScope(activateEntryMode);
         }
       }
     }
@@ -249,6 +302,7 @@ export function AppProvider({
 
     return () => {
       isActive = false;
+      window.clearTimeout(initializationTimeoutId);
     };
   }, [activateAuthenticatedMode, activateEntryMode, activateLocalMode]);
 

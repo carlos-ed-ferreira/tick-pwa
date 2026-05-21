@@ -28,6 +28,15 @@ O Tick prioriza rapidez, baixa fricção, auto-save e uma experiência próxima 
 
 O projeto usa uma arquitetura híbrida de persistência.
 
+Estados principais do app:
+
+- `entry`: tela inicial de autenticação ou entrada no modo local.
+- `guest`: modo local, com escopo `guest:<installationId>`.
+- `authenticated`: modo logado, com escopo `user:<supabaseUserId>`.
+- `unauthorized`: usuário autenticado fora da allowlist, com opção de continuar em modo local.
+
+O `AppProvider` resolve autenticação, escopo, idioma, fuso horário e ciclo de sincronização. A inicialização não deve bloquear indefinidamente a experiência local: se a leitura inicial de sessão/preferências demorar demais, o app volta para a entrada em vez de permanecer preso em carregamento.
+
 ### Usuário autenticado
 
 Usuários autenticados usam escopo `user:<supabaseUserId>`. As alterações são gravadas primeiro no IndexedDB e entram na fila local de sincronização. O Supabase PostgreSQL funciona como persistência remota, com RLS e allowlist de acesso.
@@ -36,6 +45,8 @@ Categorias não são criadas automaticamente no modo autenticado. Uma conta nova
 
 A sincronização usa o outbox local e roda em momentos como inicialização da sessão autenticada, retorno ao foco, evento `online` e intervalo enquanto a aplicação está aberta. A rede é tratada como melhoria, não como requisito para interação.
 
+Escritas autenticadas recebem metadados `pending` e são enfileiradas no outbox em ordem de dependência: categorias, entradas diárias, itens de checklist, metas e passos de metas.
+
 ### Modo local
 
 Usuários sem acesso autenticado podem entrar no modo local de demonstração. Esse modo usa escopo `guest:<installationId>` e mantém dados exclusivamente no IndexedDB via Dexie.
@@ -43,6 +54,8 @@ Usuários sem acesso autenticado podem entrar no modo local de demonstração. E
 No modo local, o app cria uma vez as categorias base de demonstração de acordo com o idioma ativo do usuário. Se o idioma do modo local mudar depois, as categorias base ainda rastreadas como padrão são renomeadas automaticamente para o novo idioma.
 
 Dados do modo local nunca são enviados ao backend.
+
+Dados do modo local permanecem no IndexedDB do navegador/dispositivo até que o usuário limpe os dados do site ou o app implemente uma ação explícita de limpeza/importação. Entrar em uma conta autorizada não migra automaticamente dados `guest:*` para `user:*`.
 
 ### Persistência
 
@@ -57,6 +70,8 @@ Use IndexedDB para entidades da aplicação:
 
 Use `localStorage` apenas para preferências pequenas, como idioma, tema ou flags de UI. Entidades da aplicação não devem ser armazenadas em `localStorage`.
 
+A UI deve escrever entidades da aplicação por meio dos comandos locais em `src/lib/db`, nunca diretamente nas tabelas Dexie a partir dos componentes.
+
 ## Autenticação e acesso
 
 O app suporta autenticação pelo Supabase Auth com:
@@ -65,6 +80,8 @@ O app suporta autenticação pelo Supabase Auth com:
 - e-mail e senha
 
 Não existe cadastro público dentro do app. Para salvar e sincronizar dados na nuvem, o e-mail do usuário precisa estar ativo na tabela `public.account_access`. Usuários fora da allowlist podem usar o modo local, com dados salvos apenas no dispositivo.
+
+A allowlist é verificada no frontend antes de ativar o modo logado e também no Supabase por RLS. Mudanças nessa regra devem manter cobertura automatizada para linha ativa, linha inativa, linha ausente, erro de consulta e ausência de cliente/e-mail.
 
 Para liberar um usuário autenticado:
 
@@ -133,12 +150,21 @@ Os comandos `make` apenas encapsulam scripts `npm`; o projeto não usa Docker, L
 
 Ao alterar código, adicione ou atualize testes automatizados relevantes. Use testes unitários para lógica pura, integração para comandos IndexedDB/sync e Playwright para fluxos críticos de interface.
 
+A suíte atual cobre:
+
+- testes unitários de árvore, ordenação, hooks e componentes de superfície;
+- testes de integração de comandos Dexie, seed local, isolamento de escopos, outbox, sync engine com Supabase mockado e allowlist;
+- testes Playwright para modo local, calendário diário e metas em desktop Chromium e mobile Chrome.
+
+O Playwright inicia o Next.js em `http://127.0.0.1:3100`, desativa Supabase para os fluxos locais com `NEXT_PUBLIC_TICK_DISABLE_SUPABASE=1` e grava artefatos em `.next/playwright-*`. Não grave traces, vídeos ou screenshots em pastas observadas pelo `next dev`, como `test-results/`, para evitar loops de Fast Refresh.
+
 Antes de finalizar uma mudança de código, rode os comandos aplicáveis:
 
 ```bash
 npm run typecheck
 npm run lint
 npm run test
+npm run test:e2e
 npm run format:check
 ```
 
@@ -175,6 +201,7 @@ Para desenvolvimento local com Supabase:
 ```bash
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
+NEXT_PUBLIC_TICK_DISABLE_SUPABASE=
 SUPABASE_PROJECT_REF=
 SUPABASE_ACCESS_TOKEN=
 SUPABASE_DB_PASSWORD=
@@ -194,6 +221,7 @@ Onde encontrar cada valor:
 - `SUPABASE_DB_PASSWORD`: senha do banco configurada na criação do projeto.
 - `NEXT_PUBLIC_SUPABASE_URL`: `API URL` do projeto no painel do Supabase. Use a URL base do projeto, como `https://<project-ref>.supabase.co`, sem `/rest/v1`.
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`: chave pública `anon` ou `publishable` do projeto no painel do Supabase.
+- `NEXT_PUBLIC_TICK_DISABLE_SUPABASE`: use `1` apenas em execuções locais/testes que precisam forçar o app a se comportar como ambiente sem login configurado.
 
 ## Supabase
 
