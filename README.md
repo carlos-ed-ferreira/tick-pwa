@@ -255,6 +255,7 @@ Se usar login com e-mail e senha, crie os usuários no Supabase Auth e mantenha 
 ## Diretrizes de código
 
 - Prefira componentes pequenos, tipagem forte e implementações diretas.
+- Extraia primitivas visuais e hooks compartilhados quando o mesmo comportamento aparecer em duas ou mais features, mantendo comandos, labels e regras de domínio dentro da feature dona.
 - Evite abstrações prematuras, estado global pesado e arquitetura enterprise.
 - Preserve auto-save, edição inline, baixa fricção e comportamento mobile-first.
 - Mantenha o backend fino: autenticação, sincronização, persistência e validação de ownership.

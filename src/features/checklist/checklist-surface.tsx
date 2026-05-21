@@ -22,6 +22,7 @@ import { Checkbox, ConfirmationDialog, IconButton } from '@/components/ui';
 import { CategoryAssignmentMenu, useCategoryTags } from '@/features/categories';
 import { useDebouncedInlineEdit } from '@/hooks/use-debounced-inline-edit';
 import { useFocusAfterCreate } from '@/hooks/use-focus-after-create';
+import { useTreeBulkActions } from '@/hooks/use-tree-bulk-actions';
 import { useTreeSelection } from '@/hooks/use-tree-selection';
 import {
   assignChecklistItemCategory,
@@ -58,27 +59,32 @@ export function ChecklistSurface({ dailyEntryId }: { dailyEntryId: string }) {
     toggleSelect,
   } = useTreeSelection(visibleItemIds);
 
-  const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false);
-
-  const confirmBulkDelete = useCallback(async () => {
-    if (!scope) return;
-    for (const id of selectedIds) {
-      await softDeleteChecklistItem({ scope, itemId: id });
-    }
-    clearSelection();
-    setIsBulkDeleteDialogOpen(false);
-  }, [clearSelection, scope, selectedIds]);
-
-  const handleBulkAssignCategory = useCallback(
-    async (categoryTagId: string | null) => {
+  const deleteSelectedItem = useCallback(
+    async (itemId: string) => {
       if (!scope) return;
-      for (const id of selectedIds) {
-        await assignChecklistItemCategory({ scope, itemId: id, categoryTagId });
-      }
-      clearSelection();
+      await softDeleteChecklistItem({ scope, itemId });
     },
-    [clearSelection, scope, selectedIds],
+    [scope],
   );
+  const assignSelectedItemCategory = useCallback(
+    async (itemId: string, categoryTagId: string | null) => {
+      if (!scope) return;
+      await assignChecklistItemCategory({ scope, itemId, categoryTagId });
+    },
+    [scope],
+  );
+  const {
+    assignBulkCategory,
+    closeBulkDeleteDialog,
+    confirmBulkDelete,
+    isBulkDeleteDialogOpen,
+    openBulkDeleteDialog,
+  } = useTreeBulkActions({
+    assignSelectedItemCategory,
+    clearSelection,
+    deleteSelectedItem,
+    selectedIds,
+  });
 
   const createRootItem = useCallback(async () => {
     if (!scope) {
@@ -109,7 +115,7 @@ export function ChecklistSurface({ dailyEntryId }: { dailyEntryId: string }) {
           ),
           open: isBulkDeleteDialogOpen,
           title: dictionary.dayEditor.bulkDeleteItems,
-          onClose: () => setIsBulkDeleteDialogOpen(false),
+          onClose: closeBulkDeleteDialog,
           onConfirm: () => void confirmBulkDelete(),
         }}
         clearSelectionLabel={dictionary.dayEditor.clearSelection}
@@ -127,8 +133,8 @@ export function ChecklistSurface({ dailyEntryId }: { dailyEntryId: string }) {
             isSelected={isSelected(row.item.id)}
             isSelectionMode={isSelectionMode}
             row={row}
-            onBulkAssignCategory={handleBulkAssignCategory}
-            onBulkDelete={() => setIsBulkDeleteDialogOpen(true)}
+            onBulkAssignCategory={assignBulkCategory}
+            onBulkDelete={openBulkDeleteDialog}
             onToggleSelect={toggleSelect}
           />
         ))}

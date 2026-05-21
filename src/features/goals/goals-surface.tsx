@@ -27,6 +27,7 @@ import { Checkbox, ConfirmationDialog, IconButton } from '@/components/ui';
 import { CategoryAssignmentMenu, useCategoryTags } from '@/features/categories';
 import { useDebouncedInlineEdit } from '@/hooks/use-debounced-inline-edit';
 import { useFocusAfterCreate } from '@/hooks/use-focus-after-create';
+import { useTreeBulkActions } from '@/hooks/use-tree-bulk-actions';
 import { useTreeSelection } from '@/hooks/use-tree-selection';
 import {
   assignGoalStepCategory,
@@ -101,27 +102,32 @@ function GoalCategoryColumn({
     toggleSelect,
   } = useTreeSelection(visibleGoalStepIds);
 
-  const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false);
-
-  const confirmBulkDelete = useCallback(async () => {
-    if (!scope) return;
-    for (const id of selectedIds) {
-      await softDeleteGoalStep({ scope, goalStepId: id });
-    }
-    clearSelection();
-    setIsBulkDeleteDialogOpen(false);
-  }, [clearSelection, scope, selectedIds]);
-
-  const handleBulkAssignCategory = useCallback(
-    async (categoryTagId: string | null) => {
+  const deleteSelectedGoalStep = useCallback(
+    async (goalStepId: string) => {
       if (!scope) return;
-      for (const id of selectedIds) {
-        await assignGoalStepCategory({ scope, goalStepId: id, categoryTagId });
-      }
-      clearSelection();
+      await softDeleteGoalStep({ scope, goalStepId });
     },
-    [clearSelection, scope, selectedIds],
+    [scope],
   );
+  const assignSelectedGoalStepCategory = useCallback(
+    async (goalStepId: string, categoryTagId: string | null) => {
+      if (!scope) return;
+      await assignGoalStepCategory({ scope, goalStepId, categoryTagId });
+    },
+    [scope],
+  );
+  const {
+    assignBulkCategory,
+    closeBulkDeleteDialog,
+    confirmBulkDelete,
+    isBulkDeleteDialogOpen,
+    openBulkDeleteDialog,
+  } = useTreeBulkActions({
+    assignSelectedItemCategory: assignSelectedGoalStepCategory,
+    clearSelection,
+    deleteSelectedItem: deleteSelectedGoalStep,
+    selectedIds,
+  });
 
   useEffect(() => {
     if (!scope || goals.length < 2) {
@@ -158,7 +164,7 @@ function GoalCategoryColumn({
           ),
           open: isBulkDeleteDialogOpen,
           title: dictionary.dayEditor.bulkDeleteItems,
-          onClose: () => setIsBulkDeleteDialogOpen(false),
+          onClose: closeBulkDeleteDialog,
           onConfirm: () => void confirmBulkDelete(),
         }}
         clearSelectionLabel={dictionary.dayEditor.clearSelection}
@@ -176,8 +182,8 @@ function GoalCategoryColumn({
             isSelected={isSelected(row.goalStep.id)}
             isSelectionMode={isSelectionMode}
             row={row}
-            onBulkAssignCategory={handleBulkAssignCategory}
-            onBulkDelete={() => setIsBulkDeleteDialogOpen(true)}
+            onBulkAssignCategory={assignBulkCategory}
+            onBulkDelete={openBulkDeleteDialog}
             onToggleSelect={toggleSelect}
           />
         ))}

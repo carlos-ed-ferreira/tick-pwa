@@ -214,6 +214,26 @@ Avoid:
 - over-abstraction
 - premature optimization
 
+## Componentization and Reuse
+
+Prefer shared presentational primitives and headless hooks when the same UI behavior appears in two or more features.
+
+Keep domain-specific commands, labels, persistence calls, and business rules inside feature modules. Shared components under `src/components/app` and shared hooks under `src/hooks` should not know whether they are editing daily checklist items, goal steps, categories, or another entity type.
+
+When checklist and goals share tree behavior, prefer adapter-based hooks/components over copy-paste:
+
+- shared row layout, action groups, selection controls, collapse controls, and category chips
+- shared keyboard behavior for Enter, Tab, Backspace, and toggle shortcuts
+- shared bulk selection, delete, and category assignment behavior
+- feature-specific callbacks for create, update, delete, reorder, toggle, and persistence actions
+
+Do not extract an abstraction only because code looks similar. Extract when:
+
+- the behavior is truly the same across at least two surfaces
+- a change would otherwise need to be made in multiple files
+- the abstraction can stay smaller and clearer than the duplicated code
+- tests can cover the shared behavior
+
 ## State Management
 
 Prefer:
