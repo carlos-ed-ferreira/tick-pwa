@@ -45,6 +45,10 @@ export interface Dictionary {
   calendar: {
     title: string;
     bulkApply: string;
+    bulkClear: string;
+    bulkClearApply: string;
+    bulkClearDescription: string;
+    bulkClearEditorTitle: string;
     bulkCreate: string;
     bulkDatePlaceholder: string;
     bulkEditorTitle: string;

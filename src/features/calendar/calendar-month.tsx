@@ -1,6 +1,12 @@
 'use client';
 
-import { CalendarDays, ChevronLeft, ChevronRight, Plus } from 'lucide-react';
+import {
+  CalendarDays,
+  ChevronLeft,
+  ChevronRight,
+  Plus,
+  Trash2,
+} from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui';
@@ -135,7 +141,9 @@ export function CalendarMonth() {
     getMonthParts(todayKey);
   const dayParam = searchParams.get('day');
   const openDayDate = dayParam && isLocalDateString(dayParam) ? dayParam : null;
-  const [isBulkEditorOpen, setIsBulkEditorOpen] = useState(false);
+  const [bulkEditorMode, setBulkEditorMode] = useState<
+    'create' | 'clear' | null
+  >(null);
   const [visibleYear, setVisibleYear] = useState<number>(() => todayYear);
   const [visibleMonthIndex, setVisibleMonthIndex] = useState<number>(
     () => todayMonthIndex,
@@ -213,10 +221,17 @@ export function CalendarMonth() {
             <div className="flex items-center gap-1">
               <Button
                 className="min-h-10 px-3"
-                onClick={() => setIsBulkEditorOpen(true)}
+                onClick={() => setBulkEditorMode('create')}
               >
                 <Plus aria-hidden="true" className="size-4" />
                 {dictionary.calendar.bulkCreate}
+              </Button>
+              <Button
+                className="min-h-10 px-3 text-rose-100 hover:border-rose-400/60"
+                onClick={() => setBulkEditorMode('clear')}
+              >
+                <Trash2 aria-hidden="true" className="size-4" />
+                {dictionary.calendar.bulkClear}
               </Button>
               <button
                 type="button"
@@ -294,8 +309,9 @@ export function CalendarMonth() {
         </div>
       </section>
       <BulkCalendarEditor
-        open={isBulkEditorOpen}
-        onClose={() => setIsBulkEditorOpen(false)}
+        mode={bulkEditorMode ?? 'create'}
+        open={bulkEditorMode !== null}
+        onClose={() => setBulkEditorMode(null)}
       />
       <DayEditor date={openDayDate} onClose={closeDay} />
     </>

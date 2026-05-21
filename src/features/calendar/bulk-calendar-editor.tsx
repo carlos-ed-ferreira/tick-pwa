@@ -25,7 +25,10 @@ import {
 } from '@/components/ui';
 import { CategoryAssignmentMenu, useCategoryTags } from '@/features/categories';
 import { useFocusAfterCreate } from '@/hooks/use-focus-after-create';
-import { applyChecklistTemplateToDateRange } from '@/lib/db';
+import {
+  applyChecklistTemplateToDateRange,
+  clearChecklistItemsFromDateRange,
+} from '@/lib/db';
 import { createId } from '@/lib/domain';
 import { requiresDeleteConfirmation } from '@/lib/confirm-delete';
 import type { WeekdayIndex } from '@/lib/time';
@@ -54,15 +57,19 @@ import {
 
 const bulkChecklistInputSelector = '[data-bulk-checklist-input="true"]';
 const weekdayOptions: WeekdayIndex[] = [0, 1, 2, 3, 4, 5, 6];
+type BulkCalendarEditorMode = 'create' | 'clear';
 
 export function BulkCalendarEditor({
+  mode = 'create',
   open,
   onClose,
 }: {
+  mode?: BulkCalendarEditorMode;
   open: boolean;
   onClose: () => void;
 }) {
   const { dictionary, scope, timezonePreference } = useAppContext();
+  const isCreateMode = mode === 'create';
   const [draftItems, setDraftItems] = useState<BulkChecklistDraftItem[]>([]);
   const [startDateInput, setStartDateInput] = useState('');
   const [endDateInput, setEndDateInput] = useState('');
@@ -96,14 +103,10 @@ export function BulkCalendarEditor({
     );
   }, []);
 
-  const applyBulkRange = useCallback(async () => {
-    if (!scope) {
-      return;
-    }
-
+  const validateBulkDateRange = useCallback(() => {
     if (!startDateInput.trim() || !endDateInput.trim()) {
       setValidationMessage(dictionary.calendar.bulkRequiredDates);
-      return;
+      return null;
     }
 
     const startDate = parseDateInputValue(startDateInput);
@@ -111,22 +114,17 @@ export function BulkCalendarEditor({
 
     if (!startDate || !endDate) {
       setValidationMessage(dictionary.calendar.bulkInvalidDates);
-      return;
+      return null;
     }
 
     if (startDate > endDate) {
       setValidationMessage(dictionary.calendar.bulkInvalidRange);
-      return;
+      return null;
     }
 
     if (selectedWeekdays.length === 0) {
       setValidationMessage(dictionary.calendar.bulkSelectWeekdays);
-      return;
-    }
-
-    if (draftItems.length === 0) {
-      setValidationMessage(dictionary.calendar.bulkRequireItems);
-      return;
+      return null;
     }
 
     if (
@@ -137,6 +135,38 @@ export function BulkCalendarEditor({
       }).length === 0
     ) {
       setValidationMessage(dictionary.calendar.bulkNoMatchingDates);
+      return null;
+    }
+
+    return {
+      endDate,
+      selectedWeekdays,
+      startDate,
+    };
+  }, [
+    dictionary.calendar.bulkInvalidDates,
+    dictionary.calendar.bulkInvalidRange,
+    dictionary.calendar.bulkNoMatchingDates,
+    dictionary.calendar.bulkRequiredDates,
+    dictionary.calendar.bulkSelectWeekdays,
+    endDateInput,
+    selectedWeekdays,
+    startDateInput,
+  ]);
+
+  const applyBulkRange = useCallback(async () => {
+    if (!scope) {
+      return;
+    }
+
+    const rangeSelection = validateBulkDateRange();
+
+    if (!rangeSelection) {
+      return;
+    }
+
+    if (draftItems.length === 0) {
+      setValidationMessage(dictionary.calendar.bulkRequireItems);
       return;
     }
 
@@ -146,9 +176,9 @@ export function BulkCalendarEditor({
     try {
       await applyChecklistTemplateToDateRange({
         scope,
-        startDate,
-        endDate,
-        selectedWeekdays,
+        startDate: rangeSelection.startDate,
+        endDate: rangeSelection.endDate,
+        selectedWeekdays: rangeSelection.selectedWeekdays,
         templateItems: draftItems,
         timezone: timezonePreference.timezone,
       });
@@ -157,26 +187,50 @@ export function BulkCalendarEditor({
       setIsSubmitting(false);
     }
   }, [
-    dictionary.calendar.bulkInvalidDates,
-    dictionary.calendar.bulkInvalidRange,
-    dictionary.calendar.bulkNoMatchingDates,
     dictionary.calendar.bulkRequireItems,
-    dictionary.calendar.bulkRequiredDates,
-    dictionary.calendar.bulkSelectWeekdays,
     draftItems,
-    endDateInput,
     handleClose,
     scope,
-    selectedWeekdays,
-    startDateInput,
     timezonePreference.timezone,
+    validateBulkDateRange,
   ]);
+
+  const clearBulkRange = useCallback(async () => {
+    if (!scope) {
+      return;
+    }
+
+    const rangeSelection = validateBulkDateRange();
+
+    if (!rangeSelection) {
+      return;
+    }
+
+    setValidationMessage(null);
+    setIsSubmitting(true);
+
+    try {
+      await clearChecklistItemsFromDateRange({
+        scope,
+        startDate: rangeSelection.startDate,
+        endDate: rangeSelection.endDate,
+        selectedWeekdays: rangeSelection.selectedWeekdays,
+      });
+      handleClose();
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [handleClose, scope, validateBulkDateRange]);
 
   return (
     <Dialog
       closeLabel={dictionary.actions.cancel}
       open={open}
-      title={dictionary.calendar.bulkEditorTitle}
+      title={
+        isCreateMode
+          ? dictionary.calendar.bulkEditorTitle
+          : dictionary.calendar.bulkClearEditorTitle
+      }
       onClose={handleClose}
     >
       <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden p-4 sm:p-5">
@@ -245,21 +299,32 @@ export function BulkCalendarEditor({
           </div>
         ) : null}
 
-        <BulkChecklistSurface
-          draftItems={draftItems}
-          setDraftItems={setDraftItems}
-        />
+        {isCreateMode ? (
+          <BulkChecklistSurface
+            draftItems={draftItems}
+            setDraftItems={setDraftItems}
+          />
+        ) : (
+          <div className="flex min-h-0 flex-1 items-center justify-center gap-3 rounded-lg border border-rose-600 bg-rose-600/10 p-6 text-center text-sm font-medium leading-6 text-rose-100 shadow-sm">
+            <Trash2 aria-hidden="true" className="size-5 shrink-0" />
+            <span>{dictionary.calendar.bulkClearDescription}</span>
+          </div>
+        )}
 
         <div className="flex items-center justify-end gap-2">
           <Button className="min-h-11 px-4" onClick={handleClose}>
             {dictionary.actions.cancel}
           </Button>
           <Button
-            className="min-h-11 px-4"
+            className={`min-h-11 px-4 ${isCreateMode ? '' : 'border-rose-500/40 text-rose-100 hover:border-rose-400/60'}`}
             disabled={isSubmitting}
-            onClick={() => void applyBulkRange()}
+            onClick={() =>
+              void (isCreateMode ? applyBulkRange() : clearBulkRange())
+            }
           >
-            {dictionary.calendar.bulkApply}
+            {isCreateMode
+              ? dictionary.calendar.bulkApply
+              : dictionary.calendar.bulkClearApply}
           </Button>
         </div>
       </div>

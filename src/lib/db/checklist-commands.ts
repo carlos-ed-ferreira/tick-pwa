@@ -675,3 +675,69 @@ export async function applyChecklistTemplateToDateRange({
 
   return matchingDates;
 }
+
+export async function clearChecklistItemsFromDateRange({
+  scope,
+  startDate,
+  endDate,
+  selectedWeekdays,
+}: {
+  scope: AppScope;
+  startDate: LocalDateString;
+  endDate: LocalDateString;
+  selectedWeekdays: readonly WeekdayIndex[];
+}): Promise<LocalDateString[]> {
+  const matchingDates = getDatesInRangeForWeekdays({
+    startDate,
+    endDate,
+    selectedWeekdays,
+  });
+
+  if (matchingDates.length === 0) {
+    return [];
+  }
+
+  const matchingDateSet = new Set(matchingDates);
+  const clearedDates = new Set<LocalDateString>();
+
+  await db.transaction(
+    'rw',
+    db.dailyEntries,
+    db.checklistItems,
+    db.syncOutbox,
+    async () => {
+      const entries = await db.dailyEntries
+        .where('scopeId')
+        .equals(scope.id)
+        .filter(
+          (entry) =>
+            entry.deletedAt === null && matchingDateSet.has(entry.date),
+        )
+        .toArray();
+
+      for (const entry of entries) {
+        const activeItems = await getActiveChecklistItems(scope, entry.id);
+
+        if (activeItems.length === 0) {
+          continue;
+        }
+
+        for (const activeItem of activeItems) {
+          const updatedItem = touchChecklistItem(scope, {
+            ...activeItem,
+            deletedAt: createTimestamp(),
+          });
+          await persistChecklistItemUpdate(scope, updatedItem, ['deletedAt']);
+        }
+
+        await recalculateDailyEntrySummary({
+          scope,
+          dailyEntryId: entry.id,
+        });
+        clearedDates.add(entry.date);
+      }
+    },
+  );
+
+  return matchingDates.filter((date) => clearedDates.has(date));
+}

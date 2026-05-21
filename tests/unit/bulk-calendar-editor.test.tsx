@@ -9,14 +9,21 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { BulkCalendarEditor } from '@/features/calendar/bulk-calendar-editor';
 
-const { applyChecklistTemplateToDateRangeMock } = vi.hoisted(() => ({
+const {
+  applyChecklistTemplateToDateRangeMock,
+  clearChecklistItemsFromDateRangeMock,
+} = vi.hoisted(() => ({
   applyChecklistTemplateToDateRangeMock: vi
+    .fn()
+    .mockResolvedValue(['2026-01-05']),
+  clearChecklistItemsFromDateRangeMock: vi
     .fn()
     .mockResolvedValue(['2026-01-05']),
 }));
 
 vi.mock('@/lib/db', () => ({
   applyChecklistTemplateToDateRange: applyChecklistTemplateToDateRangeMock,
+  clearChecklistItemsFromDateRange: clearChecklistItemsFromDateRangeMock,
 }));
 
 vi.mock('@/providers', () => ({
@@ -27,16 +34,20 @@ vi.mock('@/providers', () => ({
         delete: 'Delete',
       },
       calendar: {
-        bulkApply: 'Apply to dates',
-        bulkCreate: 'Apply range',
+        bulkApply: 'Create on dates',
+        bulkClear: 'Clear in bulk',
+        bulkClearApply: 'Clear items',
+        bulkClearDescription: 'All items on the selected days will be removed.',
+        bulkClearEditorTitle: 'Clear items in bulk',
+        bulkCreate: 'Create in bulk',
         bulkDatePlaceholder: 'DD-MM-YYYY',
-        bulkEditorTitle: 'Apply checklist to date range',
+        bulkEditorTitle: 'Create checklist in bulk',
         bulkEndDate: 'End date',
         bulkInvalidDates: 'Enter valid dates in DD-MM-YYYY.',
         bulkInvalidRange: 'End date must be on or after the start date.',
         bulkNoMatchingDates:
           'No dates in this range match the selected weekdays.',
-        bulkRequireItems: 'Add at least one item before applying the range.',
+        bulkRequireItems: 'Add at least one item before creating in bulk.',
         bulkRequiredDates: 'Start and end dates are required.',
         bulkSelectWeekdays: 'Select at least one weekday.',
         bulkStartDate: 'Start date',
@@ -99,6 +110,7 @@ vi.mock('@/features/categories', () => ({
 describe('BulkCalendarEditor', () => {
   beforeEach(() => {
     applyChecklistTemplateToDateRangeMock.mockClear();
+    clearChecklistItemsFromDateRangeMock.mockClear();
   });
 
   afterEach(() => {
@@ -108,7 +120,7 @@ describe('BulkCalendarEditor', () => {
   it('validates required dates before submitting', async () => {
     render(<BulkCalendarEditor open onClose={vi.fn()} />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Apply to dates' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Create on dates' }));
 
     expect(
       await screen.findByText('Start and end dates are required.'),
@@ -137,7 +149,7 @@ describe('BulkCalendarEditor', () => {
     expect(screen.getByLabelText('Start date')).toHaveValue('01-01-2026');
     expect(screen.getByLabelText('End date')).toHaveValue('10-01-2026');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Apply to dates' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Create on dates' }));
 
     await waitFor(() => {
       expect(applyChecklistTemplateToDateRangeMock).toHaveBeenCalledWith({
@@ -159,6 +171,38 @@ describe('BulkCalendarEditor', () => {
         timezone: 'America/Sao_Paulo',
       });
     });
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('clears the selected weekdays in clear mode', async () => {
+    const onClose = vi.fn();
+
+    render(<BulkCalendarEditor mode="clear" open onClose={onClose} />);
+
+    expect(screen.queryByRole('button', { name: 'Add item' })).toBeNull();
+
+    fireEvent.change(screen.getByLabelText('Start date'), {
+      target: { value: '01012026' },
+    });
+    fireEvent.change(screen.getByLabelText('End date'), {
+      target: { value: '10012026' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Mon' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Clear items' }));
+
+    await waitFor(() => {
+      expect(clearChecklistItemsFromDateRangeMock).toHaveBeenCalledWith({
+        scope: {
+          id: 'guest:test',
+          kind: 'guest',
+          ownerId: 'test',
+        },
+        startDate: '2026-01-01',
+        endDate: '2026-01-10',
+        selectedWeekdays: [1],
+      });
+    });
+    expect(applyChecklistTemplateToDateRangeMock).not.toHaveBeenCalled();
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 

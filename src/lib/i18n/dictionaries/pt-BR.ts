@@ -51,18 +51,22 @@ export const ptBRDictionary = {
   },
   calendar: {
     title: 'Calendário diário',
-    bulkApply: 'Aplicar nas datas',
-    bulkCreate: 'Aplicar intervalo',
+    bulkApply: 'Criar nas datas',
+    bulkClear: 'Limpar em lote',
+    bulkClearApply: 'Limpar itens',
+    bulkClearDescription:
+      'Todos os itens dos dias selecionados serão removidos.',
+    bulkClearEditorTitle: 'Limpar itens em lote',
+    bulkCreate: 'Criar em lote',
     bulkDatePlaceholder: 'DD-MM-YYYY',
-    bulkEditorTitle: 'Aplicar checklist em intervalo de datas',
+    bulkEditorTitle: 'Criar checklist em lote',
     bulkEndDate: 'Data final',
     bulkInvalidDates: 'Informe datas válidas em DD-MM-YYYY.',
     bulkInvalidRange:
       'A data final deve ser igual ou posterior à data inicial.',
     bulkNoMatchingDates:
       'Nenhuma data do intervalo corresponde aos dias da semana selecionados.',
-    bulkRequireItems:
-      'Adicione pelo menos um item antes de aplicar o intervalo.',
+    bulkRequireItems: 'Adicione pelo menos um item antes de criar em lote.',
     bulkRequiredDates: 'Data inicial e data final são obrigatórias.',
     bulkSelectWeekdays: 'Selecione pelo menos um dia da semana.',
     bulkStartDate: 'Data inicial',

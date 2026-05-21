@@ -3,6 +3,7 @@ import { createGuestScope } from '@/lib/domain';
 import {
   applyChecklistTemplateToDateRange,
   assignChecklistItemCategory,
+  clearChecklistItemsFromDateRange,
   createChecklistChild,
   createChecklistItem,
   createCategoryTag,
@@ -476,5 +477,113 @@ describe('checklist commands', () => {
       .sortBy('sortRank');
 
     expect(mondayItems).toHaveLength(3);
+  });
+
+  it('clears checklist items across a weekday-filtered range', async () => {
+    const scope = createGuestScope('bulk-clear-test');
+    const categoryTag = await createCategoryTag({
+      scope,
+      name: 'Focus',
+      colorHex: '#345d7e',
+    });
+    const fridayEntry = await openOrCreateDailyEntry({
+      scope,
+      date: '2026-01-02',
+      timezone: 'America/Sao_Paulo',
+    });
+    const mondayEntry = await openOrCreateDailyEntry({
+      scope,
+      date: '2026-01-05',
+      timezone: 'America/Sao_Paulo',
+    });
+    const tuesdayEntry = await openOrCreateDailyEntry({
+      scope,
+      date: '2026-01-06',
+      timezone: 'America/Sao_Paulo',
+    });
+    const fridayRoot = await createChecklistItem({
+      scope,
+      dailyEntryId: fridayEntry.id,
+      text: 'Friday root',
+    });
+
+    await assignChecklistItemCategory({
+      scope,
+      itemId: fridayRoot.id,
+      categoryTagId: categoryTag.id,
+    });
+    await toggleChecklistItemChecked({ scope, itemId: fridayRoot.id });
+    await createChecklistItem({
+      scope,
+      dailyEntryId: fridayEntry.id,
+      parentId: fridayRoot.id,
+      text: 'Friday child',
+    });
+    await createChecklistItem({
+      scope,
+      dailyEntryId: mondayEntry.id,
+      text: 'Monday root',
+    });
+    await createChecklistItem({
+      scope,
+      dailyEntryId: tuesdayEntry.id,
+      text: 'Tuesday root',
+    });
+
+    const affectedDates = await clearChecklistItemsFromDateRange({
+      scope,
+      startDate: '2026-01-01',
+      endDate: '2026-01-06',
+      selectedWeekdays: [1, 5],
+    });
+
+    expect(affectedDates).toEqual(['2026-01-02', '2026-01-05']);
+
+    const fridayItems = await db.checklistItems
+      .where('[scopeId+dailyEntryId]')
+      .equals([scope.id, fridayEntry.id])
+      .filter((item) => item.deletedAt === null)
+      .toArray();
+    const mondayItems = await db.checklistItems
+      .where('[scopeId+dailyEntryId]')
+      .equals([scope.id, mondayEntry.id])
+      .filter((item) => item.deletedAt === null)
+      .toArray();
+    const tuesdayItems = await db.checklistItems
+      .where('[scopeId+dailyEntryId]')
+      .equals([scope.id, tuesdayEntry.id])
+      .filter((item) => item.deletedAt === null)
+      .toArray();
+    const deletedFridayItems = await db.checklistItems
+      .where('[scopeId+dailyEntryId]')
+      .equals([scope.id, fridayEntry.id])
+      .filter((item) => item.deletedAt !== null)
+      .toArray();
+    const updatedFridayEntry = await db.dailyEntries.get(fridayEntry.id);
+    const updatedMondayEntry = await db.dailyEntries.get(mondayEntry.id);
+    const updatedTuesdayEntry = await db.dailyEntries.get(tuesdayEntry.id);
+    const outboxCount = await db.syncOutbox.count();
+
+    expect(fridayItems).toHaveLength(0);
+    expect(mondayItems).toHaveLength(0);
+    expect(tuesdayItems.map((item) => item.text)).toEqual(['Tuesday root']);
+    expect(deletedFridayItems).toHaveLength(2);
+    expect(updatedFridayEntry).toMatchObject({
+      previewText: '',
+      itemCount: 0,
+      completedCount: 0,
+      categoryTagIds: [],
+    });
+    expect(updatedMondayEntry).toMatchObject({
+      previewText: '',
+      itemCount: 0,
+      completedCount: 0,
+      categoryTagIds: [],
+    });
+    expect(updatedTuesdayEntry).toMatchObject({
+      previewText: 'Tuesday root',
+      itemCount: 1,
+    });
+    expect(outboxCount).toBe(0);
   });
 });
