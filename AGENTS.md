@@ -12,7 +12,7 @@ Use this file as the canonical agent guide for architecture, persistence boundar
 
 Before changing code:
 
-- Understand whether the change affects persistence, sync, auth, localization, timezone behavior, PWA behavior, or user-visible UX.
+- Understand whether the change affects persistence, sync, auth, localization, timezone behavior, PWA behavior, validation, feedback, or user-visible UX.
 - Prefer the smallest implementation that satisfies the task.
 - Preserve the offline-first model.
 - Preserve scope isolation between guest and authenticated users.
@@ -175,6 +175,77 @@ Prefer:
 - double-click interactions
 - keyboard-friendly UX
 - gesture-friendly mobile UX
+
+## Form Validation and User Feedback
+
+Do not rely on browser-native validation UI or blocking browser dialogs. Validation and feedback must feel native to Tick and must be implemented with local application components.
+
+### Browser-Native Validation
+
+Avoid browser-generated HTML constraint-validation popups such as `Please fill out this field`.
+
+For application forms:
+
+- Use `noValidate` on forms that are handled by React or application logic.
+- Do not rely on native `required`, `minLength`, `maxLength`, `pattern`, or `type="email"` validation as the user-facing validation experience.
+- If semantic input types are used for keyboard behavior, autocomplete, or mobile ergonomics, ensure that visible validation feedback is still rendered by local app components.
+- Do not allow unstyled native invalid states, browser validation bubbles, or default browser validation messages to appear in normal product flows.
+- Prefer explicit validation functions, typed validation results, and component-level error rendering.
+
+Validation feedback should use:
+
+- inline messages near the affected field
+- local banners, toasts, sheets, or modals when appropriate
+- app-styled focus, border, and helper-text states
+- `aria-invalid`, `aria-describedby`, and accessible focus management when needed
+
+Avoid hard-blocking interactions whenever possible. If an action cannot complete, keep the user in context and explain the issue locally in the UI.
+
+### Spellcheck, Autocorrect, and Browser Text Assistance
+
+Disable browser spellcheck and grammar underlines for short structured app inputs.
+
+By default, use the appropriate React/HTML attributes on inputs, textareas, and contenteditable editors used for:
+
+- task titles
+- checklist items
+- goal titles
+- goal steps
+- category names
+- color names
+- e-mail/auth fields
+- search fields
+- command-style or inline editing fields
+
+Recommended defaults for these fields:
+
+```tsx
+spellCheck={false}
+autoCorrect="off"
+autoCapitalize="none"
+```
+
+Use browser spellcheck only when a field is intentionally designed for long-form natural-language writing and that behavior is explicitly desired.
+
+### Browser Dialogs and Alert Libraries
+
+Do not use:
+
+- `window.alert`
+- `window.confirm`
+- `window.prompt`
+- alert.js-style libraries or browser-like popup wrappers
+- validation flows that depend on browser modal dialogs
+
+Use local, app-styled components instead:
+
+- inline validation messages
+- non-blocking toast notifications
+- local banners
+- app modals or sheets
+- contextual destructive-action UI when confirmation is truly necessary
+
+Confirmations should remain rare. Prefer undo, optimistic UI, reversible actions, and contextual affordances over blocking confirmation dialogs.
 
 ## Main Application Areas
 
@@ -463,9 +534,11 @@ When changing code, always add or update relevant automated tests in the same wo
 
 Use the smallest test level that covers the risk:
 
-- unit tests for pure logic, time helpers, tree derivation, sorting, and mappers
-- integration tests for Dexie commands, persistence behavior, scope isolation, sync queues, mocked sync engine behavior, allowlist checks, auth isolation, and local-first flows
-- Playwright tests for critical user flows and regressions that require real browser behavior
+- unit tests for pure logic, time helpers, tree derivation, sorting, validation, and mappers
+- integration tests for Dexie commands, persistence behavior, scope isolation, sync queues, mocked sync engine behavior, allowlist checks, auth isolation, local-first flows, and validation state transitions
+- Playwright tests for critical user flows, local validation feedback, and regressions that require real browser behavior
+
+For form and input changes, tests should verify local validation behavior and avoid regressions to browser-native validation UI. Prefer checking that handled forms use `noValidate`, local error messages render correctly, and spellcheck/autocorrect attributes are applied to short structured inputs.
 
 Playwright is configured for:
 
@@ -497,9 +570,8 @@ Keep new Playwright artifacts out of watched project folders such as `test-resul
 For every completed change:
 
 - report which verification commands were run
-- update `README.md` when user-visible behavior, setup, deployment, authentication, persistence, commands, or architecture changes
-- update `.github/copilot-instructions.md` when project rules, architectural decisions, persistence boundaries, workflow requirements, or UX principles change
-- update `AGENTS.md` when project rules, architectural decisions, persistence boundaries, workflow requirements, or UX principles change
+- update `README.md` when user-visible behavior, setup, deployment, authentication, persistence, commands, validation, feedback, or architecture changes
+- update `AGENTS.md` when project rules, architectural decisions, persistence boundaries, validation rules, feedback patterns, workflow requirements, or UX principles change
 - keep documentation focused on current behavior and verified project rules
 
 ## Supabase Schema Changes
@@ -515,6 +587,8 @@ For Supabase schema changes:
 - auto-save whenever possible
 - avoid save buttons
 - avoid confirmation dialogs
+- avoid browser-native validation popups and browser alert dialogs
+- prefer local app-styled validation and feedback components
 - interactions should feel immediate
 - editing should be frictionless
 - mobile UX is first-class
