@@ -1,223 +1,58 @@
 # AGENTS.md
 
-## Scope and Purpose
+## Propósito
 
-These instructions apply to the entire repository unless a more specific `AGENTS.md` exists in a subdirectory.
+Este guia orienta agentes de código ao alterar o Tick. Ele vale para todo o repositório, salvo quando houver um `AGENTS.md` mais específico em algum subdiretório.
 
-Tick is an offline-first personal productivity PWA focused on daily task tracking and goals management. It runs in production on Vercel and must feel closer to a native mobile app than a traditional website.
+Use este arquivo para preservar as decisões centrais do projeto: offline-first, persistência local, sincronização segura, UX rápida e documentação atualizada.
 
-Use this file as the canonical agent guide for architecture, persistence boundaries, UX principles, development commands, validation, and documentation updates.
+## Fundamentos do projeto
 
-## Agent Operating Rules
+Tick é uma PWA de produtividade pessoal, local-first e mobile-first. A aplicação deve continuar útil sem internet e tratar a rede como melhoria, não como requisito para interação.
 
-Before changing code:
+Mantenha o produto simples, responsivo e direto. Prefira auto-save, edição inline, feedback contextual e estados mínimos de carregamento.
 
-- Understand whether the change affects persistence, sync, auth, localization, timezone behavior, PWA behavior, validation, feedback, or user-visible UX.
-- Prefer the smallest implementation that satisfies the task.
-- Preserve the offline-first model.
-- Preserve scope isolation between guest and authenticated users.
-- Do not introduce new infrastructure, backend complexity, or heavy state-management libraries unless explicitly justified by the task.
-- Do not add automatic guest-to-auth migration unless explicitly requested as a product decision.
+## Arquitetura e persistência
 
-When changing code:
+IndexedDB, via Dexie, é a base da persistência local. Entidades principais da aplicação devem viver no IndexedDB, incluindo tarefas, checklists, metas, entradas diárias, filas de sincronização e entidades em cache.
 
-- Keep components small and composable.
-- Keep business rules inside the relevant feature or persistence layer.
-- Use local command functions in `src/lib/db` for application entity writes.
-- Add or update relevant automated tests in the same work slice.
-- Update documentation when behavior, setup, deployment, authentication, persistence, commands, architecture, or project rules change.
+Escritas de entidades feitas pela UI devem passar pelos comandos locais em `src/lib/db`. Componentes não devem escrever diretamente nas tabelas Dexie, para preservar escopo, metadados, resumos e outbox.
 
-Before completing a task:
+Use `localStorage` apenas para preferências pequenas, como idioma, tema, flags de UI e escolhas locais simples. Não use `localStorage` para entidades principais da aplicação.
 
-- Run the applicable checks.
-- Prefer `make check` or `npm run check` for complete verification when the change is not documentation-only.
-- Report which verification commands were run.
-- If checks were not run, explain why.
+## Autenticação, escopos e sincronização
 
-## Core Stack
-
-- Next.js
-- TypeScript
-- Tailwind CSS
-- Supabase
-- IndexedDB
-- Dexie
-- PWA
-- Vercel
-
-Do not add Laravel, PHP, Laradock, Docker, Vite, MySQL, or unrelated backend tooling.
-
-## Architecture
-
-The project follows a hybrid persistence architecture.
-
-### Authenticated Users
-
-Authenticated users have persistent cloud storage in Supabase PostgreSQL.
-
-Authenticated user scope format:
+Usuários autenticados usam Supabase para autenticação, persistência em nuvem e sincronização. O escopo autenticado segue o formato:
 
 ```text
 user:<supabaseUserId>
 ```
 
-Authenticated writes are local-first in IndexedDB, use `syncStatus: pending`, create sync outbox items, and synchronize with Supabase when the authenticated app is online.
-
-### Guest Users
-
-Guest users are local-only.
-
-Guest persistence uses IndexedDB through Dexie. Guest data must never be sent to the backend.
-
-Guest/local demo user scope format:
+Usuários convidados são locais. Dados de convidados permanecem no dispositivo e não devem ser enviados ao backend. O escopo local segue o formato:
 
 ```text
 guest:<installationId>
 ```
 
-Guest writes must remain `syncStatus: local` and must not create `syncOutbox` rows.
+Escritas autenticadas devem ser local-first, marcar entidades como pendentes quando aplicável e sincronizar depois pelo outbox. Escritas de convidados devem permanecer locais e não devem criar itens de sincronização remota.
 
-Do not add automatic guest-to-auth migration unless explicitly requested. Current guest data remains local in IndexedDB until browser/site data is cleared or a future explicit migration or cleanup flow is implemented.
+Não implemente migração automática de dados de convidado para usuário autenticado sem uma decisão explícita de produto.
 
-### Auth Modes and Startup
+## UX e comportamento da aplicação
 
-App auth modes are:
+A experiência deve parecer rápida, fluida e adequada a uso móvel. Prefira interações imediatas, auto-save quando fizer sentido e feedback local.
 
-- `entry`
-- `guest`
-- `authenticated`
-- `unauthorized`
+Evite bloquear fluxos esperando respostas de API. Quando a rede falhar ou estiver ausente, mantenha o usuário no contexto e preserve os dados localmente.
 
-`AppProvider` owns:
+Use componentes compartilhados quando eles reduzirem repetição real e mantiverem clareza. Não extraia abstrações apenas porque dois trechos são parecidos.
 
-- auth/session startup
-- scope selection
-- locale/timezone preferences
-- authenticated sync scheduling
+## Formulários, validação e feedback
 
-Startup must never leave the user stuck on loading indefinitely. If network or auth initialization cannot complete promptly, fall back to the entry experience.
+Validação deve ser controlada pela aplicação e exibida com componentes locais. Formulários React controlados pela aplicação devem usar `noValidate` para impedir popups nativos de validação HTML5.
 
-## Offline-First Requirements
+Não dependa de `required`, `pattern`, `minLength`, `maxLength` ou `type="email"` como experiência visível de validação. Se tipos semânticos forem usados por ergonomia, a mensagem visível ainda deve ser local e estilizada pelo app.
 
-Offline support is a core architectural requirement. The application must remain usable without internet connectivity.
-
-Required behavior:
-
-- local-first writes
-- optimistic UI
-- minimal loading states
-- resilient persistence
-- network treated as enhancement
-- no blocking interactions while waiting for API responses
-
-Avoid unnecessary API calls.
-
-## Data Persistence Rules
-
-### IndexedDB
-
-Use IndexedDB for application entities and offline data, including:
-
-- tasks
-- nested checklist structures
-- goals
-- daily entries
-- offline queues
-- cached entities
-
-Application entity writes from UI must go through local command functions in `src/lib/db`.
-
-Components must not write directly to Dexie tables. This preserves:
-
-- summaries
-- sync metadata
-- scope checks
-- outbox behavior
-
-### localStorage
-
-Use `localStorage` only for:
-
-- theme
-- UI preferences
-- tiny flags
-- non-structured preferences
-- guest-mode language/timezone preferences when appropriate
-
-Never use `localStorage` for application entities.
-
-## UI Philosophy
-
-The product must feel:
-
-- modern
-- premium
-- minimal
-- fluid
-- fast
-- highly interactive
-
-Avoid:
-
-- excessive buttons
-- enterprise dashboards
-- marketing layouts
-- decorative UI
-- unnecessary confirmations
-- excessive cards
-- cluttered interfaces
-
-Prefer:
-
-- inline editing
-- auto-save
-- contextual actions
-- double-click interactions
-- keyboard-friendly UX
-- gesture-friendly mobile UX
-
-## Form Validation and User Feedback
-
-Do not rely on browser-native validation UI or blocking browser dialogs. Validation and feedback must feel native to Tick and must be implemented with local application components.
-
-### Browser-Native Validation
-
-Avoid browser-generated HTML constraint-validation popups such as `Please fill out this field`.
-
-For application forms:
-
-- Use `noValidate` on forms that are handled by React or application logic.
-- Do not rely on native `required`, `minLength`, `maxLength`, `pattern`, or `type="email"` validation as the user-facing validation experience.
-- If semantic input types are used for keyboard behavior, autocomplete, or mobile ergonomics, ensure that visible validation feedback is still rendered by local app components.
-- Do not allow unstyled native invalid states, browser validation bubbles, or default browser validation messages to appear in normal product flows.
-- Prefer explicit validation functions, typed validation results, and component-level error rendering.
-
-Validation feedback should use:
-
-- inline messages near the affected field
-- local banners, toasts, sheets, or modals when appropriate
-- app-styled focus, border, and helper-text states
-- `aria-invalid`, `aria-describedby`, and accessible focus management when needed
-
-Avoid hard-blocking interactions whenever possible. If an action cannot complete, keep the user in context and explain the issue locally in the UI.
-
-### Spellcheck, Autocorrect, and Browser Text Assistance
-
-Disable browser spellcheck and grammar underlines for short structured app inputs.
-
-By default, use the appropriate React/HTML attributes on inputs, textareas, and contenteditable editors used for:
-
-- task titles
-- checklist items
-- goal titles
-- goal steps
-- category names
-- color names
-- e-mail/auth fields
-- search fields
-- command-style or inline editing fields
-
-Recommended defaults for these fields:
+Inputs curtos e estruturados devem desabilitar assistência automática do navegador por padrão:
 
 ```tsx
 spellCheck={false}
@@ -225,383 +60,62 @@ autoCorrect="off"
 autoCapitalize="none"
 ```
 
-Use browser spellcheck only when a field is intentionally designed for long-form natural-language writing and that behavior is explicitly desired.
+Use os primitivos do projeto, como `Input`, quando eles já centralizam esses padrões.
 
-### Browser Dialogs and Alert Libraries
+Não use `window.alert`, `window.confirm`, `window.prompt` nem bibliotecas com comportamento equivalente. Use mensagens inline, toast, banner, modal ou sheet da aplicação.
 
-Do not use:
+## Localização e datas
 
-- `window.alert`
-- `window.confirm`
-- `window.prompt`
-- alert.js-style libraries or browser-like popup wrappers
-- validation flows that depend on browser modal dialogs
+O app suporta `pt-BR` e `en`. Preferências de idioma e timezone são pequenas preferências de UI e podem usar armazenamento local apropriado.
 
-Use local, app-styled components instead:
+Datas diárias devem usar os helpers timezone-aware em `src/lib/time`. Não calcule dias do calendário por recorte bruto de strings UTC.
 
-- inline validation messages
-- non-blocking toast notifications
-- local banners
-- app modals or sheets
-- contextual destructive-action UI when confirmation is truly necessary
+## Organização de código
 
-Confirmations should remain rare. Prefer undo, optimistic UI, reversible actions, and contextual affordances over blocking confirmation dialogs.
+Mantenha regras de negócio perto da feature ou da camada de persistência responsável. Preserve componentes pequenos, props claras e tipagem forte.
 
-## Main Application Areas
+Use hooks e componentes compartilhados quando o mesmo comportamento aparece em mais de uma superfície e a extração melhora manutenção. Mantenha comandos, labels e regras de domínio dentro da feature dona quando forem específicos.
 
-### Home
+Não adicione infraestrutura, backend ou bibliotecas pesadas sem necessidade clara para a tarefa.
 
-The initial route is `/`.
+## Testes e verificação
 
-It allows navigation to:
+Alterações de código devem vir com testes compatíveis com o risco da mudança. Use o menor nível que cubra o comportamento:
 
-- Daily Calendar
-- Goals
+- unitários para lógica pura, helpers, hooks e componentes isolados;
+- integração para comandos Dexie, escopo, outbox, sync e auth;
+- E2E para fluxos críticos de navegador.
 
-This is not a landing page. Do not add hero sections or marketing structures.
+Antes de finalizar mudanças de código, rode as verificações aplicáveis. Prefira `make check` ou `npm run check` quando a mudança não for apenas documental.
 
-### Daily Calendar
+Se não rodar algum check, informe o motivo.
 
-Calendar visualization is one of the core experiences.
+## Documentação
 
-Requirements:
+Atualize `README.md` quando mudar setup, comandos, deploy, autenticação, persistência, sincronização, PWA ou comportamento relevante para humanos usando o repositório.
 
-- large monthly calendar
-- standard 7-column grid
-- content preview inside day cells
-- modern visual hierarchy
-- responsive layout
-- smooth transitions
+Atualize `AGENTS.md` quando mudar regras do projeto, decisões arquiteturais, persistência, validação, UX base, testes ou fluxo de trabalho para agentes.
 
-### Day Interaction
+Mantenha a documentação curta, atual e acionável.
 
-Double-clicking a day opens a large editing modal.
-
-The modal must support:
-
-- nested checklists
-- infinite hierarchy
-- inline editing
-- auto-save
-- collapsible structures
-- color tagging
-- contextual legends
-
-### Checklist System
-
-Checklist items support unlimited nesting.
-
-Examples:
-
-- `1`
-- `1.1`
-- `1.1.1`
-- `1.1.1.1`
-
-Do not add artificial nesting limits.
-
-### Color System
-
-Checklist rows may receive color tags.
-
-Colors are:
-
-- global
-- reusable
-- user-defined
-
-Inside the day modal:
-
-- users can manage colors
-- the legend must always be visible
-- changes should update instantly
-
-### Goals
-
-Goals are separate from daily tasks.
-
-Goal categories:
-
-- short term
-- medium term
-- long term
-
-Goal entities exist in the local database and sync schema. Keep goals visually and behaviorally separate from daily checklist data.
-
-## Component Guidelines
-
-Prefer:
-
-- small components
-- isolated state
-- composition
-- predictable props
-- reusable primitives
-
-Avoid:
-
-- giant components
-- deep prop drilling
-- over-abstraction
-- premature optimization
-
-## Componentization and Reuse
-
-Prefer shared presentational primitives and headless hooks when the same UI behavior appears in two or more features.
-
-Keep domain-specific commands, labels, persistence calls, and business rules inside feature modules.
-
-Shared components under `src/components/app` and shared hooks under `src/hooks` should not know whether they are editing:
-
-- daily checklist items
-- goal steps
-- categories
-- another entity type
-
-When checklist and goals share tree behavior, prefer adapter-based hooks/components over copy-paste.
-
-Shared behavior may include:
-
-- row layout
-- action groups
-- selection controls
-- collapse controls
-- category chips
-- keyboard behavior for Enter, Tab, Backspace, and toggle shortcuts
-- bulk selection
-- delete behavior
-- category assignment behavior
-
-Feature-specific callbacks should handle:
-
-- create
-- update
-- delete
-- reorder
-- toggle
-- persistence actions
-
-Do not extract an abstraction only because code looks similar. Extract only when:
-
-- the behavior is truly the same across at least two surfaces
-- a change would otherwise need to be made in multiple files
-- the abstraction can stay smaller and clearer than the duplicated code
-- tests can cover the shared behavior
-
-## State Management
-
-Prefer:
-
-- React state
-- local component state
-- Context only when truly needed
-- lightweight architecture
-
-Do not introduce heavy state managers unless clearly necessary.
-
-## Styling
-
-Use:
-
-- Tailwind utilities
-- consistent spacing
-- restrained color palette
-- subtle shadows
-- smooth animations
-- high readability
-
-The UI should feel similar in quality to Linear, Notion, and modern productivity apps, while maintaining its own identity.
-
-## PWA Requirements
-
-The app must support:
-
-- installability
-- offline mode
-- caching
-- mobile responsiveness
-- app-like experience
-- Android usability
-
-The project is deployed as a web PWA and is not managed as a Play Store application.
-
-## Localization and Timezone
-
-The app supports two languages:
-
-- Brazilian Portuguese (`pt-BR`)
-- English (`en`)
-
-The default language should be inferred from the user's current browser/region when possible.
-
-Users must be able to switch language manually.
-
-The selected language/region affects the timezone used to identify the current day:
-
-- `pt-BR` uses the Brazil profile with `UTC-03:00` / `America/Sao_Paulo`
-- `en` uses the browser-detected timezone when available
-
-Never calculate daily calendar dates from raw UTC date slicing.
-
-Use app timezone-aware helpers for:
-
-- today
-- daily entries
-- calendar boundaries
-- goal due-date display
-
-Language and timezone preferences are small UI preferences. They may use `localStorage` for guest mode, but application entities must remain in IndexedDB.
-
-## Performance
-
-Prioritize:
-
-- instant interactions
-- low re-rendering
-- virtualization when necessary
-- smooth animations
-- responsive mobile experience
-
-Avoid unnecessary API calls and avoid introducing render-heavy patterns.
-
-## Backend Philosophy
-
-The backend should remain extremely thin.
-
-Backend responsibilities:
-
-- authentication
-- synchronization
-- persistent storage
-- ownership validation
-
-Most interaction logic should remain frontend-driven.
-
-Allowlist access is enforced in:
-
-- frontend auth checks
-- Supabase RLS
-
-Changes to allowlist, RLS policies, or auth activation must include automated coverage for:
-
-- allowed users
-- inactive or missing allowlist rows
-- query errors
-- local fallback for unauthorized users
-
-## Code Style
-
-Prefer:
-
-- explicit naming
-- strong typing
-- direct implementations
-- readable structures
-- self-explanatory code through structure and naming
-
-Avoid:
-
-- comments
-- unnecessary abstractions
-- complex patterns
-- enterprise architecture patterns
-
-## Development Commands
-
-The project includes a Makefile as a thin wrapper around npm scripts.
-
-Useful commands:
+## Comandos úteis
 
 ```bash
 make install
 make dev
 make build
+make start
 make lint
 make typecheck
-make format
-make format-check
 make test
 make test-e2e
+make format
+make format-check
 make check
 make clean
+make supabase-link
+make supabase-dry-run
+make supabase-push
+make supabase-types
+make supabase-migrations
 ```
-
-Keep the Makefile aligned with the Next.js PWA workflow.
-
-## Testing Requirements
-
-When changing code, always add or update relevant automated tests in the same work slice.
-
-Use the smallest test level that covers the risk:
-
-- unit tests for pure logic, time helpers, tree derivation, sorting, validation, and mappers
-- integration tests for Dexie commands, persistence behavior, scope isolation, sync queues, mocked sync engine behavior, allowlist checks, auth isolation, local-first flows, and validation state transitions
-- Playwright tests for critical user flows, local validation feedback, and regressions that require real browser behavior
-
-For form and input changes, tests should verify local validation behavior and avoid regressions to browser-native validation UI. Prefer checking that handled forms use `noValidate`, local error messages render correctly, and spellcheck/autocorrect attributes are applied to short structured inputs.
-
-Playwright is configured for:
-
-- desktop Chromium
-- mobile Chrome local-mode smoke coverage
-
-Playwright starts Next.js on:
-
-```text
-127.0.0.1:3100
-```
-
-For local-only flows, Playwright uses:
-
-```text
-NEXT_PUBLIC_TICK_DISABLE_SUPABASE=1
-```
-
-Playwright artifacts are written under:
-
-```text
-.next/playwright-*
-```
-
-Keep new Playwright artifacts out of watched project folders such as `test-results/`, so `next dev` does not watch generated traces, videos, or screenshots and enter Fast Refresh loops.
-
-## Documentation Requirements
-
-For every completed change:
-
-- report which verification commands were run
-- update `README.md` when user-visible behavior, setup, deployment, authentication, persistence, commands, validation, feedback, or architecture changes
-- update `AGENTS.md` when project rules, architectural decisions, persistence boundaries, validation rules, feedback patterns, workflow requirements, or UX principles change
-- keep documentation focused on current behavior and verified project rules
-
-## Supabase Schema Changes
-
-For Supabase schema changes:
-
-- create a timestamped SQL migration in `supabase/migrations/`
-- run `make supabase-types` after applying or updating the schema
-- keep generated database types in sync with the remote schema
-
-## Important UX Rules
-
-- auto-save whenever possible
-- avoid save buttons
-- avoid confirmation dialogs
-- avoid browser-native validation popups and browser alert dialogs
-- prefer local app-styled validation and feedback components
-- interactions should feel immediate
-- editing should be frictionless
-- mobile UX is first-class
-- desktop UX should still feel excellent
-
-## Simplicity Guardrails
-
-Build for simplicity first.
-
-Avoid:
-
-- overengineering
-- unnecessary infrastructure
-- unnecessary backend complexity
-
-The project is primarily a personal productivity tool.
