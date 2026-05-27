@@ -4,6 +4,7 @@ import { Palette, X } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { IconButton } from '@/components/ui';
+import type { CategoryTagSurface } from '@/lib/domain';
 import { useAppContext } from '@/providers';
 import { useCategoryTags } from './use-category-tags';
 
@@ -15,16 +16,18 @@ export function CategoryAssignmentMenu({
   clearLabel,
   disabled,
   selectedCategoryTagId,
+  surface,
   onAssign,
 }: {
   assignLabel: string;
   clearLabel: string;
   disabled?: boolean;
   selectedCategoryTagId: string | null;
+  surface: CategoryTagSurface;
   onAssign: (categoryTagId: string | null) => Promise<void> | void;
 }) {
   const { scope } = useAppContext();
-  const categoryTags = useCategoryTags(scope);
+  const categoryTags = useCategoryTags(scope, surface);
   const [isOpen, setIsOpen] = useState(false);
   const [menuStyle, setMenuStyle] = useState<
     | {

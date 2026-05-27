@@ -82,6 +82,7 @@ O arquivo `.env.example` lista as variáveis usadas pelo projeto:
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
 NEXT_PUBLIC_TICK_DISABLE_SUPABASE=
+NEXT_PUBLIC_TICK_ALLOW_SUPABASE_ON_LOCALHOST=
 SUPABASE_PROJECT_REF=
 SUPABASE_ACCESS_TOKEN=
 SUPABASE_DB_PASSWORD=
@@ -91,7 +92,8 @@ Uso principal:
 
 - `NEXT_PUBLIC_SUPABASE_URL`: URL pública do projeto Supabase;
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`: chave pública anon/publishable;
-- `NEXT_PUBLIC_TICK_DISABLE_SUPABASE=1`: força execução local sem login configurado;
+- `NEXT_PUBLIC_TICK_DISABLE_SUPABASE=1`: desliga Supabase por completo, incluindo login;
+- `NEXT_PUBLIC_TICK_ALLOW_SUPABASE_ON_LOCALHOST=1`: permite sync remoto em `localhost`; por padrão o host local pode autenticar, mas mantém dados e sincronização isolados do banco de produção;
 - `SUPABASE_PROJECT_REF`, `SUPABASE_ACCESS_TOKEN`, `SUPABASE_DB_PASSWORD`: usados pelos scripts Supabase do projeto.
 
 ## Comandos
@@ -151,7 +153,7 @@ IndexedDB é a fonte local de dados da aplicação. Escritas de entidades devem 
 
 Usuários autenticados sincronizam com Supabase por outbox local. Usuários convidados permanecem locais e não enviam dados ao backend.
 
-O Supabase também é usado para autenticação, allowlist de acesso e persistência remota. Migrations versionadas ficam em `supabase/migrations`.
+O Supabase também é usado para autenticação, allowlist de acesso e persistência remota. Em `localhost`, a aplicação pode autenticar, mas não sincroniza nem lê estado remoto por padrão. Migrations versionadas ficam em `supabase/migrations`.
 
 Comandos úteis para schema remoto:
 

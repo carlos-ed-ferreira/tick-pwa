@@ -8,6 +8,7 @@ export const enDictionary = {
   actions: {
     cancel: 'Cancel',
     delete: 'Delete',
+    editCategories: 'Edit categories',
   },
   auth: {
     title: 'Sign in to sync your data',
@@ -54,6 +55,7 @@ export const enDictionary = {
   },
   calendar: {
     title: 'Daily Calendar',
+    editCategories: 'Edit calendar categories',
     bulkApply: 'Create on dates',
     bulkClear: 'Clear in bulk',
     bulkClearApply: 'Clear items',
@@ -117,6 +119,7 @@ export const enDictionary = {
   },
   goals: {
     title: 'Goals',
+    editCategories: 'Edit goal categories',
     categories: {
       short: 'Short term',
       medium: 'Medium term',

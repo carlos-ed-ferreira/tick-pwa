@@ -25,6 +25,8 @@ export type GoalStatus = 'active' | 'paused' | 'completed' | 'archived';
 
 export type GoalProgressMode = 'manual' | 'steps';
 
+export type CategoryTagSurface = 'calendar' | 'goals';
+
 export type SyncEntityType =
   | 'dailyEntry'
   | 'checklistItem'
@@ -97,6 +99,7 @@ export interface CategoryTag extends BaseEntity {
   name: string;
   colorHex: string;
   position: string;
+  surface: CategoryTagSurface;
 }
 
 export interface Goal extends BaseEntity {

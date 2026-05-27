@@ -1,6 +1,7 @@
 import type {
   AppScope,
   CategoryTag,
+  CategoryTagSurface,
   ChecklistItem,
   DailyEntry,
   DailyEntryCategorySummary,
@@ -30,6 +31,7 @@ export interface RemoteCategoryTag extends RemoteBaseRow {
   name: string;
   color_hex: string;
   position: string;
+  surface: CategoryTagSurface;
 }
 
 export interface RemoteDailyEntry extends RemoteBaseRow {
@@ -165,6 +167,7 @@ export function toRemotePayload(
       name: categoryTag.name,
       color_hex: categoryTag.colorHex,
       position: categoryTag.position,
+      surface: categoryTag.surface,
     };
   }
 
@@ -255,6 +258,7 @@ export function categoryTagFromRemote(
     name: row.name,
     colorHex: row.color_hex,
     position: row.position,
+    surface: row.surface,
   };
 }
 

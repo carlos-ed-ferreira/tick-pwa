@@ -2,8 +2,8 @@
 
 import { ArrowDown, ArrowUp, Plus, Trash2 } from 'lucide-react';
 import { useState, type KeyboardEvent } from 'react';
-import { Button, IconButton, Input } from '@/components/ui';
-import type { CategoryTag } from '@/lib/domain';
+import { Button, Dialog, IconButton, Input } from '@/components/ui';
+import type { CategoryTag, CategoryTagSurface } from '@/lib/domain';
 import {
   createCategoryTag,
   reorderCategoryTag,
@@ -17,9 +17,9 @@ function normalizeCategoryDraftName(name: string): string {
   return name.normalize('NFC').toLocaleUpperCase();
 }
 
-export function CategoryManager() {
-  const { dictionary, scope } = useAppContext();
-  const categoryTags = useCategoryTags(scope);
+export function CategoryManager({ surface }: { surface: CategoryTagSurface }) {
+  const { dictionary, scope, requestSync } = useAppContext();
+  const categoryTags = useCategoryTags(scope, surface);
 
   async function addCategory() {
     if (!scope) {
@@ -28,9 +28,11 @@ export function CategoryManager() {
 
     await createCategoryTag({
       scope,
+      surface,
       name: dictionary.dayEditor.newCategory,
       colorHex: '#71717a',
     });
+    await requestSync();
   }
 
   return (
@@ -56,6 +58,33 @@ export function CategoryManager() {
   );
 }
 
+export function CategoryManagerDialog({
+  open,
+  onClose,
+  surface,
+  title,
+}: {
+  open: boolean;
+  onClose: () => void;
+  surface: CategoryTagSurface;
+  title: string;
+}) {
+  const { dictionary } = useAppContext();
+
+  return (
+    <Dialog
+      closeLabel={dictionary.actions.cancel}
+      open={open}
+      title={title}
+      onClose={onClose}
+    >
+      <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-5">
+        <CategoryManager surface={surface} />
+      </div>
+    </Dialog>
+  );
+}
+
 function CategoryManagerRow({
   isFirst,
   isLast,
@@ -65,7 +94,7 @@ function CategoryManagerRow({
   isLast: boolean;
   tag: CategoryTag;
 }) {
-  const { dictionary, scope } = useAppContext();
+  const { dictionary, scope, requestSync } = useAppContext();
   const [draftName, setDraftName] = useState(tag.name);
   const [isComposing, setIsComposing] = useState(false);
 
@@ -92,6 +121,7 @@ function CategoryManagerRow({
       categoryTagId: tag.id,
       name: normalizedName,
     });
+    await requestSync();
   }
 
   function handleKeyDown(event: KeyboardEvent<HTMLInputElement>) {
@@ -118,11 +148,14 @@ function CategoryManagerRow({
           value={tag.colorHex}
           onChange={(event) => {
             if (scope) {
-              void updateCategoryTag({
-                scope,
-                categoryTagId: tag.id,
-                colorHex: event.target.value,
-              });
+              void (async () => {
+                await updateCategoryTag({
+                  scope,
+                  categoryTagId: tag.id,
+                  colorHex: event.target.value,
+                });
+                await requestSync();
+              })();
             }
           }}
         />
@@ -161,11 +194,14 @@ function CategoryManagerRow({
           disabled={isFirst}
           onClick={() => {
             if (scope) {
-              void reorderCategoryTag({
-                scope,
-                categoryTagId: tag.id,
-                direction: 'up',
-              });
+              void (async () => {
+                await reorderCategoryTag({
+                  scope,
+                  categoryTagId: tag.id,
+                  direction: 'up',
+                });
+                await requestSync();
+              })();
             }
           }}
         >
@@ -178,11 +214,14 @@ function CategoryManagerRow({
           disabled={isLast}
           onClick={() => {
             if (scope) {
-              void reorderCategoryTag({
-                scope,
-                categoryTagId: tag.id,
-                direction: 'down',
-              });
+              void (async () => {
+                await reorderCategoryTag({
+                  scope,
+                  categoryTagId: tag.id,
+                  direction: 'down',
+                });
+                await requestSync();
+              })();
             }
           }}
         >
@@ -194,10 +233,13 @@ function CategoryManagerRow({
           className="size-8"
           onClick={() => {
             if (scope) {
-              void softDeleteCategoryTag({
-                scope,
-                categoryTagId: tag.id,
-              });
+              void (async () => {
+                await softDeleteCategoryTag({
+                  scope,
+                  categoryTagId: tag.id,
+                });
+                await requestSync();
+              })();
             }
           }}
         >

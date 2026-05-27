@@ -1,13 +1,17 @@
 'use client';
 
 import Link from 'next/link';
+import { useState } from 'react';
+import { Button } from '@/components/ui';
 import { LanguageSwitcher } from '@/components/app';
 import { AccountStatus, AuthGate } from '@/features/auth';
 import { GoalsSurface } from '@/features/goals';
+import { CategoryManagerDialog } from '@/features/categories';
 import { useAppContext } from '@/providers';
 
 export default function GoalsPage() {
   const { dictionary } = useAppContext();
+  const [isCategoryManagerOpen, setIsCategoryManagerOpen] = useState(false);
   const activeNavigationItemClassName =
     'inline-flex h-9 items-center rounded-full px-3 text-sm font-medium bg-foreground text-background shadow-sm';
   const navigationItemClassName =
@@ -30,6 +34,12 @@ export default function GoalsPage() {
               </h1>
             </div>
             <div className="flex flex-wrap items-center gap-3">
+              <Button
+                className="min-h-9 px-3"
+                onClick={() => setIsCategoryManagerOpen(true)}
+              >
+                {dictionary.actions.editCategories}
+              </Button>
               <nav className="flex flex-wrap items-center gap-1 rounded-full border border-border bg-surface p-1 shadow-sm">
                 <Link href="/calendar" className={navigationItemClassName}>
                   {dictionary.navigation.calendar}
@@ -41,9 +51,6 @@ export default function GoalsPage() {
                 >
                   {dictionary.navigation.goals}
                 </Link>
-                <Link href="/categories" className={navigationItemClassName}>
-                  {dictionary.navigation.categories}
-                </Link>
               </nav>
               <AccountStatus />
               <LanguageSwitcher />
@@ -51,6 +58,12 @@ export default function GoalsPage() {
           </header>
           <GoalsSurface />
         </div>
+        <CategoryManagerDialog
+          open={isCategoryManagerOpen}
+          surface="goals"
+          title={dictionary.goals.editCategories}
+          onClose={() => setIsCategoryManagerOpen(false)}
+        />
       </main>
     </AuthGate>
   );

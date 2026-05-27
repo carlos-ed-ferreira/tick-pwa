@@ -304,7 +304,8 @@ export async function assignGoalCategory({
         categoryTagId &&
         (!categoryTag ||
           categoryTag.scopeId !== scope.id ||
-          categoryTag.deletedAt)
+          categoryTag.deletedAt ||
+          categoryTag.surface !== 'goals')
       ) {
         return;
       }
@@ -517,7 +518,8 @@ export async function assignGoalStepCategory({
         categoryTagId &&
         (!categoryTag ||
           categoryTag.scopeId !== scope.id ||
-          categoryTag.deletedAt)
+          categoryTag.deletedAt ||
+          categoryTag.surface !== 'goals')
       ) {
         return;
       }

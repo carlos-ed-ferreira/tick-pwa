@@ -1,4 +1,10 @@
-import type { AppScope, CategoryTag } from '@/lib/domain';
+import type {
+  AppScope,
+  CategoryTag,
+  CategoryTagSurface,
+  Goal,
+  GoalStep,
+} from '@/lib/domain';
 import {
   compareSortRanks,
   createId,
@@ -28,10 +34,13 @@ function normalizeCategoryTagName(name: string): string {
   return name.normalize('NFC').trim().toLocaleUpperCase();
 }
 
-async function getActiveCategoryTags(scope: AppScope): Promise<CategoryTag[]> {
+async function getActiveCategoryTags(
+  scope: AppScope,
+  surface: CategoryTagSurface,
+): Promise<CategoryTag[]> {
   const categoryTags = await db.categoryTags
-    .where('scopeId')
-    .equals(scope.id)
+    .where('[scopeId+surface]')
+    .equals([scope.id, surface])
     .filter((tag) => tag.deletedAt === null)
     .toArray();
 
@@ -73,19 +82,22 @@ function touchCategoryTag(
 
 export async function createCategoryTag({
   scope,
+  surface,
   name,
   colorHex,
 }: {
   scope: AppScope;
+  surface: CategoryTagSurface;
   name: string;
   colorHex: string;
 }): Promise<CategoryTag> {
   return db.transaction('rw', db.categoryTags, db.syncOutbox, async () => {
-    const categoryTags = await getActiveCategoryTags(scope);
+    const categoryTags = await getActiveCategoryTags(scope, surface);
     const now = createTimestamp();
     const categoryTag: CategoryTag = {
       id: createId(),
       scopeId: scope.id,
+      surface,
       name: normalizeCategoryTagName(name) || 'CATEGORY',
       colorHex: normalizeColorHex(colorHex),
       position: createSortRankBetween(
@@ -177,7 +189,11 @@ export async function updateCategoryTag({
         name !== undefined &&
         nextName !== categoryTag.name
       ) {
-        await clearGuestDefaultCategoryTagTracking(scope, categoryTag.id);
+        await clearGuestDefaultCategoryTagTracking(
+          scope,
+          categoryTag.id,
+          categoryTag.surface,
+        );
       }
     },
   );
@@ -193,7 +209,20 @@ export async function reorderCategoryTag({
   direction: 'up' | 'down';
 }): Promise<void> {
   await db.transaction('rw', db.categoryTags, db.syncOutbox, async () => {
-    const categoryTags = await getActiveCategoryTags(scope);
+    const targetCategoryTag = await db.categoryTags.get(categoryTagId);
+
+    if (
+      !targetCategoryTag ||
+      targetCategoryTag.scopeId !== scope.id ||
+      targetCategoryTag.deletedAt
+    ) {
+      return;
+    }
+
+    const categoryTags = await getActiveCategoryTags(
+      scope,
+      targetCategoryTag.surface,
+    );
     const currentIndex = categoryTags.findIndex(
       (tag) => tag.id === categoryTagId,
     );
@@ -208,16 +237,16 @@ export async function reorderCategoryTag({
       return;
     }
 
-    const categoryTag = categoryTags[currentIndex];
+    const currentCategoryTag = categoryTags[currentIndex];
     const reorderedTags = categoryTags.filter(
       (tag) => tag.id !== categoryTagId,
     );
-    reorderedTags.splice(nextIndex, 0, categoryTag);
+    reorderedTags.splice(nextIndex, 0, currentCategoryTag);
 
     const previousTag = reorderedTags[nextIndex - 1] ?? null;
     const followingTag = reorderedTags[nextIndex + 1] ?? null;
     const updatedCategoryTag = touchCategoryTag(scope, {
-      ...categoryTag,
+      ...currentCategoryTag,
       position: createSortRankBetween(
         previousTag?.position ?? null,
         followingTag?.position ?? null,
@@ -241,6 +270,8 @@ export async function softDeleteCategoryTag({
       db.dailyEntries,
       db.checklistItems,
       db.categoryTags,
+      db.goals,
+      db.goalSteps,
       db.localPreferences,
       db.syncOutbox,
     ],
@@ -263,7 +294,11 @@ export async function softDeleteCategoryTag({
       await persistCategoryTagUpdate(scope, deletedCategoryTag, ['deletedAt']);
 
       if (scope.kind === 'guest') {
-        await clearGuestDefaultCategoryTagTracking(scope, categoryTag.id);
+        await clearGuestDefaultCategoryTagTracking(
+          scope,
+          categoryTag.id,
+          categoryTag.surface,
+        );
       }
 
       const affectedItems = await db.checklistItems
@@ -300,6 +335,75 @@ export async function softDeleteCategoryTag({
 
       for (const dailyEntryId of affectedDailyEntryIds) {
         await recalculateDailyEntrySummary({ scope, dailyEntryId });
+      }
+
+      const affectedGoals = await db.goals
+        .where('scopeId')
+        .equals(scope.id)
+        .filter(
+          (goal) =>
+            goal.deletedAt === null && goal.categoryTagId === categoryTag.id,
+        )
+        .toArray();
+
+      for (const goal of affectedGoals) {
+        await db.goals.put({
+          ...goal,
+          categoryTagId: null,
+          updatedAt: now,
+          syncStatus: getEntitySyncStatus(scope),
+          clientUpdatedAt: now,
+        } as Goal);
+        await queueSyncOutboxItem({
+          scope,
+          entityType: 'goal',
+          entityId: goal.id,
+          operation: 'upsert',
+          payload: {
+            ...goal,
+            categoryTagId: null,
+            updatedAt: now,
+            syncStatus: getEntitySyncStatus(scope),
+            clientUpdatedAt: now,
+          } as unknown as Record<string, unknown>,
+          changedFields: ['categoryTagId'],
+          baseRevision: goal.remoteRevision,
+        });
+      }
+
+      const affectedGoalSteps = await db.goalSteps
+        .where('scopeId')
+        .equals(scope.id)
+        .filter(
+          (goalStep) =>
+            goalStep.deletedAt === null &&
+            goalStep.categoryTagId === categoryTag.id,
+        )
+        .toArray();
+
+      for (const goalStep of affectedGoalSteps) {
+        await db.goalSteps.put({
+          ...goalStep,
+          categoryTagId: null,
+          updatedAt: now,
+          syncStatus: getEntitySyncStatus(scope),
+          clientUpdatedAt: now,
+        } as GoalStep);
+        await queueSyncOutboxItem({
+          scope,
+          entityType: 'goalStep',
+          entityId: goalStep.id,
+          operation: 'upsert',
+          payload: {
+            ...goalStep,
+            categoryTagId: null,
+            updatedAt: now,
+            syncStatus: getEntitySyncStatus(scope),
+            clientUpdatedAt: now,
+          } as unknown as Record<string, unknown>,
+          changedFields: ['categoryTagId'],
+          baseRevision: goalStep.remoteRevision,
+        });
       }
     },
   );

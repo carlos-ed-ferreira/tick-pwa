@@ -34,6 +34,7 @@ describe('goal commands', () => {
     const scope = createGuestScope('goals-test');
     const categoryTag = await createCategoryTag({
       scope,
+      surface: 'goals',
       name: 'Work',
       colorHex: '#2563eb',
     });

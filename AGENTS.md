@@ -38,6 +38,8 @@ Escritas autenticadas devem ser local-first, marcar entidades como pendentes qua
 
 Não implemente migração automática de dados de convidado para usuário autenticado sem uma decisão explícita de produto.
 
+Em `localhost`, o app deve poder autenticar com Supabase, mas deve manter dados e sincronização isolados do banco de produção por padrão. Se for necessário testar cloud localmente, isso deve ser opt-in explícito por variável de ambiente.
+
 ## UX e comportamento da aplicação
 
 A experiência deve parecer rápida, fluida e adequada a uso móvel. Prefira interações imediatas, auto-save quando fizer sentido e feedback local.

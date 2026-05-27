@@ -31,6 +31,7 @@ vi.mock('@/lib/db', () => ({
 
 vi.mock('@/providers', () => ({
   useAppContext: () => ({
+    requestSync: vi.fn().mockResolvedValue(undefined),
     dictionary: {
       dayEditor: {
         addCategory: 'Add category',
@@ -75,7 +76,7 @@ describe('CategoryManager', () => {
   });
 
   it('preserves accent composition and commits uppercase text on blur', async () => {
-    render(<CategoryManager />);
+    render(<CategoryManager surface="calendar" />);
 
     const input = screen.getByLabelText('Category name');
 
@@ -105,7 +106,7 @@ describe('CategoryManager', () => {
   });
 
   it('allows clearing the field while editing and restores on blur when left empty', async () => {
-    render(<CategoryManager />);
+    render(<CategoryManager surface="calendar" />);
 
     const input = screen.getByLabelText('Category name');
 
@@ -123,7 +124,7 @@ describe('CategoryManager', () => {
   });
 
   it('forces uppercase while typing outside composition', () => {
-    render(<CategoryManager />);
+    render(<CategoryManager surface="calendar" />);
 
     const input = screen.getByLabelText('Category name');
 

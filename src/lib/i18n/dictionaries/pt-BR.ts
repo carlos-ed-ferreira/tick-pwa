@@ -8,6 +8,7 @@ export const ptBRDictionary = {
   actions: {
     cancel: 'Cancelar',
     delete: 'Excluir',
+    editCategories: 'Editar categorias',
   },
   auth: {
     title: 'Entre para sincronizar seus dados',
@@ -54,6 +55,7 @@ export const ptBRDictionary = {
   },
   calendar: {
     title: 'Calendário diário',
+    editCategories: 'Editar categorias do calendário',
     bulkApply: 'Criar nas datas',
     bulkClear: 'Limpar em lote',
     bulkClearApply: 'Limpar itens',
@@ -120,6 +122,7 @@ export const ptBRDictionary = {
   },
   goals: {
     title: 'Metas',
+    editCategories: 'Editar categorias das metas',
     categories: {
       short: 'Curto prazo',
       medium: 'Médio prazo',

@@ -6,6 +6,7 @@ export interface Dictionary {
   actions: {
     cancel: string;
     delete: string;
+    editCategories: string;
   };
   auth: {
     title: string;
@@ -47,6 +48,7 @@ export interface Dictionary {
   };
   calendar: {
     title: string;
+    editCategories: string;
     bulkApply: string;
     bulkClear: string;
     bulkClearApply: string;
@@ -110,6 +112,7 @@ export interface Dictionary {
   };
   goals: {
     title: string;
+    editCategories: string;
     categories: {
       short: string;
       medium: string;

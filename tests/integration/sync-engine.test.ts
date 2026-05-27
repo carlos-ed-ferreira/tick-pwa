@@ -67,6 +67,7 @@ describe('sync engine', () => {
     const scope = createUserScope('sync-user');
     const categoryTag = await createCategoryTag({
       scope,
+      surface: 'calendar',
       name: 'Focus',
       colorHex: '#2563eb',
     });
@@ -138,6 +139,7 @@ describe('sync engine', () => {
     const scope = createUserScope('sync-failure-user');
     await createCategoryTag({
       scope,
+      surface: 'calendar',
       name: 'Focus',
       colorHex: '#2563eb',
     });

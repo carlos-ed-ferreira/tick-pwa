@@ -33,6 +33,7 @@ describe('sync outbox boundaries', () => {
     });
     const categoryTag = await createCategoryTag({
       scope,
+      surface: 'calendar',
       name: 'Focus',
       colorHex: '#2563eb',
     });
@@ -79,6 +80,7 @@ describe('sync outbox boundaries', () => {
     });
     const categoryTag = await createCategoryTag({
       scope,
+      surface: 'calendar',
       name: 'Focus',
       colorHex: '#2563eb',
     });

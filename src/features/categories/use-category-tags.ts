@@ -1,11 +1,14 @@
 'use client';
 
 import { useLiveQuery } from 'dexie-react-hooks';
-import type { AppScope, CategoryTag } from '@/lib/domain';
+import type { AppScope, CategoryTag, CategoryTagSurface } from '@/lib/domain';
 import { compareSortRanks } from '@/lib/domain';
 import { db } from '@/lib/db';
 
-export function useCategoryTags(scope: AppScope | null): CategoryTag[] {
+export function useCategoryTags(
+  scope: AppScope | null,
+  surface: CategoryTagSurface,
+): CategoryTag[] {
   return (
     useLiveQuery(
       async () => {
@@ -14,8 +17,8 @@ export function useCategoryTags(scope: AppScope | null): CategoryTag[] {
         }
 
         const categoryTags = await db.categoryTags
-          .where('scopeId')
-          .equals(scope.id)
+          .where('[scopeId+surface]')
+          .equals([scope.id, surface])
           .filter((tag) => tag.deletedAt === null)
           .toArray();
 
@@ -23,7 +26,7 @@ export function useCategoryTags(scope: AppScope | null): CategoryTag[] {
           compareSortRanks(firstTag.position, secondTag.position),
         );
       },
-      [scope?.id],
+      [scope?.id, surface],
       [],
     ) ?? []
   );

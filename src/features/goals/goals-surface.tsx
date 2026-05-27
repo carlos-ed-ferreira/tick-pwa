@@ -60,7 +60,7 @@ const goalCategories: GoalCategory[] = ['short', 'medium', 'long'];
 
 export function GoalsSurface() {
   const { dictionary, scope } = useAppContext();
-  const categoryTags = useCategoryTags(scope);
+  const categoryTags = useCategoryTags(scope, 'goals');
   const categoryTagMap = new Map(categoryTags.map((tag) => [tag.id, tag]));
 
   if (!scope) {
@@ -506,6 +506,7 @@ function GoalStepRow({
             clearLabel={dictionary.dayEditor.clearCategory}
             disabled={isSelectionMode && !isSelected}
             selectedCategoryTagId={goalStep.categoryTagId}
+            surface="goals"
             onAssign={(categoryTagId) => {
               if (isSelectionMode) {
                 return onBulkAssignCategory(categoryTagId);

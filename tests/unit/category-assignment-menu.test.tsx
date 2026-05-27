@@ -55,6 +55,7 @@ describe('CategoryAssignmentMenu', () => {
           assignLabel="Assign category"
           clearLabel="Clear category"
           selectedCategoryTagId={null}
+          surface="calendar"
           onAssign={onAssign}
         />
       </div>,

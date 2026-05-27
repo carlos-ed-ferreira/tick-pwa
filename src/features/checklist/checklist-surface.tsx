@@ -52,7 +52,7 @@ const checklistInputSelector = '[data-checklist-input="true"]';
 export function ChecklistSurface({ dailyEntryId }: { dailyEntryId: string }) {
   const { dictionary, scope } = useAppContext();
   const rows = useChecklistTree(scope, dailyEntryId);
-  const categoryTags = useCategoryTags(scope);
+  const categoryTags = useCategoryTags(scope, 'calendar');
   const categoryTagMap = new Map(categoryTags.map((tag) => [tag.id, tag]));
   const visibleItemIds = useMemo(() => rows.map((row) => row.item.id), [rows]);
   const {
@@ -430,6 +430,7 @@ function ChecklistRow({
             clearLabel={dictionary.dayEditor.clearCategory}
             disabled={isSelectionMode && !isSelected}
             selectedCategoryTagId={item.categoryTagId}
+            surface="calendar"
             onAssign={(categoryTagId) => {
               if (isSelectionMode) {
                 return onBulkAssignCategory(categoryTagId);

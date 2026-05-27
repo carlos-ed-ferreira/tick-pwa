@@ -1,4 +1,9 @@
-import type { AppScope, CategoryTag, SupportedLocale } from '@/lib/domain';
+import type {
+  AppScope,
+  CategoryTag,
+  CategoryTagSurface,
+  SupportedLocale,
+} from '@/lib/domain';
 import {
   compareSortRanks,
   createId,
@@ -28,15 +33,19 @@ function normalizeCategoryTagName(name: string): string {
   return name.normalize('NFC').trim().toLocaleUpperCase();
 }
 
-function defaultCategorySeedStateKey(scope: AppScope): string {
-  return `${scope.id}:${DEFAULT_CATEGORY_SEED_STATE_PREFERENCE_KEY}`;
+function defaultCategorySeedStateKey(
+  scope: AppScope,
+  surface: CategoryTagSurface,
+): string {
+  return `${scope.id}:${surface}:${DEFAULT_CATEGORY_SEED_STATE_PREFERENCE_KEY}`;
 }
 
 async function readDefaultCategorySeedState(
   scope: AppScope,
+  surface: CategoryTagSurface,
 ): Promise<DefaultCategorySeedState | null> {
   const preference = await db.localPreferences.get(
-    defaultCategorySeedStateKey(scope),
+    defaultCategorySeedStateKey(scope, surface),
   );
   const value = preference?.value;
 
@@ -57,10 +66,11 @@ async function readDefaultCategorySeedState(
 
 async function writeDefaultCategorySeedState(
   scope: AppScope,
+  surface: CategoryTagSurface,
   state: DefaultCategorySeedState,
 ): Promise<void> {
   await db.localPreferences.put({
-    key: defaultCategorySeedStateKey(scope),
+    key: defaultCategorySeedStateKey(scope, surface),
     scopeId: scope.id,
     value: state,
     updatedAt: createTimestamp(),
@@ -75,6 +85,7 @@ function sortCategoryTags(tags: CategoryTag[]): CategoryTag[] {
 
 function createDefaultCategoryTag(
   scope: AppScope,
+  surface: CategoryTagSurface,
   tag: { name: string; colorHex: string },
   position: string,
 ): CategoryTag {
@@ -83,6 +94,7 @@ function createDefaultCategoryTag(
   return {
     id: createId(),
     scopeId: scope.id,
+    surface,
     name: tag.name,
     colorHex: tag.colorHex,
     position,
@@ -215,12 +227,13 @@ function touchGuestCategoryTagName(
 export async function clearGuestDefaultCategoryTagTracking(
   scope: AppScope,
   categoryTagId: string,
+  surface: CategoryTagSurface,
 ): Promise<void> {
   if (scope.kind !== 'guest') {
     return;
   }
 
-  const state = await readDefaultCategorySeedState(scope);
+  const state = await readDefaultCategorySeedState(scope, surface);
 
   if (!state) {
     return;
@@ -244,7 +257,7 @@ export async function clearGuestDefaultCategoryTagTracking(
     return;
   }
 
-  await writeDefaultCategorySeedState(scope, {
+  await writeDefaultCategorySeedState(scope, surface, {
     ...state,
     categoryIdsByKey,
   });
@@ -253,6 +266,7 @@ export async function clearGuestDefaultCategoryTagTracking(
 export async function seedDefaultCategoryTags(
   scope: AppScope,
   locale: SupportedLocale,
+  surface: CategoryTagSurface,
 ): Promise<void> {
   if (scope.kind !== 'guest') {
     return;
@@ -261,12 +275,12 @@ export async function seedDefaultCategoryTags(
   await db.transaction('rw', db.categoryTags, db.localPreferences, async () => {
     const activeCategoryTags = sortCategoryTags(
       await db.categoryTags
-        .where('scopeId')
-        .equals(scope.id)
+        .where('[scopeId+surface]')
+        .equals([scope.id, surface])
         .filter((tag) => tag.deletedAt === null)
         .toArray(),
     );
-    let state = await readDefaultCategorySeedState(scope);
+    let state = await readDefaultCategorySeedState(scope, surface);
 
     if (!state) {
       if (activeCategoryTags.length === 0) {
@@ -278,6 +292,7 @@ export async function seedDefaultCategoryTags(
           previousPosition = position;
           const categoryTag = createDefaultCategoryTag(
             scope,
+            surface,
             template,
             position,
           );
@@ -286,7 +301,7 @@ export async function seedDefaultCategoryTags(
         });
 
         await db.categoryTags.bulkAdd(tags);
-        await writeDefaultCategorySeedState(scope, {
+        await writeDefaultCategorySeedState(scope, surface, {
           initialized: true,
           locale,
           categoryIdsByKey,
@@ -367,7 +382,7 @@ export async function seedDefaultCategoryTags(
       }
     }
 
-    await writeDefaultCategorySeedState(scope, {
+    await writeDefaultCategorySeedState(scope, surface, {
       initialized: true,
       locale,
       categoryIdsByKey,

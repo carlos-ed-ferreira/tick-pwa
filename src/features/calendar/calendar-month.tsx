@@ -156,7 +156,7 @@ export function CalendarMonth() {
     [visibleMonthIndex, visibleYear],
   );
   const entries = useMonthEntries(scope, visibleMonth);
-  const categoryTags = useCategoryTags(scope);
+  const categoryTags = useCategoryTags(scope, 'calendar');
   const entryMap = useMemo(() => entriesByDate(entries), [entries]);
   const categoryTagMap = useMemo(
     () => new Map(categoryTags.map((tag) => [tag.id, tag])),

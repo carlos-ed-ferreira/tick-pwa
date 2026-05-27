@@ -132,6 +132,7 @@ describe('checklist commands', () => {
     });
     const categoryTag = await createCategoryTag({
       scope,
+      surface: 'calendar',
       name: 'Deep work',
       colorHex: '#2563eb',
     });
@@ -184,6 +185,7 @@ describe('checklist commands', () => {
     const scope = createGuestScope('local-test');
     const categoryTag = await createCategoryTag({
       scope,
+      surface: 'calendar',
       name: 'Matemática',
       colorHex: '#2563eb',
     });
@@ -235,16 +237,19 @@ describe('checklist commands', () => {
     const scope = createGuestScope('local-test');
     const firstTag = await createCategoryTag({
       scope,
+      surface: 'calendar',
       name: 'First',
       colorHex: '#2563eb',
     });
     const secondTag = await createCategoryTag({
       scope,
+      surface: 'calendar',
       name: 'Second',
       colorHex: '#16a34a',
     });
     const thirdTag = await createCategoryTag({
       scope,
+      surface: 'calendar',
       name: 'Third',
       colorHex: '#d97706',
     });
@@ -362,6 +367,7 @@ describe('checklist commands', () => {
     const scope = createGuestScope('bulk-range-test');
     const categoryTag = await createCategoryTag({
       scope,
+      surface: 'calendar',
       name: 'Health',
       colorHex: '#4b6f52',
     });
@@ -483,6 +489,7 @@ describe('checklist commands', () => {
     const scope = createGuestScope('bulk-clear-test');
     const categoryTag = await createCategoryTag({
       scope,
+      surface: 'calendar',
       name: 'Focus',
       colorHex: '#345d7e',
     });

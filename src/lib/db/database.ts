@@ -48,6 +48,7 @@ type LegacyGoalStep = Omit<
 type LegacyCategoryTag = Omit<CategoryTag, 'colorHex'> & {
   colorHex?: string;
   hex?: string;
+  surface?: CategoryTag['surface'];
 };
 
 type LegacySyncOutboxItem = Omit<SyncOutboxItem, 'entityType' | 'payload'> & {
@@ -101,11 +102,12 @@ function migrateGoal(goal: LegacyGoal): Goal {
 }
 
 function migrateCategoryTag(categoryTag: LegacyCategoryTag): CategoryTag {
-  const { colorHex, hex, ...rest } = categoryTag;
+  const { colorHex, hex, surface, ...rest } = categoryTag;
 
   return {
     ...rest,
     colorHex: colorHex ?? hex ?? '#71717a',
+    surface: surface ?? 'calendar',
   };
 }
 
@@ -375,6 +377,46 @@ export class TickDatabase extends Dexie {
         for (const item of await checklistItemsTable.toArray()) {
           await checklistItemsTable.put(
             migrateChecklistItem(item) as LegacyChecklistItem,
+          );
+        }
+
+        for (const outboxItem of await syncOutboxTable.toArray()) {
+          await syncOutboxTable.put(
+            migrateSyncOutboxItem(outboxItem) as LegacySyncOutboxItem,
+          );
+        }
+      });
+
+    this.version(5)
+      .stores({
+        dailyEntries:
+          'id, scopeId, date, updatedAt, deletedAt, [scopeId+date], [scopeId+updatedAt]',
+        checklistItems:
+          'id, scopeId, dailyEntryId, parentId, updatedAt, deletedAt, [scopeId+dailyEntryId], [scopeId+parentId], [scopeId+updatedAt]',
+        colorTags:
+          'id, scopeId, surface, position, updatedAt, deletedAt, [scopeId+surface], [scopeId+surface+position], [scopeId+updatedAt]',
+        goals:
+          'id, scopeId, category, status, updatedAt, deletedAt, [scopeId+category], [scopeId+status], [scopeId+updatedAt]',
+        goalSteps:
+          'id, scopeId, goalId, parentId, updatedAt, deletedAt, [scopeId+goalId], [scopeId+parentId], [scopeId+updatedAt]',
+        syncOutbox:
+          'id, scopeId, entityType, status, createdAt, [scopeId+status], [scopeId+createdAt]',
+        syncCursors: 'id, scopeId, entityType, [scopeId+entityType]',
+        localPreferences: 'key, scopeId, updatedAt',
+      })
+      .upgrade(async (transaction) => {
+        const categoryTagsTable = transaction.table('colorTags') as Table<
+          LegacyCategoryTag,
+          string
+        >;
+        const syncOutboxTable = transaction.table('syncOutbox') as Table<
+          LegacySyncOutboxItem,
+          string
+        >;
+
+        for (const categoryTag of await categoryTagsTable.toArray()) {
+          await categoryTagsTable.put(
+            migrateCategoryTag(categoryTag) as LegacyCategoryTag,
           );
         }
 

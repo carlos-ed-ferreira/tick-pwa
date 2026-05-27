@@ -20,8 +20,8 @@ describe('guest default category lifecycle', () => {
   it('renames tracked default categories when the guest locale changes', async () => {
     const scope = createGuestScope('guest-locale');
 
-    await seedDefaultCategoryTags(scope, 'en');
-    await seedDefaultCategoryTags(scope, 'pt-BR');
+    await seedDefaultCategoryTags(scope, 'en', 'calendar');
+    await seedDefaultCategoryTags(scope, 'pt-BR', 'calendar');
 
     const categoryTags = await db.categoryTags
       .where('scopeId')
@@ -39,7 +39,7 @@ describe('guest default category lifecycle', () => {
   it('does not overwrite manually renamed tracked guest categories on locale changes', async () => {
     const scope = createGuestScope('guest-rename');
 
-    await seedDefaultCategoryTags(scope, 'en');
+    await seedDefaultCategoryTags(scope, 'en', 'calendar');
 
     const focusCategory = await db.categoryTags
       .where('scopeId')
@@ -54,7 +54,7 @@ describe('guest default category lifecycle', () => {
       categoryTagId: focusCategory!.id,
       name: 'Trabalho',
     });
-    await seedDefaultCategoryTags(scope, 'pt-BR');
+    await seedDefaultCategoryTags(scope, 'pt-BR', 'calendar');
 
     const categoryTags = await db.categoryTags
       .where('scopeId')
@@ -72,7 +72,7 @@ describe('guest default category lifecycle', () => {
   it('does not recreate deleted tracked guest categories during locale sync', async () => {
     const scope = createGuestScope('guest-delete');
 
-    await seedDefaultCategoryTags(scope, 'en');
+    await seedDefaultCategoryTags(scope, 'en', 'calendar');
 
     const homeCategory = await db.categoryTags
       .where('scopeId')
@@ -86,7 +86,7 @@ describe('guest default category lifecycle', () => {
       scope,
       categoryTagId: homeCategory!.id,
     });
-    await seedDefaultCategoryTags(scope, 'pt-BR');
+    await seedDefaultCategoryTags(scope, 'pt-BR', 'calendar');
 
     const categoryTags = await db.categoryTags
       .where('scopeId')
@@ -105,6 +105,7 @@ describe('guest default category lifecycle', () => {
       {
         id: 'focus',
         scopeId: scope.id,
+        surface: 'calendar',
         name: 'FOCUS',
         colorHex: '#2563eb',
         position: 'U',
@@ -118,6 +119,7 @@ describe('guest default category lifecycle', () => {
       {
         id: 'health',
         scopeId: scope.id,
+        surface: 'calendar',
         name: 'HEALTH',
         colorHex: '#16a34a',
         position: 'j',
@@ -131,6 +133,7 @@ describe('guest default category lifecycle', () => {
       {
         id: 'home',
         scopeId: scope.id,
+        surface: 'calendar',
         name: 'HOME',
         colorHex: '#d97706',
         position: 'r',
@@ -144,6 +147,7 @@ describe('guest default category lifecycle', () => {
       {
         id: 'people',
         scopeId: scope.id,
+        surface: 'calendar',
         name: 'PEOPLE',
         colorHex: '#db2777',
         position: 'z',
@@ -156,7 +160,7 @@ describe('guest default category lifecycle', () => {
       },
     ]);
 
-    await seedDefaultCategoryTags(scope, 'pt-BR');
+    await seedDefaultCategoryTags(scope, 'pt-BR', 'calendar');
 
     const categoryTags = await db.categoryTags
       .where('scopeId')

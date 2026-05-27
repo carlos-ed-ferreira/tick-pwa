@@ -338,7 +338,8 @@ export async function assignChecklistItemCategory({
         categoryTagId &&
         (!categoryTag ||
           categoryTag.scopeId !== scope.id ||
-          categoryTag.deletedAt)
+          categoryTag.deletedAt ||
+          categoryTag.surface !== 'calendar')
       ) {
         return;
       }

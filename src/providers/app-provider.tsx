@@ -13,6 +13,7 @@ import {
 } from 'react';
 import type { AppScope, LocalePreference, SupportedLocale } from '@/lib/domain';
 import { createGuestScope, createUserScope } from '@/lib/domain';
+import { shouldUseCloudSync } from '@/lib/environment';
 import {
   getLocalPreference,
   getOrCreateInstallationId,
@@ -149,7 +150,11 @@ export function AppProvider({
   );
 
   const runScopedSync = useCallback(async (nextScope: AppScope) => {
-    if (nextScope.kind === 'guest' || syncInProgressRef.current) {
+    if (
+      !shouldUseCloudSync() ||
+      nextScope.kind === 'guest' ||
+      syncInProgressRef.current
+    ) {
       return;
     }
 
@@ -170,7 +175,8 @@ export function AppProvider({
       const guestScope = createGuestScope(installationId);
       const nextLocale = await applyScopedPreferences(guestScope);
 
-      await seedDefaultCategoryTags(guestScope, nextLocale);
+      await seedDefaultCategoryTags(guestScope, nextLocale, 'calendar');
+      await seedDefaultCategoryTags(guestScope, nextLocale, 'goals');
 
       if (persistChoice) {
         await setLocalPreference<AccessModePreference>(
@@ -214,6 +220,20 @@ export function AppProvider({
 
       if (!allowed) {
         await activateUnauthorizedMode(user);
+        return;
+      }
+
+      if (!shouldUseCloudSync()) {
+        const installationId = await getOrCreateInstallationId();
+        const localScope = createGuestScope(installationId);
+
+        await applyScopedPreferences(localScope);
+
+        setScope(localScope);
+        setAuthUser(toTickAuthUser(user));
+        setAuthError(null);
+        setAuthMode('authenticated');
+        setIsReady(true);
         return;
       }
 
@@ -310,7 +330,7 @@ export function AppProvider({
   useEffect(() => {
     const client = getSupabaseBrowserClient();
 
-    if (!client) {
+    if (!client || !shouldUseCloudSync()) {
       return;
     }
 
@@ -326,7 +346,7 @@ export function AppProvider({
   }, [activateAuthenticatedMode]);
 
   useEffect(() => {
-    if (authMode !== 'authenticated' || !scope) {
+    if (authMode !== 'authenticated' || !scope || !shouldUseCloudSync()) {
       return;
     }
 
@@ -371,7 +391,8 @@ export function AppProvider({
           );
 
           if (scope.kind === 'guest') {
-            await seedDefaultCategoryTags(scope, nextLocale);
+            await seedDefaultCategoryTags(scope, nextLocale, 'calendar');
+            await seedDefaultCategoryTags(scope, nextLocale, 'goals');
           }
         })();
       }
@@ -449,6 +470,11 @@ export function AppProvider({
       await client.auth.signOut();
     }
 
+    if (!shouldUseCloudSync()) {
+      await activateLocalMode({ persistChoice: false });
+      return;
+    }
+
     await setLocalPreference<AccessModePreference>(
       ACCESS_MODE_PREFERENCE_KEY,
       'entry',
@@ -457,7 +483,7 @@ export function AppProvider({
   }, [activateEntryMode]);
 
   const requestSync = useCallback(async () => {
-    if (!scope || scope.kind === 'guest') {
+    if (!scope || scope.kind === 'guest' || !shouldUseCloudSync()) {
       return;
     }
 

@@ -28,29 +28,46 @@ describe('local database bootstrap', () => {
   it('seeds localized default categories once for a guest scope', async () => {
     const scope = createGuestScope('local-test');
 
-    await seedDefaultCategoryTags(scope, 'pt-BR');
-    await seedDefaultCategoryTags(scope, 'pt-BR');
+    await seedDefaultCategoryTags(scope, 'pt-BR', 'calendar');
+    await seedDefaultCategoryTags(scope, 'pt-BR', 'goals');
+    await seedDefaultCategoryTags(scope, 'pt-BR', 'calendar');
+    await seedDefaultCategoryTags(scope, 'pt-BR', 'goals');
 
-    const categoryTags = await db.categoryTags
-      .where('scopeId')
-      .equals(scope.id)
+    const calendarCategoryTags = await db.categoryTags
+      .where('[scopeId+surface]')
+      .equals([scope.id, 'calendar'])
+      .filter((tag) => tag.deletedAt === null)
+      .sortBy('position');
+    const goalCategoryTags = await db.categoryTags
+      .where('[scopeId+surface]')
+      .equals([scope.id, 'goals'])
       .filter((tag) => tag.deletedAt === null)
       .sortBy('position');
 
-    expect(categoryTags.map((tag) => tag.name)).toEqual([
+    expect(calendarCategoryTags.map((tag) => tag.name)).toEqual([
       'FOCO',
       'SAÚDE',
       'CASA',
     ]);
-    expect(categoryTags).toHaveLength(3);
-    expect(categoryTags.every((tag) => tag.syncStatus === 'local')).toBe(true);
+    expect(goalCategoryTags.map((tag) => tag.name)).toEqual([
+      'FOCO',
+      'SAÚDE',
+      'CASA',
+    ]);
+    expect(calendarCategoryTags).toHaveLength(3);
+    expect(goalCategoryTags).toHaveLength(3);
+    expect(
+      [...calendarCategoryTags, ...goalCategoryTags].every(
+        (tag) => tag.syncStatus === 'local',
+      ),
+    ).toBe(true);
     await expect(db.syncOutbox.count()).resolves.toBe(0);
   });
 
   it('does not seed default categories for an authenticated user scope', async () => {
     const scope = createUserScope('user-test');
 
-    await seedDefaultCategoryTags(scope, 'en');
+    await seedDefaultCategoryTags(scope, 'en', 'calendar');
 
     const categoryTags = await db.categoryTags
       .where('scopeId')
@@ -66,35 +83,40 @@ describe('local database bootstrap', () => {
 
     await createCategoryTag({
       scope,
+      surface: 'calendar',
       name: 'Focus',
       colorHex: '#2563eb',
     });
     await createCategoryTag({
       scope,
+      surface: 'calendar',
       name: 'Health',
       colorHex: '#16a34a',
     });
     await createCategoryTag({
       scope,
+      surface: 'calendar',
       name: 'Home',
       colorHex: '#d97706',
     });
     await createCategoryTag({
       scope,
+      surface: 'calendar',
       name: 'People',
       colorHex: '#db2777',
     });
     await createCategoryTag({
       scope,
+      surface: 'calendar',
       name: 'Custom',
       colorHex: '#111827',
     });
 
-    await seedDefaultCategoryTags(scope, 'pt-BR');
+    await seedDefaultCategoryTags(scope, 'pt-BR', 'calendar');
 
     const categoryTags = await db.categoryTags
-      .where('scopeId')
-      .equals(scope.id)
+      .where('[scopeId+surface]')
+      .equals([scope.id, 'calendar'])
       .filter((tag) => tag.deletedAt === null)
       .sortBy('position');
 
