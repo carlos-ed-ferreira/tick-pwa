@@ -15,8 +15,11 @@ export const enDictionary = {
       'Tick is currently a prototype. Only approved users can sign in with an authorized account to save and sync cloud data.',
     emailLabel: 'Email',
     emailPlaceholder: 'you@example.com',
+    emailRequired: 'Enter your email.',
+    emailInvalid: 'Enter a valid email address.',
     passwordLabel: 'Password',
     passwordPlaceholder: 'Your password',
+    passwordRequired: 'Enter your password.',
     signInWithPassword: 'Continue with email',
     passwordSignInDescription:
       'Use your approved email and password to access cloud sync.',

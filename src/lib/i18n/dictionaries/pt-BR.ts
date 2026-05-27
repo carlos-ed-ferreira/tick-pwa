@@ -15,8 +15,11 @@ export const ptBRDictionary = {
       'O Tick está em protótipo. Apenas usuários permitidos podem entrar com uma conta autorizada para salvar e sincronizar dados na nuvem.',
     emailLabel: 'E-mail',
     emailPlaceholder: 'voce@exemplo.com',
+    emailRequired: 'Informe seu e-mail.',
+    emailInvalid: 'Informe um e-mail válido.',
     passwordLabel: 'Senha',
     passwordPlaceholder: 'Sua senha',
+    passwordRequired: 'Informe sua senha.',
     signInWithPassword: 'Entrar com e-mail',
     passwordSignInDescription:
       'Use seu e-mail aprovado e senha para acessar a sincronização na nuvem.',

@@ -22,6 +22,8 @@ import {
   ConfirmationDialog,
   Dialog,
   IconButton,
+  Input,
+  Text,
 } from '@/components/ui';
 import { CategoryAssignmentMenu, useCategoryTags } from '@/features/categories';
 import { useFocusAfterCreate } from '@/hooks/use-focus-after-create';
@@ -237,7 +239,7 @@ export function BulkCalendarEditor({
         <div className="grid gap-4 rounded-lg border border-border bg-background/50 p-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
           <label className="grid gap-2 text-sm font-medium text-foreground">
             <span>{dictionary.calendar.bulkStartDate}</span>
-            <input
+            <Input
               aria-label={dictionary.calendar.bulkStartDate}
               inputMode="numeric"
               maxLength={10}
@@ -252,7 +254,7 @@ export function BulkCalendarEditor({
 
           <label className="grid gap-2 text-sm font-medium text-foreground">
             <span>{dictionary.calendar.bulkEndDate}</span>
-            <input
+            <Input
               aria-label={dictionary.calendar.bulkEndDate}
               inputMode="numeric"
               maxLength={10}
@@ -266,9 +268,9 @@ export function BulkCalendarEditor({
           </label>
 
           <div className="grid gap-2 sm:col-span-2">
-            <span className="text-sm font-medium text-foreground">
+            <Text as="span" weight="medium">
               {dictionary.calendar.bulkWeekdays}
-            </span>
+            </Text>
             <div className="grid grid-cols-4 gap-2 sm:grid-cols-7">
               {weekdayOptions.map((weekday) => {
                 const isSelected = selectedWeekdays.includes(weekday);
@@ -517,10 +519,9 @@ function BulkChecklistRow({
           }
         />
 
-        <input
+        <Input
           data-bulk-checklist-input="true"
           data-item-id={item.id}
-          spellCheck={false}
           value={item.text}
           placeholder={dictionary.dayEditor.itemPlaceholder}
           className={`min-w-0 flex-1 rounded-md bg-transparent px-2 py-2 text-sm outline-none transition focus:bg-surface focus:shadow-sm ${

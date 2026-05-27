@@ -2,7 +2,7 @@
 
 import { ArrowDown, ArrowUp, Plus, Trash2 } from 'lucide-react';
 import { useState, type KeyboardEvent } from 'react';
-import { Button, IconButton } from '@/components/ui';
+import { Button, IconButton, Input } from '@/components/ui';
 import type { CategoryTag } from '@/lib/domain';
 import {
   createCategoryTag,
@@ -133,7 +133,7 @@ function CategoryManagerRow({
         />
       </label>
 
-      <input
+      <Input
         aria-label={dictionary.dayEditor.categoryNamePlaceholder}
         className="min-w-0 rounded bg-transparent px-1 py-1 uppercase outline-none transition focus:bg-background"
         placeholder={dictionary.dayEditor.categoryNamePlaceholder}

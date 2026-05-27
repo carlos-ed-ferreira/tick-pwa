@@ -1,7 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { Button } from '@/components/ui';
+import { Button, Text } from '@/components/ui';
 import { useAppContext } from '@/providers';
 import { AuthEntry } from './auth-entry';
 
@@ -10,7 +10,7 @@ function LoadingAuthState() {
 
   return (
     <main className="flex min-h-dvh items-center justify-center bg-background px-5 py-10 text-foreground">
-      <p className="text-sm text-muted">{dictionary.auth.loading}</p>
+      <Text tone="muted">{dictionary.auth.loading}</Text>
     </main>
   );
 }
@@ -25,9 +25,9 @@ function UnauthorizedAuthState() {
           <h1 className="text-2xl font-semibold">
             {dictionary.auth.unauthorizedTitle}
           </h1>
-          <p className="text-sm leading-6 text-muted">
+          <Text leading="relaxed" tone="muted">
             {dictionary.auth.unauthorizedDescription}
-          </p>
+          </Text>
         </header>
         <div className="grid gap-3">
           <Button onClick={enterLocalMode}>

@@ -18,7 +18,12 @@ import {
   TaskTreeSelectionButton,
   TreeListPanel,
 } from '@/components/app';
-import { Checkbox, ConfirmationDialog, IconButton } from '@/components/ui';
+import {
+  Checkbox,
+  ConfirmationDialog,
+  IconButton,
+  Input,
+} from '@/components/ui';
 import { CategoryAssignmentMenu, useCategoryTags } from '@/features/categories';
 import { useDebouncedInlineEdit } from '@/hooks/use-debounced-inline-edit';
 import { useFocusAfterCreate } from '@/hooks/use-focus-after-create';
@@ -318,10 +323,9 @@ function ChecklistRow({
           }}
         />
 
-        <input
+        <Input
           data-checklist-input="true"
           data-item-id={item.id}
-          spellCheck={false}
           value={text}
           placeholder={dictionary.dayEditor.itemPlaceholder}
           className={`min-w-0 flex-1 rounded-md bg-transparent px-2 py-2 text-sm outline-none transition focus:bg-surface focus:shadow-sm ${

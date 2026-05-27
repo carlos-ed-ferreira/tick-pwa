@@ -12,8 +12,11 @@ export interface Dictionary {
     subtitle: string;
     emailLabel: string;
     emailPlaceholder: string;
+    emailRequired: string;
+    emailInvalid: string;
     passwordLabel: string;
     passwordPlaceholder: string;
+    passwordRequired: string;
     signInWithPassword: string;
     passwordSignInDescription: string;
     signingInWithPassword: string;

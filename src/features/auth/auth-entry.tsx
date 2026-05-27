@@ -1,8 +1,12 @@
 'use client';
 
 import { FormEvent, useState } from 'react';
-import { Button } from '@/components/ui';
+import { Button, Input, Text } from '@/components/ui';
 import { useAppContext } from '@/providers';
+
+function isValidEmail(value: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
 
 export function AuthEntry() {
   const {
@@ -17,6 +21,8 @@ export function AuthEntry() {
   const [password, setPassword] = useState('');
   const [isGoogleSigningIn, setIsGoogleSigningIn] = useState(false);
   const [isPasswordSigningIn, setIsPasswordSigningIn] = useState(false);
+  const [emailError, setEmailError] = useState<string | null>(null);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
 
   async function handleGoogleSignIn() {
     setIsGoogleSigningIn(true);
@@ -26,8 +32,29 @@ export function AuthEntry() {
 
   async function handlePasswordSignIn(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const normalizedEmail = email.trim();
+    let nextEmailError: string | null = null;
+    let nextPasswordError: string | null = null;
+
+    if (!normalizedEmail) {
+      nextEmailError = dictionary.auth.emailRequired;
+    } else if (!isValidEmail(normalizedEmail)) {
+      nextEmailError = dictionary.auth.emailInvalid;
+    }
+
+    if (!password) {
+      nextPasswordError = dictionary.auth.passwordRequired;
+    }
+
+    setEmailError(nextEmailError);
+    setPasswordError(nextPasswordError);
+
+    if (nextEmailError || nextPasswordError) {
+      return;
+    }
+
     setIsPasswordSigningIn(true);
-    await signInWithPassword(email, password);
+    await signInWithPassword(normalizedEmail, password);
     setIsPasswordSigningIn(false);
   }
 
@@ -43,44 +70,74 @@ export function AuthEntry() {
           </div>
           <div className="space-y-2">
             <h2 className="text-xl font-semibold">{dictionary.auth.title}</h2>
-            <p className="text-sm leading-6 text-muted">
+            <Text leading="relaxed" tone="muted">
               {dictionary.auth.subtitle}
-            </p>
+            </Text>
           </div>
         </header>
 
         <div className="grid gap-3">
-          <form className="grid gap-3" onSubmit={handlePasswordSignIn}>
+          <form
+            noValidate
+            className="grid gap-3"
+            onSubmit={handlePasswordSignIn}
+          >
             <label className="grid gap-1.5 text-sm text-muted">
               <span>{dictionary.auth.emailLabel}</span>
-              <input
+              <Input
                 autoComplete="email"
+                aria-describedby={emailError ? 'auth-email-error' : undefined}
+                aria-invalid={emailError ? 'true' : 'false'}
                 className="min-h-12 rounded-md border border-border bg-surface px-3 text-base text-foreground outline-none transition focus:border-foreground/30 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground"
                 disabled={
                   !isLoginConfigured || isGoogleSigningIn || isPasswordSigningIn
                 }
                 placeholder={dictionary.auth.emailPlaceholder}
-                required
-                type="email"
+                type="text"
                 value={email}
-                onChange={(event) => setEmail(event.target.value)}
+                onChange={(event) => {
+                  setEmail(event.target.value);
+
+                  if (emailError) {
+                    setEmailError(null);
+                  }
+                }}
               />
+              {emailError ? (
+                <Text as="span" id="auth-email-error" tone="danger">
+                  {emailError}
+                </Text>
+              ) : null}
             </label>
 
             <label className="grid gap-1.5 text-sm text-muted">
               <span>{dictionary.auth.passwordLabel}</span>
-              <input
+              <Input
                 autoComplete="current-password"
+                aria-describedby={
+                  passwordError ? 'auth-password-error' : undefined
+                }
+                aria-invalid={passwordError ? 'true' : 'false'}
                 className="min-h-12 rounded-md border border-border bg-surface px-3 text-base text-foreground outline-none transition focus:border-foreground/30 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground"
                 disabled={
                   !isLoginConfigured || isGoogleSigningIn || isPasswordSigningIn
                 }
                 placeholder={dictionary.auth.passwordPlaceholder}
-                required
                 type="password"
                 value={password}
-                onChange={(event) => setPassword(event.target.value)}
+                onChange={(event) => {
+                  setPassword(event.target.value);
+
+                  if (passwordError) {
+                    setPasswordError(null);
+                  }
+                }}
               />
+              {passwordError ? (
+                <Text as="span" id="auth-password-error" tone="danger">
+                  {passwordError}
+                </Text>
+              ) : null}
             </label>
 
             <Button
@@ -91,16 +148,16 @@ export function AuthEntry() {
               type="submit"
             >
               <span className="flex min-w-0 flex-col items-start gap-1">
-                <span className="text-base font-semibold">
+                <Text as="span" size="base" weight="semibold">
                   {isPasswordSigningIn
                     ? dictionary.auth.signingInWithPassword
                     : dictionary.auth.signInWithPassword}
-                </span>
-                <span className="text-sm font-normal text-muted">
+                </Text>
+                <Text as="span" tone="muted">
                   {isLoginConfigured
                     ? dictionary.auth.passwordSignInDescription
                     : dictionary.auth.signInUnavailable}
-                </span>
+                </Text>
               </span>
             </Button>
           </form>
@@ -119,16 +176,16 @@ export function AuthEntry() {
             onClick={handleGoogleSignIn}
           >
             <span className="flex min-w-0 flex-col items-start gap-1">
-              <span className="text-base font-semibold">
+              <Text as="span" size="base" weight="semibold">
                 {isGoogleSigningIn
                   ? dictionary.auth.signingIn
                   : dictionary.auth.signInWithGoogle}
-              </span>
-              <span className="text-sm font-normal text-background/70">
+              </Text>
+              <Text as="span" tone="inverseMuted">
                 {isLoginConfigured
                   ? dictionary.auth.signInDescription
                   : dictionary.auth.signInUnavailable}
-              </span>
+              </Text>
             </span>
           </Button>
 
@@ -137,20 +194,24 @@ export function AuthEntry() {
             onClick={enterLocalMode}
           >
             <span className="flex min-w-0 flex-col items-start gap-1">
-              <span className="text-base font-semibold">
+              <Text as="span" size="base" weight="semibold">
                 {dictionary.auth.localMode}
-              </span>
-              <span className="text-sm font-normal text-muted">
+              </Text>
+              <Text as="span" tone="muted">
                 {dictionary.auth.localModeDescription}
-              </span>
+              </Text>
             </span>
           </Button>
         </div>
 
         <div className="space-y-1 text-sm leading-6 text-muted">
-          <p>{dictionary.auth.allowedOnly}</p>
-          <p>{dictionary.auth.noSignup}</p>
-          {authError ? <p className="text-rose-600">{authError}</p> : null}
+          <Text as="p" className="text-inherit">
+            {dictionary.auth.allowedOnly}
+          </Text>
+          <Text as="p" className="text-inherit">
+            {dictionary.auth.noSignup}
+          </Text>
+          {authError ? <Text tone="danger">{authError}</Text> : null}
         </div>
       </section>
     </main>

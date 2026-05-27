@@ -2,6 +2,7 @@
 
 import { Button } from './button';
 import { Dialog } from './dialog';
+import { Text } from './text';
 
 export function ConfirmationDialog({
   cancelLabel,
@@ -29,7 +30,9 @@ export function ConfirmationDialog({
       onClose={onClose}
     >
       <div className="flex flex-col gap-5 p-4 sm:p-5">
-        <p className="text-sm leading-6 text-muted">{description}</p>
+        <Text leading="relaxed" tone="muted">
+          {description}
+        </Text>
         <div className="flex items-center justify-end gap-2">
           <Button className="min-h-11 px-4" onClick={onClose}>
             {cancelLabel}
