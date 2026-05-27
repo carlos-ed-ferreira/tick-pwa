@@ -90,7 +90,7 @@ function GoalCategoryColumn({
   category: GoalCategory;
   label: string;
 }) {
-  const { dictionary, scope } = useAppContext();
+  const { dictionary, scope, requestSync } = useAppContext();
   const goals = useGoals(scope, category);
   const primaryGoal = goals[0] ?? null;
   const goalStepRows = useGoalStepTree(scope, primaryGoal?.id ?? null);
@@ -111,15 +111,17 @@ function GoalCategoryColumn({
     async (goalStepId: string) => {
       if (!scope) return;
       await softDeleteGoalStep({ scope, goalStepId });
+      await requestSync();
     },
-    [scope],
+    [requestSync, scope],
   );
   const assignSelectedGoalStepCategory = useCallback(
     async (goalStepId: string, categoryTagId: string | null) => {
       if (!scope) return;
       await assignGoalStepCategory({ scope, goalStepId, categoryTagId });
+      await requestSync();
     },
-    [scope],
+    [requestSync, scope],
   );
   const {
     assignBulkCategory,
@@ -139,8 +141,15 @@ function GoalCategoryColumn({
       return;
     }
 
-    void mergeGoalsInCategory({ scope, category });
-  }, [category, goals.length, scope]);
+    void (async () => {
+      try {
+        await mergeGoalsInCategory({ scope, category });
+        await requestSync();
+      } catch (error) {
+        console.error('Failed to merge goal categories.', error);
+      }
+    })();
+  }, [category, goals.length, requestSync, scope]);
 
   const createRootGoalStep = useCallback(async () => {
     if (!scope) {
@@ -149,7 +158,8 @@ function GoalCategoryColumn({
 
     const goal = primaryGoal ?? (await createGoal({ scope, category }));
     await createGoalStep({ scope, goalId: goal.id });
-  }, [category, primaryGoal, scope]);
+    await requestSync();
+  }, [category, primaryGoal, requestSync, scope]);
 
   return (
     <section
@@ -216,7 +226,7 @@ function GoalStepRow({
   onBulkDelete: () => void;
   onToggleSelect: (id: string, shiftKey: boolean) => void;
 }) {
-  const { dictionary, scope } = useAppContext();
+  const { dictionary, scope, requestSync } = useAppContext();
   const { goalStep, depth, hasChildren, isFirstSibling, isLastSibling } = row;
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const focusAfterCreate = useFocusAfterCreate();
@@ -234,8 +244,9 @@ function GoalStepRow({
         goalStepId: goalStep.id,
         text: nextText,
       });
+      await requestSync();
     },
-    [goalStep.id, scope],
+    [goalStep.id, requestSync, scope],
   );
   const {
     flush: flushText,
@@ -259,8 +270,9 @@ function GoalStepRow({
       parentId: goalStep.parentId,
       afterGoalStepId: goalStep.id,
     });
+    await requestSync();
     return newStep.id;
-  }, [flushText, goalId, goalStep.id, goalStep.parentId, scope]);
+  }, [flushText, goalId, goalStep.id, goalStep.parentId, requestSync, scope]);
 
   const createChild = useCallback(async () => {
     if (!scope) {
@@ -273,7 +285,8 @@ function GoalStepRow({
       goalId,
       parentGoalStepId: goalStep.id,
     });
-  }, [flushText, goalId, goalStep.id, scope]);
+    await requestSync();
+  }, [flushText, goalId, goalStep.id, requestSync, scope]);
 
   const requestDelete = useCallback(async () => {
     if (!scope) {
@@ -286,7 +299,8 @@ function GoalStepRow({
     }
 
     await softDeleteGoalStep({ scope, goalStepId: goalStep.id });
-  }, [goalStep.id, scope, text]);
+    await requestSync();
+  }, [goalStep.id, requestSync, scope, text]);
 
   const confirmDelete = useCallback(async () => {
     if (!scope) {
@@ -295,7 +309,8 @@ function GoalStepRow({
 
     setIsDeleteDialogOpen(false);
     await softDeleteGoalStep({ scope, goalStepId: goalStep.id });
-  }, [goalStep.id, scope]);
+    await requestSync();
+  }, [goalStep.id, requestSync, scope]);
 
   async function handleKeyDown(event: KeyboardEvent<HTMLInputElement>) {
     if (!scope) {
@@ -305,6 +320,7 @@ function GoalStepRow({
     if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
       event.preventDefault();
       await toggleGoalStepChecked({ scope, goalStepId: goalStep.id });
+      await requestSync();
       return;
     }
 
@@ -343,6 +359,7 @@ function GoalStepRow({
     if (event.key === 'Backspace' && text.length === 0) {
       event.preventDefault();
       await softDeleteGoalStep({ scope, goalStepId: goalStep.id });
+      await requestSync();
     }
   }
 
@@ -360,10 +377,13 @@ function GoalStepRow({
           isCollapsed={goalStep.collapsed}
           onClick={() => {
             if (scope) {
-              void toggleGoalStepCollapsed({
-                scope,
-                goalStepId: goalStep.id,
-              });
+              void (async () => {
+                await toggleGoalStepCollapsed({
+                  scope,
+                  goalStepId: goalStep.id,
+                });
+                await requestSync();
+              })();
             }
           }}
         />
@@ -373,10 +393,13 @@ function GoalStepRow({
           checked={goalStep.completed}
           onChange={() => {
             if (scope) {
-              void toggleGoalStepChecked({
-                scope,
-                goalStepId: goalStep.id,
-              });
+              void (async () => {
+                await toggleGoalStepChecked({
+                  scope,
+                  goalStepId: goalStep.id,
+                });
+                await requestSync();
+              })();
             }
           }}
         />
@@ -413,11 +436,14 @@ function GoalStepRow({
             disabled={isFirstSibling}
             onClick={() => {
               if (scope) {
-                void reorderGoalStep({
-                  scope,
-                  goalStepId: goalStep.id,
-                  direction: 'up',
-                });
+                void (async () => {
+                  await reorderGoalStep({
+                    scope,
+                    goalStepId: goalStep.id,
+                    direction: 'up',
+                  });
+                  await requestSync();
+                })();
               }
             }}
           >
@@ -428,11 +454,14 @@ function GoalStepRow({
             disabled={isLastSibling}
             onClick={() => {
               if (scope) {
-                void reorderGoalStep({
-                  scope,
-                  goalStepId: goalStep.id,
-                  direction: 'down',
-                });
+                void (async () => {
+                  await reorderGoalStep({
+                    scope,
+                    goalStepId: goalStep.id,
+                    direction: 'down',
+                  });
+                  await requestSync();
+                })();
               }
             }}
           >
@@ -443,7 +472,10 @@ function GoalStepRow({
             disabled={isFirstSibling}
             onClick={() => {
               if (scope) {
-                void indentGoalStep({ scope, goalStepId: goalStep.id });
+                void (async () => {
+                  await indentGoalStep({ scope, goalStepId: goalStep.id });
+                  await requestSync();
+                })();
               }
             }}
           >
@@ -454,7 +486,10 @@ function GoalStepRow({
             disabled={depth === 0}
             onClick={() => {
               if (scope) {
-                void outdentGoalStep({ scope, goalStepId: goalStep.id });
+                void (async () => {
+                  await outdentGoalStep({ scope, goalStepId: goalStep.id });
+                  await requestSync();
+                })();
               }
             }}
           >
@@ -481,6 +516,8 @@ function GoalStepRow({
                   scope,
                   goalStepId: goalStep.id,
                   categoryTagId,
+                }).then(async () => {
+                  await requestSync();
                 });
               }
 

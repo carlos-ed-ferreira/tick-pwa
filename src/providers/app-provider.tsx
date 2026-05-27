@@ -97,6 +97,7 @@ interface AppContextValue {
   signInWithPassword: (email: string, password: string) => Promise<void>;
   enterLocalMode: () => Promise<void>;
   signOut: () => Promise<void>;
+  requestSync: () => Promise<void>;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -455,6 +456,14 @@ export function AppProvider({
     await activateEntryMode();
   }, [activateEntryMode]);
 
+  const requestSync = useCallback(async () => {
+    if (!scope || scope.kind === 'guest') {
+      return;
+    }
+
+    await runScopedSync(scope);
+  }, [runScopedSync, scope]);
+
   const dictionary = useMemo(() => getDictionary(locale), [locale]);
 
   const value = useMemo<AppContextValue>(
@@ -474,6 +483,7 @@ export function AppProvider({
       signInWithPassword,
       enterLocalMode,
       signOut,
+      requestSync,
     }),
     [
       authError,
@@ -484,6 +494,7 @@ export function AppProvider({
       isReady,
       locale,
       openAuthEntry,
+      requestSync,
       scope,
       setLocale,
       signInWithGoogle,
