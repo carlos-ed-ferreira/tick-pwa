@@ -236,7 +236,7 @@ export function BulkCalendarEditor({
       onClose={handleClose}
     >
       <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden p-4 sm:p-5">
-        <div className="grid gap-4 rounded-lg border border-border bg-background/50 p-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+        <div className="card-surface-soft grid gap-4 p-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
           <label className="grid gap-2 text-sm font-medium text-foreground">
             <span>{dictionary.calendar.bulkStartDate}</span>
             <Input
@@ -280,10 +280,10 @@ export function BulkCalendarEditor({
                     key={weekday}
                     type="button"
                     aria-pressed={isSelected}
-                    className={`min-h-10 rounded-md border px-3 text-sm font-medium transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground ${
+                    className={`min-h-10 rounded-full px-3 text-sm font-medium shadow-sm transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground ${
                       isSelected
-                        ? 'border-foreground bg-foreground text-background'
-                        : 'border-border bg-surface text-muted hover:border-foreground/30 hover:text-foreground'
+                        ? 'bg-primary text-primary-foreground shadow-[0_12px_24px_rgba(49,44,81,0.18)]'
+                        : 'bg-background/55 text-muted hover:bg-accent/20 hover:text-foreground'
                     }`}
                     onClick={() => toggleWeekday(weekday)}
                   >
@@ -296,7 +296,7 @@ export function BulkCalendarEditor({
         </div>
 
         {validationMessage ? (
-          <div className="rounded-md border border-rose-600/30 bg-rose-500/10 px-3 py-2 text-sm text-rose-200">
+          <div className="rounded-xl bg-rose-500/10 px-3 py-2 text-sm text-rose-700 shadow-sm dark:text-rose-200">
             {validationMessage}
           </div>
         ) : null}
@@ -307,7 +307,7 @@ export function BulkCalendarEditor({
             setDraftItems={setDraftItems}
           />
         ) : (
-          <div className="flex min-h-0 flex-1 items-center justify-center gap-3 rounded-lg border border-rose-600 bg-rose-600/10 p-6 text-center text-sm font-medium leading-6 text-rose-100 shadow-sm">
+          <div className="card-surface-soft flex min-h-0 flex-1 items-center justify-center gap-3 bg-rose-500/10 p-6 text-center text-sm font-medium leading-6 text-rose-700 shadow-sm dark:text-rose-100">
             <Trash2 aria-hidden="true" className="size-5 shrink-0" />
             <span>{dictionary.calendar.bulkClearDescription}</span>
           </div>
@@ -318,7 +318,11 @@ export function BulkCalendarEditor({
             {dictionary.actions.cancel}
           </Button>
           <Button
-            className={`min-h-11 px-4 ${isCreateMode ? '' : 'border-rose-500/40 text-rose-100 hover:border-rose-400/60'}`}
+            className={`min-h-11 px-4 ${
+              isCreateMode
+                ? ''
+                : 'bg-rose-600 text-white shadow-[0_14px_28px_rgba(225,29,72,0.22)] hover:bg-rose-500'
+            }`}
             disabled={isSubmitting}
             onClick={() =>
               void (isCreateMode ? applyBulkRange() : clearBulkRange())
@@ -365,11 +369,11 @@ function BulkChecklistSurface({
         </Button>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto rounded-lg border border-border bg-background/50 p-2">
+      <div className="card-surface-soft min-h-0 flex-1 overflow-y-auto p-2">
         {rows.length === 0 ? (
           <button
             type="button"
-            className="flex min-h-32 w-full items-center justify-center rounded-md border border-dashed border-border px-4 text-sm text-muted transition hover:border-foreground/30 hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground"
+            className="flex min-h-32 w-full items-center justify-center rounded-2xl bg-background/55 px-4 text-sm text-muted shadow-inner transition hover:bg-accent/20 hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground"
             onClick={createRootItem}
           >
             {dictionary.dayEditor.emptyChecklist}

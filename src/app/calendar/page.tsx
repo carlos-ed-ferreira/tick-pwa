@@ -13,9 +13,9 @@ export default function CalendarPage() {
   const { dictionary } = useAppContext();
   const [isCategoryManagerOpen, setIsCategoryManagerOpen] = useState(false);
   const activeNavigationItemClassName =
-    'inline-flex h-9 items-center rounded-full px-3 text-sm font-medium bg-foreground text-background shadow-sm';
+    'inline-flex h-9 items-center rounded-full px-3 text-sm font-medium shadow-sm';
   const navigationItemClassName =
-    'inline-flex h-9 items-center rounded-full px-3 text-sm font-medium text-muted transition hover:bg-background hover:text-foreground';
+    'inline-flex h-9 items-center rounded-full px-3 text-sm font-medium text-muted transition hover:bg-accent/20 hover:text-foreground';
 
   return (
     <AuthGate>
@@ -41,11 +41,11 @@ export default function CalendarPage() {
               >
                 {dictionary.actions.editCategories}
               </Button>
-              <nav className="flex flex-wrap items-center gap-1 rounded-full border border-border bg-surface p-1 shadow-sm">
+              <nav className="flex flex-wrap items-center gap-1 rounded-full bg-surface p-1 shadow-sm">
                 <Link
                   href="/calendar"
                   aria-current="page"
-                  className={activeNavigationItemClassName}
+                  className={`${activeNavigationItemClassName} bg-primary text-primary-foreground`}
                 >
                   {dictionary.navigation.calendar}
                 </Link>
@@ -58,9 +58,7 @@ export default function CalendarPage() {
             </div>
           </header>
           <Suspense
-            fallback={
-              <section className="min-h-[70vh] rounded-lg border border-border bg-surface shadow-sm" />
-            }
+            fallback={<section className="card-surface-strong min-h-[70vh]" />}
           >
             <CalendarMonth />
           </Suspense>

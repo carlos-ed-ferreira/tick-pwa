@@ -74,9 +74,9 @@ export function Dialog({
         aria-modal="true"
         aria-label={title}
         tabIndex={-1}
-        className={`flex h-dvh w-full flex-col overflow-hidden bg-surface shadow-2xl outline-none sm:h-[min(92vh,900px)] sm:max-w-6xl sm:rounded-lg sm:border sm:border-border ${panelClassName}`}
+        className={`card-surface-strong flex h-dvh w-full flex-col overflow-hidden outline-none sm:h-[min(92vh,900px)] sm:max-w-6xl ${panelClassName}`}
       >
-        <div className="flex items-center justify-between border-b border-border px-4 py-3">
+        <div className="flex items-center justify-between bg-background/35 px-4 py-3 sm:px-5">
           <h2 className="truncate text-lg font-semibold">{title}</h2>
           <IconButton aria-label={closeLabel} onClick={onClose}>
             <X aria-hidden="true" className="size-4" />

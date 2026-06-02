@@ -139,8 +139,8 @@ function CategoryManagerRow({
   }
 
   return (
-    <div className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 rounded-lg border border-border bg-surface px-3 py-3 text-sm shadow-sm">
-      <label className="relative block size-7 shrink-0 rounded-full border border-border shadow-sm focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-foreground">
+    <div className="card-surface-soft grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 px-3 py-3 text-sm">
+      <label className="relative block size-7 shrink-0 rounded-full bg-background/55 shadow-sm focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-foreground">
         <input
           aria-label={`${dictionary.dayEditor.assignCategory}: ${tag.name}`}
           className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
@@ -161,7 +161,7 @@ function CategoryManagerRow({
         />
         <span
           aria-hidden="true"
-          className="block size-full rounded-full border border-white/40"
+          className="block size-full rounded-full border border-white/25"
           style={{ backgroundColor: tag.colorHex }}
         />
       </label>

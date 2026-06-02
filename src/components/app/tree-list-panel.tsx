@@ -37,13 +37,13 @@ export function TreeListPanel({
 }) {
   return (
     <>
-      <div className="min-h-0 flex-1 overflow-y-auto rounded-lg border border-border bg-background/50 p-2">
+      <div className="card-surface-soft min-h-0 flex-1 overflow-y-auto p-2">
         {hasRows ? (
           <div className="grid gap-1">{children}</div>
         ) : (
           <button
             type="button"
-            className="flex min-h-32 w-full items-center justify-center rounded-md border border-dashed border-border px-4 text-sm text-muted transition hover:border-foreground/30 hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground"
+            className="flex min-h-32 w-full items-center justify-center rounded-2xl bg-background/55 px-4 text-sm text-muted shadow-inner transition hover:bg-background/70 hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground"
             onClick={() => void onAddRoot()}
           >
             {emptyLabel}
@@ -54,7 +54,7 @@ export function TreeListPanel({
           <div className="flex items-center justify-between px-1 pt-1">
             <button
               type="button"
-              className="flex items-center gap-1.5 rounded border border-border px-2 py-1.5 text-sm text-muted transition hover:border-foreground/40 hover:text-foreground"
+              className="flex items-center gap-1.5 rounded-full bg-background/55 px-2.5 py-1.5 text-sm text-muted shadow-sm transition hover:bg-accent/25 hover:text-foreground"
               onClick={() => void onAddRoot()}
             >
               <Plus aria-hidden="true" className="size-3.5" />
@@ -63,7 +63,7 @@ export function TreeListPanel({
             {isSelectionMode ? (
               <button
                 type="button"
-                className="flex items-center gap-1.5 rounded border border-border px-2 py-1.5 text-sm text-muted transition hover:border-foreground/40 hover:text-foreground"
+                className="flex items-center gap-1.5 rounded-full bg-background/55 px-2.5 py-1.5 text-sm text-muted shadow-sm transition hover:bg-accent/25 hover:text-foreground"
                 onClick={onClearSelection}
               >
                 <X aria-hidden="true" className="size-3.5" />

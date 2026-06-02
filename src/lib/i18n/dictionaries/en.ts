@@ -14,6 +14,7 @@ export const enDictionary = {
     title: 'Sign in to sync your data',
     subtitle:
       'Tick is currently a prototype. Only approved users can sign in with an authorized account to save and sync cloud data.',
+    passwordFormHint: 'Use your approved account credentials to access sync.',
     emailLabel: 'Email',
     emailPlaceholder: 'you@example.com',
     emailRequired: 'Enter your email.',
@@ -23,12 +24,12 @@ export const enDictionary = {
     passwordRequired: 'Enter your password.',
     signInWithPassword: 'Continue with email',
     passwordSignInDescription:
-      'Use your approved email and password to access cloud sync.',
+      'Use your email and password to access cloud sync.',
     signingInWithPassword: 'Signing in...',
     orContinueWith: 'or continue with',
     signInWithGoogle: 'Continue with Google',
     signInDescription:
-      'Use an approved account to keep backups and sync across devices.',
+      'Use an approved Google account to keep backups and sync across devices.',
     localMode: 'Use local mode',
     localModeDescription:
       'Explore the demo without an account. Data stays only on this device and is not synced.',

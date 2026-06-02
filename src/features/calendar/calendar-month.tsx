@@ -209,8 +209,8 @@ export function CalendarMonth() {
 
   return (
     <>
-      <section className="flex min-h-[70vh] flex-col overflow-hidden rounded-lg border border-border bg-surface shadow-sm">
-        <header className="flex flex-col gap-3 border-b border-border px-4 py-3">
+      <section className="card-surface-strong flex min-h-[70vh] flex-col overflow-hidden">
+        <header className="flex flex-col gap-3 px-4 py-4 sm:px-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex min-w-0 items-center gap-3">
               <CalendarDays aria-hidden="true" className="size-5 text-muted" />
@@ -227,7 +227,7 @@ export function CalendarMonth() {
                 {dictionary.calendar.bulkCreate}
               </Button>
               <Button
-                className="min-h-10 px-3 text-rose-100 hover:border-rose-400/60"
+                className="min-h-10 bg-rose-600 px-3 text-white shadow-[0_14px_28px_rgba(225,29,72,0.18)] hover:bg-rose-500"
                 onClick={() => setBulkEditorMode('clear')}
               >
                 <Trash2 aria-hidden="true" className="size-4" />
@@ -236,7 +236,7 @@ export function CalendarMonth() {
               <button
                 type="button"
                 aria-label={dictionary.calendar.previousYear}
-                className="inline-flex size-10 items-center justify-center rounded-md border border-border text-muted transition hover:border-foreground/30 hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground"
+                className="inline-flex size-10 items-center justify-center rounded-full bg-background/55 text-muted shadow-sm transition hover:bg-accent/25 hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground"
                 onClick={() => setVisibleYear((currentYear) => currentYear - 1)}
               >
                 <ChevronLeft aria-hidden="true" className="size-4" />
@@ -247,14 +247,14 @@ export function CalendarMonth() {
               <button
                 type="button"
                 aria-label={dictionary.calendar.nextYear}
-                className="inline-flex size-10 items-center justify-center rounded-md border border-border text-muted transition hover:border-foreground/30 hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground"
+                className="inline-flex size-10 items-center justify-center rounded-full bg-background/55 text-muted shadow-sm transition hover:bg-accent/25 hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground"
                 onClick={() => setVisibleYear((currentYear) => currentYear + 1)}
               >
                 <ChevronRight aria-hidden="true" className="size-4" />
               </button>
               <button
                 type="button"
-                className="h-10 rounded-md border border-border px-3 text-sm font-medium transition hover:border-foreground/30 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground"
+                className="h-10 rounded-full bg-background/55 px-3 text-sm font-medium shadow-sm transition hover:bg-accent/25 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground"
                 onClick={() => {
                   setVisibleYear(todayYear);
                   setVisibleMonthIndex(todayMonthIndex);
@@ -271,10 +271,10 @@ export function CalendarMonth() {
                 key={monthOption.monthIndex}
                 type="button"
                 aria-pressed={visibleMonthIndex === monthOption.monthIndex}
-                className={`h-10 rounded-md border px-3 text-sm font-medium uppercase tracking-wide transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground ${
+                className={`h-10 rounded-full px-3 text-sm font-medium uppercase tracking-wide transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground ${
                   visibleMonthIndex === monthOption.monthIndex
-                    ? 'border-foreground bg-foreground text-background shadow-sm'
-                    : 'border-border text-muted hover:border-foreground/30 hover:text-foreground'
+                    ? 'bg-primary text-primary-foreground shadow-sm'
+                    : 'bg-background/55 text-muted shadow-sm hover:bg-accent/25 hover:text-foreground'
                 }`}
                 onClick={() => setVisibleMonthIndex(monthOption.monthIndex)}
               >

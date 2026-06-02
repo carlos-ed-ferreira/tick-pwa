@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { Input, Text } from '@/components/ui';
+import { Button, Input, Text } from '@/components/ui';
 
 describe('UI primitives', () => {
   it('applies structured input text assistance defaults', () => {
@@ -41,5 +41,14 @@ describe('UI primitives', () => {
 
     expect(text.tagName).toBe('SPAN');
     expect(text).toHaveClass('text-base', 'text-muted', 'font-semibold');
+  });
+
+  it('applies the shared button tone pattern by default', () => {
+    render(<Button>Continue</Button>);
+
+    const button = screen.getByRole('button', { name: 'Continue' });
+
+    expect(button).toHaveClass('bg-secondary', 'text-primary-foreground');
+    expect(button).not.toHaveClass('shadow-sm');
   });
 });

@@ -164,7 +164,7 @@ function GoalCategoryColumn({
   return (
     <section
       aria-label={label}
-      className="flex min-h-80 flex-col rounded-xl border border-border bg-surface p-3 shadow-sm sm:p-4"
+      className="card-surface flex min-h-80 flex-col p-3 sm:p-4"
     >
       <h2 className="pb-3 text-base font-semibold">{label}</h2>
 

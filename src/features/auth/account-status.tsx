@@ -16,7 +16,7 @@ export function AccountStatus() {
   if (authMode === 'authenticated') {
     return (
       <div className="flex flex-wrap items-center gap-2">
-        <span className="rounded-full border border-border px-3 py-1 text-sm text-muted">
+        <span className="rounded-full bg-background/65 px-3 py-1 text-sm text-muted shadow-sm">
           {authUser?.email || dictionary.auth.cloudModeBadge}
         </span>
         <Button className="min-h-9 px-3" onClick={signOut}>
@@ -29,7 +29,7 @@ export function AccountStatus() {
   if (authMode === 'guest') {
     return (
       <div className="flex flex-wrap items-center gap-2">
-        <span className="rounded-full border border-border px-3 py-1 text-sm text-muted">
+        <span className="rounded-full bg-background/65 px-3 py-1 text-sm text-muted shadow-sm">
           {dictionary.auth.localModeBadge}
         </span>
         <Button

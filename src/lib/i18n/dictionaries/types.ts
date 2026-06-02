@@ -11,6 +11,7 @@ export interface Dictionary {
   auth: {
     title: string;
     subtitle: string;
+    passwordFormHint: string;
     emailLabel: string;
     emailPlaceholder: string;
     emailRequired: string;

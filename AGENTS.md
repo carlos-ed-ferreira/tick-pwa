@@ -48,6 +48,12 @@ Evite bloquear fluxos esperando respostas de API. Quando a rede falhar ou estive
 
 Use componentes compartilhados quando eles reduzirem repetição real e mantiverem clareza. Não extraia abstrações apenas porque dois trechos são parecidos.
 
+## Sistema visual
+
+Prefira cards, painéis, dialogs e contêineres principais sem bordas visíveis. Use as superfícies compartilhadas `card-surface`, `card-surface-soft` e `card-surface-strong` como base para elevação e profundidade.
+
+Quando precisar de uma identidade de cor consistente, ancore a interface no conjunto `#312c51`, `#48426d`, `#f0c38e` e `#f1aa9b`, preservando os fundos neutros quentes e os contrastes suaves já definidos no tema.
+
 ## Formulários, validação e feedback
 
 Validação deve ser controlada pela aplicação e exibida com componentes locais. Formulários React controlados pela aplicação devem usar `noValidate` para impedir popups nativos de validação HTML5.

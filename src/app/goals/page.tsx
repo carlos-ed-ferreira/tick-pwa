@@ -13,9 +13,9 @@ export default function GoalsPage() {
   const { dictionary } = useAppContext();
   const [isCategoryManagerOpen, setIsCategoryManagerOpen] = useState(false);
   const activeNavigationItemClassName =
-    'inline-flex h-9 items-center rounded-full px-3 text-sm font-medium bg-foreground text-background shadow-sm';
+    'inline-flex h-9 items-center rounded-full px-3 text-sm font-medium shadow-sm';
   const navigationItemClassName =
-    'inline-flex h-9 items-center rounded-full px-3 text-sm font-medium text-muted transition hover:bg-background hover:text-foreground';
+    'inline-flex h-9 items-center rounded-full px-3 text-sm font-medium text-muted transition hover:bg-accent/20 hover:text-foreground';
   return (
     <AuthGate>
       <main className="min-h-dvh bg-background px-5 py-6 text-foreground sm:px-8">
@@ -40,14 +40,14 @@ export default function GoalsPage() {
               >
                 {dictionary.actions.editCategories}
               </Button>
-              <nav className="flex flex-wrap items-center gap-1 rounded-full border border-border bg-surface p-1 shadow-sm">
+              <nav className="flex flex-wrap items-center gap-1 rounded-full bg-surface p-1 shadow-sm">
                 <Link href="/calendar" className={navigationItemClassName}>
                   {dictionary.navigation.calendar}
                 </Link>
                 <Link
                   href="/goals"
                   aria-current="page"
-                  className={activeNavigationItemClassName}
+                  className={`${activeNavigationItemClassName} bg-primary text-primary-foreground`}
                 >
                   {dictionary.navigation.goals}
                 </Link>

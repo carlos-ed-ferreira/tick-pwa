@@ -118,9 +118,9 @@ describe('task tree primitives', () => {
       'shrink-0',
       'items-center',
       'justify-center',
-      'rounded-md',
+      'rounded-full',
       'transition',
-      'hover:bg-background',
+      'hover:bg-background/60',
     );
     expect(onToggle).toHaveBeenCalledWith(true);
   });
@@ -139,9 +139,9 @@ describe('task tree primitives', () => {
     const marker = button.querySelector('span');
 
     expect(marker).toHaveClass(
-      'border-foreground',
-      'bg-foreground',
-      'text-background',
+      'bg-primary',
+      'text-primary-foreground',
+      'shadow-[0_8px_18px_rgba(49,44,81,0.24)]',
     );
     expect(button.querySelector('svg')).toBeInTheDocument();
   });

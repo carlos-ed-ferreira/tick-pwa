@@ -38,7 +38,7 @@ export function ConfirmationDialog({
             {cancelLabel}
           </Button>
           <Button
-            className="min-h-11 border-rose-600 bg-rose-600 px-4 text-white hover:border-rose-500"
+            className="min-h-11 bg-rose-600 px-4 text-white shadow-[0_14px_28px_rgba(225,29,72,0.22)] hover:bg-rose-500"
             onClick={onConfirm}
           >
             {confirmLabel}

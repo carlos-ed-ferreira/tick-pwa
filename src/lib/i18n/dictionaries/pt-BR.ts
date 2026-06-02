@@ -14,6 +14,8 @@ export const ptBRDictionary = {
     title: 'Entre para sincronizar seus dados',
     subtitle:
       'O Tick está em protótipo. Apenas usuários permitidos podem entrar com uma conta autorizada para salvar e sincronizar dados na nuvem.',
+    passwordFormHint:
+      'Utilize as credenciais da sua conta autorizada para acessar a sincronização.',
     emailLabel: 'E-mail',
     emailPlaceholder: 'voce@exemplo.com',
     emailRequired: 'Informe seu e-mail.',
@@ -23,12 +25,12 @@ export const ptBRDictionary = {
     passwordRequired: 'Informe sua senha.',
     signInWithPassword: 'Entrar com e-mail',
     passwordSignInDescription:
-      'Use seu e-mail aprovado e senha para acessar a sincronização na nuvem.',
+      'Use seu e-mail e senha para acessar a sincronização na nuvem.',
     signingInWithPassword: 'Entrando...',
     orContinueWith: 'ou continue com',
     signInWithGoogle: 'Entrar com Google',
     signInDescription:
-      'Use uma conta autorizada para manter backup e sincronização entre dispositivos.',
+      'Use uma conta Google autorizada para manter backup e sincronização entre dispositivos.',
     localMode: 'Usar em modo local',
     localModeDescription:
       'Explore a demonstração sem conta. Os dados ficam apenas neste dispositivo e não são sincronizados.',

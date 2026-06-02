@@ -36,7 +36,7 @@ export default function Home() {
               <Link
                 key={destination.href}
                 href={destination.href}
-                className="group flex min-h-16 items-center justify-between rounded-lg border border-border bg-surface px-4 text-lg font-medium shadow-sm transition hover:border-foreground/30 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground"
+                className="group card-surface-soft flex min-h-16 items-center justify-between px-4 text-lg font-medium transition hover:-translate-y-0.5 hover:bg-accent/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground"
               >
                 <span>{dictionary.navigation[destination.dictionaryKey]}</span>
                 <span

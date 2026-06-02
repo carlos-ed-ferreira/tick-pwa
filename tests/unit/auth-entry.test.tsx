@@ -1,5 +1,11 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AuthEntry } from '@/features/auth/auth-entry';
 
 const { enterLocalModeMock, signInWithGoogleMock, signInWithPasswordMock } =
@@ -24,6 +30,7 @@ vi.mock('@/providers', () => ({
         localModeDescription: 'Local only',
         noSignup: 'No signup',
         orContinueWith: 'or continue with',
+        passwordFormHint: 'Use your approved account credentials.',
         passwordLabel: 'Password',
         passwordPlaceholder: 'Your password',
         passwordRequired: 'Enter your password.',
@@ -38,15 +45,32 @@ vi.mock('@/providers', () => ({
         subtitle: 'Subtitle',
         title: 'Title',
       },
+      settings: { language: 'Language' },
     },
     enterLocalMode: enterLocalModeMock,
     isLoginConfigured: true,
+    isReady: true,
+    locale: 'en',
     signInWithGoogle: signInWithGoogleMock,
     signInWithPassword: signInWithPasswordMock,
+    setLocale: vi.fn(),
   }),
 }));
 
+function createDeferred<T>() {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  const promise = new Promise<T>((promiseResolve) => {
+    resolve = promiseResolve;
+  });
+
+  return { promise, resolve };
+}
+
 describe('AuthEntry', () => {
+  afterEach(() => {
+    cleanup();
+  });
+
   beforeEach(() => {
     enterLocalModeMock.mockClear();
     signInWithGoogleMock.mockClear();
@@ -65,6 +89,9 @@ describe('AuthEntry', () => {
     const passwordInput = screen.getByLabelText('Password');
 
     expect(form).toHaveAttribute('novalidate');
+    expect(
+      screen.getByText('Use your approved account credentials.'),
+    ).toBeInTheDocument();
     expect(emailInput).toHaveAttribute('type', 'text');
     expect(emailInput).toHaveAttribute('spellcheck', 'false');
     expect(emailInput).toHaveAttribute('autocorrect', 'off');
@@ -119,6 +146,36 @@ describe('AuthEntry', () => {
         'user@example.com',
         'secret',
       );
+    });
+  });
+
+  it('keeps the primary action in a loading state while password sign-in is pending', async () => {
+    const deferred = createDeferred<void>();
+    signInWithPasswordMock.mockReturnValueOnce(deferred.promise);
+
+    render(<AuthEntry />);
+
+    fireEvent.change(screen.getByLabelText('Email'), {
+      target: { value: 'user@example.com' },
+    });
+    fireEvent.change(screen.getByLabelText('Password'), {
+      target: { value: 'secret' },
+    });
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Continue with email' }),
+    );
+
+    expect(
+      screen.getByRole('button', { name: 'Signing in...' }),
+    ).toBeDisabled();
+
+    deferred.resolve();
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole('button', { name: 'Continue with email' }),
+      ).toBeEnabled();
     });
   });
 });

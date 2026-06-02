@@ -13,6 +13,7 @@ const {
   createGoalStepMock,
   mergeGoalsInCategoryMock,
   reorderGoalStepMock,
+  requestSyncMock,
   softDeleteGoalStepMock,
   updateGoalStepTextMock,
   useGoalsMock,
@@ -22,6 +23,7 @@ const {
   createGoalStepMock: vi.fn(),
   mergeGoalsInCategoryMock: vi.fn().mockResolvedValue(null),
   reorderGoalStepMock: vi.fn().mockResolvedValue(undefined),
+  requestSyncMock: vi.fn().mockResolvedValue(undefined),
   softDeleteGoalStepMock: vi.fn().mockResolvedValue(undefined),
   updateGoalStepTextMock: vi.fn().mockResolvedValue(undefined),
   useGoalsMock: vi.fn(),
@@ -94,6 +96,7 @@ vi.mock('@/providers', () => ({
       kind: 'guest',
       ownerId: 'test',
     },
+    requestSync: requestSyncMock,
   }),
 }));
 

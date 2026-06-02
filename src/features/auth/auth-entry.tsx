@@ -1,8 +1,33 @@
 'use client';
 
 import { FormEvent, useState } from 'react';
-import { Button, Input, Text } from '@/components/ui';
+import { CloudOff, KeyRound } from 'lucide-react';
+import { ActionButton, FormField, Text } from '@/components/ui';
 import { useAppContext } from '@/providers';
+import { AuthShell } from './auth-shell';
+
+function GoogleIcon() {
+  return (
+    <svg aria-hidden="true" fill="none" viewBox="0 0 24 24" className="size-4">
+      <path
+        d="M21.35 12.21c0-.73-.06-1.27-.18-1.84H12v3.48h5.29c-.11.86-.66 2.15-1.89 3.02l-.02.12 2.73 2.11.19.02c1.72-1.59 3.05-3.92 3.05-6.91Z"
+        fill="#4285F4"
+      />
+      <path
+        d="M12 22c2.46 0 4.52-.81 6.02-2.18l-2.87-2.23c-.77.53-1.8.91-3.15.91a5.46 5.46 0 0 1-5.16-3.77l-.11.01-2.84 2.2-.03.1A9.99 9.99 0 0 0 12 22Z"
+        fill="#34A853"
+      />
+      <path
+        d="M6.84 14.73a6.6 6.6 0 0 1 0-4.46l-.01-.11L3.95 7.9l-.09.04a10 10 0 0 0 0 8.11l2.98-2.32Z"
+        fill="#FBBC05"
+      />
+      <path
+        d="M12 5.38c1.71 0 2.86.74 3.52 1.36l2.57-2.51C16.51 2.72 14.46 2 12 2a10 10 0 0 0-8.05 4.1l2.9 2.24A5.45 5.45 0 0 1 12 5.38Z"
+        fill="#EA4335"
+      />
+    </svg>
+  );
+}
 
 function isValidEmail(value: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
@@ -10,7 +35,6 @@ function isValidEmail(value: string): boolean {
 
 export function AuthEntry() {
   const {
-    authError,
     dictionary,
     enterLocalMode,
     isLoginConfigured,
@@ -26,8 +50,11 @@ export function AuthEntry() {
 
   async function handleGoogleSignIn() {
     setIsGoogleSigningIn(true);
-    await signInWithGoogle();
-    setIsGoogleSigningIn(false);
+    try {
+      await signInWithGoogle();
+    } finally {
+      setIsGoogleSigningIn(false);
+    }
   }
 
   async function handlePasswordSignIn(event: FormEvent<HTMLFormElement>) {
@@ -54,166 +81,113 @@ export function AuthEntry() {
     }
 
     setIsPasswordSigningIn(true);
-    await signInWithPassword(normalizedEmail, password);
-    setIsPasswordSigningIn(false);
+    try {
+      await signInWithPassword(normalizedEmail, password);
+    } finally {
+      setIsPasswordSigningIn(false);
+    }
   }
 
   return (
-    <main className="flex min-h-dvh items-center bg-background px-5 py-10 text-foreground sm:px-8">
-      <section className="mx-auto flex w-full max-w-md flex-col gap-7">
-        <header className="flex flex-col gap-3">
-          <div className="flex items-center justify-between gap-3">
-            <h1 className="text-2xl font-semibold">{dictionary.app.name}</h1>
-            <span className="rounded-full border border-border px-3 py-1 text-sm text-muted">
-              {dictionary.auth.prototypeNotice}
-            </span>
-          </div>
-          <div className="space-y-2">
-            <h2 className="text-xl font-semibold">{dictionary.auth.title}</h2>
-            <Text leading="relaxed" tone="muted">
-              {dictionary.auth.subtitle}
+    <AuthShell
+      badge={dictionary.auth.prototypeNotice}
+      subtitle={dictionary.auth.subtitle}
+      title={dictionary.auth.title}
+    >
+      <div className="grid gap-5">
+        <form className="grid gap-4" noValidate onSubmit={handlePasswordSignIn}>
+          <div className="grid gap-3">
+            <Text as="p" className="px-1 text-xl mb-6">
+              {dictionary.auth.passwordFormHint}
             </Text>
-          </div>
-        </header>
 
-        <div className="grid gap-3">
-          <form
-            noValidate
-            className="grid gap-3"
-            onSubmit={handlePasswordSignIn}
-          >
-            <label className="grid gap-1.5 text-sm text-muted">
-              <span>{dictionary.auth.emailLabel}</span>
-              <Input
-                autoComplete="email"
-                aria-describedby={emailError ? 'auth-email-error' : undefined}
-                aria-invalid={emailError ? 'true' : 'false'}
-                className="min-h-12 rounded-md border border-border bg-surface px-3 text-base text-foreground outline-none transition focus:border-foreground/30 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground"
-                disabled={
-                  !isLoginConfigured || isGoogleSigningIn || isPasswordSigningIn
-                }
-                placeholder={dictionary.auth.emailPlaceholder}
-                type="text"
-                value={email}
-                onChange={(event) => {
-                  setEmail(event.target.value);
-
-                  if (emailError) {
-                    setEmailError(null);
-                  }
-                }}
-              />
-              {emailError ? (
-                <Text as="span" id="auth-email-error" tone="danger">
-                  {emailError}
-                </Text>
-              ) : null}
-            </label>
-
-            <label className="grid gap-1.5 text-sm text-muted">
-              <span>{dictionary.auth.passwordLabel}</span>
-              <Input
-                autoComplete="current-password"
-                aria-describedby={
-                  passwordError ? 'auth-password-error' : undefined
-                }
-                aria-invalid={passwordError ? 'true' : 'false'}
-                className="min-h-12 rounded-md border border-border bg-surface px-3 text-base text-foreground outline-none transition focus:border-foreground/30 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground"
-                disabled={
-                  !isLoginConfigured || isGoogleSigningIn || isPasswordSigningIn
-                }
-                placeholder={dictionary.auth.passwordPlaceholder}
-                type="password"
-                value={password}
-                onChange={(event) => {
-                  setPassword(event.target.value);
-
-                  if (passwordError) {
-                    setPasswordError(null);
-                  }
-                }}
-              />
-              {passwordError ? (
-                <Text as="span" id="auth-password-error" tone="danger">
-                  {passwordError}
-                </Text>
-              ) : null}
-            </label>
-
-            <Button
-              className="min-h-12 justify-start px-4 text-left"
+            <FormField
+              autoComplete="email"
               disabled={
                 !isLoginConfigured || isGoogleSigningIn || isPasswordSigningIn
               }
-              type="submit"
-            >
-              <span className="flex min-w-0 flex-col items-start gap-1">
-                <Text as="span" size="base" weight="semibold">
-                  {isPasswordSigningIn
-                    ? dictionary.auth.signingInWithPassword
-                    : dictionary.auth.signInWithPassword}
-                </Text>
-                <Text as="span" tone="muted">
-                  {isLoginConfigured
-                    ? dictionary.auth.passwordSignInDescription
-                    : dictionary.auth.signInUnavailable}
-                </Text>
-              </span>
-            </Button>
-          </form>
+              error={emailError}
+              label={dictionary.auth.emailLabel}
+              placeholder={dictionary.auth.emailPlaceholder}
+              type="text"
+              value={email}
+              onChange={(event) => {
+                setEmail(event.target.value);
 
-          <div className="flex items-center gap-3 text-xs uppercase tracking-[0.24em] text-muted/70">
-            <span className="h-px flex-1 bg-border" />
-            <span>{dictionary.auth.orContinueWith}</span>
-            <span className="h-px flex-1 bg-border" />
+                if (emailError) {
+                  setEmailError(null);
+                }
+              }}
+            />
+
+            <FormField
+              autoComplete="current-password"
+              disabled={
+                !isLoginConfigured || isGoogleSigningIn || isPasswordSigningIn
+              }
+              error={passwordError}
+              label={dictionary.auth.passwordLabel}
+              placeholder={dictionary.auth.passwordPlaceholder}
+              type="password"
+              value={password}
+              onChange={(event) => {
+                setPassword(event.target.value);
+
+                if (passwordError) {
+                  setPasswordError(null);
+                }
+              }}
+            />
           </div>
 
-          <Button
-            className="min-h-16 justify-start bg-foreground px-4 text-left text-background hover:bg-foreground/90"
+          <ActionButton
+            className="mt-1"
             disabled={
               !isLoginConfigured || isGoogleSigningIn || isPasswordSigningIn
             }
+            icon={<KeyRound className="size-4" />}
+            description={dictionary.auth.passwordSignInDescription}
+            label={
+              isPasswordSigningIn
+                ? dictionary.auth.signingInWithPassword
+                : dictionary.auth.signInWithPassword
+            }
+            tone="primary"
+            type="submit"
+          />
+        </form>
+
+        <div className="flex items-center gap-3 text-xs uppercase tracking-[0.24em] text-muted/70 my-3">
+          <span className="h-px flex-1 bg-border" />
+          <span>{dictionary.auth.orContinueWith}</span>
+          <span className="h-px flex-1 bg-border" />
+        </div>
+
+        <div className="grid gap-3">
+          <ActionButton
+            disabled={
+              !isLoginConfigured || isGoogleSigningIn || isPasswordSigningIn
+            }
+            description={dictionary.auth.signInDescription}
+            icon={<GoogleIcon />}
+            label={
+              isGoogleSigningIn
+                ? dictionary.auth.signingIn
+                : dictionary.auth.signInWithGoogle
+            }
             onClick={handleGoogleSignIn}
-          >
-            <span className="flex min-w-0 flex-col items-start gap-1">
-              <Text as="span" size="base" weight="semibold">
-                {isGoogleSigningIn
-                  ? dictionary.auth.signingIn
-                  : dictionary.auth.signInWithGoogle}
-              </Text>
-              <Text as="span" tone="inverseMuted">
-                {isLoginConfigured
-                  ? dictionary.auth.signInDescription
-                  : dictionary.auth.signInUnavailable}
-              </Text>
-            </span>
-          </Button>
+            tone="secondary"
+          />
 
-          <Button
-            className="min-h-16 justify-start px-4 text-left"
+          <ActionButton
+            description={dictionary.auth.localModeDescription}
+            icon={<CloudOff className="size-4" />}
+            label={dictionary.auth.localMode}
             onClick={enterLocalMode}
-          >
-            <span className="flex min-w-0 flex-col items-start gap-1">
-              <Text as="span" size="base" weight="semibold">
-                {dictionary.auth.localMode}
-              </Text>
-              <Text as="span" tone="muted">
-                {dictionary.auth.localModeDescription}
-              </Text>
-            </span>
-          </Button>
+            tone="accent"
+          />
         </div>
-
-        <div className="space-y-1 text-sm leading-6 text-muted">
-          <Text as="p" className="text-inherit">
-            {dictionary.auth.allowedOnly}
-          </Text>
-          <Text as="p" className="text-inherit">
-            {dictionary.auth.noSignup}
-          </Text>
-          {authError ? <Text tone="danger">{authError}</Text> : null}
-        </div>
-      </section>
-    </main>
+      </div>
+    </AuthShell>
   );
 }

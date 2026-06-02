@@ -174,12 +174,12 @@ export function CategoryAssignmentMenu({
       ? createPortal(
           <div
             ref={menuRef}
-            className="fixed z-60 grid max-h-[min(20rem,calc(100vh-2rem))] min-w-48 gap-1 overflow-y-auto rounded-lg border border-border bg-surface p-2 text-sm shadow-xl"
+            className="card-surface-soft fixed z-60 grid max-h-[min(20rem,calc(100vh-2rem))] min-w-48 gap-1 overflow-y-auto p-2 text-sm"
             style={menuStyle}
           >
             <button
               type="button"
-              className="flex items-center gap-2 rounded-md px-2 py-2 text-left text-muted transition hover:bg-background hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground"
+              className="flex items-center gap-2 rounded-md px-2 py-2 text-left text-muted transition hover:bg-accent/20 hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground"
               onClick={() => void assignCategory(null)}
             >
               <X aria-hidden="true" className="size-4" />
@@ -189,7 +189,7 @@ export function CategoryAssignmentMenu({
               <button
                 key={tag.id}
                 type="button"
-                className="flex items-center gap-2 rounded-md px-2 py-2 text-left transition hover:bg-background focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground"
+                className="flex items-center gap-2 rounded-md px-2 py-2 text-left transition hover:bg-accent/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground"
                 onClick={() => void assignCategory(tag.id)}
               >
                 <span
