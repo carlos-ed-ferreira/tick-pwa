@@ -26,6 +26,7 @@ export async function enterLocalMode(page: Page) {
     await localModeButton.click();
   }
 
+  await page.waitForURL('**/calendar**');
   await expect(localModeBadge).toBeVisible();
 }
 
