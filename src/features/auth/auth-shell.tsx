@@ -22,7 +22,7 @@ export function AuthShell({
   const { dictionary } = useAppContext();
 
   return (
-    <main className="relative isolate flex min-h-dvh overflow-hidden bg-background px-5 py-10 text-foreground sm:px-8">
+    <main className="relative isolate flex min-h-dvh overflow-hidden bg-background px-5 py-10 text-foreground sm:px-8 md:items-center">
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 opacity-80"
@@ -40,7 +40,7 @@ export function AuthShell({
         className="pointer-events-none absolute -left-24 bottom-[-5rem] h-72 w-72 rounded-full bg-foreground/5 blur-3xl"
       />
 
-      <section className="relative mx-auto flex w-full max-w-6xl flex-col gap-6">
+      <section className="relative mx-auto flex w-full max-w-2xl flex-col gap-6 lg:max-w-6xl">
         <header className="flex items-center justify-between gap-4">
           <div className="flex min-w-0 items-center gap-3">
             <Image
@@ -53,7 +53,7 @@ export function AuthShell({
               width={44}
             />
             <div className="min-w-0">
-              <p className="truncate text-sm font-semibold uppercase tracking-[0.28em] text-muted">
+              <p className="truncate text-sm font-semibold uppercase tracking-[0.28em] text-[#d8d0e8]">
                 {dictionary.app.name}
               </p>
             </div>
@@ -64,21 +64,21 @@ export function AuthShell({
 
         <section className="card-surface-strong overflow-hidden backdrop-blur">
           <div className="grid gap-0 lg:grid-cols-[minmax(0,1.1fr)_minmax(22rem,0.9fr)]">
-            <div className="flex h-full flex-col px-5 py-6 sm:px-6 sm:py-7 lg:min-h-[38rem] lg:px-8 lg:py-8">
+            <div className="flex h-full flex-col px-5 py-6 sm:px-6 sm:py-7 md:px-7 md:py-7 lg:min-h-[38rem] lg:px-8 lg:py-8">
               <div className="mt-6 flex items-center gap-3">
-                <span className="inline-flex items-center rounded-full bg-background/70 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.24em] text-muted shadow-sm">
+                <span className="inline-flex items-center rounded-full bg-background/70 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.24em] text-[#d8d0e8] shadow-sm">
                   {badge}
                 </span>
               </div>
               <div className="flex flex-1 items-center">
-                <div className="max-w-xl">
+                <div className="max-w-xl pt-5 lg:pt-0">
                   <div className="space-y-4">
                     <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl lg:text-5xl">
                       {title}
                     </h1>
                     <Text
                       as="p"
-                      className="max-w-prose"
+                      className="max-w-prose text-[#d8d0e8]"
                       leading="relaxed"
                       size="base"
                       tone="muted"
@@ -86,12 +86,12 @@ export function AuthShell({
                       {subtitle}
                     </Text>
                   </div>
-                  <div className="grid gap-3 rounded-[0.75rem] bg-background/45 p-4 shadow-inner mt-12 sm:max-w-lg">
+                  <div className="grid gap-3 rounded-[0.75rem] bg-background/45 p-4 shadow-inner mt-10 sm:max-w-lg lg:mt-12">
                     <div className="grid gap-1">
                       <p className="text-sm font-semibold text-foreground">
                         {dictionary.auth.allowedOnly}
                       </p>
-                      <p className="text-sm leading-6 text-muted">
+                      <p className="text-sm leading-6 text-[#d8d0e8]">
                         {dictionary.auth.noSignup}
                       </p>
                     </div>
@@ -99,7 +99,7 @@ export function AuthShell({
                 </div>
               </div>
             </div>
-            <div className="border-0 bg-background/25 px-5 py-6 sm:px-6 sm:py-7 lg:px-8 lg:py-8">
+            <div className="border-0 bg-background/25 px-5 py-6 sm:px-6 sm:py-7 md:px-7 md:py-7 lg:px-8 lg:py-8">
               <div className="mx-auto flex w-full max-w-xl flex-col gap-5 lg:pt-8">
                 {children}
               </div>

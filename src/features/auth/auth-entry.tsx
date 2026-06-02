@@ -157,10 +157,10 @@ export function AuthEntry() {
           />
         </form>
 
-        <div className="flex items-center gap-3 text-xs uppercase tracking-[0.24em] text-muted/70 my-3">
-          <span className="h-px flex-1 bg-border" />
+        <div className="flex items-center gap-3 text-xs uppercase tracking-[0.24em] text-[#fff9f2]/78 my-3">
+          <span className="h-px flex-1 bg-[#fff9f2]/20" />
           <span>{dictionary.auth.orContinueWith}</span>
-          <span className="h-px flex-1 bg-border" />
+          <span className="h-px flex-1 bg-[#fff9f2]/20" />
         </div>
 
         <div className="grid gap-3">

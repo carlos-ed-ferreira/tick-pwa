@@ -26,11 +26,12 @@ vi.mock('@/providers', () => ({
         emailLabel: 'Email',
         emailPlaceholder: 'you@example.com',
         emailRequired: 'Enter your email.',
-        localMode: 'Use local mode',
-        localModeDescription: 'Local only',
+        localMode: 'Continue without syncing',
+        localModeDescription: 'Your data will stay only on this device.',
         noSignup: 'No signup',
         orContinueWith: 'or continue with',
-        passwordFormHint: 'Use your approved account credentials.',
+        passwordFormHint:
+          'Sign in with your approved account to sync your data.',
         passwordLabel: 'Password',
         passwordPlaceholder: 'Your password',
         passwordRequired: 'Enter your password.',
@@ -39,7 +40,7 @@ vi.mock('@/providers', () => ({
         signInDescription: 'Use Google',
         signInUnavailable: 'Login unavailable',
         signInWithGoogle: 'Continue with Google',
-        signInWithPassword: 'Continue with email',
+        signInWithPassword: 'Sign in',
         signingIn: 'Opening login...',
         signingInWithPassword: 'Signing in...',
         subtitle: 'Subtitle',
@@ -82,7 +83,7 @@ describe('AuthEntry', () => {
 
     const form = screen
       .getByRole('button', {
-        name: 'Continue with email',
+        name: 'Sign in',
       })
       .closest('form');
     const emailInput = screen.getByLabelText('Email');
@@ -90,7 +91,7 @@ describe('AuthEntry', () => {
 
     expect(form).toHaveAttribute('novalidate');
     expect(
-      screen.getByText('Use your approved account credentials.'),
+      screen.getByText('Sign in with your approved account to sync your data.'),
     ).toBeInTheDocument();
     expect(emailInput).toHaveAttribute('type', 'text');
     expect(emailInput).toHaveAttribute('spellcheck', 'false');
@@ -117,9 +118,7 @@ describe('AuthEntry', () => {
       target: { value: 'secret' },
     });
 
-    fireEvent.click(
-      screen.getByRole('button', { name: 'Continue with email' }),
-    );
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
 
     expect(
       await screen.findByText('Enter a valid email address.'),
@@ -137,9 +136,7 @@ describe('AuthEntry', () => {
       target: { value: 'secret' },
     });
 
-    fireEvent.click(
-      screen.getByRole('button', { name: 'Continue with email' }),
-    );
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
 
     await waitFor(() => {
       expect(signInWithPasswordMock).toHaveBeenCalledWith(
@@ -162,9 +159,7 @@ describe('AuthEntry', () => {
       target: { value: 'secret' },
     });
 
-    fireEvent.click(
-      screen.getByRole('button', { name: 'Continue with email' }),
-    );
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
 
     expect(
       screen.getByRole('button', { name: 'Signing in...' }),
@@ -173,9 +168,7 @@ describe('AuthEntry', () => {
     deferred.resolve();
 
     await waitFor(() => {
-      expect(
-        screen.getByRole('button', { name: 'Continue with email' }),
-      ).toBeEnabled();
+      expect(screen.getByRole('button', { name: 'Sign in' })).toBeEnabled();
     });
   });
 });

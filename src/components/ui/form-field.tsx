@@ -56,7 +56,7 @@ export const FormField = forwardRef<HTMLInputElement, FormFieldProps>(
               id={inputId}
               aria-describedby={errorId}
               aria-invalid={error ? true : undefined}
-              className={`h-7 w-full border-0 bg-transparent p-0 pl-8 text-base leading-7 text-foreground outline-none placeholder:text-[#fff9f2]/72 focus-visible:outline-none disabled:cursor-not-allowed disabled:text-muted/60 ${className}`}
+              className={`h-8 w-full border-0 bg-transparent p-0 pl-6 text-base leading-8 text-foreground outline-none placeholder:text-[#fff9f2]/72 focus-visible:outline-none disabled:cursor-not-allowed disabled:text-muted/60 ${className}`}
               {...props}
             />
           </div>

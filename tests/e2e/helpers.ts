@@ -6,7 +6,8 @@ export const labels = {
     /start this section with a checklist item|comece esta seção com um item de checklist/i,
   goalsLink: /^goals$|^metas$/i,
   localModeBadge: /local mode|modo local/i,
-  localModeButton: /use local mode|usar em modo local/i,
+  localModeButton:
+    /continue without syncing|continuar sem sincronizar|use local mode|usar em modo local/i,
   checklistEmpty:
     /start this day with a checklist item|comece este dia com um item de checklist/i,
 };
