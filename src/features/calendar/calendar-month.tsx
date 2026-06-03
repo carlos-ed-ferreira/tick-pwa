@@ -9,7 +9,6 @@ import {
 } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { Button } from '@/components/ui';
 import { useCategoryTags } from '@/features/categories';
 import { BulkCalendarEditor } from '@/features/calendar/bulk-calendar-editor';
 import { DayEditor } from '@/features/day-editor';
@@ -64,17 +63,8 @@ function formatMonthButtonLabel(
     .slice(0, 3);
 }
 
-function formatDayLabel(
-  date: LocalDateString,
-  locale: string,
-  timezone: string,
-): string {
-  return new Intl.DateTimeFormat(locale, {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    timeZone: timezone,
-  }).format(createMonthLabelDate(date));
+function formatPeriodLabel(label: string): string {
+  return label ? label.charAt(0).toLocaleUpperCase() + label.slice(1) : label;
 }
 
 function entriesByDate(
@@ -185,12 +175,7 @@ export function CalendarMonth() {
     locale,
     timezonePreference.timezone,
   );
-  const selectedDayLabel = formatDayLabel(
-    activeDay,
-    locale,
-    timezonePreference.timezone,
-  );
-  const selectedDayEntry = entryMap.get(activeDay) ?? null;
+  const periodLabel = formatPeriodLabel(monthLabel);
   const monthOptions = useMemo(
     () =>
       Array.from({ length: 12 }, (_, monthIndex) => ({
@@ -231,93 +216,106 @@ export function CalendarMonth() {
     <>
       <section className="calendar-shell flex min-h-[70vh] flex-col overflow-hidden">
         <header className="calendar-header-panel flex flex-col gap-4 px-4 py-4 sm:px-5 lg:px-6">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-            <div className="flex min-w-0 items-start gap-3">
-              <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/5 text-[#f0c38e] shadow-sm shadow-[#312c51]/10">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex min-w-0 items-center gap-3">
+              <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-full border border-[#f0c38e]/24 bg-[#f0c38e]/10 text-[#f0c38e] shadow-sm shadow-[#312c51]/10">
                 <CalendarDays aria-hidden="true" className="size-5" />
               </span>
               <div className="min-w-0">
-                <p className="text-[0.7rem] font-semibold uppercase tracking-[0.34em] text-[#d8d0e8]">
-                  {dictionary.calendar.title}
-                </p>
-                <h2 className="mt-1 truncate text-2xl font-semibold capitalize sm:text-3xl">
-                  {monthLabel}
+                <h2 className="truncate text-2xl font-semibold sm:text-3xl">
+                  {periodLabel}
                 </h2>
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2 lg:justify-end">
-              <Button
-                className="min-h-10 px-4 shadow-sm shadow-[#f0c38e]/12"
-                tone="accent"
-                onClick={() => setBulkEditorMode('create')}
+            <div
+              aria-label={dictionary.calendar.today}
+              className="flex h-10 w-fit items-center gap-1 rounded-full border border-white/10 bg-white/4 px-1 shadow-sm shadow-[#312c51]/10"
+            >
+              <button
+                type="button"
+                className="inline-flex h-8 items-center rounded-full px-3 text-sm font-medium text-[#d8d0e8] transition hover:bg-white/8 hover:text-[#fff9f2] active:bg-white/12 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0]"
+                onClick={() => {
+                  setVisibleYear(todayYear);
+                  setVisibleMonthIndex(todayMonthIndex);
+                  setSelectedDay(todayKey);
+                }}
               >
-                <Plus aria-hidden="true" className="size-4" />
-                {dictionary.calendar.bulkCreate}
-              </Button>
-              <Button
-                className="min-h-10 px-4"
-                tone="subtle"
-                onClick={() => setBulkEditorMode('clear')}
+                {dictionary.calendar.today}
+              </button>
+              <span aria-hidden="true" className="h-5 w-px bg-white/10" />
+              <button
+                type="button"
+                aria-label={dictionary.calendar.previousYear}
+                className="inline-flex size-8 items-center justify-center rounded-full text-[#d8d0e8] transition hover:bg-white/8 hover:text-[#fff9f2] active:bg-white/12 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0]"
+                onClick={() => setVisibleYear((currentYear) => currentYear - 1)}
               >
-                <Trash2 aria-hidden="true" className="size-4" />
-                {dictionary.calendar.bulkClear}
-              </Button>
-              <div className="flex items-center gap-1 rounded-full border border-white/10 bg-white/5 p-1 shadow-sm shadow-[#312c51]/10">
-                <button
-                  type="button"
-                  aria-label={dictionary.calendar.previousYear}
-                  className="inline-flex size-9 items-center justify-center rounded-full text-[#d8d0e8] transition hover:bg-white/8 hover:text-[#fff9f2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0]"
-                  onClick={() =>
-                    setVisibleYear((currentYear) => currentYear - 1)
-                  }
-                >
-                  <ChevronLeft aria-hidden="true" className="size-4" />
-                </button>
-                <div className="min-w-14 px-1 text-center text-sm font-semibold tabular-nums text-[#fff9f2]">
-                  {visibleYear}
-                </div>
-                <button
-                  type="button"
-                  aria-label={dictionary.calendar.nextYear}
-                  className="inline-flex size-9 items-center justify-center rounded-full text-[#d8d0e8] transition hover:bg-white/8 hover:text-[#fff9f2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0]"
-                  onClick={() =>
-                    setVisibleYear((currentYear) => currentYear + 1)
-                  }
-                >
-                  <ChevronRight aria-hidden="true" className="size-4" />
-                </button>
-                <button
-                  type="button"
-                  className="inline-flex h-9 items-center rounded-full bg-white/6 px-3 text-sm font-medium text-[#d8d0e8] transition hover:bg-white/10 hover:text-[#fff9f2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0]"
-                  onClick={() => {
-                    setVisibleYear(todayYear);
-                    setVisibleMonthIndex(todayMonthIndex);
-                    setSelectedDay(todayKey);
-                  }}
-                >
-                  {dictionary.calendar.today}
-                </button>
-              </div>
+                <ChevronLeft aria-hidden="true" className="size-4" />
+              </button>
+              <span className="min-w-14 px-1 text-center text-sm font-semibold tabular-nums text-[#fff9f2]">
+                {visibleYear}
+              </span>
+              <button
+                type="button"
+                aria-label={dictionary.calendar.nextYear}
+                className="inline-flex size-8 items-center justify-center rounded-full text-[#d8d0e8] transition hover:bg-white/8 hover:text-[#fff9f2] active:bg-white/12 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0]"
+                onClick={() => setVisibleYear((currentYear) => currentYear + 1)}
+              >
+                <ChevronRight aria-hidden="true" className="size-4" />
+              </button>
             </div>
           </div>
 
-          <div className="calendar-month-strip -mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:-mx-5 sm:px-5 lg:-mx-6 lg:px-6">
-            {monthOptions.map((monthOption) => (
+          <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+            <div
+              role="tablist"
+              aria-label={periodLabel}
+              className="calendar-month-strip flex h-12 flex-1 items-center gap-1 overflow-x-auto rounded-full border border-white/8 bg-white/[0.025] p-1 sm:justify-between"
+            >
+              {monthOptions.map((monthOption) => (
+                <button
+                  key={monthOption.monthIndex}
+                  type="button"
+                  role="tab"
+                  aria-selected={visibleMonthIndex === monthOption.monthIndex}
+                  className={`inline-flex h-9 shrink-0 items-center justify-center rounded-full border px-3 text-sm font-medium uppercase leading-none tracking-[0.16em] transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0] ${
+                    visibleMonthIndex === monthOption.monthIndex
+                      ? 'border-[#f3d2aa] bg-[#f0c38e] text-[#312c51] shadow-[0_12px_30px_rgba(240,195,142,0.16)]'
+                      : 'border-transparent bg-transparent text-[#a99fc2] hover:border-white/10 hover:bg-white/6 hover:text-[#fff9f2] active:bg-white/10'
+                  }`}
+                  onClick={() => setVisibleMonthIndex(monthOption.monthIndex)}
+                >
+                  {monthOption.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex shrink-0 flex-wrap items-center gap-2">
               <button
-                key={monthOption.monthIndex}
                 type="button"
-                aria-pressed={visibleMonthIndex === monthOption.monthIndex}
-                className={`inline-flex h-9 shrink-0 items-center rounded-full border px-3 text-sm font-medium uppercase tracking-[0.16em] transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0] ${
-                  visibleMonthIndex === monthOption.monthIndex
-                    ? 'border-[#f3d2aa] bg-[#f0c38e] text-[#312c51] shadow-[0_12px_30px_rgba(240,195,142,0.18)]'
-                    : 'border-white/10 bg-white/5 text-[#c4bbda] hover:border-white/15 hover:bg-white/10 hover:text-[#fff9f2]'
-                }`}
-                onClick={() => setVisibleMonthIndex(monthOption.monthIndex)}
+                className="group inline-flex h-12 items-center gap-2.5 rounded-[0.75rem] border border-[#f8d7aa]/70 bg-[#f0c38e] px-3.5 text-left text-[#312c51] shadow-md shadow-[#f0c38e]/18 transition hover:border-[#ffe0b8] hover:bg-[#f5d09f] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e] disabled:cursor-not-allowed disabled:opacity-65"
+                onClick={() => setBulkEditorMode('create')}
               >
-                {monthOption.label}
+                <span className="grid size-9 shrink-0 place-items-center rounded-[0.625rem] bg-[#312c51]/10 text-[#312c51]">
+                  <Plus aria-hidden="true" className="size-4" />
+                </span>
+                <span className="text-[0.94rem] font-semibold">
+                  {dictionary.calendar.bulkCreate}
+                </span>
               </button>
-            ))}
+              <button
+                type="button"
+                className="group inline-flex h-12 items-center gap-2.5 rounded-[0.75rem] border border-[#fff9f2]/22 bg-[#fff9f2]/10 px-3.5 text-left text-[#fff9f2] shadow-sm shadow-[#312c51]/8 transition hover:border-[#fff9f2]/34 hover:bg-[#fff9f2]/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e] disabled:cursor-not-allowed disabled:opacity-65"
+                onClick={() => setBulkEditorMode('clear')}
+              >
+                <span className="grid size-9 shrink-0 place-items-center rounded-[0.625rem] bg-[#fff9f2]/12 text-[#fff9f2]">
+                  <Trash2 aria-hidden="true" className="size-4" />
+                </span>
+                <span className="text-[0.94rem] font-semibold">
+                  {dictionary.calendar.bulkClear}
+                </span>
+              </button>
+            </div>
           </div>
         </header>
 
@@ -329,113 +327,20 @@ export function CalendarMonth() {
           ))}
         </div>
 
-        <div className="grid flex-1 lg:grid-cols-[minmax(0,1fr)_19rem]">
-          <div className="calendar-day-grid grid grid-cols-7 auto-rows-fr">
-            {monthGrid.map((day) => (
-              <DayCell
-                key={day.date}
-                date={day.date}
-                entry={entryMap.get(day.date) ?? null}
-                categoryTagMap={categoryTagMap}
-                inCurrentMonth={day.inCurrentMonth}
-                isSelected={activeDay === day.date}
-                isToday={todayKey === day.date}
-                onOpenDay={openDay}
-                onSelectDay={selectDay}
-              />
-            ))}
-          </div>
-
-          <aside className="border-t border-white/8 bg-white/4 p-4 lg:border-l lg:border-t-0 lg:p-5">
-            <div className="h-full rounded-[1.5rem] border border-white/10 bg-[rgba(255,255,255,0.04)] p-4 shadow-sm shadow-[#312c51]/10 backdrop-blur-sm">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <h3 className="text-lg font-semibold leading-tight text-[#fff9f2]">
-                    {selectedDayLabel}
-                  </h3>
-                </div>
-                {activeDay === todayKey ? (
-                  <span className="calendar-chip px-2.5 py-1 text-[11px] font-semibold text-[#f7e8ce]">
-                    {dictionary.calendar.today}
-                  </span>
-                ) : null}
-              </div>
-
-              <div className="mt-4 rounded-[1.25rem] border border-white/8 bg-[rgba(255,255,255,0.03)] p-4">
-                {selectedDayEntry ? (
-                  <div className="flex flex-col gap-4">
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="calendar-chip px-3 py-1 text-xs font-medium text-[#f7e8ce]">
-                        {selectedDayEntry.completedCount}/
-                        {selectedDayEntry.itemCount}
-                      </span>
-                      {selectedDayEntry.itemCount > 0 ? (
-                        <span className="text-xs text-[#bdb4d4]">
-                          {Math.round(
-                            (selectedDayEntry.completedCount /
-                              selectedDayEntry.itemCount) *
-                              100,
-                          )}
-                          %
-                        </span>
-                      ) : null}
-                    </div>
-                    <div className="h-2 overflow-hidden rounded-full bg-white/8">
-                      <div
-                        className="h-full rounded-full bg-[linear-gradient(90deg,#f7e1bc_0%,#f0c38e_100%)]"
-                        style={{
-                          width: `${
-                            selectedDayEntry.itemCount > 0
-                              ? Math.round(
-                                  (selectedDayEntry.completedCount /
-                                    selectedDayEntry.itemCount) *
-                                    100,
-                                )
-                              : 0
-                          }%`,
-                        }}
-                      />
-                    </div>
-                    {selectedDayEntry.categoryTagIds.length > 0 ? (
-                      <div className="flex flex-wrap gap-1.5">
-                        {selectedDayEntry.categoryTagIds
-                          .slice(0, 4)
-                          .map((categoryTagId) => {
-                            const colorHex =
-                              categoryTagMap.get(categoryTagId)?.colorHex;
-                            const completed = isCategoryComplete(
-                              selectedDayEntry.categorySummaries?.find(
-                                (summary) =>
-                                  summary.categoryTagId === categoryTagId,
-                              ),
-                            );
-
-                            return (
-                              <span
-                                key={categoryTagId}
-                                className="size-3 rounded-full border border-white/50"
-                                style={{
-                                  backgroundColor: colorHex,
-                                  opacity: completed ? 1 : 0.3,
-                                  boxShadow:
-                                    completed && colorHex
-                                      ? `0 0 0 1px rgba(255, 255, 255, 0.22), 0 0 10px ${colorHex}33`
-                                      : 'none',
-                                }}
-                              />
-                            );
-                          })}
-                      </div>
-                    ) : null}
-                  </div>
-                ) : (
-                  <p className="text-sm leading-6 text-[#bdb4d4]">
-                    {dictionary.calendar.emptyDay}
-                  </p>
-                )}
-              </div>
-            </div>
-          </aside>
+        <div className="calendar-day-grid grid flex-1 grid-cols-7 auto-rows-fr">
+          {monthGrid.map((day) => (
+            <DayCell
+              key={day.date}
+              date={day.date}
+              entry={entryMap.get(day.date) ?? null}
+              categoryTagMap={categoryTagMap}
+              inCurrentMonth={day.inCurrentMonth}
+              isSelected={activeDay === day.date}
+              isToday={todayKey === day.date}
+              onOpenDay={openDay}
+              onSelectDay={selectDay}
+            />
+          ))}
         </div>
       </section>
       <BulkCalendarEditor
@@ -485,11 +390,11 @@ function DayCell({
       aria-pressed={isSelected}
       className={`group calendar-day-cell flex flex-col text-left ${
         inCurrentMonth
-          ? 'bg-[rgba(255,255,255,0.02)] hover:bg-[rgba(255,255,255,0.05)]'
-          : 'bg-[rgba(255,255,255,0.01)] text-[#8f85aa] hover:bg-[rgba(255,255,255,0.03)]'
+          ? 'bg-[rgba(255,255,255,0.012)] hover:bg-[rgba(255,255,255,0.045)]'
+          : 'bg-[rgba(255,255,255,0.006)] text-[#8f85aa] hover:bg-[rgba(255,255,255,0.025)]'
       } ${
         isSelected
-          ? 'relative z-10 border-[#f3d2aa]/40 bg-[linear-gradient(180deg,rgba(240,195,142,0.18),rgba(255,255,255,0.04))] shadow-[inset_0_0_0_1px_rgba(243,210,170,0.6),0_0_0_1px_rgba(243,210,170,0.12),0_18px_28px_rgba(8,6,20,0.18)]'
+          ? 'relative z-10 border-[#f3d2aa]/40 bg-[linear-gradient(180deg,rgba(240,195,142,0.14),rgba(255,255,255,0.025))] shadow-[inset_0_0_0_1px_rgba(243,210,170,0.6),0_0_0_1px_rgba(243,210,170,0.12),0_18px_28px_rgba(8,6,20,0.18)]'
           : 'shadow-none'
       }`}
       onClick={() => {

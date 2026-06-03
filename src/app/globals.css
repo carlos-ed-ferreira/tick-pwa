@@ -143,26 +143,43 @@ body {
     isolation: isolate;
     overflow: hidden;
     border-radius: 2rem;
-    border: 1px solid var(--border);
+    border: 1px solid rgba(255, 248, 235, 0.2);
     background:
       radial-gradient(
         circle at top left,
-        rgba(88, 73, 137, 0.3),
+        rgba(88, 73, 137, 0.12),
         transparent 34%
       ),
       radial-gradient(
         circle at top right,
-        rgba(240, 195, 142, 0.1),
+        rgba(240, 195, 142, 0.06),
         transparent 28%
       ),
-      linear-gradient(180deg, rgba(42, 35, 72, 0.96), rgba(23, 18, 42, 0.94));
-    box-shadow: 0 28px 72px rgba(8, 6, 20, 0.4);
-    backdrop-filter: blur(22px);
+      linear-gradient(180deg, rgba(42, 35, 72, 0.42), rgba(23, 18, 42, 0.36));
+    box-shadow:
+      inset 0 0 0 1px rgba(255, 248, 235, 0.1),
+      0 28px 72px rgba(8, 6, 20, 0.34);
+    backdrop-filter: blur(24px);
+  }
+
+  .calendar-shell::after {
+    position: absolute;
+    inset: 0;
+    z-index: 20;
+    pointer-events: none;
+    content: '';
+    border: 1px solid rgba(255, 248, 235, 0.22);
+    border-radius: inherit;
+    box-shadow: inset 0 0 0 1px rgba(255, 248, 235, 0.08);
   }
 
   .calendar-header-panel {
-    border-bottom: 1px solid var(--border);
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent);
+    border-bottom: 1px solid rgba(255, 248, 235, 0.12);
+    background: linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.03),
+      rgba(255, 255, 255, 0.008)
+    );
   }
 
   .calendar-month-strip {
@@ -172,8 +189,8 @@ body {
 
   .calendar-day-grid {
     background:
-      linear-gradient(to right, rgba(255, 248, 235, 0.05) 1px, transparent 1px),
-      linear-gradient(to bottom, rgba(255, 248, 235, 0.05) 1px, transparent 1px);
+      linear-gradient(to right, rgba(255, 248, 235, 0.04) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(255, 248, 235, 0.04) 1px, transparent 1px);
     background-size:
       calc(100% / 7) 100%,
       100% calc(100% / 6);

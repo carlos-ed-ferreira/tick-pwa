@@ -1,5 +1,7 @@
 'use client';
 
+import { CalendarDays, Tags, Trophy } from 'lucide-react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { useState, Suspense } from 'react';
 import { Button } from '@/components/ui';
@@ -13,9 +15,9 @@ export default function CalendarPage() {
   const { dictionary } = useAppContext();
   const [isCategoryManagerOpen, setIsCategoryManagerOpen] = useState(false);
   const activeNavigationItemClassName =
-    'inline-flex h-9 items-center rounded-full border border-white/10 bg-accent px-3 text-sm font-semibold text-primary shadow-sm shadow-[#f0c38e]/10 transition hover:-translate-y-0.5 hover:bg-[#f4cf9c] hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0]';
+    'inline-flex min-h-11 items-center gap-2 rounded-[0.875rem] border border-[#f8d7aa]/70 bg-[#f0c38e] px-3.5 text-sm font-semibold text-[#312c51] shadow-[0_12px_28px_rgba(240,195,142,0.16)] transition hover:-translate-y-0.5 hover:border-[#ffe0b8] hover:bg-[#f5d09f] hover:shadow-[0_16px_34px_rgba(240,195,142,0.22)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0]';
   const navigationItemClassName =
-    'inline-flex h-9 items-center rounded-full border border-transparent px-3 text-sm font-medium text-[#c4bbda] transition hover:border-white/10 hover:bg-white/5 hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0]';
+    'inline-flex min-h-11 items-center gap-2 rounded-[0.875rem] border border-transparent px-3.5 text-sm font-medium text-[#c4bbda] transition hover:border-white/10 hover:bg-white/8 hover:text-[#fff9f2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0]';
 
   return (
     <AuthGate>
@@ -29,39 +31,51 @@ export default function CalendarPage() {
           }}
         />
         <div className="relative mx-auto flex w-full max-w-[1280px] flex-col gap-5 lg:gap-6">
-          <header className="grid gap-4 rounded-[2rem] border border-white/10 bg-[rgba(33,27,59,0.84)] px-4 py-4 shadow-[0_28px_72px_rgba(8,6,20,0.24)] backdrop-blur-xl sm:px-5 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] lg:items-center lg:px-6">
-            <div className="flex min-w-0 flex-col gap-1">
-              <Link
-                href="/"
-                className="w-fit text-[0.72rem] font-semibold uppercase tracking-[0.34em] text-[#d8d0e8] transition hover:text-[#fff9f2]"
-              >
-                {dictionary.navigation.home}
-              </Link>
-              <h1 className="truncate text-xl font-semibold tracking-tight sm:text-2xl">
-                {dictionary.calendar.title}
-              </h1>
+          <header className="grid gap-3 pt-5 sm:pt-7 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] lg:items-center">
+            <div className="flex min-w-0 flex-wrap items-center gap-3 lg:justify-between">
+              <div className="flex min-w-0 items-center gap-3">
+                <Image
+                  alt=""
+                  aria-hidden="true"
+                  className="size-11 shrink-0 object-contain"
+                  height={44}
+                  priority
+                  src="/icons/tick-icon.svg"
+                  width={44}
+                />
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold uppercase tracking-[0.28em] text-[#d8d0e8]">
+                    {dictionary.app.name}
+                  </p>
+                </div>
+              </div>
+              <AccountStatus />
             </div>
-            <nav className="flex flex-wrap items-center justify-start gap-1 rounded-full border border-white/10 bg-white/5 p-1 shadow-sm shadow-[#312c51]/10 lg:justify-self-center">
+
+            <nav className="flex w-full flex-wrap items-center justify-start gap-1 rounded-[1rem] border border-white/10 bg-white/6 p-1.5 shadow-sm shadow-[#312c51]/10 backdrop-blur-md sm:w-fit lg:justify-self-center">
               <Link
                 href="/calendar"
                 aria-current="page"
                 className={activeNavigationItemClassName}
               >
+                <CalendarDays aria-hidden="true" className="size-4" />
                 {dictionary.navigation.calendar}
               </Link>
               <Link href="/goals" className={navigationItemClassName}>
+                <Trophy aria-hidden="true" className="size-4" />
                 {dictionary.navigation.goals}
               </Link>
             </nav>
-            <div className="flex flex-wrap items-center gap-2 justify-start lg:justify-end">
+
+            <div className="flex flex-wrap items-center gap-2 lg:justify-between">
               <Button
-                className="min-h-9 px-3 text-sm"
+                className="min-h-10 rounded-full border-white/10 bg-white/5 px-4 py-2 text-xs font-medium text-[#f8f3ea] shadow-sm shadow-[#312c51]/10 hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/10 hover:shadow-md focus-visible:outline-[#f7d9b0] sm:text-sm"
                 tone="subtle"
                 onClick={() => setIsCategoryManagerOpen(true)}
               >
-                {dictionary.actions.editCategories}
+                <Tags aria-hidden="true" className="size-4 text-[#f0c38e]" />
+                {dictionary.navigation.categories}
               </Button>
-              <AccountStatus />
               <LanguageSwitcher />
             </div>
           </header>
