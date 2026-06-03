@@ -174,12 +174,12 @@ export function CategoryAssignmentMenu({
       ? createPortal(
           <div
             ref={menuRef}
-            className="card-surface-soft fixed z-60 grid max-h-[min(20rem,calc(100vh-2rem))] min-w-48 gap-1 overflow-y-auto p-2 text-sm"
+            className="modal-panel fixed z-60 grid max-h-[min(20rem,calc(100vh-2rem))] min-w-48 gap-1 overflow-y-auto p-2 text-sm text-[#fff9f2] shadow-[0_24px_70px_rgba(8,6,20,0.44)]"
             style={menuStyle}
           >
             <button
               type="button"
-              className="flex items-center gap-2 rounded-md px-2 py-2 text-left text-muted transition hover:bg-accent/20 hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground"
+              className="flex items-center gap-2 rounded-xl px-2 py-2 text-left text-[#bdb4d4] transition hover:bg-white/[0.08] hover:text-[#fff9f2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e]"
               onClick={() => void assignCategory(null)}
             >
               <X aria-hidden="true" className="size-4" />
@@ -189,7 +189,7 @@ export function CategoryAssignmentMenu({
               <button
                 key={tag.id}
                 type="button"
-                className="flex items-center gap-2 rounded-md px-2 py-2 text-left transition hover:bg-accent/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground"
+                className="flex items-center gap-2 rounded-xl px-2 py-2 text-left transition hover:bg-[#f0c38e]/12 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e]"
                 onClick={() => void assignCategory(tag.id)}
               >
                 <span
@@ -210,7 +210,9 @@ export function CategoryAssignmentMenu({
       <IconButton
         aria-expanded={isOpen}
         aria-label={assignLabel}
-        className={selectedCategory ? 'text-foreground' : ''}
+        className={`rounded-full hover:bg-white/[0.08] hover:text-[#fff9f2] focus-visible:outline-[#f0c38e] ${
+          selectedCategory ? 'text-[#fff9f2]' : ''
+        }`}
         disabled={disabled}
         ref={triggerRef}
         onClick={() => {
@@ -226,7 +228,7 @@ export function CategoryAssignmentMenu({
         {selectedCategory ? (
           <span
             aria-hidden="true"
-            className="size-4 rounded-full border border-border"
+            className="size-4 rounded-full border border-white/25"
             style={{ backgroundColor: selectedCategory.colorHex }}
           />
         ) : (

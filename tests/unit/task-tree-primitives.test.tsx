@@ -24,16 +24,19 @@ describe('task tree primitives', () => {
       'min-w-0',
       'items-center',
       'gap-1',
-      'rounded-md',
+      'rounded-xl',
+      'border',
+      'border-transparent',
       'px-1',
       'py-1',
       'transition',
-      'hover:bg-surface',
+      'hover:border-white/[0.08]',
+      'hover:bg-white/[0.055]',
     );
     expect(row).toHaveStyle({
       paddingLeft: 'min(32px, 56px)',
       backgroundColor: 'rgba(34, 197, 94, 0.12)',
-      boxShadow: 'inset 3px 0 0 0 rgba(245, 158, 11, 0.9)',
+      boxShadow: 'inset 4px 0 0 0 rgba(240, 195, 142, 0.98)',
     });
   });
 
@@ -120,7 +123,10 @@ describe('task tree primitives', () => {
       'justify-center',
       'rounded-full',
       'transition',
-      'hover:bg-background/60',
+      'hover:bg-white/[0.08]',
+      'focus-visible:outline-2',
+      'focus-visible:outline-offset-2',
+      'focus-visible:outline-[#f0c38e]',
     );
     expect(onToggle).toHaveBeenCalledWith(true);
   });
@@ -139,9 +145,9 @@ describe('task tree primitives', () => {
     const marker = button.querySelector('span');
 
     expect(marker).toHaveClass(
-      'bg-primary',
-      'text-primary-foreground',
-      'shadow-[0_8px_18px_rgba(49,44,81,0.24)]',
+      'bg-[#f0c38e]',
+      'text-[#241735]',
+      'shadow-[0_8px_18px_rgba(240,195,142,0.24)]',
     );
     expect(button.querySelector('svg')).toBeInTheDocument();
   });

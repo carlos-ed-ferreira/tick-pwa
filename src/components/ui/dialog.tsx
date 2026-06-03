@@ -65,7 +65,7 @@ export function Dialog({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end bg-foreground/20 backdrop-blur-sm sm:items-center sm:justify-center sm:p-6"
+      className="fixed inset-0 z-50 flex items-end bg-[#090716]/70 backdrop-blur-xl sm:items-center sm:justify-center sm:p-6"
       onMouseDown={handleBackdropMouseDown}
     >
       <div
@@ -74,11 +74,17 @@ export function Dialog({
         aria-modal="true"
         aria-label={title}
         tabIndex={-1}
-        className={`card-surface-strong flex h-dvh w-full flex-col overflow-hidden outline-none sm:h-[min(92vh,900px)] sm:max-w-6xl ${panelClassName}`}
+        className={`modal-surface flex h-dvh w-full flex-col overflow-hidden outline-none sm:h-[min(92vh,900px)] sm:max-w-6xl ${panelClassName}`}
       >
-        <div className="flex items-center justify-between bg-background/35 px-4 py-3 sm:px-5">
-          <h2 className="truncate text-lg font-semibold">{title}</h2>
-          <IconButton aria-label={closeLabel} onClick={onClose}>
+        <div className="modal-header flex items-center justify-between px-4 py-3 sm:px-5">
+          <h2 className="truncate text-lg font-semibold tracking-tight text-[#fff9f2]">
+            {title}
+          </h2>
+          <IconButton
+            aria-label={closeLabel}
+            className="rounded-full border border-white/10 bg-white/5 text-[#d8d0e8] hover:bg-white/10 hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
+            onClick={onClose}
+          >
             <X aria-hidden="true" className="size-4" />
           </IconButton>
         </div>

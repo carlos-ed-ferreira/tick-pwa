@@ -53,7 +53,7 @@ export function DayEditor({
         {entry ? (
           <ChecklistSurface dailyEntryId={entry.id} />
         ) : (
-          <div className="card-surface-soft flex min-h-0 flex-1 items-center justify-center text-sm text-muted">
+          <div className="modal-panel flex min-h-0 flex-1 items-center justify-center text-sm text-[#bdb4d4]">
             {dictionary.dayEditor.title}
           </div>
         )}

@@ -221,7 +221,7 @@ describe('BulkCalendarEditor', () => {
     const row = input.closest('div[style]') as HTMLDivElement | null;
 
     expect(row).toHaveStyle({
-      boxShadow: 'inset 3px 0 0 0 rgba(245, 158, 11, 0.9)',
+      boxShadow: 'inset 4px 0 0 0 rgba(240, 195, 142, 0.98)',
     });
     expect(row?.style.backgroundColor).toBe('');
     expect(input.className.includes('font-medium')).toBe(false);

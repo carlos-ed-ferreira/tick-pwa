@@ -17,18 +17,18 @@ export function TaskTreeRowLayout({
   const style: CSSProperties = {
     paddingLeft: `min(${depth * 16}px, 56px)`,
     backgroundColor: isSelected
-      ? 'color-mix(in srgb, var(--color-foreground) 8%, transparent)'
+      ? 'rgba(240, 195, 142, 0.12)'
       : categoryColorHex
         ? toAlphaColor(categoryColorHex, 0.12)
         : undefined,
     boxShadow: isPriority
-      ? 'inset 3px 0 0 0 rgba(245, 158, 11, 0.9)'
+      ? 'inset 4px 0 0 0 rgba(240, 195, 142, 1)'
       : undefined,
   };
 
   return (
     <div
-      className="group flex min-w-0 items-center gap-1 rounded-md px-1 py-1 transition hover:bg-surface"
+      className="group flex min-w-0 items-center gap-1 rounded-xl border border-transparent px-1 py-1 transition hover:border-white/[0.08] hover:bg-white/[0.055]"
       style={style}
     >
       {children}

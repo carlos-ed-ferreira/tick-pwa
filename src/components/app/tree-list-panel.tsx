@@ -37,13 +37,13 @@ export function TreeListPanel({
 }) {
   return (
     <>
-      <div className="card-surface-soft min-h-0 flex-1 overflow-y-auto p-2">
+      <div className="modal-panel min-h-0 flex-1 overflow-y-auto p-2">
         {hasRows ? (
           <div className="grid gap-1">{children}</div>
         ) : (
           <button
             type="button"
-            className="flex min-h-32 w-full items-center justify-center rounded-2xl bg-background/55 px-4 text-sm text-muted shadow-inner transition hover:bg-background/70 hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground"
+            className="flex min-h-36 w-full items-center justify-center rounded-[1.15rem] border border-dashed border-[#f0c38e]/24 bg-[#f0c38e]/[0.045] px-4 text-sm font-medium text-[#bdb4d4] shadow-inner transition hover:border-[#f0c38e]/38 hover:bg-[#f0c38e]/[0.075] hover:text-[#fff9f2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e]"
             onClick={() => void onAddRoot()}
           >
             {emptyLabel}
@@ -51,10 +51,10 @@ export function TreeListPanel({
         )}
 
         {hasRows ? (
-          <div className="flex items-center justify-between px-1 pt-1">
+          <div className="flex items-center justify-between px-1 pt-2">
             <button
               type="button"
-              className="flex items-center gap-1.5 rounded-full bg-background/55 px-2.5 py-1.5 text-sm text-muted shadow-sm transition hover:bg-accent/25 hover:text-foreground"
+              className="flex items-center gap-1.5 rounded-full border border-[#f0c38e]/22 bg-[#f0c38e]/10 px-3 py-1.5 text-sm font-medium text-[#f7d7ad] shadow-sm transition hover:border-[#f0c38e]/36 hover:bg-[#f0c38e]/16 hover:text-[#fff9f2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e]"
               onClick={() => void onAddRoot()}
             >
               <Plus aria-hidden="true" className="size-3.5" />
@@ -63,7 +63,7 @@ export function TreeListPanel({
             {isSelectionMode ? (
               <button
                 type="button"
-                className="flex items-center gap-1.5 rounded-full bg-background/55 px-2.5 py-1.5 text-sm text-muted shadow-sm transition hover:bg-accent/25 hover:text-foreground"
+                className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-sm font-medium text-[#bdb4d4] shadow-sm transition hover:bg-white/10 hover:text-[#fff9f2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e]"
                 onClick={onClearSelection}
               >
                 <X aria-hidden="true" className="size-3.5" />

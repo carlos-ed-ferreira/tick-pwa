@@ -17,7 +17,9 @@ export function TaskTreeCollapseButton({
   return (
     <IconButton
       aria-label={isCollapsed ? expandLabel : collapseLabel}
-      className={!hasChildren ? 'disabled:opacity-100' : ''}
+      className={`rounded-full hover:bg-white/[0.08] hover:text-[#fff9f2] focus-visible:outline-[#f0c38e] ${
+        !hasChildren ? 'disabled:opacity-100' : ''
+      }`}
       disabled={!hasChildren}
       onClick={onClick}
     >

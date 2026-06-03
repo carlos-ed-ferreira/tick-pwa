@@ -105,7 +105,7 @@ export function ChecklistSurface({ dailyEntryId }: { dailyEntryId: string }) {
 
   return (
     <section className="flex min-h-0 flex-1 flex-col gap-3">
-      <h3 className="text-sm font-medium text-muted">
+      <h3 className="text-sm font-medium text-[#bdb4d4]">
         {dictionary.dayEditor.checklist}
       </h3>
 
@@ -328,8 +328,8 @@ function ChecklistRow({
           data-item-id={item.id}
           value={text}
           placeholder={dictionary.dayEditor.itemPlaceholder}
-          className={`min-w-0 flex-1 rounded-md bg-transparent px-2 py-2 text-sm outline-none transition focus:bg-surface focus:shadow-sm ${
-            item.checked ? 'opacity-50' : 'text-foreground'
+          className={`min-w-0 flex-1 rounded-xl border border-transparent bg-transparent px-2 py-2 text-sm outline-none transition placeholder:text-[#8f85aa] focus:border-[#f0c38e]/28 focus:bg-white/[0.055] focus:shadow-sm ${
+            item.checked ? 'text-[#8f85aa] opacity-75' : 'text-[#fff9f2]'
           }`}
           onBlur={() => void flushText()}
           onChange={(event) => setText(event.target.value)}
@@ -350,6 +350,7 @@ function ChecklistRow({
                 ? dictionary.dayEditor.unmarkPriority
                 : dictionary.dayEditor.markPriority
             }
+            className="rounded-full hover:bg-white/[0.08] hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
             onClick={() => {
               if (scope) {
                 void toggleChecklistItemPriority({ scope, itemId: item.id });
@@ -358,17 +359,19 @@ function ChecklistRow({
           >
             <Star
               aria-hidden="true"
-              className={`size-4 ${item.priority ? 'fill-current text-amber-500' : 'opacity-60'}`}
+              className={`size-4 ${item.priority ? 'fill-current text-[#f0c38e]' : 'opacity-60'}`}
             />
           </IconButton>
           <IconButton
             aria-label={dictionary.dayEditor.addChild}
+            className="rounded-full hover:bg-white/[0.08] hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
             onClick={createChild}
           >
             <Plus aria-hidden="true" className="size-4" />
           </IconButton>
           <IconButton
             aria-label={dictionary.dayEditor.moveItemUp}
+            className="rounded-full hover:bg-white/[0.08] hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
             disabled={isFirstSibling}
             onClick={() => {
               if (scope) {
@@ -384,6 +387,7 @@ function ChecklistRow({
           </IconButton>
           <IconButton
             aria-label={dictionary.dayEditor.moveItemDown}
+            className="rounded-full hover:bg-white/[0.08] hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
             disabled={isLastSibling}
             onClick={() => {
               if (scope) {
@@ -399,6 +403,7 @@ function ChecklistRow({
           </IconButton>
           <IconButton
             aria-label={dictionary.dayEditor.indentItem}
+            className="rounded-full hover:bg-white/[0.08] hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
             disabled={isFirstSibling}
             onClick={() => {
               if (scope) {
@@ -410,6 +415,7 @@ function ChecklistRow({
           </IconButton>
           <IconButton
             aria-label={dictionary.dayEditor.outdentItem}
+            className="rounded-full hover:bg-white/[0.08] hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
             disabled={depth === 0}
             onClick={() => {
               if (scope) {
@@ -449,6 +455,7 @@ function ChecklistRow({
           />
           <IconButton
             aria-label={dictionary.dayEditor.deleteItem}
+            className="rounded-full hover:bg-rose-400/[0.12] hover:text-rose-100 focus-visible:outline-[#f0c38e]"
             disabled={isSelectionMode && !isSelected}
             onClick={() =>
               isSelectionMode ? onBulkDelete() : void deleteItem()

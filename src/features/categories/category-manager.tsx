@@ -38,7 +38,11 @@ export function CategoryManager({ surface }: { surface: CategoryTagSurface }) {
   return (
     <section className="flex w-full flex-col">
       <div className="flex items-center justify-end gap-2">
-        <Button className="min-h-11 px-4" onClick={() => void addCategory()}>
+        <Button
+          className="h-12 rounded-[1.15rem] px-5 shadow-[0_16px_32px_rgba(240,195,142,0.18)]"
+          tone="accent"
+          onClick={() => void addCategory()}
+        >
           <Plus aria-hidden="true" className="size-4" />
           {dictionary.dayEditor.addCategory}
         </Button>
@@ -139,8 +143,8 @@ function CategoryManagerRow({
   }
 
   return (
-    <div className="card-surface-soft grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 px-3 py-3 text-sm">
-      <label className="relative block size-7 shrink-0 rounded-full bg-background/55 shadow-sm focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-foreground">
+    <div className="modal-panel grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 px-3 py-3 text-sm transition hover:border-[#f0c38e]/20 hover:bg-white/[0.055]">
+      <label className="relative block size-8 shrink-0 rounded-full border border-white/10 bg-white/5 p-1 shadow-sm focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-[#f0c38e]">
         <input
           aria-label={`${dictionary.dayEditor.assignCategory}: ${tag.name}`}
           className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
@@ -161,14 +165,14 @@ function CategoryManagerRow({
         />
         <span
           aria-hidden="true"
-          className="block size-full rounded-full border border-white/25"
+          className="block size-full rounded-full border border-white/30 shadow-[0_6px_14px_rgba(8,6,20,0.24)]"
           style={{ backgroundColor: tag.colorHex }}
         />
       </label>
 
       <Input
         aria-label={dictionary.dayEditor.categoryNamePlaceholder}
-        className="min-w-0 rounded bg-transparent px-1 py-1 uppercase outline-none transition focus:bg-background"
+        className="min-w-0 rounded-xl border border-transparent bg-transparent px-2 py-2 uppercase text-[#fff9f2] outline-none transition placeholder:text-[#8f85aa] focus:border-[#f0c38e]/30 focus:bg-white/[0.055] focus:shadow-sm"
         placeholder={dictionary.dayEditor.categoryNamePlaceholder}
         value={draftName}
         onBlur={() => void commitName()}
@@ -190,7 +194,7 @@ function CategoryManagerRow({
       <div className="flex items-center justify-end gap-0.5">
         <IconButton
           aria-label={dictionary.dayEditor.moveCategoryUp}
-          className="size-8"
+          className="size-8 rounded-full text-[#bdb4d4] hover:bg-white/[0.08] hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
           disabled={isFirst}
           onClick={() => {
             if (scope) {
@@ -210,7 +214,7 @@ function CategoryManagerRow({
 
         <IconButton
           aria-label={dictionary.dayEditor.moveCategoryDown}
-          className="size-8"
+          className="size-8 rounded-full text-[#bdb4d4] hover:bg-white/[0.08] hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
           disabled={isLast}
           onClick={() => {
             if (scope) {
@@ -230,7 +234,7 @@ function CategoryManagerRow({
 
         <IconButton
           aria-label={dictionary.dayEditor.deleteCategory}
-          className="size-8"
+          className="size-8 rounded-full text-[#bdb4d4] hover:bg-rose-400/[0.12] hover:text-rose-100 focus-visible:outline-[#f0c38e]"
           onClick={() => {
             if (scope) {
               void (async () => {

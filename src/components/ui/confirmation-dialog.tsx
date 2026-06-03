@@ -30,15 +30,22 @@ export function ConfirmationDialog({
       onClose={onClose}
     >
       <div className="flex flex-col gap-5 p-4 sm:p-5">
-        <Text leading="relaxed" tone="muted">
-          {description}
-        </Text>
+        <div className="modal-panel px-4 py-3">
+          <Text leading="relaxed" tone="muted">
+            {description}
+          </Text>
+        </div>
         <div className="flex items-center justify-end gap-2">
-          <Button className="min-h-11 px-4" onClick={onClose}>
+          <Button
+            className="h-12 rounded-[1.15rem] border border-white/10 bg-white/5 px-5 text-[#fff9f2] hover:bg-white/[0.09] focus-visible:outline-[#f0c38e]"
+            tone="subtle"
+            onClick={onClose}
+          >
             {cancelLabel}
           </Button>
           <Button
-            className="min-h-11 bg-rose-600 px-4 text-white shadow-[0_14px_28px_rgba(225,29,72,0.22)] hover:bg-rose-500"
+            className="h-12 rounded-[1.15rem] border border-rose-300/24 bg-rose-400/15 px-5 text-rose-50 shadow-[0_14px_28px_rgba(244,63,94,0.14)] hover:bg-rose-400/22 focus-visible:outline-rose-200"
+            tone="danger"
             onClick={onConfirm}
           >
             {confirmLabel}
