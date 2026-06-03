@@ -64,6 +64,19 @@ function formatMonthButtonLabel(
     .slice(0, 3);
 }
 
+function formatDayLabel(
+  date: LocalDateString,
+  locale: string,
+  timezone: string,
+): string {
+  return new Intl.DateTimeFormat(locale, {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    timeZone: timezone,
+  }).format(createMonthLabelDate(date));
+}
+
 function entriesByDate(
   entries: DailyEntry[],
 ): Map<LocalDateString, DailyEntry> {
@@ -151,6 +164,7 @@ export function CalendarMonth() {
   const [selectedDay, setSelectedDay] = useState<LocalDateString | null>(
     todayKey,
   );
+  const activeDay = openDayDate ?? selectedDay ?? todayKey;
   const visibleMonth = useMemo(
     () => createMonthKey(visibleYear, visibleMonthIndex),
     [visibleMonthIndex, visibleYear],
@@ -171,6 +185,12 @@ export function CalendarMonth() {
     locale,
     timezonePreference.timezone,
   );
+  const selectedDayLabel = formatDayLabel(
+    activeDay,
+    locale,
+    timezonePreference.timezone,
+  );
+  const selectedDayEntry = entryMap.get(activeDay) ?? null;
   const monthOptions = useMemo(
     () =>
       Array.from({ length: 12 }, (_, monthIndex) => ({
@@ -209,72 +229,89 @@ export function CalendarMonth() {
 
   return (
     <>
-      <section className="card-surface-strong flex min-h-[70vh] flex-col overflow-hidden">
-        <header className="flex flex-col gap-3 px-4 py-4 sm:px-5">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex min-w-0 items-center gap-3">
-              <CalendarDays aria-hidden="true" className="size-5 text-muted" />
-              <h2 className="truncate text-lg font-semibold capitalize">
-                {monthLabel}
-              </h2>
+      <section className="calendar-shell flex min-h-[70vh] flex-col overflow-hidden">
+        <header className="calendar-header-panel flex flex-col gap-4 px-4 py-4 sm:px-5 lg:px-6">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div className="flex min-w-0 items-start gap-3">
+              <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/5 text-[#f0c38e] shadow-sm shadow-[#312c51]/10">
+                <CalendarDays aria-hidden="true" className="size-5" />
+              </span>
+              <div className="min-w-0">
+                <p className="text-[0.7rem] font-semibold uppercase tracking-[0.34em] text-[#d8d0e8]">
+                  {dictionary.calendar.title}
+                </p>
+                <h2 className="mt-1 truncate text-2xl font-semibold capitalize sm:text-3xl">
+                  {monthLabel}
+                </h2>
+              </div>
             </div>
-            <div className="flex items-center gap-1">
+
+            <div className="flex flex-wrap items-center gap-2 lg:justify-end">
               <Button
-                className="min-h-10 px-3"
+                className="min-h-10 px-4 shadow-sm shadow-[#f0c38e]/12"
+                tone="accent"
                 onClick={() => setBulkEditorMode('create')}
               >
                 <Plus aria-hidden="true" className="size-4" />
                 {dictionary.calendar.bulkCreate}
               </Button>
               <Button
-                className="min-h-10 bg-rose-600 px-3 text-white shadow-[0_14px_28px_rgba(225,29,72,0.18)] hover:bg-rose-500"
+                className="min-h-10 px-4"
+                tone="subtle"
                 onClick={() => setBulkEditorMode('clear')}
               >
                 <Trash2 aria-hidden="true" className="size-4" />
                 {dictionary.calendar.bulkClear}
               </Button>
-              <button
-                type="button"
-                aria-label={dictionary.calendar.previousYear}
-                className="inline-flex size-10 items-center justify-center rounded-full bg-background/55 text-muted shadow-sm transition hover:bg-accent/25 hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground"
-                onClick={() => setVisibleYear((currentYear) => currentYear - 1)}
-              >
-                <ChevronLeft aria-hidden="true" className="size-4" />
-              </button>
-              <div className="min-w-16 text-center text-sm font-semibold tabular-nums text-foreground">
-                {visibleYear}
+              <div className="flex items-center gap-1 rounded-full border border-white/10 bg-white/5 p-1 shadow-sm shadow-[#312c51]/10">
+                <button
+                  type="button"
+                  aria-label={dictionary.calendar.previousYear}
+                  className="inline-flex size-9 items-center justify-center rounded-full text-[#d8d0e8] transition hover:bg-white/8 hover:text-[#fff9f2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0]"
+                  onClick={() =>
+                    setVisibleYear((currentYear) => currentYear - 1)
+                  }
+                >
+                  <ChevronLeft aria-hidden="true" className="size-4" />
+                </button>
+                <div className="min-w-14 px-1 text-center text-sm font-semibold tabular-nums text-[#fff9f2]">
+                  {visibleYear}
+                </div>
+                <button
+                  type="button"
+                  aria-label={dictionary.calendar.nextYear}
+                  className="inline-flex size-9 items-center justify-center rounded-full text-[#d8d0e8] transition hover:bg-white/8 hover:text-[#fff9f2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0]"
+                  onClick={() =>
+                    setVisibleYear((currentYear) => currentYear + 1)
+                  }
+                >
+                  <ChevronRight aria-hidden="true" className="size-4" />
+                </button>
+                <button
+                  type="button"
+                  className="inline-flex h-9 items-center rounded-full bg-white/6 px-3 text-sm font-medium text-[#d8d0e8] transition hover:bg-white/10 hover:text-[#fff9f2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0]"
+                  onClick={() => {
+                    setVisibleYear(todayYear);
+                    setVisibleMonthIndex(todayMonthIndex);
+                    setSelectedDay(todayKey);
+                  }}
+                >
+                  {dictionary.calendar.today}
+                </button>
               </div>
-              <button
-                type="button"
-                aria-label={dictionary.calendar.nextYear}
-                className="inline-flex size-10 items-center justify-center rounded-full bg-background/55 text-muted shadow-sm transition hover:bg-accent/25 hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground"
-                onClick={() => setVisibleYear((currentYear) => currentYear + 1)}
-              >
-                <ChevronRight aria-hidden="true" className="size-4" />
-              </button>
-              <button
-                type="button"
-                className="h-10 rounded-full bg-background/55 px-3 text-sm font-medium shadow-sm transition hover:bg-accent/25 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground"
-                onClick={() => {
-                  setVisibleYear(todayYear);
-                  setVisibleMonthIndex(todayMonthIndex);
-                  setSelectedDay(todayKey);
-                }}
-              >
-                {dictionary.calendar.today}
-              </button>
             </div>
           </div>
-          <div className="grid grid-cols-4 gap-2 sm:grid-cols-6 xl:grid-cols-12">
+
+          <div className="calendar-month-strip -mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:-mx-5 sm:px-5 lg:-mx-6 lg:px-6">
             {monthOptions.map((monthOption) => (
               <button
                 key={monthOption.monthIndex}
                 type="button"
                 aria-pressed={visibleMonthIndex === monthOption.monthIndex}
-                className={`h-10 rounded-full px-3 text-sm font-medium uppercase tracking-wide transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground ${
+                className={`inline-flex h-9 shrink-0 items-center rounded-full border px-3 text-sm font-medium uppercase tracking-[0.16em] transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0] ${
                   visibleMonthIndex === monthOption.monthIndex
-                    ? 'bg-primary text-primary-foreground shadow-sm'
-                    : 'bg-background/55 text-muted shadow-sm hover:bg-accent/25 hover:text-foreground'
+                    ? 'border-[#f3d2aa] bg-[#f0c38e] text-[#312c51] shadow-[0_12px_30px_rgba(240,195,142,0.18)]'
+                    : 'border-white/10 bg-white/5 text-[#c4bbda] hover:border-white/15 hover:bg-white/10 hover:text-[#fff9f2]'
                 }`}
                 onClick={() => setVisibleMonthIndex(monthOption.monthIndex)}
               >
@@ -284,28 +321,121 @@ export function CalendarMonth() {
           </div>
         </header>
 
-        <div className="grid grid-cols-7 border-b border-border bg-background/60 text-center text-xs font-medium uppercase tracking-wide text-muted">
+        <div className="grid grid-cols-7 border-y border-white/8 bg-white/4 text-center text-[0.68rem] font-medium uppercase tracking-[0.28em] text-[#bdb4d4]">
           {dictionary.calendar.weekdays.map((weekday) => (
-            <div key={weekday} className="px-2 py-2">
+            <div key={weekday} className="px-2 py-3">
               {weekday}
             </div>
           ))}
         </div>
 
-        <div className="grid flex-1 grid-cols-7 auto-rows-fr">
-          {monthGrid.map((day) => (
-            <DayCell
-              key={day.date}
-              date={day.date}
-              entry={entryMap.get(day.date) ?? null}
-              categoryTagMap={categoryTagMap}
-              inCurrentMonth={day.inCurrentMonth}
-              isSelected={(openDayDate ?? selectedDay) === day.date}
-              isToday={todayKey === day.date}
-              onOpenDay={openDay}
-              onSelectDay={selectDay}
-            />
-          ))}
+        <div className="grid flex-1 lg:grid-cols-[minmax(0,1fr)_19rem]">
+          <div className="calendar-day-grid grid grid-cols-7 auto-rows-fr">
+            {monthGrid.map((day) => (
+              <DayCell
+                key={day.date}
+                date={day.date}
+                entry={entryMap.get(day.date) ?? null}
+                categoryTagMap={categoryTagMap}
+                inCurrentMonth={day.inCurrentMonth}
+                isSelected={activeDay === day.date}
+                isToday={todayKey === day.date}
+                onOpenDay={openDay}
+                onSelectDay={selectDay}
+              />
+            ))}
+          </div>
+
+          <aside className="border-t border-white/8 bg-white/4 p-4 lg:border-l lg:border-t-0 lg:p-5">
+            <div className="h-full rounded-[1.5rem] border border-white/10 bg-[rgba(255,255,255,0.04)] p-4 shadow-sm shadow-[#312c51]/10 backdrop-blur-sm">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <h3 className="text-lg font-semibold leading-tight text-[#fff9f2]">
+                    {selectedDayLabel}
+                  </h3>
+                </div>
+                {activeDay === todayKey ? (
+                  <span className="calendar-chip px-2.5 py-1 text-[11px] font-semibold text-[#f7e8ce]">
+                    {dictionary.calendar.today}
+                  </span>
+                ) : null}
+              </div>
+
+              <div className="mt-4 rounded-[1.25rem] border border-white/8 bg-[rgba(255,255,255,0.03)] p-4">
+                {selectedDayEntry ? (
+                  <div className="flex flex-col gap-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="calendar-chip px-3 py-1 text-xs font-medium text-[#f7e8ce]">
+                        {selectedDayEntry.completedCount}/
+                        {selectedDayEntry.itemCount}
+                      </span>
+                      {selectedDayEntry.itemCount > 0 ? (
+                        <span className="text-xs text-[#bdb4d4]">
+                          {Math.round(
+                            (selectedDayEntry.completedCount /
+                              selectedDayEntry.itemCount) *
+                              100,
+                          )}
+                          %
+                        </span>
+                      ) : null}
+                    </div>
+                    <div className="h-2 overflow-hidden rounded-full bg-white/8">
+                      <div
+                        className="h-full rounded-full bg-[linear-gradient(90deg,#f7e1bc_0%,#f0c38e_100%)]"
+                        style={{
+                          width: `${
+                            selectedDayEntry.itemCount > 0
+                              ? Math.round(
+                                  (selectedDayEntry.completedCount /
+                                    selectedDayEntry.itemCount) *
+                                    100,
+                                )
+                              : 0
+                          }%`,
+                        }}
+                      />
+                    </div>
+                    {selectedDayEntry.categoryTagIds.length > 0 ? (
+                      <div className="flex flex-wrap gap-1.5">
+                        {selectedDayEntry.categoryTagIds
+                          .slice(0, 4)
+                          .map((categoryTagId) => {
+                            const colorHex =
+                              categoryTagMap.get(categoryTagId)?.colorHex;
+                            const completed = isCategoryComplete(
+                              selectedDayEntry.categorySummaries?.find(
+                                (summary) =>
+                                  summary.categoryTagId === categoryTagId,
+                              ),
+                            );
+
+                            return (
+                              <span
+                                key={categoryTagId}
+                                className="size-3 rounded-full border border-white/50"
+                                style={{
+                                  backgroundColor: colorHex,
+                                  opacity: completed ? 1 : 0.3,
+                                  boxShadow:
+                                    completed && colorHex
+                                      ? `0 0 0 1px rgba(255, 255, 255, 0.22), 0 0 10px ${colorHex}33`
+                                      : 'none',
+                                }}
+                              />
+                            );
+                          })}
+                      </div>
+                    ) : null}
+                  </div>
+                ) : (
+                  <p className="text-sm leading-6 text-[#bdb4d4]">
+                    {dictionary.calendar.emptyDay}
+                  </p>
+                )}
+              </div>
+            </div>
+          </aside>
         </div>
       </section>
       <BulkCalendarEditor
@@ -353,11 +483,15 @@ function DayCell({
     <button
       type="button"
       aria-pressed={isSelected}
-      className={`group flex min-h-24 flex-col border-b border-r border-border p-2 text-left transition focus-visible:relative focus-visible:z-10 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-foreground sm:min-h-32 ${
+      className={`group calendar-day-cell flex flex-col text-left ${
         inCurrentMonth
-          ? 'bg-surface hover:bg-background'
-          : 'bg-background/50 text-muted hover:bg-background/80'
-      } ${isSelected ? 'shadow-[inset_0_0_0_2px_var(--foreground)]' : ''}`}
+          ? 'bg-[rgba(255,255,255,0.02)] hover:bg-[rgba(255,255,255,0.05)]'
+          : 'bg-[rgba(255,255,255,0.01)] text-[#8f85aa] hover:bg-[rgba(255,255,255,0.03)]'
+      } ${
+        isSelected
+          ? 'relative z-10 border-[#f3d2aa]/40 bg-[linear-gradient(180deg,rgba(240,195,142,0.18),rgba(255,255,255,0.04))] shadow-[inset_0_0_0_1px_rgba(243,210,170,0.6),0_0_0_1px_rgba(243,210,170,0.12),0_18px_28px_rgba(8,6,20,0.18)]'
+          : 'shadow-none'
+      }`}
       onClick={() => {
         if (window.matchMedia('(pointer: coarse)').matches) {
           onOpenDay(date);
@@ -369,8 +503,12 @@ function DayCell({
       onDoubleClick={() => onOpenDay(date)}
     >
       <span
-        className={`inline-flex size-7 items-center justify-center rounded-full text-sm font-medium ${
-          isToday ? 'bg-foreground text-background' : ''
+        className={`calendar-day-number ${
+          isSelected
+            ? 'bg-[#f7e1bc] text-[#312c51] shadow-[0_8px_18px_rgba(240,195,142,0.2)]'
+            : isToday
+              ? 'bg-white/10 text-[#f7e1bc] ring-1 ring-inset ring-[#f7e1bc]/35'
+              : 'bg-transparent text-inherit'
         }`}
       >
         {parsedDate.getDate()}
@@ -380,13 +518,13 @@ function DayCell({
         {entry && entry.itemCount > 0 ? (
           <span className="flex flex-col gap-1.5 pt-2 text-xs">
             <span
-              className="inline-flex w-fit items-center rounded-full border px-2 py-1 text-[11px] font-semibold leading-none tabular-nums"
+              className="calendar-chip w-fit px-2 py-1 text-[11px] font-semibold leading-none tabular-nums text-[#f7e8ce]"
               style={progressTone.badgeStyle}
             >
               {entry.completedCount}/{entry.itemCount}
             </span>
             <span
-              className="h-2 w-full overflow-hidden rounded-full"
+              className="h-2 w-full overflow-hidden rounded-full bg-white/6"
               style={progressTone.trackStyle}
             >
               <span
@@ -412,7 +550,7 @@ function DayCell({
                 return (
                   <span
                     key={categoryTagId}
-                    className="size-3 rounded-full border border-white/60 transition-opacity dark:border-black/20"
+                    className="size-3 rounded-full border border-white/35 transition-opacity"
                     style={{
                       backgroundColor: colorHex,
                       opacity: completed ? 1 : 0.28,
