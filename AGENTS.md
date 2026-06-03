@@ -106,6 +106,13 @@ Atualize `AGENTS.md` quando mudar regras do projeto, decisões arquiteturais, pe
 
 Mantenha a documentação curta, atual e acionável.
 
+## Deploy e migrations
+
+Migrations em `supabase/migrations` são aplicadas em produção por GitHub Actions
+em pushes para `main`. Como a Vercel também deploya automaticamente a partir da
+`main`, mantenha migrations compatíveis com a versão anterior e a nova versão da
+aplicação, salvo quando o fluxo de deploy for explicitamente alterado.
+
 ## Comandos úteis
 
 ```bash

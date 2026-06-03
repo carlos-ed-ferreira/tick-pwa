@@ -206,3 +206,18 @@ Configure na Vercel as variáveis públicas do Supabase quando o ambiente precis
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
 ```
+
+Migrations do Supabase são aplicadas pelo GitHub Actions em pushes para `main`
+quando há alterações em `supabase/migrations`, `supabase/config.toml` ou nos
+scripts relacionados. Configure os secrets do ambiente `production` no GitHub:
+
+```bash
+SUPABASE_PROJECT_REF=
+SUPABASE_ACCESS_TOKEN=
+SUPABASE_DB_PASSWORD=
+```
+
+O workflow executa `npm run supabase:db:dry-run` antes de
+`npm run supabase:db:push`. Como a Vercel também inicia deploy automaticamente
+em pushes para `main`, migrations de produção devem ser compatíveis com a versão
+anterior e a nova versão da aplicação.
