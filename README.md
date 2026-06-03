@@ -52,6 +52,23 @@ supabase          configuração e migrations SQL
 
 - Node.js `>=20.9.0`
 - npm
+- make opcional, apenas para atalhos de comandos
+
+No Ubuntu/WSL, instale `make` com:
+
+```bash
+sudo apt install make
+```
+
+Se `npm` não existir no terminal, instale o Node.js 20 ou superior antes de
+continuar. Uma opção é usar `nvm`:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
+source ~/.bashrc
+nvm install 20
+nvm use 20
+```
 
 ## Configuração local
 
@@ -59,6 +76,12 @@ Instale as dependências:
 
 ```bash
 npm install
+```
+
+Se `make` estiver instalado, o comando equivalente pelo Makefile é:
+
+```bash
+make install
 ```
 
 Rode o ambiente de desenvolvimento:
@@ -70,9 +93,11 @@ npm run dev
 Também é possível usar:
 
 ```bash
-make install
 make dev
 ```
+
+Se `make` não existir no ambiente, use os scripts `npm` equivalentes listados no
+`package.json`.
 
 ## Variáveis de ambiente
 
