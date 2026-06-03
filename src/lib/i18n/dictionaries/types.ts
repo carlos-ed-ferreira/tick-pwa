@@ -58,6 +58,7 @@ export interface Dictionary {
     bulkCreate: string;
     bulkDatePlaceholder: string;
     bulkEditorTitle: string;
+    bulkEmptyChecklist: string;
     bulkEndDate: string;
     bulkInvalidDates: string;
     bulkInvalidRange: string;

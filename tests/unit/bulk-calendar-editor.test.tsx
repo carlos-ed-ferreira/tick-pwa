@@ -34,14 +34,15 @@ vi.mock('@/providers', () => ({
         delete: 'Delete',
       },
       calendar: {
-        bulkApply: 'Create on dates',
+        bulkApply: 'Create',
         bulkClear: 'Clear in bulk',
-        bulkClearApply: 'Clear items',
+        bulkClearApply: 'Clear',
         bulkClearDescription: 'All items on the selected days will be removed.',
-        bulkClearEditorTitle: 'Clear items in bulk',
+        bulkClearEditorTitle: 'Clear in bulk',
         bulkCreate: 'Create in bulk',
         bulkDatePlaceholder: 'DD-MM-YYYY',
-        bulkEditorTitle: 'Create checklist in bulk',
+        bulkEditorTitle: 'Create in bulk',
+        bulkEmptyChecklist: 'Start by adding items for this range',
         bulkEndDate: 'End date',
         bulkInvalidDates: 'Enter valid dates in DD-MM-YYYY.',
         bulkInvalidRange: 'End date must be on or after the start date.',
@@ -61,7 +62,6 @@ vi.mock('@/providers', () => ({
         weekdays: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
       },
       dayEditor: {
-        checklist: 'Checklist',
         addItem: 'Add item',
         addChild: 'Add child',
         addCategory: 'Add category',
@@ -120,7 +120,7 @@ describe('BulkCalendarEditor', () => {
   it('validates required dates before submitting', async () => {
     render(<BulkCalendarEditor open onClose={vi.fn()} />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Create on dates' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Create' }));
 
     expect(
       await screen.findByText('Start and end dates are required.'),
@@ -133,7 +133,11 @@ describe('BulkCalendarEditor', () => {
 
     render(<BulkCalendarEditor open onClose={onClose} />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Add item' }));
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: 'Start by adding items for this range',
+      }),
+    );
     fireEvent.change(screen.getByPlaceholderText('Write a task'), {
       target: { value: 'My recurring task' },
     });
@@ -149,7 +153,7 @@ describe('BulkCalendarEditor', () => {
     expect(screen.getByLabelText('Start date')).toHaveValue('01-01-2026');
     expect(screen.getByLabelText('End date')).toHaveValue('10-01-2026');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Create on dates' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Create' }));
 
     await waitFor(() => {
       expect(applyChecklistTemplateToDateRangeMock).toHaveBeenCalledWith({
@@ -188,7 +192,7 @@ describe('BulkCalendarEditor', () => {
       target: { value: '10012026' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Mon' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Clear items' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Clear' }));
 
     await waitFor(() => {
       expect(clearChecklistItemsFromDateRangeMock).toHaveBeenCalledWith({
@@ -209,7 +213,11 @@ describe('BulkCalendarEditor', () => {
   it('keeps only the left highlight when a priority draft item has no category', () => {
     render(<BulkCalendarEditor open onClose={vi.fn()} />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Add item' }));
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: 'Start by adding items for this range',
+      }),
+    );
     fireEvent.change(screen.getByPlaceholderText('Write a task'), {
       target: { value: 'My recurring task' },
     });
@@ -221,7 +229,7 @@ describe('BulkCalendarEditor', () => {
     const row = input.closest('div[style]') as HTMLDivElement | null;
 
     expect(row).toHaveStyle({
-      boxShadow: 'inset 4px 0 0 0 rgba(240, 195, 142, 0.98)',
+      boxShadow: 'inset 4px 0 0 0 rgba(240, 195, 142, 1)',
     });
     expect(row?.style.backgroundColor).toBe('');
     expect(input.className.includes('font-medium')).toBe(false);
@@ -238,7 +246,11 @@ describe('BulkCalendarEditor', () => {
     try {
       render(<BulkCalendarEditor open onClose={vi.fn()} />);
 
-      fireEvent.click(screen.getByRole('button', { name: 'Add item' }));
+      fireEvent.click(
+        screen.getByRole('button', {
+          name: 'Start by adding items for this range',
+        }),
+      );
       fireEvent.keyDown(screen.getByPlaceholderText('Write a task'), {
         key: 'Enter',
       });

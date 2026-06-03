@@ -42,7 +42,6 @@ vi.mock('@/providers', () => ({
   useAppContext: () => ({
     dictionary: {
       dayEditor: {
-        checklist: 'Checklist',
         addItem: 'Add item',
         emptyChecklist: 'Start this day with a checklist item',
         expandItem: 'Expand item',
@@ -331,7 +330,7 @@ describe('ChecklistSurface delete confirmation', () => {
     const row = input.closest('div[style]') as HTMLDivElement | null;
 
     expect(row).toHaveStyle({
-      boxShadow: 'inset 4px 0 0 0 rgba(240, 195, 142, 0.98)',
+      boxShadow: 'inset 4px 0 0 0 rgba(240, 195, 142, 1)',
     });
     expect(row?.style.backgroundColor).toBe('');
     expect(input.className.includes('font-medium')).toBe(false);

@@ -23,7 +23,6 @@ import {
   Dialog,
   IconButton,
   Input,
-  Text,
 } from '@/components/ui';
 import { CategoryAssignmentMenu, useCategoryTags } from '@/features/categories';
 import { useFocusAfterCreate } from '@/hooks/use-focus-after-create';
@@ -236,8 +235,8 @@ export function BulkCalendarEditor({
       onClose={handleClose}
     >
       <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden p-4 sm:p-5">
-        <div className="card-surface-soft grid gap-4 p-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-          <label className="grid gap-2 text-sm font-medium text-foreground">
+        <div className="modal-panel grid gap-4 p-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+          <label className="grid gap-2 text-sm font-medium text-[#fff9f2]">
             <span>{dictionary.calendar.bulkStartDate}</span>
             <Input
               aria-label={dictionary.calendar.bulkStartDate}
@@ -245,14 +244,14 @@ export function BulkCalendarEditor({
               maxLength={10}
               placeholder={dictionary.calendar.bulkDatePlaceholder}
               value={startDateInput}
-              className="min-h-11 rounded-md border border-border bg-surface px-3 text-sm outline-none transition focus:border-foreground/30 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground"
+              className="h-12 rounded-[1rem] border border-white/10 bg-white/[0.055] px-3 text-sm text-[#fff9f2] outline-none transition placeholder:text-[#8f85aa] hover:border-white/[0.16] focus:border-[#f0c38e]/[0.42] focus:bg-white/[0.075] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e]"
               onChange={(event) =>
                 setStartDateInput(maskDateInput(event.target.value))
               }
             />
           </label>
 
-          <label className="grid gap-2 text-sm font-medium text-foreground">
+          <label className="grid gap-2 text-sm font-medium text-[#fff9f2]">
             <span>{dictionary.calendar.bulkEndDate}</span>
             <Input
               aria-label={dictionary.calendar.bulkEndDate}
@@ -260,7 +259,7 @@ export function BulkCalendarEditor({
               maxLength={10}
               placeholder={dictionary.calendar.bulkDatePlaceholder}
               value={endDateInput}
-              className="min-h-11 rounded-md border border-border bg-surface px-3 text-sm outline-none transition focus:border-foreground/30 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground"
+              className="h-12 rounded-[1rem] border border-white/10 bg-white/[0.055] px-3 text-sm text-[#fff9f2] outline-none transition placeholder:text-[#8f85aa] hover:border-white/[0.16] focus:border-[#f0c38e]/[0.42] focus:bg-white/[0.075] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e]"
               onChange={(event) =>
                 setEndDateInput(maskDateInput(event.target.value))
               }
@@ -268,9 +267,9 @@ export function BulkCalendarEditor({
           </label>
 
           <div className="grid gap-2 sm:col-span-2">
-            <Text as="span" weight="medium">
+            <span className="text-sm font-medium text-[#fff9f2]">
               {dictionary.calendar.bulkWeekdays}
-            </Text>
+            </span>
             <div className="grid grid-cols-4 gap-2 sm:grid-cols-7">
               {weekdayOptions.map((weekday) => {
                 const isSelected = selectedWeekdays.includes(weekday);
@@ -280,10 +279,10 @@ export function BulkCalendarEditor({
                     key={weekday}
                     type="button"
                     aria-pressed={isSelected}
-                    className={`min-h-10 rounded-full px-3 text-sm font-medium shadow-sm transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground ${
+                    className={`h-11 rounded-full border px-3 text-sm font-medium shadow-sm transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e] ${
                       isSelected
-                        ? 'bg-primary text-primary-foreground shadow-[0_12px_24px_rgba(49,44,81,0.18)]'
-                        : 'bg-background/55 text-muted hover:bg-accent/20 hover:text-foreground'
+                        ? 'border-[#f8d7aa]/70 bg-[#f0c38e] text-[#312c51] shadow-[0_12px_24px_rgba(240,195,142,0.16)]'
+                        : 'border-white/10 bg-white/[0.045] text-[#bdb4d4] hover:border-[#f0c38e]/[0.28] hover:bg-[#f0c38e]/10 hover:text-[#fff9f2]'
                     }`}
                     onClick={() => toggleWeekday(weekday)}
                   >
@@ -296,7 +295,7 @@ export function BulkCalendarEditor({
         </div>
 
         {validationMessage ? (
-          <div className="rounded-xl bg-rose-500/10 px-3 py-2 text-sm text-rose-700 shadow-sm dark:text-rose-200">
+          <div className="rounded-[1rem] border border-rose-300/[0.18] bg-rose-400/[0.12] px-3 py-2 text-sm font-medium text-rose-100 shadow-sm">
             {validationMessage}
           </div>
         ) : null}
@@ -307,22 +306,29 @@ export function BulkCalendarEditor({
             setDraftItems={setDraftItems}
           />
         ) : (
-          <div className="card-surface-soft flex min-h-0 flex-1 items-center justify-center gap-3 bg-rose-500/10 p-6 text-center text-sm font-medium leading-6 text-rose-700 shadow-sm dark:text-rose-100">
-            <Trash2 aria-hidden="true" className="size-5 shrink-0" />
+          <div className="modal-panel flex min-h-0 flex-1 items-center justify-center gap-3 bg-rose-400/[0.08] p-6 text-center text-sm font-medium leading-6 text-rose-100">
+            <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-full border border-rose-200/18 bg-rose-300/12 text-rose-100">
+              <Trash2 aria-hidden="true" className="size-5" />
+            </span>
             <span>{dictionary.calendar.bulkClearDescription}</span>
           </div>
         )}
 
-        <div className="flex items-center justify-end gap-2">
-          <Button className="min-h-11 px-4" onClick={handleClose}>
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <Button
+            className="h-12 rounded-[1.15rem] border border-white/10 bg-white/5 px-5 text-[#fff9f2] hover:bg-white/[0.09] focus-visible:outline-[#f0c38e]"
+            tone="subtle"
+            onClick={handleClose}
+          >
             {dictionary.actions.cancel}
           </Button>
           <Button
-            className={`min-h-11 px-4 ${
+            className={`h-12 rounded-[1.15rem] px-5 ${
               isCreateMode
-                ? ''
-                : 'bg-rose-600 text-white shadow-[0_14px_28px_rgba(225,29,72,0.22)] hover:bg-rose-500'
+                ? 'border border-[#f8d7aa]/70 bg-[#f0c38e] text-[#312c51] shadow-[0_16px_32px_rgba(240,195,142,0.18)] hover:border-[#ffe0b8] hover:bg-[#f5d09f] focus-visible:outline-[#f0c38e]'
+                : 'border border-rose-300/[0.24] bg-rose-400/[0.15] text-rose-50 shadow-[0_14px_28px_rgba(244,63,94,0.14)] hover:bg-rose-400/[0.22] focus-visible:outline-rose-200'
             }`}
+            tone={isCreateMode ? 'accent' : 'danger'}
             disabled={isSubmitting}
             onClick={() =>
               void (isCreateMode ? applyBulkRange() : clearBulkRange())
@@ -359,24 +365,14 @@ function BulkChecklistSurface({
 
   return (
     <section className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
-      <div className="flex items-center justify-between gap-3">
-        <h3 className="text-sm font-medium text-muted">
-          {dictionary.dayEditor.checklist}
-        </h3>
-        <Button className="min-h-9 px-2" onClick={createRootItem}>
-          <Plus aria-hidden="true" className="size-4" />
-          {dictionary.dayEditor.addItem}
-        </Button>
-      </div>
-
-      <div className="card-surface-soft min-h-0 flex-1 overflow-y-auto p-2">
+      <div className="modal-panel min-h-0 flex-1 overflow-y-auto p-2">
         {rows.length === 0 ? (
           <button
             type="button"
-            className="flex min-h-32 w-full items-center justify-center rounded-2xl bg-background/55 px-4 text-sm text-muted shadow-inner transition hover:bg-accent/20 hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground"
+            className="flex min-h-36 w-full items-center justify-center rounded-[1.15rem] border border-dashed border-[#f0c38e]/[0.24] bg-[#f0c38e]/[0.045] px-4 text-sm font-medium text-[#bdb4d4] shadow-inner transition hover:border-[#f0c38e]/[0.38] hover:bg-[#f0c38e]/[0.075] hover:text-[#fff9f2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e]"
             onClick={createRootItem}
           >
-            {dictionary.dayEditor.emptyChecklist}
+            {dictionary.calendar.bulkEmptyChecklist}
           </button>
         ) : (
           <div className="grid gap-1">
@@ -390,6 +386,19 @@ function BulkChecklistSurface({
             ))}
           </div>
         )}
+
+        {rows.length > 0 ? (
+          <div className="flex items-center justify-between px-1 pt-2">
+            <button
+              type="button"
+              className="flex items-center gap-1.5 rounded-full border border-[#f0c38e]/[0.22] bg-[#f0c38e]/10 px-3 py-1.5 text-sm font-medium text-[#f7d7ad] shadow-sm transition hover:border-[#f0c38e]/[0.36] hover:bg-[#f0c38e]/[0.16] hover:text-[#fff9f2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e]"
+              onClick={createRootItem}
+            >
+              <Plus aria-hidden="true" className="size-3.5" />
+              {dictionary.dayEditor.addItem}
+            </button>
+          </div>
+        ) : null}
       </div>
     </section>
   );
@@ -528,8 +537,8 @@ function BulkChecklistRow({
           data-item-id={item.id}
           value={item.text}
           placeholder={dictionary.dayEditor.itemPlaceholder}
-          className={`min-w-0 flex-1 rounded-md bg-transparent px-2 py-2 text-sm outline-none transition focus:bg-surface focus:shadow-sm ${
-            item.checked ? 'opacity-50' : 'text-foreground'
+          className={`min-w-0 flex-1 rounded-xl border border-transparent bg-transparent px-2 py-2 text-sm outline-none transition placeholder:text-[#8f85aa] focus:border-[#f0c38e]/[0.28] focus:bg-white/[0.055] focus:shadow-sm ${
+            item.checked ? 'text-[#8f85aa] opacity-75' : 'text-[#fff9f2]'
           }`}
           onChange={(event) =>
             setDraftItems((currentItems) =>
@@ -557,6 +566,7 @@ function BulkChecklistRow({
                 ? dictionary.dayEditor.unmarkPriority
                 : dictionary.dayEditor.markPriority
             }
+            className="rounded-full hover:bg-white/[0.08] hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
             onClick={() =>
               setDraftItems((currentItems) =>
                 toggleBulkChecklistDraftItemPriority(currentItems, item.id),
@@ -565,11 +575,12 @@ function BulkChecklistRow({
           >
             <Star
               aria-hidden="true"
-              className={`size-4 ${item.priority ? 'fill-current text-amber-500' : 'opacity-60'}`}
+              className={`size-4 ${item.priority ? 'fill-current text-[#f0c38e]' : 'opacity-60'}`}
             />
           </IconButton>
           <IconButton
             aria-label={dictionary.dayEditor.moveItemUp}
+            className="rounded-full hover:bg-white/[0.08] hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
             disabled={isFirstSibling}
             onClick={() =>
               setDraftItems((currentItems) =>
@@ -581,6 +592,7 @@ function BulkChecklistRow({
           </IconButton>
           <IconButton
             aria-label={dictionary.dayEditor.moveItemDown}
+            className="rounded-full hover:bg-white/[0.08] hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
             disabled={isLastSibling}
             onClick={() =>
               setDraftItems((currentItems) =>
@@ -592,12 +604,14 @@ function BulkChecklistRow({
           </IconButton>
           <IconButton
             aria-label={dictionary.dayEditor.addChild}
+            className="rounded-full hover:bg-white/[0.08] hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
             onClick={createChild}
           >
             <Plus aria-hidden="true" className="size-4" />
           </IconButton>
           <IconButton
             aria-label={dictionary.dayEditor.indentItem}
+            className="rounded-full hover:bg-white/[0.08] hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
             onClick={() =>
               setDraftItems((currentItems) =>
                 indentBulkChecklistDraftItem(currentItems, item.id),
@@ -608,6 +622,7 @@ function BulkChecklistRow({
           </IconButton>
           <IconButton
             aria-label={dictionary.dayEditor.outdentItem}
+            className="rounded-full hover:bg-white/[0.08] hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
             onClick={() =>
               setDraftItems((currentItems) =>
                 outdentBulkChecklistDraftItem(currentItems, item.id),
@@ -633,6 +648,7 @@ function BulkChecklistRow({
           />
           <IconButton
             aria-label={dictionary.dayEditor.deleteItem}
+            className="rounded-full hover:bg-rose-400/[0.12] hover:text-rose-100 focus-visible:outline-[#f0c38e]"
             onClick={() => deleteItem()}
           >
             <Trash2 aria-hidden="true" className="size-4" />

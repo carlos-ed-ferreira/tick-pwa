@@ -57,15 +57,16 @@ export const ptBRDictionary = {
   calendar: {
     title: 'Calendário diário',
     editCategories: 'Editar categorias do calendário',
-    bulkApply: 'Criar nas datas',
+    bulkApply: 'Criar',
     bulkClear: 'Limpar em lote',
-    bulkClearApply: 'Limpar itens',
+    bulkClearApply: 'Limpar',
     bulkClearDescription:
       'Todos os itens dos dias selecionados serão removidos.',
-    bulkClearEditorTitle: 'Limpar itens em lote',
+    bulkClearEditorTitle: 'Limpar em lote',
     bulkCreate: 'Criar em lote',
     bulkDatePlaceholder: 'DD-MM-YYYY',
-    bulkEditorTitle: 'Criar checklist em lote',
+    bulkEditorTitle: 'Criar em lote',
+    bulkEmptyChecklist: 'Comece adicionando itens para este intervalo',
     bulkEndDate: 'Data final',
     bulkInvalidDates: 'Informe datas válidas em DD-MM-YYYY.',
     bulkInvalidRange:
