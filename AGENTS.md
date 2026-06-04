@@ -38,7 +38,9 @@ Escritas autenticadas devem ser local-first, marcar entidades como pendentes qua
 
 Não implemente migração automática de dados de convidado para usuário autenticado sem uma decisão explícita de produto.
 
-Em `localhost`, o app deve poder autenticar com Supabase, mas deve manter dados e sincronização isolados do banco de produção por padrão. Se for necessário testar cloud localmente, isso deve ser opt-in explícito por variável de ambiente.
+Em `localhost`, o app deve autenticar e sincronizar apenas contra o Supabase CLI local. Não use credenciais, URL ou chaves públicas do Supabase de produção em `.env.local`. O ambiente local deve usar `NEXT_PUBLIC_TICK_SUPABASE_ENV=local` e uma URL local (`localhost` ou `127.0.0.1`).
+
+Produção deve usar `NEXT_PUBLIC_TICK_SUPABASE_ENV=production` fora de `localhost`. Comandos que aplicam migrations remotas são restritos ao GitHub Actions; o fluxo local deve usar comandos do Supabase local.
 
 ## UX e comportamento da aplicação
 
@@ -128,9 +130,9 @@ make format
 make format-check
 make check
 make clean
-make supabase-link
-make supabase-dry-run
-make supabase-push
-make supabase-types
-make supabase-migrations
+make supabase-start
+make supabase-stop
+make supabase-status
+make supabase-reset
+make supabase-types-local
 ```

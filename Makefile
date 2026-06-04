@@ -1,27 +1,27 @@
 NPM = npm
 
-.PHONY: help require-npm install dev build start lint typecheck test test-e2e format format-check check clean supabase-link supabase-push supabase-dry-run supabase-types supabase-migrations
+.PHONY: help require-npm install dev build start lint typecheck test test-e2e format format-check check clean supabase-start supabase-stop supabase-status supabase-reset supabase-types-local
 .DEFAULT_GOAL := help
 
 help:
 	@printf "\n"
-	@printf "  %-18s %s\n" "make install" "Instala dependencias do projeto"
-	@printf "  %-18s %s\n" "make dev" "Inicia o Next.js em modo desenvolvimento"
-	@printf "  %-18s %s\n" "make build" "Gera build de producao com PWA"
-	@printf "  %-18s %s\n" "make start" "Inicia o servidor de producao apos o build"
-	@printf "  %-18s %s\n" "make lint" "Roda ESLint"
-	@printf "  %-18s %s\n" "make typecheck" "Roda TypeScript sem emitir arquivos"
-	@printf "  %-18s %s\n" "make test" "Roda testes unitarios e de integracao"
-	@printf "  %-18s %s\n" "make test-e2e" "Roda testes end-to-end"
-	@printf "  %-18s %s\n" "make format" "Formata o codigo com Prettier"
-	@printf "  %-18s %s\n" "make format-check" "Verifica formatacao com Prettier"
-	@printf "  %-18s %s\n" "make check" "Roda typecheck, lint, format-check e build"
-	@printf "  %-18s %s\n" "make supabase-link" "Vincula o projeto local ao projeto Supabase remoto"
-	@printf "  %-18s %s\n" "make supabase-push" "Aplica migrations locais no projeto Supabase remoto"
-	@printf "  %-18s %s\n" "make supabase-dry-run" "Mostra quais migrations seriam aplicadas no Supabase"
-	@printf "  %-18s %s\n" "make supabase-types" "Gera tipos TypeScript do schema Supabase remoto"
-	@printf "  %-18s %s\n" "make supabase-migrations" "Lista migrations locais e remotas do projeto Supabase"
-	@printf "  %-18s %s\n" "make clean" "Remove artefatos locais de build"
+	@printf "  %-26s %s\n" "make install" "Instala dependencias do projeto"
+	@printf "  %-26s %s\n" "make dev" "Inicia o Supabase local e o Next.js em modo desenvolvimento"
+	@printf "  %-26s %s\n" "make build" "Gera build de producao com PWA"
+	@printf "  %-26s %s\n" "make start" "Inicia o servidor de producao apos o build"
+	@printf "  %-26s %s\n" "make lint" "Roda ESLint"
+	@printf "  %-26s %s\n" "make typecheck" "Roda TypeScript sem emitir arquivos"
+	@printf "  %-26s %s\n" "make test" "Roda testes unitarios e de integracao"
+	@printf "  %-26s %s\n" "make test-e2e" "Roda testes end-to-end"
+	@printf "  %-26s %s\n" "make format" "Formata o codigo com Prettier"
+	@printf "  %-26s %s\n" "make format-check" "Verifica formatacao com Prettier"
+	@printf "  %-26s %s\n" "make check" "Roda typecheck, lint, format-check e build"
+	@printf "  %-26s %s\n" "make supabase-start" "Inicia o Supabase local"
+	@printf "  %-26s %s\n" "make supabase-stop" "Para o Supabase local"
+	@printf "  %-26s %s\n" "make supabase-status" "Mostra URLs e chaves do Supabase local"
+	@printf "  %-26s %s\n" "make supabase-reset" "Reseta o banco Supabase local com migrations e seed"
+	@printf "  %-26s %s\n" "make supabase-types-local" "Gera tipos TypeScript do schema Supabase local"
+	@printf "  %-26s %s\n" "make clean" "Remove artefatos locais de build"
 	@printf "\n"
 
 require-npm:
@@ -35,7 +35,7 @@ require-npm:
 install: require-npm
 	$(NPM) install
 
-dev: require-npm
+dev: supabase-start
 	$(NPM) run dev
 
 build: require-npm
@@ -65,20 +65,20 @@ format-check: require-npm
 check: require-npm
 	$(NPM) run check
 
-supabase-link: require-npm
-	$(NPM) run supabase:link
+supabase-start: require-npm
+	$(NPM) run supabase:start
 
-supabase-push: require-npm
-	$(NPM) run supabase:db:push
+supabase-stop: require-npm
+	$(NPM) run supabase:stop
 
-supabase-dry-run: require-npm
-	$(NPM) run supabase:db:dry-run
+supabase-status: require-npm
+	$(NPM) run supabase:status
 
-supabase-types: require-npm
-	$(NPM) run supabase:types
+supabase-reset: require-npm
+	$(NPM) run supabase:db:reset
 
-supabase-migrations: require-npm
-	$(NPM) run supabase:migration:list
+supabase-types-local: require-npm
+	$(NPM) run supabase:types:local
 
 clean: require-npm
 	$(NPM) run clean

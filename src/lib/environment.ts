@@ -1,4 +1,7 @@
 const LOCALHOST_HOSTNAMES = new Set(['localhost', '127.0.0.1', '::1']);
+const LOCAL_SUPABASE_HOSTNAMES = new Set(['localhost', '127.0.0.1', '::1']);
+
+export type TickSupabaseEnvironment = 'local' | 'production';
 
 export function isLocalhostHostname(
   hostname: string | null | undefined,
@@ -9,33 +12,71 @@ export function isLocalhostHostname(
 export function shouldForceLocalOnlyMode({
   hostname,
   disableSupabase,
-  allowSupabaseOnLocalhost,
+  supabaseEnvironment,
+  supabaseUrl,
 }: {
   hostname: string | null | undefined;
   disableSupabase: boolean;
-  allowSupabaseOnLocalhost: boolean;
+  supabaseEnvironment: string | null | undefined;
+  supabaseUrl: string | null | undefined;
 }): boolean {
   if (disableSupabase) {
     return true;
   }
 
-  return isLocalhostHostname(hostname) && !allowSupabaseOnLocalhost;
+  return !shouldUseCloudSyncOnHostname({
+    hostname,
+    disableSupabase,
+    supabaseEnvironment,
+    supabaseUrl,
+  });
 }
 
 export function shouldUseCloudSyncOnHostname({
   hostname,
   disableSupabase,
-  allowSupabaseOnLocalhost,
+  supabaseEnvironment,
+  supabaseUrl,
 }: {
   hostname: string | null | undefined;
   disableSupabase: boolean;
-  allowSupabaseOnLocalhost: boolean;
+  supabaseEnvironment: string | null | undefined;
+  supabaseUrl: string | null | undefined;
 }): boolean {
   if (disableSupabase) {
     return false;
   }
 
-  return !isLocalhostHostname(hostname) || allowSupabaseOnLocalhost;
+  const normalizedEnvironment = normalizeSupabaseEnvironment(
+    supabaseEnvironment,
+  );
+
+  if (isLocalhostHostname(hostname)) {
+    return (
+      normalizedEnvironment === 'local' && isLocalSupabaseUrl(supabaseUrl)
+    );
+  }
+
+  return normalizedEnvironment !== 'local';
+}
+
+export function shouldAllowSupabaseClientOnHostname({
+  hostname,
+  disableSupabase,
+  supabaseEnvironment,
+  supabaseUrl,
+}: {
+  hostname: string | null | undefined;
+  disableSupabase: boolean;
+  supabaseEnvironment: string | null | undefined;
+  supabaseUrl: string | null | undefined;
+}): boolean {
+  return shouldUseCloudSyncOnHostname({
+    hostname,
+    disableSupabase,
+    supabaseEnvironment,
+    supabaseUrl,
+  });
 }
 
 export function shouldUseCloudSync(): boolean {
@@ -46,7 +87,39 @@ export function shouldUseCloudSync(): boolean {
   return shouldUseCloudSyncOnHostname({
     hostname: window.location.hostname,
     disableSupabase: process.env.NEXT_PUBLIC_TICK_DISABLE_SUPABASE === '1',
-    allowSupabaseOnLocalhost:
-      process.env.NEXT_PUBLIC_TICK_ALLOW_SUPABASE_ON_LOCALHOST === '1',
+    supabaseEnvironment: process.env.NEXT_PUBLIC_TICK_SUPABASE_ENV,
+    supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
   });
+}
+
+export function shouldAllowSupabaseClient(): boolean {
+  if (typeof window === 'undefined') {
+    return false;
+  }
+
+  return shouldAllowSupabaseClientOnHostname({
+    hostname: window.location.hostname,
+    disableSupabase: process.env.NEXT_PUBLIC_TICK_DISABLE_SUPABASE === '1',
+    supabaseEnvironment: process.env.NEXT_PUBLIC_TICK_SUPABASE_ENV,
+    supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
+  });
+}
+
+function normalizeSupabaseEnvironment(
+  value: string | null | undefined,
+): TickSupabaseEnvironment {
+  return value === 'local' ? 'local' : 'production';
+}
+
+function isLocalSupabaseUrl(value: string | null | undefined): boolean {
+  if (!value) {
+    return false;
+  }
+
+  try {
+    const parsedUrl = new URL(value);
+    return LOCAL_SUPABASE_HOSTNAMES.has(parsedUrl.hostname);
+  } catch {
+    return false;
+  }
 }

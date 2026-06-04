@@ -21,12 +21,46 @@ if (!command) {
 const extraArgs = process.argv.slice(3);
 
 try {
-  if (command === 'link') {
-    await ensureLinkedProject();
+  if (command === 'start') {
+    await executeSupabase(['start', ...extraArgs]);
     process.exit(0);
   }
 
-  if (command === 'db:push') {
+  if (command === 'stop') {
+    await executeSupabase(['stop', ...extraArgs]);
+    process.exit(0);
+  }
+
+  if (command === 'status') {
+    await executeSupabase(['status', ...extraArgs]);
+    process.exit(0);
+  }
+
+  if (command === 'db:reset') {
+    await executeSupabase(['db', 'reset', ...extraArgs]);
+    process.exit(0);
+  }
+
+  if (command === 'types:local') {
+    const output = await executeSupabase(
+      [
+        'gen',
+        'types',
+        'typescript',
+        '--local',
+        '--schema',
+        'public',
+        ...extraArgs,
+      ],
+      { captureOutput: true },
+    );
+
+    writeTypes(output);
+    process.exit(0);
+  }
+
+  if (command === 'prod:db:push') {
+    ensureProductionCommandAllowed();
     await ensureLinkedProject();
     await executeSupabase([
       '--yes',
@@ -39,7 +73,8 @@ try {
     process.exit(0);
   }
 
-  if (command === 'db:dry-run') {
+  if (command === 'prod:db:dry-run') {
+    ensureProductionCommandAllowed();
     await ensureLinkedProject();
     await executeSupabase([
       '--yes',
@@ -53,15 +88,9 @@ try {
     process.exit(0);
   }
 
-  if (command === 'migration:list') {
+  if (command === 'prod:types') {
+    ensureProductionCommandAllowed();
     await ensureLinkedProject();
-    await executeSupabase(['migration', 'list', '--linked', ...extraArgs]);
-    process.exit(0);
-  }
-
-  if (command === 'types') {
-    await ensureLinkedProject();
-
     const output = await executeSupabase(
       [
         'gen',
@@ -74,16 +103,8 @@ try {
       ],
       { captureOutput: true },
     );
-    const targetPath = path.resolve(
-      workspaceRoot,
-      'src/lib/supabase/database.types.ts',
-    );
 
-    mkdirSync(path.dirname(targetPath), { recursive: true });
-    writeFileSync(targetPath, output, 'utf8');
-    console.log(
-      `Wrote Supabase types to ${path.relative(workspaceRoot, targetPath)}.`,
-    );
+    writeTypes(output);
     process.exit(0);
   }
 
@@ -98,13 +119,17 @@ function printUsage() {
   console.log(`Usage: node scripts/supabase-cli.mjs <command>
 
 Commands:
-  link            Link this repo to the remote Supabase project
-  db:dry-run      Preview pending migrations on the linked Supabase project
-  db:push         Apply pending migrations to the linked Supabase project
-  migration:list  Show local and remote migration history
-  types           Generate src/lib/supabase/database.types.ts from the linked project
+  start            Start the local Supabase stack
+  stop             Stop the local Supabase stack
+  status           Show local Supabase services and keys
+  db:reset         Reset the local Supabase database
+  types:local      Generate src/lib/supabase/database.types.ts from local Supabase
+  prod:db:dry-run  Preview production migrations on GitHub Actions only
+  prod:db:push     Apply production migrations on GitHub Actions only
+  prod:types       Generate types from production on GitHub Actions only
 
-The script loads .env.local by default. Override it with SUPABASE_ENV_FILE=/path/to/file.`);
+The script loads .env.local by default. Override it with SUPABASE_ENV_FILE=/path/to/file.
+Production commands are blocked unless GITHUB_ACTIONS=true.`);
 }
 
 function loadEnvFile(filePath) {
@@ -153,6 +178,27 @@ function requireEnvVar(name) {
   }
 
   return value;
+}
+
+function ensureProductionCommandAllowed() {
+  if (process.env.GITHUB_ACTIONS !== 'true') {
+    throw new Error(
+      'Production Supabase commands are restricted to GitHub Actions.',
+    );
+  }
+}
+
+function writeTypes(output) {
+  const targetPath = path.resolve(
+    workspaceRoot,
+    'src/lib/supabase/database.types.ts',
+  );
+
+  mkdirSync(path.dirname(targetPath), { recursive: true });
+  writeFileSync(targetPath, output, 'utf8');
+  console.log(
+    `Wrote Supabase types to ${path.relative(workspaceRoot, targetPath)}.`,
+  );
 }
 
 function resolveSupabaseExecutable() {

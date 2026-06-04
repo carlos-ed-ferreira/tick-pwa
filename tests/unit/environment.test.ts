@@ -18,7 +18,8 @@ describe('environment helpers', () => {
       shouldForceLocalOnlyMode({
         hostname: 'localhost',
         disableSupabase: false,
-        allowSupabaseOnLocalhost: false,
+        supabaseEnvironment: 'production',
+        supabaseUrl: 'https://prod.supabase.co',
       }),
     ).toBe(true);
 
@@ -26,7 +27,8 @@ describe('environment helpers', () => {
       shouldForceLocalOnlyMode({
         hostname: 'localhost',
         disableSupabase: false,
-        allowSupabaseOnLocalhost: true,
+        supabaseEnvironment: 'local',
+        supabaseUrl: 'http://127.0.0.1:54321',
       }),
     ).toBe(false);
 
@@ -34,7 +36,8 @@ describe('environment helpers', () => {
       shouldForceLocalOnlyMode({
         hostname: 'tick.example.com',
         disableSupabase: false,
-        allowSupabaseOnLocalhost: false,
+        supabaseEnvironment: 'production',
+        supabaseUrl: 'https://prod.supabase.co',
       }),
     ).toBe(false);
 
@@ -42,17 +45,28 @@ describe('environment helpers', () => {
       shouldForceLocalOnlyMode({
         hostname: 'tick.example.com',
         disableSupabase: true,
-        allowSupabaseOnLocalhost: true,
+        supabaseEnvironment: 'production',
+        supabaseUrl: 'https://prod.supabase.co',
       }),
     ).toBe(true);
   });
 
-  it('isolates cloud sync on localhost by default while allowing an explicit override', () => {
+  it('uses cloud sync on localhost only for a local Supabase URL', () => {
     expect(
       shouldUseCloudSyncOnHostname({
         hostname: 'localhost',
         disableSupabase: false,
-        allowSupabaseOnLocalhost: false,
+        supabaseEnvironment: 'local',
+        supabaseUrl: 'http://127.0.0.1:54321',
+      }),
+    ).toBe(true);
+
+    expect(
+      shouldUseCloudSyncOnHostname({
+        hostname: 'localhost',
+        disableSupabase: false,
+        supabaseEnvironment: 'production',
+        supabaseUrl: 'https://prod.supabase.co',
       }),
     ).toBe(false);
 
@@ -60,16 +74,27 @@ describe('environment helpers', () => {
       shouldUseCloudSyncOnHostname({
         hostname: 'localhost',
         disableSupabase: false,
-        allowSupabaseOnLocalhost: true,
+        supabaseEnvironment: 'local',
+        supabaseUrl: 'https://prod.supabase.co',
+      }),
+    ).toBe(false);
+
+    expect(
+      shouldUseCloudSyncOnHostname({
+        hostname: 'tick.example.com',
+        disableSupabase: false,
+        supabaseEnvironment: 'production',
+        supabaseUrl: 'https://prod.supabase.co',
       }),
     ).toBe(true);
 
     expect(
       shouldUseCloudSyncOnHostname({
         hostname: 'tick.example.com',
-        disableSupabase: false,
-        allowSupabaseOnLocalhost: false,
+        disableSupabase: true,
+        supabaseEnvironment: 'production',
+        supabaseUrl: 'https://prod.supabase.co',
       }),
-    ).toBe(true);
+    ).toBe(false);
   });
 });

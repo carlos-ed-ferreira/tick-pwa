@@ -52,6 +52,7 @@ supabase          configuração e migrations SQL
 
 - Node.js `>=20.9.0`
 - npm
+- Docker, para o Supabase local
 - make opcional, apenas para atalhos de comandos
 
 No Ubuntu/WSL, instale `make` com:
@@ -84,16 +85,41 @@ Se `make` estiver instalado, o comando equivalente pelo Makefile é:
 make install
 ```
 
-Rode o ambiente de desenvolvimento:
+Prepare o Supabase local:
 
 ```bash
-npm run dev
+make supabase-reset
+make supabase-status
 ```
 
-Também é possível usar:
+Use a `API URL` e a `anon key` exibidas por `make supabase-status` no arquivo
+`.env.local`:
+
+```bash
+NEXT_PUBLIC_TICK_SUPABASE_ENV=local
+NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321
+NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon key local>
+NEXT_PUBLIC_TICK_DISABLE_SUPABASE=
+```
+
+O seed local permite o email `dev@tick.local` na tabela `account_access`.
+Crie um usuário com esse email e uma senha de desenvolvimento no Supabase
+Studio local ou pela API Auth local. O login local suportado pelo app é
+email/senha; Google local não faz parte do setup padrão.
+
+Rode o ambiente de desenvolvimento com o Makefile. O comando inicia o Supabase
+local antes do Next.js:
 
 ```bash
 make dev
+```
+
+Se `make` não existir no ambiente, suba o Supabase local e depois rode o Next.js
+com npm:
+
+```bash
+npm run supabase:start
+npm run dev
 ```
 
 Se `make` não existir no ambiente, use os scripts `npm` equivalentes listados no
@@ -104,22 +130,24 @@ Se `make` não existir no ambiente, use os scripts `npm` equivalentes listados n
 O arquivo `.env.example` lista as variáveis usadas pelo projeto:
 
 ```bash
-NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_TICK_SUPABASE_ENV=local
+NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
 NEXT_PUBLIC_TICK_DISABLE_SUPABASE=
-NEXT_PUBLIC_TICK_ALLOW_SUPABASE_ON_LOCALHOST=
-SUPABASE_PROJECT_REF=
-SUPABASE_ACCESS_TOKEN=
-SUPABASE_DB_PASSWORD=
 ```
 
 Uso principal:
 
+- `NEXT_PUBLIC_TICK_SUPABASE_ENV=local`: usa somente Supabase local em `localhost`;
+- `NEXT_PUBLIC_TICK_SUPABASE_ENV=production`: usado em produção, fora de `localhost`;
 - `NEXT_PUBLIC_SUPABASE_URL`: URL pública do projeto Supabase;
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`: chave pública anon/publishable;
-- `NEXT_PUBLIC_TICK_DISABLE_SUPABASE=1`: desliga Supabase por completo, incluindo login;
-- `NEXT_PUBLIC_TICK_ALLOW_SUPABASE_ON_LOCALHOST=1`: permite sync remoto em `localhost`; por padrão o host local pode autenticar, mas mantém dados e sincronização isolados do banco de produção;
-- `SUPABASE_PROJECT_REF`, `SUPABASE_ACCESS_TOKEN`, `SUPABASE_DB_PASSWORD`: usados pelos scripts Supabase do projeto.
+- `NEXT_PUBLIC_TICK_DISABLE_SUPABASE=1`: desliga Supabase por completo, incluindo login.
+
+Em `localhost`, o app só autentica e sincroniza quando
+`NEXT_PUBLIC_TICK_SUPABASE_ENV=local` e `NEXT_PUBLIC_SUPABASE_URL` aponta para
+`localhost` ou `127.0.0.1`. Credenciais de produção não devem ser usadas em
+`.env.local`.
 
 ## Comandos
 
@@ -138,11 +166,11 @@ make format
 make format-check
 make check
 make clean
-make supabase-link
-make supabase-dry-run
-make supabase-push
-make supabase-types
-make supabase-migrations
+make supabase-start
+make supabase-stop
+make supabase-status
+make supabase-reset
+make supabase-types-local
 ```
 
 Scripts npm equivalentes estão definidos em `package.json`.
@@ -178,16 +206,15 @@ IndexedDB é a fonte local de dados da aplicação. Escritas de entidades devem 
 
 Usuários autenticados sincronizam com Supabase por outbox local. Usuários convidados permanecem locais e não enviam dados ao backend.
 
-O Supabase também é usado para autenticação, allowlist de acesso e persistência remota. Em `localhost`, a aplicação pode autenticar, mas não sincroniza nem lê estado remoto por padrão. Migrations versionadas ficam em `supabase/migrations`.
+O Supabase também é usado para autenticação, allowlist de acesso e persistência remota. Em `localhost`, autenticação e sincronização só podem usar o Supabase CLI local. Migrations versionadas ficam em `supabase/migrations`.
 
-Comandos úteis para schema remoto:
+Comandos úteis para Supabase local:
 
 ```bash
-make supabase-link
-make supabase-dry-run
-make supabase-push
-make supabase-types
-make supabase-migrations
+make supabase-start
+make supabase-reset
+make supabase-status
+make supabase-types-local
 ```
 
 ## PWA e offline
@@ -203,6 +230,7 @@ O deploy de produção roda na Vercel com o preset padrão de Next.js.
 Configure na Vercel as variáveis públicas do Supabase quando o ambiente precisar de autenticação e sincronização:
 
 ```bash
+NEXT_PUBLIC_TICK_SUPABASE_ENV=production
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
 ```
@@ -217,7 +245,8 @@ SUPABASE_ACCESS_TOKEN=
 SUPABASE_DB_PASSWORD=
 ```
 
-O workflow executa `npm run supabase:db:dry-run` antes de
-`npm run supabase:db:push`. Como a Vercel também inicia deploy automaticamente
-em pushes para `main`, migrations de produção devem ser compatíveis com a versão
-anterior e a nova versão da aplicação.
+O workflow executa `npm run supabase:prod:db:dry-run` antes de
+`npm run supabase:prod:db:push`. Esses comandos de produção falham fora do
+GitHub Actions. Como a Vercel também inicia deploy automaticamente em pushes
+para `main`, migrations de produção devem ser compatíveis com a versão anterior
+e a nova versão da aplicação.

@@ -45,7 +45,7 @@ jobs:
         run: npm ci
 
       - name: Preview migrations
-        run: npm run supabase:db:dry-run
+        run: npm run supabase:prod:db:dry-run
 
       - name: Apply migrations
-        run: npm run supabase:db:push
+        run: npm run supabase:prod:db:push
