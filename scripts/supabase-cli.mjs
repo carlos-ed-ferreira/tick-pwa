@@ -22,7 +22,7 @@ const extraArgs = process.argv.slice(3);
 
 try {
   if (command === 'start') {
-    await executeSupabase(['start', ...extraArgs]);
+    await startSupabase(extraArgs);
     process.exit(0);
   }
 
@@ -227,7 +227,43 @@ async function ensureLinkedProject() {
   await executeSupabase(['--yes', 'link', '--project-ref', projectRef]);
 }
 
-async function executeSupabase(args, options = { captureOutput: false }) {
+async function startSupabase(args) {
+  try {
+    await executeSupabase(['start', ...args], {
+      captureOutput: true,
+      teeOutput: true,
+    });
+    return;
+  } catch (error) {
+    if (!isRecoverablePartialStart(error)) {
+      throw error;
+    }
+
+    console.warn(
+      'Detected a partial Supabase local stack. Stopping it before retrying start...',
+    );
+    await executeSupabase(['stop']);
+    await executeSupabase(['start', ...args]);
+  }
+}
+
+function isRecoverablePartialStart(error) {
+  const output = error instanceof Error ? error.output : undefined;
+
+  if (typeof output !== 'string') {
+    return false;
+  }
+
+  return (
+    output.includes('supabase start is already running') &&
+    output.includes('container is not running')
+  );
+}
+
+async function executeSupabase(
+  args,
+  options = { captureOutput: false, teeOutput: false },
+) {
   const { executable, argsPrefix } = resolveSupabaseExecutable();
 
   return new Promise((resolve, reject) => {
@@ -242,10 +278,20 @@ async function executeSupabase(args, options = { captureOutput: false }) {
 
     if (options.captureOutput) {
       child.stdout?.on('data', (chunk) => {
-        stdout += chunk.toString();
+        const text = chunk.toString();
+        stdout += text;
+
+        if (options.teeOutput) {
+          process.stdout.write(text);
+        }
       });
       child.stderr?.on('data', (chunk) => {
-        stderr += chunk.toString();
+        const text = chunk.toString();
+        stderr += text;
+
+        if (options.teeOutput) {
+          process.stderr.write(text);
+        }
       });
     }
 
@@ -259,12 +305,15 @@ async function executeSupabase(args, options = { captureOutput: false }) {
         return;
       }
 
-      reject(
-        new Error(
-          stderr.trim() ||
-            `Supabase CLI command failed with exit code ${code}.`,
-        ),
+      const output = `${stdout}${stderr}`;
+      const error = new Error(
+        stderr.trim() ||
+          stdout.trim() ||
+          `Supabase CLI command failed with exit code ${code}.`,
       );
+      error.output = output;
+
+      reject(error);
     });
   });
 }
