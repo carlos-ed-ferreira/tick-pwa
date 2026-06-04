@@ -1,7 +1,7 @@
 'use client';
 
 import { FormEvent, useState } from 'react';
-import { CloudOff, KeyRound } from 'lucide-react';
+import { CloudOff, KeyRound, LoaderCircle } from 'lucide-react';
 import { ActionButton, FormField, Text } from '@/components/ui';
 import { useAppContext } from '@/providers';
 import { AuthShell } from './auth-shell';
@@ -82,8 +82,34 @@ export function AuthEntry() {
 
     setIsPasswordSigningIn(true);
     try {
-      await signInWithPassword(normalizedEmail, password);
-    } finally {
+      const result = await signInWithPassword(normalizedEmail, password);
+
+      if (result.status === 'invalid_credentials') {
+        setPasswordError(dictionary.auth.passwordIncorrect);
+        setIsPasswordSigningIn(false);
+        return;
+      }
+
+      if (result.status === 'not_allowed') {
+        setEmailError(dictionary.auth.emailNotAllowed);
+        setIsPasswordSigningIn(false);
+        return;
+      }
+
+      if (result.status === 'unavailable') {
+        setEmailError(dictionary.auth.signInUnavailable);
+        setIsPasswordSigningIn(false);
+        return;
+      }
+
+      if (result.status === 'error') {
+        setPasswordError(result.message);
+        setIsPasswordSigningIn(false);
+      }
+    } catch (error) {
+      setPasswordError(
+        error instanceof Error ? error.message : dictionary.auth.signInFailed,
+      );
       setIsPasswordSigningIn(false);
     }
   }
@@ -145,7 +171,13 @@ export function AuthEntry() {
             disabled={
               !isLoginConfigured || isGoogleSigningIn || isPasswordSigningIn
             }
-            icon={<KeyRound className="size-4" />}
+            icon={
+              isPasswordSigningIn ? (
+                <LoaderCircle className="size-4 animate-spin" />
+              ) : (
+                <KeyRound className="size-4" />
+              )
+            }
             description={dictionary.auth.passwordSignInDescription}
             label={
               isPasswordSigningIn
@@ -155,6 +187,11 @@ export function AuthEntry() {
             tone="primary"
             type="submit"
           />
+          {isPasswordSigningIn ? (
+            <Text as="p" className="px-1 text-center" size="xs" tone="muted">
+              {dictionary.auth.signInCheckingAccess}
+            </Text>
+          ) : null}
         </form>
 
         <div className="flex items-center gap-3 text-xs uppercase tracking-[0.24em] text-[#fff9f2]/78 my-3">

@@ -22,10 +22,15 @@ export const enDictionary = {
     passwordLabel: 'Password',
     passwordPlaceholder: 'Your password',
     passwordRequired: 'Enter your password.',
+    passwordIncorrect: 'The password you entered is not correct.',
+    emailNotAllowed: 'This email is not approved to use Tick yet.',
     signInWithPassword: 'Sign in',
     passwordSignInDescription:
       'Use your email and password to access cloud sync.',
     signingInWithPassword: 'Signing in...',
+    signInCheckingAccess:
+      'Validating credentials and preparing your account...',
+    signInFailed: 'Could not sign in right now. Try again.',
     orContinueWith: 'or continue with',
     signInWithGoogle: 'Continue with Google',
     signInDescription:

@@ -47,14 +47,11 @@ export function shouldUseCloudSyncOnHostname({
     return false;
   }
 
-  const normalizedEnvironment = normalizeSupabaseEnvironment(
-    supabaseEnvironment,
-  );
+  const normalizedEnvironment =
+    normalizeSupabaseEnvironment(supabaseEnvironment);
 
   if (isLocalhostHostname(hostname)) {
-    return (
-      normalizedEnvironment === 'local' && isLocalSupabaseUrl(supabaseUrl)
-    );
+    return normalizedEnvironment === 'local' && isLocalSupabaseUrl(supabaseUrl);
   }
 
   return normalizedEnvironment !== 'local';

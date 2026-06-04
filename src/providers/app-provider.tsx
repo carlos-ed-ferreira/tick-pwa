@@ -44,6 +44,12 @@ export type AuthMode =
   | 'guest'
   | 'authenticated'
   | 'unauthorized';
+export type PasswordSignInResult =
+  | { status: 'authenticated' }
+  | { status: 'not_allowed' }
+  | { status: 'invalid_credentials' }
+  | { status: 'unavailable' }
+  | { status: 'error'; message: string };
 
 type AccessModePreference = 'entry' | 'local';
 
@@ -95,7 +101,10 @@ interface AppContextValue {
   setLocale: (locale: SupportedLocale) => void;
   openAuthEntry: () => Promise<void>;
   signInWithGoogle: () => Promise<void>;
-  signInWithPassword: (email: string, password: string) => Promise<void>;
+  signInWithPassword: (
+    email: string,
+    password: string,
+  ) => Promise<PasswordSignInResult>;
   enterLocalMode: () => Promise<void>;
   signOut: () => Promise<void>;
   requestSync: () => Promise<void>;
@@ -215,12 +224,12 @@ export function AppProvider({
   );
 
   const activateAuthenticatedMode = useCallback(
-    async (user: User) => {
+    async (user: User): Promise<'authenticated' | 'not_allowed'> => {
       const allowed = await isUserAllowed(user);
 
       if (!allowed) {
         await activateUnauthorizedMode(user);
-        return;
+        return 'not_allowed';
       }
 
       if (!shouldUseCloudSync()) {
@@ -234,7 +243,7 @@ export function AppProvider({
         setAuthError(null);
         setAuthMode('authenticated');
         setIsReady(true);
-        return;
+        return 'authenticated';
       }
 
       const userScope = createUserScope(user.id);
@@ -253,6 +262,7 @@ export function AppProvider({
       setAuthError(null);
       setAuthMode('authenticated');
       setIsReady(true);
+      return 'authenticated';
     },
     [activateUnauthorizedMode, applyScopedPreferences, runScopedSync],
   );
@@ -288,9 +298,9 @@ export function AppProvider({
         }
 
         if (sessionUser) {
-          await resolveInitialScope(() =>
-            activateAuthenticatedMode(sessionUser),
-          );
+          await resolveInitialScope(async () => {
+            await activateAuthenticatedMode(sessionUser);
+          });
           return;
         }
 
@@ -423,26 +433,47 @@ export function AppProvider({
   }, []);
 
   const signInWithPassword = useCallback(
-    async (email: string, password: string) => {
+    async (email: string, password: string): Promise<PasswordSignInResult> => {
       const client = getSupabaseBrowserClient();
 
       if (!client) {
         setAuthError('Supabase is not configured for this environment.');
-        return;
+        return { status: 'unavailable' } satisfies PasswordSignInResult;
       }
 
       setAuthError(null);
 
-      const { error } = await client.auth.signInWithPassword({
+      const { data, error } = await client.auth.signInWithPassword({
         email: email.trim(),
         password,
       });
 
       if (error) {
+        const isInvalidCredentials =
+          error.message.toLowerCase().includes('invalid login credentials') ||
+          error.message.toLowerCase().includes('invalid credentials');
+
+        if (isInvalidCredentials) {
+          return {
+            status: 'invalid_credentials',
+          } satisfies PasswordSignInResult;
+        }
+
         setAuthError(error.message);
+        return { status: 'error', message: error.message };
       }
+
+      if (!data.user) {
+        const message = 'Supabase did not return an authenticated user.';
+        setAuthError(message);
+        return { status: 'error', message };
+      }
+
+      const activationResult = await activateAuthenticatedMode(data.user);
+
+      return { status: activationResult } satisfies PasswordSignInResult;
     },
-    [],
+    [activateAuthenticatedMode],
   );
 
   const openAuthEntry = useCallback(async () => {
@@ -480,7 +511,7 @@ export function AppProvider({
       'entry',
     );
     await activateEntryMode();
-  }, [activateEntryMode]);
+  }, [activateEntryMode, activateLocalMode]);
 
   const requestSync = useCallback(async () => {
     if (!scope || scope.kind === 'guest' || !shouldUseCloudSync()) {

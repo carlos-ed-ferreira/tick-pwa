@@ -5,12 +5,12 @@ on:
     branches:
       - main
     paths:
-      - ".github/workflows/supabase-migrations.yml"
-      - "package.json"
-      - "package-lock.json"
-      - "scripts/supabase-cli.mjs"
-      - "supabase/config.toml"
-      - "supabase/migrations/**"
+      - '.github/workflows/supabase-migrations.yml'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'scripts/supabase-cli.mjs'
+      - 'supabase/config.toml'
+      - 'supabase/migrations/**'
   workflow_dispatch:
 
 concurrency:

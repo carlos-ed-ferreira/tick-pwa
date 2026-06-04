@@ -12,7 +12,9 @@ const { enterLocalModeMock, signInWithGoogleMock, signInWithPasswordMock } =
   vi.hoisted(() => ({
     enterLocalModeMock: vi.fn().mockResolvedValue(undefined),
     signInWithGoogleMock: vi.fn().mockResolvedValue(undefined),
-    signInWithPasswordMock: vi.fn().mockResolvedValue(undefined),
+    signInWithPasswordMock: vi
+      .fn()
+      .mockResolvedValue({ status: 'authenticated' }),
   }));
 
 vi.mock('@/providers', () => ({
@@ -34,10 +36,14 @@ vi.mock('@/providers', () => ({
           'Sign in with your approved account to sync your data.',
         passwordLabel: 'Password',
         passwordPlaceholder: 'Your password',
+        passwordIncorrect: 'The password you entered is not correct.',
         passwordRequired: 'Enter your password.',
         passwordSignInDescription: 'Use password',
         prototypeNotice: 'Private prototype',
         signInDescription: 'Use Google',
+        signInCheckingAccess:
+          'Validating credentials and preparing your account...',
+        signInFailed: 'Could not sign in right now. Try again.',
         signInUnavailable: 'Login unavailable',
         signInWithGoogle: 'Continue with Google',
         signInWithPassword: 'Sign in',
@@ -45,6 +51,7 @@ vi.mock('@/providers', () => ({
         signingInWithPassword: 'Signing in...',
         subtitle: 'Subtitle',
         title: 'Title',
+        emailNotAllowed: 'This email is not approved to use Tick yet.',
       },
       settings: { language: 'Language' },
     },
@@ -147,7 +154,7 @@ describe('AuthEntry', () => {
   });
 
   it('keeps the primary action in a loading state while password sign-in is pending', async () => {
-    const deferred = createDeferred<void>();
+    const deferred = createDeferred<{ status: 'invalid_credentials' }>();
     signInWithPasswordMock.mockReturnValueOnce(deferred.promise);
 
     render(<AuthEntry />);
@@ -164,11 +171,56 @@ describe('AuthEntry', () => {
     expect(
       screen.getByRole('button', { name: 'Signing in...' }),
     ).toBeDisabled();
+    expect(
+      screen.getByText('Validating credentials and preparing your account...'),
+    ).toBeInTheDocument();
 
-    deferred.resolve();
+    deferred.resolve({ status: 'invalid_credentials' });
 
     await waitFor(() => {
       expect(screen.getByRole('button', { name: 'Sign in' })).toBeEnabled();
     });
+  });
+
+  it('shows a password error when credentials are rejected', async () => {
+    signInWithPasswordMock.mockResolvedValueOnce({
+      status: 'invalid_credentials',
+    });
+
+    render(<AuthEntry />);
+
+    fireEvent.change(screen.getByLabelText('Email'), {
+      target: { value: 'user@example.com' },
+    });
+    fireEvent.change(screen.getByLabelText('Password'), {
+      target: { value: 'wrong-password' },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+
+    expect(
+      await screen.findByText('The password you entered is not correct.'),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Sign in' })).toBeEnabled();
+  });
+
+  it('shows an email error when the account is not approved', async () => {
+    signInWithPasswordMock.mockResolvedValueOnce({ status: 'not_allowed' });
+
+    render(<AuthEntry />);
+
+    fireEvent.change(screen.getByLabelText('Email'), {
+      target: { value: 'blocked@example.com' },
+    });
+    fireEvent.change(screen.getByLabelText('Password'), {
+      target: { value: 'secret' },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+
+    expect(
+      await screen.findByText('This email is not approved to use Tick yet.'),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Sign in' })).toBeEnabled();
   });
 });

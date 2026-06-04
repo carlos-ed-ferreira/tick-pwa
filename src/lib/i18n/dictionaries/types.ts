@@ -19,9 +19,13 @@ export interface Dictionary {
     passwordLabel: string;
     passwordPlaceholder: string;
     passwordRequired: string;
+    passwordIncorrect: string;
+    emailNotAllowed: string;
     signInWithPassword: string;
     passwordSignInDescription: string;
     signingInWithPassword: string;
+    signInCheckingAccess: string;
+    signInFailed: string;
     orContinueWith: string;
     signInWithGoogle: string;
     signInDescription: string;

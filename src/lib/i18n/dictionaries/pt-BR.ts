@@ -23,10 +23,14 @@ export const ptBRDictionary = {
     passwordLabel: 'Senha',
     passwordPlaceholder: 'Sua senha',
     passwordRequired: 'Informe sua senha.',
+    passwordIncorrect: 'A senha informada não está correta.',
+    emailNotAllowed: 'Este e-mail ainda não está liberado para usar o Tick.',
     signInWithPassword: 'Entrar',
     passwordSignInDescription:
       'Use seu e-mail e senha para acessar a sincronização na nuvem.',
     signingInWithPassword: 'Entrando...',
+    signInCheckingAccess: 'Validando credenciais e preparando sua conta...',
+    signInFailed: 'Não foi possível entrar agora. Tente novamente.',
     orContinueWith: 'ou continue com',
     signInWithGoogle: 'Entrar com Google',
     signInDescription:
