@@ -293,10 +293,10 @@ export function CalendarMonth() {
             <div className="flex shrink-0 flex-wrap items-center gap-2">
               <button
                 type="button"
-                className="group inline-flex h-12 items-center gap-2.5 rounded-[0.75rem] border border-[#f8d7aa]/70 bg-[#f0c38e] px-3.5 text-left text-[#312c51] shadow-md shadow-[#f0c38e]/18 transition hover:border-[#ffe0b8] hover:bg-[#f5d09f] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e] disabled:cursor-not-allowed disabled:opacity-65"
+                className="group inline-flex h-12 items-center gap-2.5 rounded-[0.75rem] border border-[#f8d7aa]/70 bg-[#f0c38e] pl-2 pr-3.5 text-left text-[#312c51] shadow-md shadow-[#f0c38e]/18 transition hover:border-[#ffe0b8] hover:bg-[#f5d09f] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e] disabled:cursor-not-allowed disabled:opacity-65"
                 onClick={() => setBulkEditorMode('create')}
               >
-                <span className="grid size-9 shrink-0 place-items-center rounded-[0.625rem] bg-[#312c51]/10 text-[#312c51]">
+                <span className="grid size-8 shrink-0 place-items-center rounded-[0.5rem] bg-[#312c51]/10 text-[#312c51]">
                   <Plus aria-hidden="true" className="size-4" />
                 </span>
                 <span className="text-[0.94rem] font-semibold">
@@ -305,10 +305,10 @@ export function CalendarMonth() {
               </button>
               <button
                 type="button"
-                className="group inline-flex h-12 items-center gap-2.5 rounded-[0.75rem] border border-[#fff9f2]/22 bg-[#fff9f2]/10 px-3.5 text-left text-[#fff9f2] shadow-sm shadow-[#312c51]/8 transition hover:border-[#fff9f2]/34 hover:bg-[#fff9f2]/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e] disabled:cursor-not-allowed disabled:opacity-65"
+                className="group inline-flex h-12 items-center gap-2.5 rounded-[0.75rem] border border-[#fff9f2]/22 bg-[#fff9f2]/10 pl-2 pr-3.5 text-left text-[#fff9f2] shadow-sm shadow-[#312c51]/8 transition hover:border-[#fff9f2]/34 hover:bg-[#fff9f2]/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e] disabled:cursor-not-allowed disabled:opacity-65"
                 onClick={() => setBulkEditorMode('clear')}
               >
-                <span className="grid size-9 shrink-0 place-items-center rounded-[0.625rem] bg-[#fff9f2]/12 text-[#fff9f2]">
+                <span className="grid size-8 shrink-0 place-items-center rounded-[0.5rem] bg-[#fff9f2]/12 text-[#fff9f2]">
                   <Trash2 aria-hidden="true" className="size-4" />
                 </span>
                 <span className="text-[0.94rem] font-semibold">
