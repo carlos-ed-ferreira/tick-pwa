@@ -2,7 +2,9 @@
 
 import {
   ArrowDown,
+  ArrowLeft,
   ArrowUp,
+  ChevronRight,
   IndentDecrease,
   IndentIncrease,
   Plus,
@@ -39,16 +41,19 @@ import {
   createGoal,
   createGoalStep,
   createGoalStepChild,
+  ensureDefaultNowGoal,
   indentGoalStep,
   mergeGoalsInCategory,
   outdentGoalStep,
   reorderGoalStep,
+  softDeleteGoal,
   softDeleteGoalStep,
   toggleGoalStepChecked,
   toggleGoalStepCollapsed,
   updateGoalStepText,
+  updateGoalTitle,
 } from '@/lib/db';
-import type { GoalCategory } from '@/lib/domain';
+import type { Goal, GoalCategory } from '@/lib/domain';
 import { requiresDeleteConfirmation } from '@/lib/confirm-delete';
 import { useAppContext } from '@/providers';
 import type { VisibleGoalStepRow } from './goal-step-tree';
@@ -57,15 +62,122 @@ import { useGoals } from './use-goals';
 
 const goalStepInputSelector = '[data-goal-step-input="true"]';
 const goalCategories: GoalCategory[] = ['short', 'medium', 'long'];
+type GoalsView = 'index' | 'future' | 'now';
 
 export function GoalsSurface() {
   const { dictionary, scope } = useAppContext();
+  const [view, setView] = useState<GoalsView>('index');
   const categoryTags = useCategoryTags(scope, 'goals');
   const categoryTagMap = new Map(categoryTags.map((tag) => [tag.id, tag]));
 
   if (!scope) {
     return null;
   }
+
+  return (
+    <section className="calendar-shell flex min-h-[70vh] flex-col overflow-hidden">
+      <header className="calendar-header-panel flex flex-col gap-4 px-4 py-4 sm:px-5 lg:px-6">
+        {view === 'index' ? (
+          <div className="grid gap-1">
+            <h2 className="text-2xl font-semibold sm:text-3xl">
+              {dictionary.goals.title}
+            </h2>
+            <p className="max-w-2xl text-sm leading-6 text-[#d8d0e8]">
+              {dictionary.goals.nowDescription}
+            </p>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="grid gap-1">
+              <h2 className="text-2xl font-semibold sm:text-3xl">
+                {view === 'future'
+                  ? dictionary.goals.futureTitle
+                  : dictionary.goals.nowTitle}
+              </h2>
+              <p className="max-w-2xl text-sm leading-6 text-[#d8d0e8]">
+                {view === 'future'
+                  ? dictionary.goals.futureDescription
+                  : dictionary.goals.nowDescription}
+              </p>
+            </div>
+            <button
+              type="button"
+              className="inline-flex min-h-10 w-fit items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-[#f8f3ea] shadow-sm shadow-[#312c51]/10 transition hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0]"
+              onClick={() => setView('index')}
+            >
+              <ArrowLeft aria-hidden="true" className="size-4" />
+              {dictionary.goals.backToGoalGroups}
+            </button>
+          </div>
+        )}
+      </header>
+
+      <div className="grid gap-4 p-4 sm:p-5 lg:p-6">
+        {view === 'index' ? <GoalGroupPicker onSelect={setView} /> : null}
+
+        {view === 'future' ? (
+          <FutureGoalsView categoryTagMap={categoryTagMap} />
+        ) : null}
+
+        {view === 'now' ? (
+          <NowGoalsView categoryTagMap={categoryTagMap} />
+        ) : null}
+      </div>
+    </section>
+  );
+}
+
+function GoalGroupPicker({
+  onSelect,
+}: {
+  onSelect: (view: GoalsView) => void;
+}) {
+  const { dictionary } = useAppContext();
+  const cards = [
+    {
+      view: 'future' as const,
+      title: dictionary.goals.futureTitle,
+      description: dictionary.goals.introFutureDescription,
+    },
+    {
+      view: 'now' as const,
+      title: dictionary.goals.nowTitle,
+      description: dictionary.goals.introNowDescription,
+    },
+  ];
+
+  return (
+    <div className="grid gap-4 lg:grid-cols-2">
+      {cards.map((card) => (
+        <button
+          key={card.view}
+          type="button"
+          className="card-surface-soft group flex min-h-44 items-center justify-between gap-4 p-5 text-left transition hover:-translate-y-0.5 hover:border-[#f0c38e]/38 hover:bg-white/8 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0]"
+          onClick={() => onSelect(card.view)}
+        >
+          <span className="grid gap-2">
+            <span className="text-xl font-semibold text-[#fff9f2]">
+              {card.title}
+            </span>
+            <span className="max-w-md text-sm leading-6 text-[#d8d0e8]">
+              {card.description}
+            </span>
+          </span>
+          <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-full border border-[#f0c38e]/24 bg-[#f0c38e]/10 text-[#f0c38e] transition group-hover:border-[#f0c38e]/40 group-hover:bg-[#f0c38e]/16">
+            <ChevronRight aria-hidden="true" className="size-5" />
+          </span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function FutureGoalsView({
+  categoryTagMap,
+}: {
+  categoryTagMap: Map<string, { colorHex: string; name: string }>;
+}) {
+  const { dictionary } = useAppContext();
 
   return (
     <section className="grid gap-4">
@@ -81,6 +193,80 @@ export function GoalsSurface() {
   );
 }
 
+function NowGoalsView({
+  categoryTagMap,
+}: {
+  categoryTagMap: Map<string, { colorHex: string; name: string }>;
+}) {
+  const { dictionary, scope, requestSync } = useAppContext();
+  const { addNowGoal, newNowGoalTitle, nowTitle } = dictionary.goals;
+  const goals = useGoals(scope, 'now');
+  const defaultGoal = goals[0] ?? null;
+  const customGoals = goals.slice(1);
+
+  useEffect(() => {
+    if (!scope) {
+      return;
+    }
+
+    void (async () => {
+      await ensureDefaultNowGoal({
+        scope,
+        title: nowTitle,
+      });
+      await requestSync();
+    })();
+  }, [nowTitle, requestSync, scope]);
+
+  const createNowGoal = useCallback(async () => {
+    if (!scope) {
+      return;
+    }
+
+    await createGoal({
+      scope,
+      category: 'now',
+      afterGoalId: goals.at(-1)?.id ?? null,
+      title: newNowGoalTitle,
+    });
+    await requestSync();
+  }, [goals, newNowGoalTitle, requestSync, scope]);
+
+  return (
+    <section className="grid gap-4">
+      {defaultGoal ? (
+        <GoalCard
+          categoryTagMap={categoryTagMap}
+          goal={defaultGoal}
+          label={nowTitle}
+          title={nowTitle}
+        />
+      ) : null}
+
+      {customGoals.map((goal) => (
+        <GoalCard
+          key={goal.id}
+          categoryTagMap={categoryTagMap}
+          goal={goal}
+          label={goal.title || newNowGoalTitle}
+          title={goal.title}
+          titleEditable
+          deletable
+        />
+      ))}
+
+      <button
+        type="button"
+        className="flex min-h-14 w-fit items-center gap-2 rounded-full border border-[#f0c38e]/22 bg-[#f0c38e]/10 px-4 py-2 text-sm font-medium text-[#f7d7ad] shadow-sm transition hover:border-[#f0c38e]/36 hover:bg-[#f0c38e]/16 hover:text-[#fff9f2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e]"
+        onClick={() => void createNowGoal()}
+      >
+        <Plus aria-hidden="true" className="size-4" />
+        {addNowGoal}
+      </button>
+    </section>
+  );
+}
+
 function GoalCategoryColumn({
   categoryTagMap,
   category,
@@ -90,9 +276,44 @@ function GoalCategoryColumn({
   category: GoalCategory;
   label: string;
 }) {
-  const { dictionary, scope, requestSync } = useAppContext();
+  const { scope } = useAppContext();
   const goals = useGoals(scope, category);
   const primaryGoal = goals[0] ?? null;
+
+  return (
+    <GoalCard
+      category={category}
+      categoryTagMap={categoryTagMap}
+      goal={primaryGoal}
+      label={label}
+      title={label}
+      mergeDuplicateGoals={goals.length > 1}
+    />
+  );
+}
+
+function GoalCard({
+  category,
+  categoryTagMap,
+  deletable = false,
+  goal,
+  label,
+  mergeDuplicateGoals = false,
+  title,
+  titleEditable = false,
+}: {
+  category?: GoalCategory;
+  categoryTagMap: Map<string, { colorHex: string; name: string }>;
+  deletable?: boolean;
+  goal: Goal | null;
+  label: string;
+  mergeDuplicateGoals?: boolean;
+  title: string;
+  titleEditable?: boolean;
+}) {
+  const { dictionary, scope, requestSync } = useAppContext();
+  const [isGoalDeleteDialogOpen, setIsGoalDeleteDialogOpen] = useState(false);
+  const primaryGoal = goal;
   const goalStepRows = useGoalStepTree(scope, primaryGoal?.id ?? null);
   const visibleGoalStepIds = useMemo(
     () => goalStepRows.map((row) => row.goalStep.id),
@@ -135,9 +356,33 @@ function GoalCategoryColumn({
     deleteSelectedItem: deleteSelectedGoalStep,
     selectedIds,
   });
+  const saveTitle = useCallback(
+    async (nextTitle: string) => {
+      if (!scope || !primaryGoal) {
+        return;
+      }
+
+      await updateGoalTitle({
+        scope,
+        goalId: primaryGoal.id,
+        title: nextTitle,
+      });
+      await requestSync();
+    },
+    [primaryGoal, requestSync, scope],
+  );
+  const {
+    flush: flushTitle,
+    setText: setTitle,
+    text: editableTitle,
+  } = useDebouncedInlineEdit({
+    enabled: Boolean(scope && primaryGoal && titleEditable),
+    onSave: saveTitle,
+    value: title,
+  });
 
   useEffect(() => {
-    if (!scope || goals.length < 2) {
+    if (!scope || !category || !mergeDuplicateGoals) {
       return;
     }
 
@@ -149,24 +394,67 @@ function GoalCategoryColumn({
         console.error('Failed to merge goal categories.', error);
       }
     })();
-  }, [category, goals.length, requestSync, scope]);
+  }, [category, mergeDuplicateGoals, requestSync, scope]);
 
   const createRootGoalStep = useCallback(async () => {
     if (!scope) {
       return;
     }
 
-    const goal = primaryGoal ?? (await createGoal({ scope, category }));
-    await createGoalStep({ scope, goalId: goal.id });
+    const activeGoal =
+      primaryGoal ?? (category ? await createGoal({ scope, category }) : null);
+
+    if (!activeGoal) {
+      return;
+    }
+
+    await createGoalStep({ scope, goalId: activeGoal.id });
     await requestSync();
   }, [category, primaryGoal, requestSync, scope]);
+
+  const deleteGoal = useCallback(async () => {
+    if (!scope || !primaryGoal) {
+      return;
+    }
+
+    setIsGoalDeleteDialogOpen(false);
+    await softDeleteGoal({ scope, goalId: primaryGoal.id });
+    await requestSync();
+  }, [primaryGoal, requestSync, scope]);
 
   return (
     <section
       aria-label={label}
-      className="card-surface flex min-h-80 flex-col p-3 sm:p-4"
+      className="card-surface flex flex-col p-3 sm:p-4"
     >
-      <h2 className="pb-3 text-base font-semibold">{label}</h2>
+      <div className="flex items-center gap-2 pb-3">
+        {titleEditable ? (
+          <Input
+            aria-label={dictionary.goals.renameNowGoal}
+            placeholder={dictionary.goals.nowGoalPlaceholder}
+            value={editableTitle}
+            className="min-w-0 flex-1 rounded-md bg-transparent px-2 py-2 text-base font-semibold outline-none transition focus:bg-surface focus:shadow-sm"
+            onBlur={() => void flushTitle()}
+            onChange={(event) => setTitle(event.target.value)}
+          />
+        ) : (
+          <h3 className="min-w-0 flex-1 truncate px-2 py-2 text-base font-semibold">
+            {title}
+          </h3>
+        )}
+        {deletable ? (
+          <IconButton
+            aria-label={dictionary.goals.deleteGoal}
+            onClick={() =>
+              goalStepRows.length > 0
+                ? setIsGoalDeleteDialogOpen(true)
+                : void deleteGoal()
+            }
+          >
+            <Trash2 aria-hidden="true" className="size-4" />
+          </IconButton>
+        ) : null}
+      </div>
 
       <TreeListPanel
         addLabel={dictionary.goals.addStep}
@@ -203,6 +491,16 @@ function GoalCategoryColumn({
           />
         ))}
       </TreeListPanel>
+
+      <ConfirmationDialog
+        cancelLabel={dictionary.actions.cancel}
+        confirmLabel={dictionary.actions.delete}
+        description={dictionary.goals.confirmDeleteGoal}
+        open={isGoalDeleteDialogOpen}
+        title={dictionary.goals.deleteGoal}
+        onClose={() => setIsGoalDeleteDialogOpen(false)}
+        onConfirm={() => void deleteGoal()}
+      />
     </section>
   );
 }

@@ -4,6 +4,7 @@ import { enterLocalMode, firstGoalStepInput, labels } from './helpers';
 test('persists a goal checklist item in local mode', async ({ page }) => {
   await enterLocalMode(page);
   await page.goto('/goals');
+  await page.getByRole('button', { name: /Horizons|Horizontes/ }).click();
 
   const shortTermSection = page.getByLabel('Short term');
   await shortTermSection

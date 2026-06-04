@@ -275,6 +275,63 @@ export async function updateGoalTitle({
   });
 }
 
+export async function ensureDefaultNowGoal({
+  scope,
+  title,
+}: {
+  scope: AppScope;
+  title: string;
+}): Promise<Goal> {
+  return db.transaction('rw', db.goals, db.syncOutbox, async () => {
+    const activeGoals = sortGoals(await getActiveGoals(scope, 'now'));
+    const defaultGoal = activeGoals[0];
+
+    if (!defaultGoal) {
+      const now = createTimestamp();
+      const goal: Goal = {
+        id: createId(),
+        scopeId: scope.id,
+        category: 'now',
+        title,
+        description: '',
+        status: 'active',
+        progressMode: 'steps',
+        progressValue: 0,
+        dueDate: null,
+        categoryTagId: null,
+        sortRank: createGoalInsertRank({ siblings: [] }),
+        archivedAt: null,
+        createdAt: now,
+        updatedAt: now,
+        deletedAt: null,
+        ...createSyncMetadata(scope, now),
+      };
+
+      await db.goals.add(goal);
+      await queueSyncOutboxItem({
+        scope,
+        entityType: 'goal',
+        entityId: goal.id,
+        operation: 'upsert',
+        payload: goal as unknown as Record<string, unknown>,
+        changedFields: ['created'],
+        baseRevision: null,
+      });
+
+      return goal;
+    }
+
+    if (defaultGoal.title === title) {
+      return defaultGoal;
+    }
+
+    const updatedGoal = touchGoal(scope, { ...defaultGoal, title });
+    await persistGoalUpdate(scope, updatedGoal, ['title']);
+
+    return updatedGoal;
+  });
+}
+
 export async function assignGoalCategory({
   scope,
   goalId,

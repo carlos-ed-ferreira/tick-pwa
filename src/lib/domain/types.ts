@@ -19,7 +19,7 @@ export type TimezoneDetectionSource =
   | 'manual'
   | 'fallback';
 
-export type GoalCategory = 'short' | 'medium' | 'long';
+export type GoalCategory = 'short' | 'medium' | 'long' | 'now';
 
 export type GoalStatus = 'active' | 'paused' | 'completed' | 'archived';
 

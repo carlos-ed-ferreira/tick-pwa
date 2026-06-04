@@ -8,6 +8,7 @@ import {
   createGoalStep,
   createGoalStepChild,
   db,
+  ensureDefaultNowGoal,
   indentGoalStep,
   mergeGoalsInCategory,
   outdentGoalStep,
@@ -212,6 +213,38 @@ describe('goal commands', () => {
     expect(deletedRootGoalStep?.deletedAt).not.toBeNull();
     expect(deletedChildGoalStep?.deletedAt).not.toBeNull();
     expect(updatedGoal?.progressValue).toBe(0);
+  });
+
+  it('creates and preserves the default now goal', async () => {
+    const scope = createGuestScope('goals-now-test');
+
+    const defaultGoal = await ensureDefaultNowGoal({
+      scope,
+      title: 'Focus now',
+    });
+    await createGoal({
+      scope,
+      category: 'now',
+      afterGoalId: defaultGoal.id,
+      title: 'Custom focus',
+    });
+    const ensuredGoal = await ensureDefaultNowGoal({
+      scope,
+      title: 'Focus now',
+    });
+    const nowGoals = await db.goals
+      .where('[scopeId+category]')
+      .equals([scope.id, 'now'])
+      .filter((goal) => goal.deletedAt === null)
+      .sortBy('sortRank');
+    const outboxCount = await db.syncOutbox.count();
+
+    expect(ensuredGoal.id).toBe(defaultGoal.id);
+    expect(nowGoals.map((goal) => goal.title)).toEqual([
+      'Focus now',
+      'Custom focus',
+    ]);
+    expect(outboxCount).toBe(0);
   });
 
   it('merges legacy goals from the same category into a single container', async () => {
