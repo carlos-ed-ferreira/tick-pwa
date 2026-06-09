@@ -1,5 +1,6 @@
 import type {
   AppScope,
+  DailyEntry,
   EntitySyncStatus,
   SyncEntityType,
   SyncOutboxItem,
@@ -20,6 +21,15 @@ import {
   type RemoteGoal,
   type RemoteGoalStep,
 } from './entity-mappers';
+
+type SupabaseSyncClient = NonNullable<
+  ReturnType<typeof getSupabaseBrowserClient>
+>;
+type SupabaseError = {
+  code?: string;
+  details?: string;
+  message?: string;
+};
 
 const pushOrder: SyncEntityType[] = [
   'categoryTag',
@@ -92,6 +102,146 @@ async function markLocalEntitySynced({
   await db.goalSteps.update(entityId, update);
 }
 
+function isDailyEntryDateConflict(error: SupabaseError | null): boolean {
+  if (!error) {
+    return false;
+  }
+
+  const message = `${error.code ?? ''} ${error.message ?? ''} ${
+    error.details ?? ''
+  }`.toLowerCase();
+
+  return (
+    (message.includes('23505') ||
+      message.includes('duplicate key') ||
+      message.includes('unique constraint')) &&
+    (message.includes('daily_entries_user_id_date_idx') ||
+      message.includes('user_id') ||
+      message.includes('date'))
+  );
+}
+
+function isCreateOnlyOutboxItem(item: SyncOutboxItem): boolean {
+  return item.changedFields.length === 1 && item.changedFields[0] === 'created';
+}
+
+async function remapDailyEntryConflict({
+  item,
+  remoteEntry,
+  scope,
+}: {
+  scope: AppScope;
+  item: SyncOutboxItem;
+  remoteEntry: RemoteDailyEntry;
+}): Promise<void> {
+  const oldDailyEntryId = item.entityId;
+  const nextDailyEntry = dailyEntryFromRemote(scope, remoteEntry);
+
+  await db.transaction(
+    'rw',
+    db.dailyEntries,
+    db.checklistItems,
+    db.syncOutbox,
+    async () => {
+      const localEntry = await db.dailyEntries.get(oldDailyEntryId);
+      const existingRemoteLocalEntry =
+        oldDailyEntryId === remoteEntry.id
+          ? localEntry
+          : await db.dailyEntries.get(remoteEntry.id);
+      const canonicalEntry = existingRemoteLocalEntry ?? nextDailyEntry;
+
+      await db.dailyEntries.put({
+        ...canonicalEntry,
+        ...nextDailyEntry,
+        syncStatus: 'synced',
+      });
+
+      if (oldDailyEntryId !== remoteEntry.id) {
+        await db.dailyEntries.delete(oldDailyEntryId);
+      }
+
+      for (const checklistItem of await db.checklistItems
+        .where('scopeId')
+        .equals(scope.id)
+        .filter((candidate) => candidate.dailyEntryId === oldDailyEntryId)
+        .toArray()) {
+        await db.checklistItems.put({
+          ...checklistItem,
+          dailyEntryId: remoteEntry.id,
+        });
+      }
+
+      for (const outboxItem of await db.syncOutbox
+        .where('scopeId')
+        .equals(scope.id)
+        .filter(
+          (candidate) =>
+            candidate.entityId === oldDailyEntryId ||
+            (candidate.entityType === 'checklistItem' &&
+              candidate.payload.dailyEntryId === oldDailyEntryId),
+        )
+        .toArray()) {
+        if (outboxItem.entityType === 'dailyEntry') {
+          await db.syncOutbox.put({
+            ...outboxItem,
+            entityId: remoteEntry.id,
+            baseRevision: remoteEntry.revision,
+            payload: {
+              ...outboxItem.payload,
+              id: remoteEntry.id,
+              scopeId: scope.id,
+              remoteRevision: remoteEntry.revision,
+            },
+            status:
+              outboxItem.status === 'syncing' ? 'pending' : outboxItem.status,
+          });
+          continue;
+        }
+
+        await db.syncOutbox.put({
+          ...outboxItem,
+          payload: {
+            ...outboxItem.payload,
+            dailyEntryId: remoteEntry.id,
+          },
+        });
+      }
+    },
+  );
+}
+
+async function resolveDailyEntryDateConflict({
+  client,
+  item,
+  scope,
+}: {
+  scope: AppScope;
+  item: SyncOutboxItem;
+  client: SupabaseSyncClient;
+}): Promise<RemoteDailyEntry | null> {
+  const payload = item.payload as unknown as Partial<DailyEntry>;
+
+  if (typeof payload.date !== 'string') {
+    return null;
+  }
+
+  const { data, error } = await client
+    .from('daily_entries')
+    .select('*')
+    .eq('user_id', scope.ownerId)
+    .eq('date', payload.date)
+    .maybeSingle();
+
+  if (error || !data) {
+    return null;
+  }
+
+  const remoteEntry = data as RemoteDailyEntry;
+  await remapDailyEntryConflict({ scope, item, remoteEntry });
+
+  return remoteEntry;
+}
+
 async function pushOutboxItem(scope: AppScope, item: SyncOutboxItem) {
   const client = getSupabaseBrowserClient();
 
@@ -118,6 +268,36 @@ async function pushOutboxItem(scope: AppScope, item: SyncOutboxItem) {
     .maybeSingle();
 
   if (error) {
+    if (item.entityType === 'dailyEntry' && isDailyEntryDateConflict(error)) {
+      const remoteEntry = await resolveDailyEntryDateConflict({
+        client,
+        item,
+        scope,
+      });
+
+      if (remoteEntry) {
+        if (isCreateOnlyOutboxItem(item)) {
+          await markLocalEntitySynced({
+            entityType: item.entityType,
+            entityId: remoteEntry.id,
+            revision: remoteEntry.revision,
+          });
+          await db.syncOutbox.update(item.id, {
+            lastError: null,
+            status: 'synced',
+          });
+          return;
+        }
+
+        const retryItem = await db.syncOutbox.get(item.id);
+
+        if (retryItem) {
+          await pushOutboxItem(scope, retryItem);
+          return;
+        }
+      }
+    }
+
     await db.syncOutbox.update(item.id, {
       lastError: error.message,
       status: 'failed',
@@ -146,7 +326,16 @@ export async function pushPendingChanges(scope: AppScope): Promise<void> {
   const items = await getPendingOutboxItems(scope);
 
   for (const item of items) {
-    await pushOutboxItem(scope, item);
+    const currentItem = await db.syncOutbox.get(item.id);
+
+    if (
+      !currentItem ||
+      (currentItem.status !== 'pending' && currentItem.status !== 'failed')
+    ) {
+      continue;
+    }
+
+    await pushOutboxItem(scope, currentItem);
   }
 }
 

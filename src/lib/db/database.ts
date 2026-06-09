@@ -1,4 +1,4 @@
-import Dexie, { type Table } from 'dexie';
+import Dexie, { type Table, type Transaction } from 'dexie';
 import type {
   CategoryTag,
   ChecklistItem,
@@ -9,6 +9,7 @@ import type {
   SyncCursor,
   SyncOutboxItem,
 } from '@/lib/domain';
+import { createDeterministicDailyEntryId } from './daily-entry-id';
 
 type LegacyDailyEntry = Omit<
   DailyEntry,
@@ -201,6 +202,253 @@ function migrateSyncCursor(cursor: LegacySyncCursor): SyncCursor {
       ? 'categoryTag'
       : cursor.entityType) as SyncCursor['entityType'],
   };
+}
+
+function isAuthenticatedScopeId(scopeId: string): scopeId is `user:${string}` {
+  return scopeId.startsWith('user:');
+}
+
+function compareByClientUpdatedAt(
+  firstEntry: DailyEntry,
+  secondEntry: DailyEntry,
+): number {
+  return secondEntry.clientUpdatedAt.localeCompare(firstEntry.clientUpdatedAt);
+}
+
+function chooseCanonicalDailyEntry(entries: DailyEntry[]): DailyEntry {
+  const syncedEntries = entries
+    .filter((entry) => entry.remoteRevision !== null)
+    .sort(compareByClientUpdatedAt);
+
+  if (syncedEntries[0]) {
+    return syncedEntries[0];
+  }
+
+  const deterministicId = createDeterministicDailyEntryId(
+    entries[0].scopeId,
+    entries[0].date,
+  );
+  const deterministicEntry = entries.find(
+    (entry) => entry.id === deterministicId,
+  );
+
+  return deterministicEntry ?? [...entries].sort(compareByClientUpdatedAt)[0];
+}
+
+function mergeDailyEntries({
+  canonicalEntry,
+  canonicalId,
+  entries,
+}: {
+  canonicalEntry: DailyEntry;
+  canonicalId: string;
+  entries: DailyEntry[];
+}): DailyEntry {
+  const createdAt = entries
+    .map((entry) => entry.createdAt)
+    .sort((first, second) => first.localeCompare(second))[0];
+  const latestEntry = [...entries].sort(compareByClientUpdatedAt)[0];
+  const hasActiveEntry = entries.some((entry) => entry.deletedAt === null);
+  const hasPendingEntry = entries.some(
+    (entry) => entry.syncStatus !== 'synced',
+  );
+
+  return {
+    ...latestEntry,
+    id: canonicalId,
+    scopeId: canonicalEntry.scopeId,
+    date: canonicalEntry.date,
+    createdAt: createdAt ?? canonicalEntry.createdAt,
+    deletedAt: hasActiveEntry ? null : latestEntry.deletedAt,
+    remoteRevision: canonicalEntry.remoteRevision,
+    syncStatus: hasPendingEntry ? 'pending' : canonicalEntry.syncStatus,
+  };
+}
+
+function remapOutboxPayload(
+  item: SyncOutboxItem,
+  oldDailyEntryIds: Set<string>,
+  canonicalDailyEntry: DailyEntry,
+): SyncOutboxItem {
+  if (item.entityType === 'dailyEntry' && oldDailyEntryIds.has(item.entityId)) {
+    return {
+      ...item,
+      entityId: canonicalDailyEntry.id,
+      payload: {
+        ...item.payload,
+        ...canonicalDailyEntry,
+      } as unknown as Record<string, unknown>,
+    };
+  }
+
+  if (item.entityType === 'checklistItem') {
+    const dailyEntryId = item.payload.dailyEntryId;
+
+    if (
+      typeof dailyEntryId === 'string' &&
+      oldDailyEntryIds.has(dailyEntryId)
+    ) {
+      return {
+        ...item,
+        payload: {
+          ...item.payload,
+          dailyEntryId: canonicalDailyEntry.id,
+        },
+      };
+    }
+  }
+
+  return item;
+}
+
+async function recalculateMigratedDailyEntrySummary({
+  checklistItemsTable,
+  dailyEntry,
+}: {
+  checklistItemsTable: Table<ChecklistItem, string>;
+  dailyEntry: DailyEntry;
+}): Promise<DailyEntry> {
+  const checklistItems = await checklistItemsTable
+    .where('[scopeId+dailyEntryId]')
+    .equals([dailyEntry.scopeId, dailyEntry.id])
+    .filter((item) => item.deletedAt === null)
+    .toArray();
+  const categorySummaryMap = new Map<
+    string,
+    { categoryTagId: string; itemCount: number; completedCount: number }
+  >();
+
+  for (const item of checklistItems) {
+    if (!item.categoryTagId) {
+      continue;
+    }
+
+    const summary = categorySummaryMap.get(item.categoryTagId) ?? {
+      categoryTagId: item.categoryTagId,
+      itemCount: 0,
+      completedCount: 0,
+    };
+
+    summary.itemCount += 1;
+
+    if (item.checked) {
+      summary.completedCount += 1;
+    }
+
+    categorySummaryMap.set(item.categoryTagId, summary);
+  }
+
+  const sortedItems = [...checklistItems].sort((firstItem, secondItem) =>
+    firstItem.sortRank.localeCompare(secondItem.sortRank),
+  );
+  const categorySummaries = Array.from(categorySummaryMap.values());
+
+  return {
+    ...dailyEntry,
+    previewText:
+      sortedItems.find((item) => item.text.trim().length > 0)?.text.trim() ??
+      '',
+    itemCount: checklistItems.length,
+    completedCount: checklistItems.filter((item) => item.checked).length,
+    categoryTagIds: categorySummaries.map((summary) => summary.categoryTagId),
+    categorySummaries,
+  };
+}
+
+async function reconcileAuthenticatedDailyEntries(transaction: Transaction) {
+  const dailyEntriesTable = transaction.table('dailyEntries') as Table<
+    DailyEntry,
+    string
+  >;
+  const checklistItemsTable = transaction.table('checklistItems') as Table<
+    ChecklistItem,
+    string
+  >;
+  const syncOutboxTable = transaction.table('syncOutbox') as Table<
+    SyncOutboxItem,
+    string
+  >;
+  const entriesByScopeAndDate = new Map<string, DailyEntry[]>();
+
+  for (const entry of await dailyEntriesTable.toArray()) {
+    if (!isAuthenticatedScopeId(entry.scopeId)) {
+      continue;
+    }
+
+    const key = `${entry.scopeId}\n${entry.date}`;
+    const entries = entriesByScopeAndDate.get(key) ?? [];
+    entries.push(entry);
+    entriesByScopeAndDate.set(key, entries);
+  }
+
+  for (const entries of entriesByScopeAndDate.values()) {
+    const canonicalEntry = chooseCanonicalDailyEntry(entries);
+    const canonicalId =
+      canonicalEntry.remoteRevision === null
+        ? createDeterministicDailyEntryId(
+            canonicalEntry.scopeId,
+            canonicalEntry.date,
+          )
+        : canonicalEntry.id;
+    const oldDailyEntryIds = new Set(entries.map((entry) => entry.id));
+
+    if (entries.length === 1 && canonicalEntry.id === canonicalId) {
+      continue;
+    }
+
+    for (const checklistItem of await checklistItemsTable
+      .where('scopeId')
+      .equals(canonicalEntry.scopeId)
+      .filter((item) => oldDailyEntryIds.has(item.dailyEntryId))
+      .toArray()) {
+      if (checklistItem.dailyEntryId === canonicalId) {
+        continue;
+      }
+
+      await checklistItemsTable.put({
+        ...checklistItem,
+        dailyEntryId: canonicalId,
+      });
+    }
+
+    let mergedEntry = mergeDailyEntries({
+      canonicalEntry,
+      canonicalId,
+      entries,
+    });
+    mergedEntry = await recalculateMigratedDailyEntrySummary({
+      checklistItemsTable,
+      dailyEntry: mergedEntry,
+    });
+
+    await dailyEntriesTable.put(mergedEntry);
+
+    for (const entry of entries) {
+      if (entry.id !== canonicalId) {
+        await dailyEntriesTable.delete(entry.id);
+      }
+    }
+
+    for (const outboxItem of await syncOutboxTable
+      .where('scopeId')
+      .equals(canonicalEntry.scopeId)
+      .filter(
+        (item) =>
+          oldDailyEntryIds.has(item.entityId) ||
+          item.entityType === 'checklistItem',
+      )
+      .toArray()) {
+      const remappedItem = remapOutboxPayload(
+        outboxItem,
+        oldDailyEntryIds,
+        mergedEntry,
+      );
+
+      if (remappedItem !== outboxItem) {
+        await syncOutboxTable.put(remappedItem);
+      }
+    }
+  }
 }
 
 export class TickDatabase extends Dexie {
@@ -426,6 +674,25 @@ export class TickDatabase extends Dexie {
           );
         }
       });
+
+    this.version(6)
+      .stores({
+        dailyEntries:
+          'id, scopeId, date, updatedAt, deletedAt, [scopeId+date], [scopeId+updatedAt]',
+        checklistItems:
+          'id, scopeId, dailyEntryId, parentId, updatedAt, deletedAt, [scopeId+dailyEntryId], [scopeId+parentId], [scopeId+updatedAt]',
+        colorTags:
+          'id, scopeId, surface, position, updatedAt, deletedAt, [scopeId+surface], [scopeId+surface+position], [scopeId+updatedAt]',
+        goals:
+          'id, scopeId, category, status, updatedAt, deletedAt, [scopeId+category], [scopeId+status], [scopeId+updatedAt]',
+        goalSteps:
+          'id, scopeId, goalId, parentId, updatedAt, deletedAt, [scopeId+goalId], [scopeId+parentId], [scopeId+updatedAt]',
+        syncOutbox:
+          'id, scopeId, entityType, status, createdAt, [scopeId+status], [scopeId+createdAt]',
+        syncCursors: 'id, scopeId, entityType, [scopeId+entityType]',
+        localPreferences: 'key, scopeId, updatedAt',
+      })
+      .upgrade(reconcileAuthenticatedDailyEntries);
 
     this.categoryTags = this.table('colorTags');
   }

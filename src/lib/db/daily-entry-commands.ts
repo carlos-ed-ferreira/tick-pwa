@@ -6,6 +6,7 @@ import type {
 } from '@/lib/domain';
 import { compareSortRanks, createId } from '@/lib/domain';
 import { db } from './database';
+import { createDailyEntryId } from './daily-entry-id';
 import {
   createSyncMetadata,
   createTimestamp,
@@ -59,7 +60,7 @@ export async function openOrCreateDailyEntry({
     }
 
     const entry: DailyEntry = {
-      id: createId(),
+      id: createDailyEntryId({ scope, date }) ?? createId(),
       scopeId: scope.id,
       date,
       timezone,
