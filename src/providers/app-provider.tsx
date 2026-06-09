@@ -30,7 +30,6 @@ import {
 import {
   ensureUserProfile,
   getSupabaseBrowserClient,
-  isSupabaseConfigured,
   isUserAllowed,
   toTickAuthUser,
   type TickAuthUser,
@@ -97,7 +96,6 @@ interface AppContextValue {
   authMode: AuthMode;
   authUser: TickAuthUser | null;
   authError: string | null;
-  isLoginConfigured: boolean;
   setLocale: (locale: SupportedLocale) => void;
   openAuthEntry: () => Promise<void>;
   signInWithGoogle: () => Promise<void>;
@@ -533,7 +531,6 @@ export function AppProvider({
       dictionary,
       timezonePreference,
       isReady,
-      isLoginConfigured: isSupabaseConfigured(),
       setLocale,
       openAuthEntry,
       signInWithGoogle,

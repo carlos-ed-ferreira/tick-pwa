@@ -5,14 +5,8 @@ import { Button } from '@/components/ui';
 import { useAppContext } from '@/providers';
 
 export function AccountStatus() {
-  const {
-    authMode,
-    authUser,
-    dictionary,
-    isLoginConfigured,
-    openAuthEntry,
-    signOut,
-  } = useAppContext();
+  const { authMode, authUser, dictionary, openAuthEntry, signOut } =
+    useAppContext();
 
   if (authMode === 'authenticated') {
     const email = authUser?.email || dictionary.auth.cloudModeBadge;
@@ -50,7 +44,6 @@ export function AccountStatus() {
         <Button
           className="min-h-10 rounded-full border-white/10 bg-white/5 px-4 py-2 text-xs font-medium text-[#f8f3ea] shadow-sm shadow-[#312c51]/10 hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/10 hover:shadow-md focus-visible:outline-[#f7d9b0] sm:text-sm"
           tone="subtle"
-          disabled={!isLoginConfigured}
           onClick={openAuthEntry}
         >
           <Cloud aria-hidden="true" className="size-4 text-[#f0c38e]" />

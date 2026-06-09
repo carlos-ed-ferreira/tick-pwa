@@ -56,7 +56,6 @@ vi.mock('@/providers', () => ({
       settings: { language: 'Language' },
     },
     enterLocalMode: enterLocalModeMock,
-    isLoginConfigured: true,
     isReady: true,
     locale: 'en',
     signInWithGoogle: signInWithGoogleMock,
@@ -83,6 +82,7 @@ describe('AuthEntry', () => {
     enterLocalModeMock.mockClear();
     signInWithGoogleMock.mockClear();
     signInWithPasswordMock.mockClear();
+    signInWithPasswordMock.mockResolvedValue({ status: 'authenticated' });
   });
 
   it('disables native form validation and renders local validation feedback', async () => {
@@ -222,5 +222,33 @@ describe('AuthEntry', () => {
       await screen.findByText('This email is not approved to use Tick yet.'),
     ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Sign in' })).toBeEnabled();
+  });
+
+  it('keeps sign-in controls enabled so unavailable login can show feedback', async () => {
+    signInWithPasswordMock.mockResolvedValueOnce({ status: 'unavailable' });
+
+    render(<AuthEntry />);
+
+    expect(screen.getByLabelText('Email')).toBeEnabled();
+    expect(screen.getByLabelText('Password')).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Sign in' })).toBeEnabled();
+    expect(
+      screen.getByRole('button', { name: 'Continue with Google' }),
+    ).toBeEnabled();
+
+    fireEvent.change(screen.getByLabelText('Email'), {
+      target: { value: 'user@example.com' },
+    });
+    fireEvent.change(screen.getByLabelText('Password'), {
+      target: { value: 'secret' },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+
+    expect(await screen.findByText('Login unavailable')).toBeInTheDocument();
+    expect(signInWithPasswordMock).toHaveBeenCalledWith(
+      'user@example.com',
+      'secret',
+    );
   });
 });

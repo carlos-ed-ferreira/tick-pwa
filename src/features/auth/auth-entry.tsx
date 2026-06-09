@@ -34,13 +34,8 @@ function isValidEmail(value: string): boolean {
 }
 
 export function AuthEntry() {
-  const {
-    dictionary,
-    enterLocalMode,
-    isLoginConfigured,
-    signInWithGoogle,
-    signInWithPassword,
-  } = useAppContext();
+  const { dictionary, enterLocalMode, signInWithGoogle, signInWithPassword } =
+    useAppContext();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isGoogleSigningIn, setIsGoogleSigningIn] = useState(false);
@@ -129,9 +124,7 @@ export function AuthEntry() {
 
             <FormField
               autoComplete="email"
-              disabled={
-                !isLoginConfigured || isGoogleSigningIn || isPasswordSigningIn
-              }
+              disabled={isGoogleSigningIn || isPasswordSigningIn}
               error={emailError}
               label={dictionary.auth.emailLabel}
               placeholder={dictionary.auth.emailPlaceholder}
@@ -148,9 +141,7 @@ export function AuthEntry() {
 
             <FormField
               autoComplete="current-password"
-              disabled={
-                !isLoginConfigured || isGoogleSigningIn || isPasswordSigningIn
-              }
+              disabled={isGoogleSigningIn || isPasswordSigningIn}
               error={passwordError}
               label={dictionary.auth.passwordLabel}
               placeholder={dictionary.auth.passwordPlaceholder}
@@ -168,9 +159,7 @@ export function AuthEntry() {
 
           <ActionButton
             className="mt-1"
-            disabled={
-              !isLoginConfigured || isGoogleSigningIn || isPasswordSigningIn
-            }
+            disabled={isGoogleSigningIn || isPasswordSigningIn}
             icon={
               isPasswordSigningIn ? (
                 <LoaderCircle className="size-4 animate-spin" />
@@ -202,9 +191,7 @@ export function AuthEntry() {
 
         <div className="grid gap-3">
           <ActionButton
-            disabled={
-              !isLoginConfigured || isGoogleSigningIn || isPasswordSigningIn
-            }
+            disabled={isGoogleSigningIn || isPasswordSigningIn}
             description={dictionary.auth.signInDescription}
             icon={<GoogleIcon />}
             label={
