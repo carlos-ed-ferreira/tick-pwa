@@ -6,7 +6,7 @@ NPM = npm
 help:
 	@printf "\n"
 	@printf "  %-26s %s\n" "make install" "Instala dependencias do projeto"
-	@printf "  %-26s %s\n" "make dev" "Inicia o Supabase local e o Next.js em modo desenvolvimento"
+	@printf "  %-26s %s\n" "make dev" "Instala dependencias, inicia o Supabase local e o Next.js"
 	@printf "  %-26s %s\n" "make build" "Gera build de producao com PWA"
 	@printf "  %-26s %s\n" "make start" "Inicia o servidor de producao apos o build"
 	@printf "  %-26s %s\n" "make lint" "Roda ESLint"
@@ -35,7 +35,7 @@ require-npm:
 install: require-npm
 	$(NPM) install
 
-dev: supabase-start
+dev: install supabase-start
 	$(NPM) run dev
 
 build: require-npm

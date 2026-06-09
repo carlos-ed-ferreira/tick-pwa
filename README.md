@@ -107,8 +107,9 @@ Crie um usuário com esse email e uma senha de desenvolvimento no Supabase
 Studio local ou pela API Auth local. O login local suportado pelo app é
 email/senha; Google local não faz parte do setup padrão.
 
-Rode o ambiente de desenvolvimento com o Makefile. O comando inicia o Supabase
-local antes do Next.js:
+Rode o ambiente de desenvolvimento com o Makefile. O comando executa
+`npm install` para instalar ou atualizar dependências quando necessário, inicia
+o Supabase local e depois inicia o Next.js:
 
 ```bash
 make dev
