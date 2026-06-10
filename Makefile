@@ -35,7 +35,20 @@ require-npm:
 install: require-npm
 	$(NPM) install
 
-dev: install supabase-start
+dev: install
+	@set -e; \
+	if output="$$( $(NPM) run supabase:start 2>&1 )"; then \
+		printf "%s\n" "$$output"; \
+	else \
+		status=$$?; \
+		printf "%s\n" "$$output"; \
+		if printf "%s\n" "$$output" | grep -q "supabase start is already running" && \
+			printf "%s\n" "$$output" | grep -q "container is not ready: starting"; then \
+			printf "%s\n" "Supabase local ja esta subindo; mantendo containers e iniciando apenas o frontend."; \
+		else \
+			exit $$status; \
+		fi; \
+	fi
 	$(NPM) run dev
 
 build: require-npm
