@@ -23,6 +23,7 @@ const {
   reorderGoalStepMock,
   requestSyncMock,
   softDeleteGoalStepMock,
+  updateCategoryTagMock,
   updateGoalStepTextMock,
   useCategoryTagsMock,
   useGoalsMock,
@@ -36,6 +37,7 @@ const {
   reorderGoalStepMock: vi.fn().mockResolvedValue(undefined),
   requestSyncMock: vi.fn().mockResolvedValue(undefined),
   softDeleteGoalStepMock: vi.fn().mockResolvedValue(undefined),
+  updateCategoryTagMock: vi.fn().mockResolvedValue(undefined),
   updateGoalStepTextMock: vi.fn().mockResolvedValue(undefined),
   useCategoryTagsMock: vi.fn(),
   useGoalsMock: vi.fn(),
@@ -56,6 +58,7 @@ vi.mock('@/lib/db', () => ({
   softDeleteGoalStep: softDeleteGoalStepMock,
   toggleGoalStepChecked: vi.fn().mockResolvedValue(undefined),
   toggleGoalStepCollapsed: vi.fn().mockResolvedValue(undefined),
+  updateCategoryTag: updateCategoryTagMock,
   updateGoalStepText: updateGoalStepTextMock,
 }));
 
@@ -195,6 +198,7 @@ describe('GoalsSurface', () => {
     reorderGoalStepMock.mockClear();
     requestSyncMock.mockClear();
     softDeleteGoalStepMock.mockClear();
+    updateCategoryTagMock.mockClear();
     updateGoalStepTextMock.mockClear();
     useCategoryTagsMock.mockReset();
     useCategoryTagsMock.mockReturnValue(goalGroups);
@@ -388,6 +392,24 @@ describe('GoalsSurface', () => {
         goalStepId: 'goal-step-1',
       });
     });
+  });
+
+  it('renames the goal group on blur of the title input', async () => {
+    render(<GoalsSurface />);
+    fireEvent.click(screen.getByRole('button', { name: 'HOME' }));
+
+    const nameInput = screen.getByRole('textbox', { name: 'Rename goal' });
+    fireEvent.change(nameInput, { target: { value: 'CASA' } });
+    fireEvent.blur(nameInput);
+
+    await waitFor(() => {
+      expect(updateCategoryTagMock).toHaveBeenCalledWith({
+        scope,
+        categoryTagId: 'category-1',
+        name: 'CASA',
+      });
+    });
+    expect(requestSyncMock).toHaveBeenCalled();
   });
 
   it('merges duplicate goals inside the same group instead of showing subdivisions', async () => {

@@ -49,6 +49,7 @@ import {
   softDeleteGoalStep,
   toggleGoalStepChecked,
   toggleGoalStepCollapsed,
+  updateCategoryTag,
   updateGoalStepText,
 } from '@/lib/db';
 import type { CategoryTag, Goal } from '@/lib/domain';
@@ -97,9 +98,10 @@ export function GoalsSurface() {
         {selectedCategoryTag ? (
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="grid gap-1">
-              <h2 className="text-2xl font-semibold text-[#fff9f2] sm:text-3xl">
-                {selectedCategoryTag.name}
-              </h2>
+              <GoalNameInput
+                key={selectedCategoryTag.id}
+                categoryTag={selectedCategoryTag}
+              />
               <p className="max-w-2xl text-sm leading-6 text-[#d8d0e8]">
                 {dictionary.goals.groupDetailDescription}
               </p>
@@ -140,6 +142,57 @@ export function GoalsSurface() {
         )}
       </div>
     </section>
+  );
+}
+
+function GoalNameInput({ categoryTag }: { categoryTag: CategoryTag }) {
+  const { dictionary, scope, requestSync } = useAppContext();
+  const [draftName, setDraftName] = useState(categoryTag.name);
+
+  async function commitName() {
+    if (!scope) {
+      return;
+    }
+
+    const trimmed = draftName.trim();
+
+    if (!trimmed) {
+      setDraftName(categoryTag.name);
+      return;
+    }
+
+    if (trimmed === categoryTag.name) {
+      return;
+    }
+
+    await updateCategoryTag({
+      scope,
+      categoryTagId: categoryTag.id,
+      name: trimmed,
+    });
+    await requestSync();
+  }
+
+  return (
+    <Input
+      aria-label={dictionary.goals.renameGoal}
+      className="min-w-0 w-full border-b border-transparent bg-transparent px-0 py-0.5 text-2xl font-semibold text-[#fff9f2] outline-none transition placeholder:text-[#8f85aa] focus:border-[#f0c38e]/30 sm:text-3xl"
+      placeholder={dictionary.goals.goalTitlePlaceholder}
+      value={draftName}
+      onBlur={() => void commitName()}
+      onChange={(event) => setDraftName(event.target.value.toUpperCase())}
+      onKeyDown={(event: KeyboardEvent<HTMLInputElement>) => {
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          event.currentTarget.blur();
+        }
+        if (event.key === 'Escape') {
+          event.preventDefault();
+          setDraftName(categoryTag.name);
+          event.currentTarget.blur();
+        }
+      }}
+    />
   );
 }
 
