@@ -11,6 +11,7 @@ import {
   ensureDefaultNowGoal,
   indentGoalStep,
   mergeGoalsInCategory,
+  mergeGoalsInCategoryTag,
   outdentGoalStep,
   reorderGoalStep,
   softDeleteGoal,
@@ -312,6 +313,82 @@ describe('goal commands', () => {
       secondRootStep.id,
     ]);
     expect(deletedLegacyGoal?.deletedAt).not.toBeNull();
+  });
+
+  it('merges goals from the same editable group into a single container', async () => {
+    const scope = createGuestScope('goals-category-tag-merge-test');
+    const categoryTag = await createCategoryTag({
+      scope,
+      surface: 'goals',
+      name: 'Focus',
+      colorHex: '#f0c38e',
+    });
+    const firstGoal = await createGoal({
+      scope,
+      category: 'short',
+      title: 'Primary',
+    });
+    const secondGoal = await createGoal({
+      scope,
+      category: 'now',
+      title: 'Duplicate',
+    });
+    await assignGoalCategory({
+      scope,
+      goalId: firstGoal.id,
+      categoryTagId: categoryTag.id,
+    });
+    await assignGoalCategory({
+      scope,
+      goalId: secondGoal.id,
+      categoryTagId: categoryTag.id,
+    });
+    const firstRootStep = await createGoalStep({
+      scope,
+      goalId: firstGoal.id,
+      text: 'Keep this first',
+    });
+    const secondRootStep = await createGoalStep({
+      scope,
+      goalId: secondGoal.id,
+      text: 'Move this over',
+    });
+
+    const mergedGoal = await mergeGoalsInCategoryTag({
+      scope,
+      categoryTagId: categoryTag.id,
+    });
+    const activeGroupedGoals = await db.goals
+      .where('scopeId')
+      .equals(scope.id)
+      .filter(
+        (goal) =>
+          goal.deletedAt === null && goal.categoryTagId === categoryTag.id,
+      )
+      .sortBy('sortRank');
+    const survivingGoalId = mergedGoal?.id;
+    const movedRootStep = await db.goalSteps.get(secondRootStep.id);
+    const movedFirstRootStep = await db.goalSteps.get(firstRootStep.id);
+    const remainingRootSteps = await db.goalSteps
+      .where('[scopeId+goalId]')
+      .equals([scope.id, survivingGoalId ?? firstGoal.id])
+      .filter(
+        (goalStep) => goalStep.deletedAt === null && goalStep.parentId === null,
+      )
+      .sortBy('sortRank');
+    const deletedGoal = await db.goals.get(
+      survivingGoalId === firstGoal.id ? secondGoal.id : firstGoal.id,
+    );
+
+    expect(survivingGoalId).toBeTruthy();
+    expect(activeGroupedGoals).toHaveLength(1);
+    expect(activeGroupedGoals[0]?.id).toBe(survivingGoalId);
+    expect(movedRootStep?.goalId).toBe(survivingGoalId);
+    expect(movedFirstRootStep?.goalId).toBe(survivingGoalId);
+    expect(remainingRootSteps.map((goalStep) => goalStep.id).sort()).toEqual(
+      [firstRootStep.id, secondRootStep.id].sort(),
+    );
+    expect(deletedGoal?.deletedAt).not.toBeNull();
   });
 
   it('reorders goal steps at the same level', async () => {

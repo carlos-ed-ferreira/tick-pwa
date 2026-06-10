@@ -4,6 +4,7 @@ import {
   createId,
   createReorderedRank,
   createSortRankBetween,
+  compareSortRanks,
   sortByRank,
 } from '@/lib/domain';
 import { db } from './database';
@@ -16,6 +17,26 @@ import { queueSyncOutboxItem } from './sync-outbox';
 
 function sortGoals(goals: Goal[]): Goal[] {
   return sortByRank(goals);
+}
+
+function sortGroupedGoals(goals: Goal[]): Goal[] {
+  return [...goals].sort((firstGoal, secondGoal) => {
+    const rankOrder = compareSortRanks(firstGoal.sortRank, secondGoal.sortRank);
+
+    if (rankOrder !== 0) {
+      return rankOrder;
+    }
+
+    const createdAtOrder = firstGoal.createdAt.localeCompare(
+      secondGoal.createdAt,
+    );
+
+    if (createdAtOrder !== 0) {
+      return createdAtOrder;
+    }
+
+    return firstGoal.id.localeCompare(secondGoal.id);
+  });
 }
 
 function sortGoalSteps(goalSteps: GoalStep[]): GoalStep[] {
@@ -682,6 +703,117 @@ export async function mergeGoalsInCategory({
       await syncGoalProgressFromSteps({ scope, goalId: primaryGoal.id });
 
       return (await getScopedGoal(scope, primaryGoal.id)) ?? primaryGoal;
+    },
+  );
+}
+
+export async function mergeGoalsInCategoryTag({
+  scope,
+  categoryTagId,
+}: {
+  scope: AppScope;
+  categoryTagId: string;
+}): Promise<Goal | null> {
+  return db.transaction(
+    'rw',
+    db.goals,
+    db.goalSteps,
+    db.categoryTags,
+    db.syncOutbox,
+    async () => {
+      const categoryTag = await db.categoryTags.get(categoryTagId);
+
+      if (
+        !categoryTag ||
+        categoryTag.scopeId !== scope.id ||
+        categoryTag.deletedAt ||
+        categoryTag.surface !== 'goals'
+      ) {
+        return null;
+      }
+
+      const activeGoals = sortGroupedGoals(
+        await db.goals
+          .where('scopeId')
+          .equals(scope.id)
+          .filter(
+            (goal) =>
+              goal.deletedAt === null &&
+              goal.archivedAt === null &&
+              goal.categoryTagId === categoryTag.id,
+          )
+          .toArray(),
+      );
+
+      if (activeGoals.length === 0) {
+        return null;
+      }
+
+      const [primaryGoal, ...legacyGoals] = activeGoals;
+
+      if (legacyGoals.length === 0) {
+        return primaryGoal;
+      }
+
+      let primaryGoalSteps = await getActiveGoalSteps(scope, primaryGoal.id);
+      let lastRootSortRank =
+        sortGoalSteps(
+          primaryGoalSteps.filter((goalStep) => goalStep.parentId === null),
+        ).at(-1)?.sortRank ?? null;
+
+      for (const legacyGoal of legacyGoals) {
+        const legacyGoalSteps = await getActiveGoalSteps(scope, legacyGoal.id);
+        const rootGoalSteps = sortGoalSteps(
+          legacyGoalSteps.filter((goalStep) => goalStep.parentId === null),
+        );
+
+        for (const rootGoalStep of rootGoalSteps) {
+          const nextRootSortRank = createSortRankBetween(
+            lastRootSortRank,
+            null,
+          );
+          const movedRootGoalStep = touchGoalStep(scope, {
+            ...rootGoalStep,
+            goalId: primaryGoal.id,
+            sortRank: nextRootSortRank,
+          });
+
+          await persistGoalStepUpdate(scope, movedRootGoalStep, [
+            'goalId',
+            'sortRank',
+          ]);
+
+          for (const descendantGoalStep of collectGoalStepDescendants(
+            legacyGoalSteps,
+            rootGoalStep.id,
+          )) {
+            const movedDescendantGoalStep = touchGoalStep(scope, {
+              ...descendantGoalStep,
+              goalId: primaryGoal.id,
+            });
+
+            await persistGoalStepUpdate(scope, movedDescendantGoalStep, [
+              'goalId',
+            ]);
+          }
+
+          lastRootSortRank = nextRootSortRank;
+        }
+
+        const deletedLegacyGoal = touchGoal(scope, {
+          ...legacyGoal,
+          deletedAt: createTimestamp(),
+        });
+        await persistGoalUpdate(scope, deletedLegacyGoal, ['deletedAt']);
+
+        primaryGoalSteps = await getActiveGoalSteps(scope, primaryGoal.id);
+        lastRootSortRank =
+          sortGoalSteps(
+            primaryGoalSteps.filter((goalStep) => goalStep.parentId === null),
+          ).at(-1)?.sortRank ?? lastRootSortRank;
+      }
+
+      return primaryGoal;
     },
   );
 }

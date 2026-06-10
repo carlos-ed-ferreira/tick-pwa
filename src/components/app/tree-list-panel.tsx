@@ -24,6 +24,7 @@ export function TreeListPanel({
   isSelectionMode,
   onAddRoot,
   onClearSelection,
+  surface = 'panel',
 }: {
   addLabel: string;
   bulkDeleteDialog: BulkDeleteDialog;
@@ -34,10 +35,17 @@ export function TreeListPanel({
   isSelectionMode: boolean;
   onAddRoot: () => Promise<void> | void;
   onClearSelection: () => void;
+  surface?: 'panel' | 'none';
 }) {
   return (
     <>
-      <div className="modal-panel min-h-0 flex-1 overflow-y-auto p-2">
+      <div
+        className={
+          surface === 'panel'
+            ? 'modal-panel min-h-0 flex-1 overflow-y-auto p-2'
+            : 'min-h-0 flex-1 overflow-y-auto'
+        }
+      >
         {hasRows ? (
           <div className="grid gap-1">{children}</div>
         ) : (
