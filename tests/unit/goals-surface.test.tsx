@@ -15,29 +15,25 @@ const scope = {
 };
 
 const {
-  assignGoalCategoryMock,
-  createCategoryTagMock,
   createGoalMock,
   createGoalStepMock,
-  mergeGoalsInCategoryTagMock,
   reorderGoalStepMock,
   requestSyncMock,
+  softDeleteGoalMock,
   softDeleteGoalStepMock,
-  updateCategoryTagMock,
+  updateGoalTitleMock,
   updateGoalStepTextMock,
   useCategoryTagsMock,
   useGoalsMock,
   useGoalStepTreeMock,
 } = vi.hoisted(() => ({
-  assignGoalCategoryMock: vi.fn().mockResolvedValue(undefined),
-  createCategoryTagMock: vi.fn(),
   createGoalMock: vi.fn(),
   createGoalStepMock: vi.fn(),
-  mergeGoalsInCategoryTagMock: vi.fn().mockResolvedValue(null),
   reorderGoalStepMock: vi.fn().mockResolvedValue(undefined),
   requestSyncMock: vi.fn().mockResolvedValue(undefined),
+  softDeleteGoalMock: vi.fn().mockResolvedValue(undefined),
   softDeleteGoalStepMock: vi.fn().mockResolvedValue(undefined),
-  updateCategoryTagMock: vi.fn().mockResolvedValue(undefined),
+  updateGoalTitleMock: vi.fn().mockResolvedValue(undefined),
   updateGoalStepTextMock: vi.fn().mockResolvedValue(undefined),
   useCategoryTagsMock: vi.fn(),
   useGoalsMock: vi.fn(),
@@ -45,21 +41,19 @@ const {
 }));
 
 vi.mock('@/lib/db', () => ({
-  assignGoalCategory: assignGoalCategoryMock,
   assignGoalStepCategory: vi.fn().mockResolvedValue(undefined),
-  createCategoryTag: createCategoryTagMock,
   createGoal: createGoalMock,
   createGoalStep: createGoalStepMock,
   createGoalStepChild: vi.fn().mockResolvedValue(undefined),
   indentGoalStep: vi.fn().mockResolvedValue(undefined),
-  mergeGoalsInCategoryTag: mergeGoalsInCategoryTagMock,
   outdentGoalStep: vi.fn().mockResolvedValue(undefined),
   reorderGoalStep: reorderGoalStepMock,
+  softDeleteGoal: softDeleteGoalMock,
   softDeleteGoalStep: softDeleteGoalStepMock,
   toggleGoalStepChecked: vi.fn().mockResolvedValue(undefined),
   toggleGoalStepCollapsed: vi.fn().mockResolvedValue(undefined),
-  updateCategoryTag: updateCategoryTagMock,
   updateGoalStepText: updateGoalStepTextMock,
+  updateGoalTitle: updateGoalTitleMock,
 }));
 
 vi.mock('@/providers', () => ({
@@ -137,25 +131,12 @@ vi.mock('@/features/goals/use-goal-step-tree', () => ({
   useGoalStepTree: useGoalStepTreeMock,
 }));
 
-const goalGroups = [
-  {
-    id: 'category-1',
-    name: 'HOME',
-    colorHex: '#71717a',
-  },
-  {
-    id: 'category-2',
-    name: 'WORK',
-    colorHex: '#f0c38e',
-  },
-];
-
 function goal(overrides: Record<string, unknown>) {
   return {
     id: 'goal-1',
-    title: 'Goal A',
+    title: 'Focus',
     category: 'now',
-    categoryTagId: 'category-1',
+    categoryTagId: null,
     ...overrides,
   };
 }
@@ -183,29 +164,40 @@ function goalStep(overrides: Record<string, unknown> = {}) {
 
 describe('GoalsSurface', () => {
   beforeEach(() => {
-    assignGoalCategoryMock.mockClear();
-    createCategoryTagMock.mockReset();
-    createCategoryTagMock.mockResolvedValue({
-      id: 'category-new',
-      name: 'NEW GROUP',
-      colorHex: '#f0c38e',
-    });
     createGoalMock.mockReset();
     createGoalMock.mockResolvedValue({ id: 'goal-new' });
     createGoalStepMock.mockReset();
     createGoalStepMock.mockResolvedValue(undefined);
-    mergeGoalsInCategoryTagMock.mockClear();
     reorderGoalStepMock.mockClear();
     requestSyncMock.mockClear();
+    softDeleteGoalMock.mockClear();
     softDeleteGoalStepMock.mockClear();
-    updateCategoryTagMock.mockClear();
+    updateGoalTitleMock.mockClear();
     updateGoalStepTextMock.mockClear();
     useCategoryTagsMock.mockReset();
-    useCategoryTagsMock.mockReturnValue(goalGroups);
+    useCategoryTagsMock.mockReturnValue([
+      {
+        id: 'category-1',
+        name: 'HOME',
+        colorHex: '#71717a',
+      },
+    ]);
     useGoalsMock.mockReset();
-    useGoalsMock.mockImplementation((_scope, category) =>
-      category === 'now' ? [goal({})] : [],
-    );
+    useGoalsMock.mockImplementation((_scope, category) => {
+      if (category === 'short') {
+        return [];
+      }
+
+      if (category === 'medium') {
+        return [];
+      }
+
+      if (category === 'long') {
+        return [];
+      }
+
+      return [goal({ id: 'goal-1', title: 'Focus' })];
+    });
     useGoalStepTreeMock.mockReset();
     useGoalStepTreeMock.mockReturnValue([]);
   });
@@ -214,103 +206,51 @@ describe('GoalsSurface', () => {
     cleanup();
   });
 
-  it('renders editable goal group cards before loading goals', () => {
+  it('renders goal cards and a new goal card without showing categories as groups', () => {
     render(<GoalsSurface />);
 
-    expect(screen.getByRole('button', { name: 'HOME' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'WORK' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Focus' })).toBeInTheDocument();
     expect(
       screen.getByRole('button', { name: 'Create a new goal group' }),
     ).toBeInTheDocument();
-    expect(screen.queryByText('Horizons')).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Focus now' })).toBeNull();
-    expect(screen.queryByDisplayValue('Goal A')).not.toBeInTheDocument();
+    expect(screen.queryByText('HOME')).not.toBeInTheDocument();
   });
 
-  it('creates a new goal group from the dashed add card', async () => {
+  it('creates a new goal card from the dashed add card', async () => {
     render(<GoalsSurface />);
 
     fireEvent.click(
       screen.getByRole('button', { name: 'Create a new goal group' }),
-    );
-
-    await waitFor(() => {
-      expect(createCategoryTagMock).toHaveBeenCalledWith({
-        scope,
-        surface: 'goals',
-        name: 'New group',
-        colorHex: '#f0c38e',
-      });
-    });
-    expect(requestSyncMock).toHaveBeenCalled();
-  });
-
-  it('opens a group and renders one checklist for the selected group', () => {
-    useGoalsMock.mockImplementation((_scope, category) =>
-      category === 'now'
-        ? [
-            goal({
-              id: 'goal-1',
-              title: 'Home goal',
-              categoryTagId: 'category-1',
-            }),
-            goal({
-              id: 'goal-2',
-              title: 'Work goal',
-              categoryTagId: 'category-2',
-            }),
-          ]
-        : [],
-    );
-    useGoalStepTreeMock.mockImplementation((_scope, goalId) =>
-      goalId === 'goal-1' ? [goalStep()] : [],
-    );
-
-    render(<GoalsSurface />);
-    fireEvent.click(screen.getByRole('button', { name: 'HOME' }));
-
-    expect(screen.getByDisplayValue('Existing step')).toBeInTheDocument();
-    expect(screen.queryByDisplayValue('Home goal')).not.toBeInTheDocument();
-    expect(screen.queryByDisplayValue('Work goal')).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Add goal' })).toBeNull();
-    expect(
-      screen.getByRole('button', { name: 'Back to goal groups' }),
-    ).toBeInTheDocument();
-  });
-
-  it('creates the first backing goal and checklist item from an empty group', async () => {
-    useGoalsMock.mockReturnValue([]);
-
-    render(<GoalsSurface />);
-    fireEvent.click(screen.getByRole('button', { name: 'WORK' }));
-    fireEvent.click(
-      screen.getByRole('button', {
-        name: 'Start this section with a checklist item',
-      }),
     );
 
     await waitFor(() => {
       expect(createGoalMock).toHaveBeenCalledWith({
         scope,
         category: 'now',
-        title: 'WORK',
+        title: 'NEW GROUP',
       });
     });
-    expect(assignGoalCategoryMock).toHaveBeenCalledWith({
-      scope,
-      goalId: 'goal-new',
-      categoryTagId: 'category-2',
-    });
-    expect(createGoalStepMock).toHaveBeenCalledWith({
-      scope,
-      goalId: 'goal-new',
-    });
+    expect(requestSyncMock).toHaveBeenCalled();
   });
 
-  it('creates the first checklist item inside an existing grouped goal', async () => {
-    render(<GoalsSurface />);
-    fireEvent.click(screen.getByRole('button', { name: 'HOME' }));
+  it('opens a goal and renders one checklist card for it', () => {
+    useGoalStepTreeMock.mockReturnValue([goalStep()]);
 
+    render(<GoalsSurface />);
+    fireEvent.click(screen.getByRole('button', { name: 'Focus' }));
+
+    expect(screen.getByDisplayValue('Existing step')).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Back to goal groups' }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Add goal' })).toBeNull();
+  });
+
+  it('creates the first checklist item from the empty state', async () => {
+    useGoalStepTreeMock.mockReturnValue([]);
+
+    render(<GoalsSurface />);
+    fireEvent.click(screen.getByRole('button', { name: 'Focus' }));
     fireEvent.click(
       screen.getByRole('button', {
         name: 'Start this section with a checklist item',
@@ -323,14 +263,13 @@ describe('GoalsSurface', () => {
         goalId: 'goal-1',
       });
     });
-    expect(createGoalMock).not.toHaveBeenCalled();
   });
 
   it('reorders a goal step when clicking the move controls', async () => {
     useGoalStepTreeMock.mockReturnValue([goalStep()]);
 
     render(<GoalsSurface />);
-    fireEvent.click(screen.getByRole('button', { name: 'HOME' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Focus' }));
     fireEvent.click(screen.getByLabelText('Move item up'));
 
     await waitFor(() => {
@@ -347,7 +286,7 @@ describe('GoalsSurface', () => {
     useGoalStepTreeMock.mockReturnValue([goalStep()]);
 
     render(<GoalsSurface />);
-    fireEvent.click(screen.getByRole('button', { name: 'HOME' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Focus' }));
 
     const input = screen.getByDisplayValue('Existing step');
     fireEvent.change(input, { target: { value: 'Edited step' } });
@@ -366,16 +305,13 @@ describe('GoalsSurface', () => {
       goalStepId: 'goal-step-1',
       text: 'Edited step',
     });
-    expect(updateGoalStepTextMock.mock.invocationCallOrder[0]).toBeLessThan(
-      createGoalStepMock.mock.invocationCallOrder[0],
-    );
   });
 
   it('bulk deletes a selected goal step from selection mode', async () => {
     useGoalStepTreeMock.mockReturnValue([goalStep()]);
 
     render(<GoalsSurface />);
-    fireEvent.click(screen.getByRole('button', { name: 'HOME' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Focus' }));
 
     fireEvent.click(screen.getByLabelText('Select item'));
     fireEvent.click(screen.getByLabelText('Delete item'));
@@ -394,53 +330,35 @@ describe('GoalsSurface', () => {
     });
   });
 
-  it('renames the goal group on blur of the title input', async () => {
-    render(<GoalsSurface />);
-    fireEvent.click(screen.getByRole('button', { name: 'HOME' }));
-
-    const nameInput = screen.getByRole('textbox', { name: 'Rename goal' });
-    fireEvent.change(nameInput, { target: { value: 'CASA' } });
-    fireEvent.blur(nameInput);
-
-    await waitFor(() => {
-      expect(updateCategoryTagMock).toHaveBeenCalledWith({
-        scope,
-        categoryTagId: 'category-1',
-        name: 'CASA',
-      });
-    });
-    expect(requestSyncMock).toHaveBeenCalled();
-  });
-
-  it('merges duplicate goals inside the same group instead of showing subdivisions', async () => {
-    useGoalsMock.mockImplementation((_scope, category) =>
-      category === 'now'
-        ? [
-            goal({
-              id: 'goal-1',
-              title: 'Home goal',
-              categoryTagId: 'category-1',
-            }),
-            goal({
-              id: 'goal-2',
-              title: 'Side project',
-              categoryTagId: 'category-1',
-            }),
-          ]
-        : [],
-    );
+  it('renames and deletes a goal card', async () => {
+    useGoalStepTreeMock.mockReturnValue([goalStep()]);
 
     render(<GoalsSurface />);
-    fireEvent.click(screen.getByRole('button', { name: 'HOME' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Focus' }));
+
+    const titleInput = screen.getByLabelText('Rename goal');
+    fireEvent.change(titleInput, { target: { value: 'Updated goal' } });
+    fireEvent.blur(titleInput);
 
     await waitFor(() => {
-      expect(mergeGoalsInCategoryTagMock).toHaveBeenCalledWith({
+      expect(updateGoalTitleMock).toHaveBeenCalledWith({
         scope,
-        categoryTagId: 'category-1',
+        goalId: 'goal-1',
+        title: 'UPDATED GOAL',
       });
     });
-    expect(screen.queryByDisplayValue('Home goal')).not.toBeInTheDocument();
-    expect(screen.queryByDisplayValue('Side project')).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Delete goal' })).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete goal' }));
+    expect(
+      await screen.findByText('This goal has content. Delete it anyway?'),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+
+    await waitFor(() => {
+      expect(softDeleteGoalMock).toHaveBeenCalledWith({
+        scope,
+        goalId: 'goal-1',
+      });
+    });
   });
 });

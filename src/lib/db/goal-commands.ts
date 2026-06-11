@@ -39,6 +39,10 @@ function sortGroupedGoals(goals: Goal[]): Goal[] {
   });
 }
 
+function normalizeGoalTitle(title: string): string {
+  return title.normalize('NFC').trim().toLocaleUpperCase();
+}
+
 function sortGoalSteps(goalSteps: GoalStep[]): GoalStep[] {
   return sortByRank(goalSteps);
 }
@@ -241,11 +245,12 @@ export async function createGoal({
   return db.transaction('rw', db.goals, db.syncOutbox, async () => {
     const activeGoals = await getActiveGoals(scope, category);
     const now = createTimestamp();
+    const normalizedTitle = normalizeGoalTitle(title);
     const goal: Goal = {
       id: createId(),
       scopeId: scope.id,
       category,
-      title,
+      title: normalizedTitle,
       description: '',
       status: 'active',
       progressMode: 'steps',
@@ -287,11 +292,13 @@ export async function updateGoalTitle({
   await db.transaction('rw', db.goals, db.syncOutbox, async () => {
     const goal = await getScopedGoal(scope, goalId);
 
-    if (!goal || goal.title === title) {
+    const normalizedTitle = normalizeGoalTitle(title);
+
+    if (!goal || goal.title === normalizedTitle) {
       return;
     }
 
-    const updatedGoal = touchGoal(scope, { ...goal, title });
+    const updatedGoal = touchGoal(scope, { ...goal, title: normalizedTitle });
     await persistGoalUpdate(scope, updatedGoal, ['title']);
   });
 }
@@ -306,6 +313,7 @@ export async function ensureDefaultNowGoal({
   return db.transaction('rw', db.goals, db.syncOutbox, async () => {
     const activeGoals = sortGoals(await getActiveGoals(scope, 'now'));
     const defaultGoal = activeGoals[0];
+    const normalizedTitle = normalizeGoalTitle(title);
 
     if (!defaultGoal) {
       const now = createTimestamp();
@@ -313,7 +321,7 @@ export async function ensureDefaultNowGoal({
         id: createId(),
         scopeId: scope.id,
         category: 'now',
-        title,
+        title: normalizedTitle,
         description: '',
         status: 'active',
         progressMode: 'steps',
@@ -342,11 +350,14 @@ export async function ensureDefaultNowGoal({
       return goal;
     }
 
-    if (defaultGoal.title === title) {
+    if (defaultGoal.title === normalizedTitle) {
       return defaultGoal;
     }
 
-    const updatedGoal = touchGoal(scope, { ...defaultGoal, title });
+    const updatedGoal = touchGoal(scope, {
+      ...defaultGoal,
+      title: normalizedTitle,
+    });
     await persistGoalUpdate(scope, updatedGoal, ['title']);
 
     return updatedGoal;

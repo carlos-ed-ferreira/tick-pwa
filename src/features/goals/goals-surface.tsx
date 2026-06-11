@@ -9,13 +9,7 @@ import {
   Plus,
   Trash2,
 } from 'lucide-react';
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-  type KeyboardEvent,
-} from 'react';
+import { useCallback, useMemo, useState, type KeyboardEvent } from 'react';
 import {
   TaskTreeActionGroup,
   TaskTreeCategoryChip,
@@ -36,23 +30,22 @@ import { useFocusAfterCreate } from '@/hooks/use-focus-after-create';
 import { useTreeBulkActions } from '@/hooks/use-tree-bulk-actions';
 import { useTreeSelection } from '@/hooks/use-tree-selection';
 import {
-  assignGoalCategory,
   assignGoalStepCategory,
-  createCategoryTag,
   createGoal,
   createGoalStep,
   createGoalStepChild,
   indentGoalStep,
-  mergeGoalsInCategoryTag,
   outdentGoalStep,
   reorderGoalStep,
+  softDeleteGoal,
   softDeleteGoalStep,
   toggleGoalStepChecked,
   toggleGoalStepCollapsed,
-  updateCategoryTag,
   updateGoalStepText,
+  updateGoalTitle,
 } from '@/lib/db';
-import type { CategoryTag, Goal } from '@/lib/domain';
+import type { Goal } from '@/lib/domain';
+import { sortByRank } from '@/lib/domain';
 import { requiresDeleteConfirmation } from '@/lib/confirm-delete';
 import { useAppContext } from '@/providers';
 import type { VisibleGoalStepRow } from './goal-step-tree';
@@ -60,247 +53,117 @@ import { useGoalStepTree } from './use-goal-step-tree';
 import { useGoals } from './use-goals';
 
 const goalStepInputSelector = '[data-goal-step-input="true"]';
-const newGoalGroupColorHex = '#f0c38e';
 
 export function GoalsSurface() {
   const { dictionary, scope, requestSync } = useAppContext();
-  const [selectedCategoryTagId, setSelectedCategoryTagId] = useState<
-    string | null
-  >(null);
+  const [selectedGoalId, setSelectedGoalId] = useState<string | null>(null);
+  const shortGoals = useGoals(scope, 'short');
+  const mediumGoals = useGoals(scope, 'medium');
+  const longGoals = useGoals(scope, 'long');
+  const nowGoals = useGoals(scope, 'now');
   const categoryTags = useCategoryTags(scope, 'goals');
   const categoryTagMap = new Map(categoryTags.map((tag) => [tag.id, tag]));
-  const selectedCategoryTag = selectedCategoryTagId
-    ? (categoryTagMap.get(selectedCategoryTagId) ?? null)
+  const goals = useMemo(
+    () =>
+      sortByRank([...shortGoals, ...mediumGoals, ...longGoals, ...nowGoals]),
+    [longGoals, mediumGoals, nowGoals, shortGoals],
+  );
+  const selectedGoal = selectedGoalId
+    ? (goals.find((goal) => goal.id === selectedGoalId) ?? null)
     : null;
 
   if (!scope) {
     return null;
   }
 
-  async function createGoalGroup() {
-    if (!scope) {
+  async function createGoalCard() {
+    const activeScope = scope;
+
+    if (!activeScope) {
       return;
     }
 
-    const categoryTag = await createCategoryTag({
-      scope,
-      surface: 'goals',
-      name: dictionary.goals.newGroupName,
-      colorHex: newGoalGroupColorHex,
+    const goal = await createGoal({
+      scope: activeScope,
+      category: 'now',
+      title: dictionary.goals.newGroupName.toUpperCase(),
     });
+
     await requestSync();
-    setSelectedCategoryTagId(categoryTag.id);
+    setSelectedGoalId(goal.id);
   }
 
   return (
     <section className="grid gap-5">
-      <header className="flex flex-col gap-4 px-1 sm:px-0">
-        {selectedCategoryTag ? (
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="grid gap-1">
-              <GoalNameInput
-                key={selectedCategoryTag.id}
-                categoryTag={selectedCategoryTag}
-              />
-              <p className="max-w-2xl text-sm leading-6 text-[#d8d0e8]">
-                {dictionary.goals.groupDetailDescription}
-              </p>
-            </div>
-            <button
-              type="button"
-              className="inline-flex min-h-10 w-fit items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-[#f8f3ea] shadow-sm shadow-[#312c51]/10 transition hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/10 active:translate-y-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0]"
-              onClick={() => setSelectedCategoryTagId(null)}
-            >
-              <ArrowLeft aria-hidden="true" className="size-4" />
-              {dictionary.goals.backToGoalGroups}
-            </button>
-          </div>
-        ) : (
-          <div className="grid gap-1">
-            <h2 className="text-2xl font-semibold text-[#fff9f2] sm:text-3xl">
-              {dictionary.goals.title}
-            </h2>
-            <p className="max-w-2xl text-sm leading-6 text-[#d8d0e8]">
-              {dictionary.goals.groupsDescription}
-            </p>
-          </div>
-        )}
+      <header className="flex items-center justify-between px-1 sm:px-0">
+        <h2 className="text-2xl font-semibold text-[#fff9f2] sm:text-3xl">
+          {dictionary.goals.title}
+        </h2>
+
+        {selectedGoal ? (
+          <button
+            type="button"
+            className="inline-flex min-h-10 w-fit items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-[#f8f3ea] shadow-sm shadow-[#312c51]/10 transition hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/10 active:translate-y-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0]"
+            onClick={() => setSelectedGoalId(null)}
+          >
+            <ArrowLeft aria-hidden="true" className="size-4" />
+            {dictionary.goals.backToGoalGroups}
+          </button>
+        ) : null}
       </header>
 
-      <div className="grid gap-4">
-        {selectedCategoryTag ? (
-          <GoalGroupView
-            categoryTag={selectedCategoryTag}
-            categoryTagMap={categoryTagMap}
-          />
-        ) : (
-          <GoalGroupGrid
-            categoryTags={categoryTags}
-            onCreateGroup={() => void createGoalGroup()}
-            onSelectGroup={setSelectedCategoryTagId}
-          />
-        )}
-      </div>
+      {selectedGoal ? (
+        <GoalDetailCard
+          categoryTagMap={categoryTagMap}
+          goal={selectedGoal}
+          onDelete={() => setSelectedGoalId(null)}
+        />
+      ) : (
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {goals.map((goal) => (
+            <button
+              key={goal.id}
+              type="button"
+              className="group flex min-h-32 items-center rounded-[1.25rem] bg-white/[0.055] p-5 text-left shadow-[0_12px_30px_rgba(8,6,20,0.1)] ring-1 ring-white/[0.075] transition hover:-translate-y-0.5 hover:bg-white/[0.085] hover:ring-[#f0c38e]/30 active:translate-y-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0]"
+              onClick={() => setSelectedGoalId(goal.id)}
+            >
+              <span className="min-w-0 truncate text-xl font-semibold leading-tight text-[#fff9f2] transition group-hover:text-[#f8dfbd]">
+                {goal.title || dictionary.goals.newGroupName}
+              </span>
+            </button>
+          ))}
+
+          <button
+            type="button"
+            aria-label={dictionary.goals.createGoalGroup}
+            className="group flex min-h-32 flex-col items-center justify-center gap-2 rounded-[1.25rem] border border-dashed border-[#f0c38e]/42 bg-[#f0c38e]/[0.035] p-5 text-center text-[#f7d7ad] shadow-inner transition hover:-translate-y-0.5 hover:border-[#f0c38e]/70 hover:bg-[#f0c38e]/[0.075] hover:text-[#fff9f2] active:translate-y-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e]"
+            onClick={() => void createGoalCard()}
+          >
+            <span className="inline-flex size-10 items-center justify-center rounded-full bg-[#f0c38e]/12 ring-1 ring-[#f0c38e]/28 transition group-hover:bg-[#f0c38e]/18 group-hover:ring-[#f0c38e]/44">
+              <Plus aria-hidden="true" className="size-5" />
+            </span>
+            <span className="text-sm font-semibold">
+              {dictionary.goals.newGroupCard}
+            </span>
+          </button>
+        </div>
+      )}
     </section>
   );
 }
 
-function GoalNameInput({ categoryTag }: { categoryTag: CategoryTag }) {
-  const { dictionary, scope, requestSync } = useAppContext();
-  const [draftName, setDraftName] = useState(categoryTag.name);
-
-  async function commitName() {
-    if (!scope) {
-      return;
-    }
-
-    const trimmed = draftName.trim();
-
-    if (!trimmed) {
-      setDraftName(categoryTag.name);
-      return;
-    }
-
-    if (trimmed === categoryTag.name) {
-      return;
-    }
-
-    await updateCategoryTag({
-      scope,
-      categoryTagId: categoryTag.id,
-      name: trimmed,
-    });
-    await requestSync();
-  }
-
-  return (
-    <Input
-      aria-label={dictionary.goals.renameGoal}
-      className="min-w-0 w-full border-b border-transparent bg-transparent px-0 py-0.5 text-2xl font-semibold text-[#fff9f2] outline-none transition placeholder:text-[#8f85aa] focus:border-[#f0c38e]/30 sm:text-3xl"
-      placeholder={dictionary.goals.goalTitlePlaceholder}
-      value={draftName}
-      onBlur={() => void commitName()}
-      onChange={(event) => setDraftName(event.target.value.toUpperCase())}
-      onKeyDown={(event: KeyboardEvent<HTMLInputElement>) => {
-        if (event.key === 'Enter') {
-          event.preventDefault();
-          event.currentTarget.blur();
-        }
-        if (event.key === 'Escape') {
-          event.preventDefault();
-          setDraftName(categoryTag.name);
-          event.currentTarget.blur();
-        }
-      }}
-    />
-  );
-}
-
-function GoalGroupGrid({
-  categoryTags,
-  onCreateGroup,
-  onSelectGroup,
-}: {
-  categoryTags: CategoryTag[];
-  onCreateGroup: () => void;
-  onSelectGroup: (categoryTagId: string) => void;
-}) {
-  const { dictionary } = useAppContext();
-
-  return (
-    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-      {categoryTags.map((categoryTag) => (
-        <button
-          key={categoryTag.id}
-          type="button"
-          className="group flex min-h-32 items-center rounded-[1.25rem] bg-white/[0.055] p-5 text-left shadow-[0_12px_30px_rgba(8,6,20,0.1)] ring-1 ring-white/[0.075] transition hover:-translate-y-0.5 hover:bg-white/[0.085] hover:ring-[#f0c38e]/30 active:translate-y-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0]"
-          onClick={() => onSelectGroup(categoryTag.id)}
-        >
-          <span className="min-w-0 text-xl font-semibold leading-tight text-[#fff9f2] transition group-hover:text-[#f8dfbd]">
-            {categoryTag.name}
-          </span>
-        </button>
-      ))}
-
-      <button
-        type="button"
-        aria-label={dictionary.goals.createGoalGroup}
-        className="group flex min-h-32 flex-col items-center justify-center gap-2 rounded-[1.25rem] border border-dashed border-[#f0c38e]/42 bg-[#f0c38e]/[0.035] p-5 text-center text-[#f7d7ad] shadow-inner transition hover:-translate-y-0.5 hover:border-[#f0c38e]/70 hover:bg-[#f0c38e]/[0.075] hover:text-[#fff9f2] active:translate-y-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e]"
-        onClick={onCreateGroup}
-      >
-        <span className="inline-flex size-10 items-center justify-center rounded-full bg-[#f0c38e]/12 ring-1 ring-[#f0c38e]/28 transition group-hover:bg-[#f0c38e]/18 group-hover:ring-[#f0c38e]/44">
-          <Plus aria-hidden="true" className="size-5" />
-        </span>
-        <span className="text-sm font-semibold">
-          {dictionary.goals.newGroupCard}
-        </span>
-      </button>
-    </div>
-  );
-}
-
-function GoalGroupView({
-  categoryTag,
-  categoryTagMap,
-}: {
-  categoryTag: CategoryTag;
-  categoryTagMap: Map<string, { colorHex: string; name: string }>;
-}) {
-  const { scope, requestSync } = useAppContext();
-  const shortGoals = useGoals(scope, 'short');
-  const mediumGoals = useGoals(scope, 'medium');
-  const longGoals = useGoals(scope, 'long');
-  const allNowGoals = useGoals(scope, 'now');
-  const goalsByCategory = [
-    { category: 'short' as const, goals: shortGoals },
-    { category: 'medium' as const, goals: mediumGoals },
-    { category: 'long' as const, goals: longGoals },
-    { category: 'now' as const, goals: allNowGoals },
-  ];
-  const goals = goalsByCategory.flatMap(({ goals }) =>
-    goals.filter((goal) => goal.categoryTagId === categoryTag.id),
-  );
-  const primaryGoal = goals[0] ?? null;
-
-  useEffect(() => {
-    if (!scope) {
-      return;
-    }
-
-    if (goals.length <= 1) {
-      return;
-    }
-
-    void (async () => {
-      await mergeGoalsInCategoryTag({
-        scope,
-        categoryTagId: categoryTag.id,
-      });
-      await requestSync();
-    })();
-  }, [categoryTag.id, goals.length, requestSync, scope]);
-
-  return (
-    <GoalChecklistPanel
-      categoryTag={categoryTag}
-      categoryTagMap={categoryTagMap}
-      goal={primaryGoal}
-    />
-  );
-}
-
-function GoalChecklistPanel({
-  categoryTag,
+function GoalDetailCard({
   categoryTagMap,
   goal,
+  onDelete,
 }: {
-  categoryTag: CategoryTag;
   categoryTagMap: Map<string, { colorHex: string; name: string }>;
-  goal: Goal | null;
+  goal: Goal;
+  onDelete: () => void;
 }) {
   const { dictionary, scope, requestSync } = useAppContext();
-  const primaryGoal = goal;
-  const goalStepRows = useGoalStepTree(scope, primaryGoal?.id ?? null);
+  const [isGoalDeleteDialogOpen, setIsGoalDeleteDialogOpen] = useState(false);
+  const goalStepRows = useGoalStepTree(scope, goal.id);
   const visibleGoalStepIds = useMemo(
     () => goalStepRows.map((row) => row.goalStep.id),
     [goalStepRows],
@@ -342,36 +205,79 @@ function GoalChecklistPanel({
     deleteSelectedItem: deleteSelectedGoalStep,
     selectedIds,
   });
+
+  const saveTitle = useCallback(
+    async (nextTitle: string) => {
+      if (!scope) {
+        return;
+      }
+
+      await updateGoalTitle({
+        scope,
+        goalId: goal.id,
+        title: nextTitle,
+      });
+      await requestSync();
+    },
+    [goal.id, requestSync, scope],
+  );
+  const {
+    flush: flushTitle,
+    setText: setTitle,
+    text: editableTitle,
+  } = useDebouncedInlineEdit({
+    enabled: Boolean(scope),
+    onSave: saveTitle,
+    value: goal.title,
+  });
+
   const createRootGoalStep = useCallback(async () => {
     if (!scope) {
       return;
     }
 
-    const activeGoal =
-      primaryGoal ??
-      (await createGoal({
-        scope,
-        category: 'now',
-        title: categoryTag.name,
-      }));
+    await createGoalStep({ scope, goalId: goal.id });
+    await requestSync();
+  }, [goal.id, requestSync, scope]);
 
-    if (!primaryGoal) {
-      await assignGoalCategory({
-        scope,
-        goalId: activeGoal.id,
-        categoryTagId: categoryTag.id,
-      });
+  const deleteGoal = useCallback(async () => {
+    if (!scope) {
+      return;
     }
 
-    await createGoalStep({ scope, goalId: activeGoal.id });
+    setIsGoalDeleteDialogOpen(false);
+    await softDeleteGoal({ scope, goalId: goal.id });
+    onDelete();
     await requestSync();
-  }, [categoryTag.id, categoryTag.name, primaryGoal, requestSync, scope]);
+  }, [goal.id, onDelete, requestSync, scope]);
 
   return (
     <section
-      aria-label={categoryTag.name}
+      aria-label={goal.title}
       className="flex min-h-0 flex-col rounded-[1.25rem] bg-white/[0.035] p-3 shadow-[0_18px_44px_rgba(8,6,20,0.16)] ring-1 ring-white/[0.07] sm:p-4"
     >
+      <div className="flex items-center gap-2 pb-3">
+        <Input
+          aria-label={dictionary.goals.renameGoal}
+          className="min-w-0 flex-1 rounded-md bg-transparent px-2 py-2 text-base font-semibold text-[#fff9f2] outline-none transition focus:bg-surface focus:shadow-sm"
+          placeholder={dictionary.goals.goalTitlePlaceholder}
+          value={editableTitle}
+          onBlur={() => void flushTitle()}
+          onChange={(event) => setTitle(event.target.value.toUpperCase())}
+        />
+
+        <IconButton
+          aria-label={dictionary.goals.deleteGoal}
+          onClick={() =>
+            goalStepRows.length > 0
+              ? setIsGoalDeleteDialogOpen(true)
+              : void deleteGoal()
+          }
+        >
+          <Trash2 aria-hidden="true" className="size-4" />
+        </IconButton>
+      </div>
+
       <TreeListPanel
         addLabel={dictionary.goals.addStep}
         bulkDeleteDialog={{
@@ -398,7 +304,7 @@ function GoalChecklistPanel({
           <GoalStepRow
             key={row.goalStep.id}
             categoryTagMap={categoryTagMap}
-            goalId={row.goalStep.goalId}
+            goalId={goal.id}
             isSelected={isSelected(row.goalStep.id)}
             isSelectionMode={isSelectionMode}
             row={row}
@@ -408,6 +314,16 @@ function GoalChecklistPanel({
           />
         ))}
       </TreeListPanel>
+
+      <ConfirmationDialog
+        cancelLabel={dictionary.actions.cancel}
+        confirmLabel={dictionary.actions.delete}
+        description={dictionary.goals.confirmDeleteGoal}
+        open={isGoalDeleteDialogOpen}
+        title={dictionary.goals.deleteGoal}
+        onClose={() => setIsGoalDeleteDialogOpen(false)}
+        onConfirm={() => void deleteGoal()}
+      />
     </section>
   );
 }
