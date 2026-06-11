@@ -69,7 +69,7 @@ vi.mock('@/providers', () => ({
         clearCategory: 'Clear category',
         close: 'Close',
         collapseItem: 'Collapse item',
-        confirmDeleteItem: 'This item has content. Delete it anyway?',
+        confirmDeleteItem: 'Are you sure you want to delete this item?',
         deleteItem: 'Delete item',
         emptyChecklist: 'Start this day with a checklist item',
         expandItem: 'Expand item',

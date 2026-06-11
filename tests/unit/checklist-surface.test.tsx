@@ -58,12 +58,12 @@ vi.mock('@/providers', () => ({
         deleteItem: 'Delete item',
         assignCategory: 'Assign category',
         clearCategory: 'Clear category',
-        confirmDeleteItem: 'This item has content. Delete it anyway?',
+        confirmDeleteItem: 'Are you sure you want to delete this item?',
         selectItem: 'Select item',
         deselectItem: 'Deselect item',
         itemsSelected: '{count} selected',
         bulkDeleteItems: 'Delete selected',
-        confirmBulkDeleteItems: 'This will delete {count} items. Continue?',
+        confirmBulkDeleteItems: 'Are you sure you want to delete this item?',
         clearSelection: 'Clear selection',
       },
       actions: {
@@ -145,7 +145,7 @@ describe('ChecklistSurface delete confirmation', () => {
     fireEvent.click(screen.getAllByLabelText('Delete item')[0]);
 
     expect(
-      await screen.findByText('This item has content. Delete it anyway?'),
+      await screen.findByText('Are you sure you want to delete this item?'),
     ).toBeInTheDocument();
     expect(softDeleteChecklistItemMock).not.toHaveBeenCalled();
 
@@ -181,7 +181,7 @@ describe('ChecklistSurface delete confirmation', () => {
       });
     });
     expect(
-      screen.queryByText('This item has content. Delete it anyway?'),
+      screen.queryByText('Are you sure you want to delete this item?'),
     ).not.toBeInTheDocument();
   });
 
@@ -271,7 +271,7 @@ describe('ChecklistSurface delete confirmation', () => {
     fireEvent.click(screen.getAllByLabelText('Delete item')[0]);
 
     expect(
-      await screen.findByText('This will delete 1 items. Continue?'),
+      await screen.findByText('Are you sure you want to delete this item?'),
     ).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
@@ -307,7 +307,7 @@ describe('ChecklistSurface delete confirmation', () => {
     fireEvent.click(screen.getAllByLabelText('Delete item')[0]);
 
     expect(
-      await screen.findByText('This will delete 3 items. Continue?'),
+      await screen.findByText('Are you sure you want to delete this item?'),
     ).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Delete' }));

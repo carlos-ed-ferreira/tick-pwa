@@ -1,5 +1,7 @@
 import type { Dictionary } from './types';
 
+const confirmDeleteItem = 'Are you sure you want to delete this item?';
+
 export const enDictionary = {
   app: {
     name: 'Tick',
@@ -115,12 +117,12 @@ export const enDictionary = {
     categories: 'Categories',
     categoryNamePlaceholder: 'Category name',
     deleteCategory: 'Delete category',
-    confirmDeleteItem: 'This item has content. Delete it anyway?',
+    confirmDeleteItem,
     selectItem: 'Select item',
     deselectItem: 'Deselect item',
     itemsSelected: '{count} selected',
     bulkDeleteItems: 'Delete selected',
-    confirmBulkDeleteItems: 'This will delete {count} items. Continue?',
+    confirmBulkDeleteItems: confirmDeleteItem,
     clearSelection: 'Clear selection',
   },
   goals: {
@@ -150,7 +152,7 @@ export const enDictionary = {
     emptyGoal: 'Start this goal with a checklist item',
     goalPlaceholder: 'Write a goal',
     deleteGoal: 'Delete goal',
-    confirmDeleteGoal: 'This goal has content. Delete it anyway?',
+    confirmDeleteGoal: confirmDeleteItem,
     progress: 'Progress',
   },
   status: {

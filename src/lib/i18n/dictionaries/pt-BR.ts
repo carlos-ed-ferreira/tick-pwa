@@ -1,5 +1,7 @@
 import type { Dictionary } from './types';
 
+const confirmDeleteItem = 'Deseja mesmo excluir este item?';
+
 export const ptBRDictionary = {
   app: {
     name: 'Tick',
@@ -118,12 +120,12 @@ export const ptBRDictionary = {
     categories: 'Categorias',
     categoryNamePlaceholder: 'Nome da categoria',
     deleteCategory: 'Excluir categoria',
-    confirmDeleteItem: 'Este item tem conteúdo. Excluir mesmo assim?',
+    confirmDeleteItem,
     selectItem: 'Selecionar item',
     deselectItem: 'Desmarcar item',
     itemsSelected: '{count} selecionados',
     bulkDeleteItems: 'Excluir selecionados',
-    confirmBulkDeleteItems: 'Isso excluirá {count} itens. Deseja continuar?',
+    confirmBulkDeleteItems: confirmDeleteItem,
     clearSelection: 'Limpar seleção',
   },
   goals: {
@@ -152,7 +154,7 @@ export const ptBRDictionary = {
     emptyGoal: 'Comece esta meta com um item de checklist',
     goalPlaceholder: 'Escreva uma meta',
     deleteGoal: 'Excluir meta',
-    confirmDeleteGoal: 'Esta meta tem conteúdo. Excluir mesmo assim?',
+    confirmDeleteGoal: confirmDeleteItem,
     progress: 'Progresso',
   },
   status: {

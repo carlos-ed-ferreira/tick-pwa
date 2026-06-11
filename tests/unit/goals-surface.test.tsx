@@ -70,12 +70,12 @@ vi.mock('@/providers', () => ({
         deleteItem: 'Delete item',
         assignCategory: 'Assign category',
         clearCategory: 'Clear category',
-        confirmDeleteItem: 'This item has content. Delete it anyway?',
+        confirmDeleteItem: 'Are you sure you want to delete this item?',
         selectItem: 'Select item',
         deselectItem: 'Deselect item',
         itemsSelected: '{count} selected',
         bulkDeleteItems: 'Delete selected',
-        confirmBulkDeleteItems: 'This will delete {count} items. Continue?',
+        confirmBulkDeleteItems: 'Are you sure you want to delete this item?',
         clearSelection: 'Clear selection',
       },
       goals: {
@@ -102,7 +102,7 @@ vi.mock('@/providers', () => ({
         emptyGoal: 'Start this goal with a checklist item',
         goalPlaceholder: 'Write a goal',
         deleteGoal: 'Delete goal',
-        confirmDeleteGoal: 'This goal has content. Delete it anyway?',
+        confirmDeleteGoal: 'Are you sure you want to delete this item?',
         progress: 'Progress',
         title: 'Goals',
       },
@@ -312,7 +312,7 @@ describe('GoalsSurface', () => {
     fireEvent.click(screen.getByLabelText('Delete item'));
 
     expect(
-      await screen.findByText('This will delete 1 items. Continue?'),
+      await screen.findByText('Are you sure you want to delete this item?'),
     ).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
@@ -345,7 +345,7 @@ describe('GoalsSurface', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Delete goal' }));
     expect(
-      await screen.findByText('This goal has content. Delete it anyway?'),
+      await screen.findByText('Are you sure you want to delete this item?'),
     ).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
 
