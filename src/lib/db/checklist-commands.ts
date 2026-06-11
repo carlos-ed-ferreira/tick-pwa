@@ -17,7 +17,7 @@ import {
   createTimestamp,
   getEntitySyncStatus,
 } from './entity-metadata';
-import { queueSyncOutboxItem } from './sync-outbox';
+import { persistAccountEntityChange } from './account-persistence';
 
 function sortChecklistItems(items: ChecklistItem[]): ChecklistItem[] {
   return sortByRank(items);
@@ -50,7 +50,7 @@ async function persistChecklistItemUpdate(
   changedFields: string[],
 ): Promise<void> {
   await db.checklistItems.put(item);
-  await queueSyncOutboxItem({
+  await persistAccountEntityChange({
     scope,
     entityType: 'checklistItem',
     entityId: item.id,
@@ -92,74 +92,68 @@ export async function createChecklistItem({
   afterItemId?: string | null;
   text?: string;
 }): Promise<ChecklistItem> {
-  return db.transaction(
-    'rw',
-    db.dailyEntries,
-    db.checklistItems,
-    db.syncOutbox,
-    async () => {
-      const dailyEntry = await db.dailyEntries.get(dailyEntryId);
+  return db.transaction('rw', db.dailyEntries, db.checklistItems, async () => {
+    const dailyEntry = await db.dailyEntries.get(dailyEntryId);
 
-      if (
-        !dailyEntry ||
-        dailyEntry.scopeId !== scope.id ||
-        dailyEntry.deletedAt
-      ) {
-        throw new Error(
-          'Cannot create checklist item for an unavailable daily entry.',
-        );
-      }
-
-      const activeItems = await getActiveChecklistItems(scope, dailyEntryId);
-      const parentItem = parentId
-        ? activeItems.find((item) => item.id === parentId)
-        : null;
-      const safeParentId = parentItem ? parentItem.id : null;
-      const siblings = activeItems.filter(
-        (item) => item.parentId === safeParentId,
+    if (
+      !dailyEntry ||
+      dailyEntry.scopeId !== scope.id ||
+      dailyEntry.deletedAt
+    ) {
+      throw new Error(
+        'Cannot create checklist item for an unavailable daily entry.',
       );
-      const now = createTimestamp();
-      const item: ChecklistItem = {
-        id: createId(),
-        scopeId: scope.id,
-        dailyEntryId,
-        parentId: safeParentId,
-        text,
-        checked: false,
-        priority: false,
+    }
+
+    const activeItems = await getActiveChecklistItems(scope, dailyEntryId);
+    const parentItem = parentId
+      ? activeItems.find((item) => item.id === parentId)
+      : null;
+    const safeParentId = parentItem ? parentItem.id : null;
+    const siblings = activeItems.filter(
+      (item) => item.parentId === safeParentId,
+    );
+    const now = createTimestamp();
+    const item: ChecklistItem = {
+      id: createId(),
+      scopeId: scope.id,
+      dailyEntryId,
+      parentId: safeParentId,
+      text,
+      checked: false,
+      priority: false,
+      collapsed: false,
+      categoryTagId: null,
+      sortRank: createInsertRank({ siblings, afterItemId }),
+      createdAt: now,
+      updatedAt: now,
+      deletedAt: null,
+      ...createSyncMetadata(scope, now),
+    };
+
+    await db.checklistItems.add(item);
+    await persistAccountEntityChange({
+      scope,
+      entityType: 'checklistItem',
+      entityId: item.id,
+      operation: 'upsert',
+      payload: item as unknown as Record<string, unknown>,
+      changedFields: ['created'],
+      baseRevision: null,
+    });
+
+    if (parentItem && parentItem.collapsed) {
+      const updatedParent = touchChecklistItem(scope, {
+        ...parentItem,
         collapsed: false,
-        categoryTagId: null,
-        sortRank: createInsertRank({ siblings, afterItemId }),
-        createdAt: now,
-        updatedAt: now,
-        deletedAt: null,
-        ...createSyncMetadata(scope, now),
-      };
-
-      await db.checklistItems.add(item);
-      await queueSyncOutboxItem({
-        scope,
-        entityType: 'checklistItem',
-        entityId: item.id,
-        operation: 'upsert',
-        payload: item as unknown as Record<string, unknown>,
-        changedFields: ['created'],
-        baseRevision: null,
       });
+      await persistChecklistItemUpdate(scope, updatedParent, ['collapsed']);
+    }
 
-      if (parentItem && parentItem.collapsed) {
-        const updatedParent = touchChecklistItem(scope, {
-          ...parentItem,
-          collapsed: false,
-        });
-        await persistChecklistItemUpdate(scope, updatedParent, ['collapsed']);
-      }
+    await recalculateDailyEntrySummary({ scope, dailyEntryId });
 
-      await recalculateDailyEntrySummary({ scope, dailyEntryId });
-
-      return item;
-    },
-  );
+    return item;
+  });
 }
 
 export async function createChecklistChild({
@@ -210,26 +204,20 @@ export async function updateChecklistItemText({
   itemId: string;
   text: string;
 }): Promise<void> {
-  await db.transaction(
-    'rw',
-    db.dailyEntries,
-    db.checklistItems,
-    db.syncOutbox,
-    async () => {
-      const item = await getScopedChecklistItem(scope, itemId);
+  await db.transaction('rw', db.dailyEntries, db.checklistItems, async () => {
+    const item = await getScopedChecklistItem(scope, itemId);
 
-      if (!item || item.text === text) {
-        return;
-      }
+    if (!item || item.text === text) {
+      return;
+    }
 
-      const updatedItem = touchChecklistItem(scope, { ...item, text });
-      await persistChecklistItemUpdate(scope, updatedItem, ['text']);
-      await recalculateDailyEntrySummary({
-        scope,
-        dailyEntryId: item.dailyEntryId,
-      });
-    },
-  );
+    const updatedItem = touchChecklistItem(scope, { ...item, text });
+    await persistChecklistItemUpdate(scope, updatedItem, ['text']);
+    await recalculateDailyEntrySummary({
+      scope,
+      dailyEntryId: item.dailyEntryId,
+    });
+  });
 }
 
 export async function toggleChecklistItemChecked({
@@ -239,29 +227,23 @@ export async function toggleChecklistItemChecked({
   scope: AppScope;
   itemId: string;
 }): Promise<void> {
-  await db.transaction(
-    'rw',
-    db.dailyEntries,
-    db.checklistItems,
-    db.syncOutbox,
-    async () => {
-      const item = await getScopedChecklistItem(scope, itemId);
+  await db.transaction('rw', db.dailyEntries, db.checklistItems, async () => {
+    const item = await getScopedChecklistItem(scope, itemId);
 
-      if (!item) {
-        return;
-      }
+    if (!item) {
+      return;
+    }
 
-      const updatedItem = touchChecklistItem(scope, {
-        ...item,
-        checked: !item.checked,
-      });
-      await persistChecklistItemUpdate(scope, updatedItem, ['checked']);
-      await recalculateDailyEntrySummary({
-        scope,
-        dailyEntryId: item.dailyEntryId,
-      });
-    },
-  );
+    const updatedItem = touchChecklistItem(scope, {
+      ...item,
+      checked: !item.checked,
+    });
+    await persistChecklistItemUpdate(scope, updatedItem, ['checked']);
+    await recalculateDailyEntrySummary({
+      scope,
+      dailyEntryId: item.dailyEntryId,
+    });
+  });
 }
 
 export async function toggleChecklistItemPriority({
@@ -271,7 +253,7 @@ export async function toggleChecklistItemPriority({
   scope: AppScope;
   itemId: string;
 }): Promise<void> {
-  await db.transaction('rw', db.checklistItems, db.syncOutbox, async () => {
+  await db.transaction('rw', db.checklistItems, async () => {
     const item = await getScopedChecklistItem(scope, itemId);
 
     if (!item) {
@@ -293,7 +275,7 @@ export async function toggleChecklistItemCollapsed({
   scope: AppScope;
   itemId: string;
 }): Promise<void> {
-  await db.transaction('rw', db.checklistItems, db.syncOutbox, async () => {
+  await db.transaction('rw', db.checklistItems, async () => {
     const item = await getScopedChecklistItem(scope, itemId);
 
     if (!item) {
@@ -322,7 +304,6 @@ export async function assignChecklistItemCategory({
     db.dailyEntries,
     db.checklistItems,
     db.categoryTags,
-    db.syncOutbox,
     async () => {
       const item = await getScopedChecklistItem(scope, itemId);
 
@@ -370,62 +351,53 @@ export async function softDeleteChecklistItem({
   scope: AppScope;
   itemId: string;
 }): Promise<void> {
-  await db.transaction(
-    'rw',
-    db.dailyEntries,
-    db.checklistItems,
-    db.syncOutbox,
-    async () => {
-      const item = await getScopedChecklistItem(scope, itemId);
+  await db.transaction('rw', db.dailyEntries, db.checklistItems, async () => {
+    const item = await getScopedChecklistItem(scope, itemId);
 
-      if (!item) {
-        return;
+    if (!item) {
+      return;
+    }
+
+    const activeItems = await getActiveChecklistItems(scope, item.dailyEntryId);
+    const childrenByParentId = new Map<string, ChecklistItem[]>();
+
+    for (const activeItem of activeItems) {
+      if (!activeItem.parentId) {
+        continue;
       }
 
-      const activeItems = await getActiveChecklistItems(
-        scope,
-        item.dailyEntryId,
-      );
-      const childrenByParentId = new Map<string, ChecklistItem[]>();
+      const children = childrenByParentId.get(activeItem.parentId) ?? [];
+      children.push(activeItem);
+      childrenByParentId.set(activeItem.parentId, children);
+    }
 
-      for (const activeItem of activeItems) {
-        if (!activeItem.parentId) {
-          continue;
-        }
+    const idsToDelete = new Set<string>();
+    const visit = (parentItemId: string) => {
+      idsToDelete.add(parentItemId);
 
-        const children = childrenByParentId.get(activeItem.parentId) ?? [];
-        children.push(activeItem);
-        childrenByParentId.set(activeItem.parentId, children);
+      for (const child of childrenByParentId.get(parentItemId) ?? []) {
+        visit(child.id);
+      }
+    };
+    visit(item.id);
+
+    for (const activeItem of activeItems) {
+      if (!idsToDelete.has(activeItem.id)) {
+        continue;
       }
 
-      const idsToDelete = new Set<string>();
-      const visit = (parentItemId: string) => {
-        idsToDelete.add(parentItemId);
-
-        for (const child of childrenByParentId.get(parentItemId) ?? []) {
-          visit(child.id);
-        }
-      };
-      visit(item.id);
-
-      for (const activeItem of activeItems) {
-        if (!idsToDelete.has(activeItem.id)) {
-          continue;
-        }
-
-        const updatedItem = touchChecklistItem(scope, {
-          ...activeItem,
-          deletedAt: createTimestamp(),
-        });
-        await persistChecklistItemUpdate(scope, updatedItem, ['deletedAt']);
-      }
-
-      await recalculateDailyEntrySummary({
-        scope,
-        dailyEntryId: item.dailyEntryId,
+      const updatedItem = touchChecklistItem(scope, {
+        ...activeItem,
+        deletedAt: createTimestamp(),
       });
-    },
-  );
+      await persistChecklistItemUpdate(scope, updatedItem, ['deletedAt']);
+    }
+
+    await recalculateDailyEntrySummary({
+      scope,
+      dailyEntryId: item.dailyEntryId,
+    });
+  });
 }
 
 export async function indentChecklistItem({
@@ -435,7 +407,7 @@ export async function indentChecklistItem({
   scope: AppScope;
   itemId: string;
 }): Promise<void> {
-  await db.transaction('rw', db.checklistItems, db.syncOutbox, async () => {
+  await db.transaction('rw', db.checklistItems, async () => {
     const item = await getScopedChecklistItem(scope, itemId);
 
     if (!item) {
@@ -476,7 +448,7 @@ export async function outdentChecklistItem({
   scope: AppScope;
   itemId: string;
 }): Promise<void> {
-  await db.transaction('rw', db.checklistItems, db.syncOutbox, async () => {
+  await db.transaction('rw', db.checklistItems, async () => {
     const item = await getScopedChecklistItem(scope, itemId);
 
     if (!item?.parentId) {
@@ -525,46 +497,37 @@ export async function reorderChecklistItem({
   itemId: string;
   direction: 'up' | 'down';
 }): Promise<void> {
-  await db.transaction(
-    'rw',
-    db.dailyEntries,
-    db.checklistItems,
-    db.syncOutbox,
-    async () => {
-      const item = await getScopedChecklistItem(scope, itemId);
+  await db.transaction('rw', db.dailyEntries, db.checklistItems, async () => {
+    const item = await getScopedChecklistItem(scope, itemId);
 
-      if (!item) {
-        return;
-      }
+    if (!item) {
+      return;
+    }
 
-      const activeItems = await getActiveChecklistItems(
-        scope,
-        item.dailyEntryId,
-      );
-      const siblings = activeItems.filter(
-        (activeItem) => activeItem.parentId === item.parentId,
-      );
-      const sortRank = createReorderedRank({
-        items: siblings,
-        itemId: item.id,
-        direction,
-      });
+    const activeItems = await getActiveChecklistItems(scope, item.dailyEntryId);
+    const siblings = activeItems.filter(
+      (activeItem) => activeItem.parentId === item.parentId,
+    );
+    const sortRank = createReorderedRank({
+      items: siblings,
+      itemId: item.id,
+      direction,
+    });
 
-      if (!sortRank) {
-        return;
-      }
+    if (!sortRank) {
+      return;
+    }
 
-      const updatedItem = touchChecklistItem(scope, {
-        ...item,
-        sortRank,
-      });
-      await persistChecklistItemUpdate(scope, updatedItem, ['sortRank']);
-      await recalculateDailyEntrySummary({
-        scope,
-        dailyEntryId: item.dailyEntryId,
-      });
-    },
-  );
+    const updatedItem = touchChecklistItem(scope, {
+      ...item,
+      sortRank,
+    });
+    await persistChecklistItemUpdate(scope, updatedItem, ['sortRank']);
+    await recalculateDailyEntrySummary({
+      scope,
+      dailyEntryId: item.dailyEntryId,
+    });
+  });
 }
 
 export async function applyChecklistTemplateToDateRange({
@@ -599,79 +562,73 @@ export async function applyChecklistTemplateToDateRange({
       timezone,
     });
 
-    await db.transaction(
-      'rw',
-      db.dailyEntries,
-      db.checklistItems,
-      db.syncOutbox,
-      async () => {
-        const activeItems = await getActiveChecklistItems(scope, dailyEntry.id);
+    await db.transaction('rw', db.dailyEntries, db.checklistItems, async () => {
+      const activeItems = await getActiveChecklistItems(scope, dailyEntry.id);
 
-        async function cloneTemplateChildren({
+      async function cloneTemplateChildren({
+        sourceParentId,
+        targetParentId,
+      }: {
+        sourceParentId: string | null;
+        targetParentId: string | null;
+      }): Promise<void> {
+        let previousSortRank =
+          sortChecklistItems(
+            activeItems.filter((item) => item.parentId === targetParentId),
+          ).at(-1)?.sortRank ?? null;
+
+        for (const templateItem of getSortedTemplateChildren(
+          templateItems,
           sourceParentId,
-          targetParentId,
-        }: {
-          sourceParentId: string | null;
-          targetParentId: string | null;
-        }): Promise<void> {
-          let previousSortRank =
-            sortChecklistItems(
-              activeItems.filter((item) => item.parentId === targetParentId),
-            ).at(-1)?.sortRank ?? null;
+        )) {
+          const now = createTimestamp();
+          const item: ChecklistItem = {
+            id: createId(),
+            scopeId: scope.id,
+            dailyEntryId: dailyEntry.id,
+            parentId: targetParentId,
+            text: templateItem.text,
+            checked: templateItem.checked,
+            priority: templateItem.priority,
+            collapsed: templateItem.collapsed,
+            categoryTagId: templateItem.categoryTagId,
+            sortRank: createSortRankBetween(previousSortRank, null),
+            createdAt: now,
+            updatedAt: now,
+            deletedAt: null,
+            ...createSyncMetadata(scope, now),
+          };
 
-          for (const templateItem of getSortedTemplateChildren(
-            templateItems,
-            sourceParentId,
-          )) {
-            const now = createTimestamp();
-            const item: ChecklistItem = {
-              id: createId(),
-              scopeId: scope.id,
-              dailyEntryId: dailyEntry.id,
-              parentId: targetParentId,
-              text: templateItem.text,
-              checked: templateItem.checked,
-              priority: templateItem.priority,
-              collapsed: templateItem.collapsed,
-              categoryTagId: templateItem.categoryTagId,
-              sortRank: createSortRankBetween(previousSortRank, null),
-              createdAt: now,
-              updatedAt: now,
-              deletedAt: null,
-              ...createSyncMetadata(scope, now),
-            };
+          await db.checklistItems.add(item);
+          await persistAccountEntityChange({
+            scope,
+            entityType: 'checklistItem',
+            entityId: item.id,
+            operation: 'upsert',
+            payload: item as unknown as Record<string, unknown>,
+            changedFields: ['created'],
+            baseRevision: null,
+          });
 
-            await db.checklistItems.add(item);
-            await queueSyncOutboxItem({
-              scope,
-              entityType: 'checklistItem',
-              entityId: item.id,
-              operation: 'upsert',
-              payload: item as unknown as Record<string, unknown>,
-              changedFields: ['created'],
-              baseRevision: null,
-            });
+          activeItems.push(item);
+          previousSortRank = item.sortRank;
 
-            activeItems.push(item);
-            previousSortRank = item.sortRank;
-
-            await cloneTemplateChildren({
-              sourceParentId: templateItem.id,
-              targetParentId: item.id,
-            });
-          }
+          await cloneTemplateChildren({
+            sourceParentId: templateItem.id,
+            targetParentId: item.id,
+          });
         }
+      }
 
-        await cloneTemplateChildren({
-          sourceParentId: null,
-          targetParentId: null,
-        });
-        await recalculateDailyEntrySummary({
-          scope,
-          dailyEntryId: dailyEntry.id,
-        });
-      },
-    );
+      await cloneTemplateChildren({
+        sourceParentId: null,
+        targetParentId: null,
+      });
+      await recalculateDailyEntrySummary({
+        scope,
+        dailyEntryId: dailyEntry.id,
+      });
+    });
   }
 
   return matchingDates;
@@ -701,44 +658,37 @@ export async function clearChecklistItemsFromDateRange({
   const matchingDateSet = new Set(matchingDates);
   const clearedDates = new Set<LocalDateString>();
 
-  await db.transaction(
-    'rw',
-    db.dailyEntries,
-    db.checklistItems,
-    db.syncOutbox,
-    async () => {
-      const entries = await db.dailyEntries
-        .where('scopeId')
-        .equals(scope.id)
-        .filter(
-          (entry) =>
-            entry.deletedAt === null && matchingDateSet.has(entry.date),
-        )
-        .toArray();
+  await db.transaction('rw', db.dailyEntries, db.checklistItems, async () => {
+    const entries = await db.dailyEntries
+      .where('scopeId')
+      .equals(scope.id)
+      .filter(
+        (entry) => entry.deletedAt === null && matchingDateSet.has(entry.date),
+      )
+      .toArray();
 
-      for (const entry of entries) {
-        const activeItems = await getActiveChecklistItems(scope, entry.id);
+    for (const entry of entries) {
+      const activeItems = await getActiveChecklistItems(scope, entry.id);
 
-        if (activeItems.length === 0) {
-          continue;
-        }
-
-        for (const activeItem of activeItems) {
-          const updatedItem = touchChecklistItem(scope, {
-            ...activeItem,
-            deletedAt: createTimestamp(),
-          });
-          await persistChecklistItemUpdate(scope, updatedItem, ['deletedAt']);
-        }
-
-        await recalculateDailyEntrySummary({
-          scope,
-          dailyEntryId: entry.id,
-        });
-        clearedDates.add(entry.date);
+      if (activeItems.length === 0) {
+        continue;
       }
-    },
-  );
+
+      for (const activeItem of activeItems) {
+        const updatedItem = touchChecklistItem(scope, {
+          ...activeItem,
+          deletedAt: createTimestamp(),
+        });
+        await persistChecklistItemUpdate(scope, updatedItem, ['deletedAt']);
+      }
+
+      await recalculateDailyEntrySummary({
+        scope,
+        dailyEntryId: entry.id,
+      });
+      clearedDates.add(entry.date);
+    }
+  });
 
   return matchingDates.filter((date) => clearedDates.has(date));
 }

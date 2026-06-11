@@ -31,7 +31,6 @@ vi.mock('@/lib/db', () => ({
 
 vi.mock('@/providers', () => ({
   useAppContext: () => ({
-    requestSync: vi.fn().mockResolvedValue(undefined),
     dictionary: {
       dayEditor: {
         addCategory: 'Add category',

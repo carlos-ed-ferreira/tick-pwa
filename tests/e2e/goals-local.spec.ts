@@ -4,23 +4,19 @@ import { enterLocalMode, firstGoalStepInput, labels } from './helpers';
 test('persists a goal checklist item in local mode', async ({ page }) => {
   await enterLocalMode(page);
   await page.goto('/goals');
-  await page.getByRole('button', { name: /Horizons|Horizontes/ }).click();
+  await page.getByRole('button', { name: labels.createGoalGroup }).click();
 
-  const shortTermSection = page.getByLabel('Short term');
-  await shortTermSection
-    .getByRole('button', { name: labels.goalStepEmpty })
-    .click();
+  await page.getByRole('button', { name: labels.goalStepEmpty }).click();
 
-  const itemInput = firstGoalStepInput(shortTermSection);
+  const itemInput = firstGoalStepInput(page);
   await itemInput.fill('Define integration coverage');
   await itemInput.press('Enter');
 
-  await expect(
-    shortTermSection.locator('[data-goal-step-input="true"]'),
-  ).toHaveCount(2);
+  await expect(page.locator('[data-goal-step-input="true"]')).toHaveCount(2);
 
   await page.reload();
-  await expect(firstGoalStepInput(page.getByLabel('Short term'))).toHaveValue(
+  await page.getByRole('button', { name: labels.newGoalGroup }).click();
+  await expect(firstGoalStepInput(page)).toHaveValue(
     'Define integration coverage',
   );
 });

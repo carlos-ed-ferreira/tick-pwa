@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createGuestScope, createUserScope } from '@/lib/domain';
 import {
   createChecklistItem,
@@ -11,13 +11,42 @@ import {
   updateGoalStepText,
 } from '@/lib/db';
 
+const supabaseMocks = vi.hoisted(() => ({
+  getSupabaseBrowserClient: vi.fn(),
+}));
+
+vi.mock('@/lib/supabase/client', () => ({
+  getSupabaseBrowserClient: supabaseMocks.getSupabaseBrowserClient,
+}));
+
+function createAccountWriteClient() {
+  let revision = 0;
+
+  return {
+    from: vi.fn(() => ({
+      upsert: vi.fn(() => ({
+        select: vi.fn(() => ({
+          maybeSingle: vi.fn().mockResolvedValue({
+            data: { revision: (revision += 1) },
+            error: null,
+          }),
+        })),
+      })),
+    })),
+  };
+}
+
 describe('scope isolation', () => {
   beforeEach(async () => {
+    supabaseMocks.getSupabaseBrowserClient.mockReturnValue(
+      createAccountWriteClient(),
+    );
     await db.delete();
     await db.open();
   });
 
   afterEach(async () => {
+    supabaseMocks.getSupabaseBrowserClient.mockReset();
     await db.delete();
   });
 

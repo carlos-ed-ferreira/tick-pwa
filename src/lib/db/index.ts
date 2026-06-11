@@ -6,4 +6,3 @@ export * from './daily-entry-id';
 export * from './goal-commands';
 export * from './local-preferences';
 export * from './seed';
-export * from './sync-outbox';

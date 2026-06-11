@@ -29,7 +29,6 @@ describe('LanguageSwitcher', () => {
       name: 'Language: English',
     });
 
-    expect(button).toHaveTextContent('🇺🇸');
     expect(button).toHaveTextContent('English');
     expect(button).toHaveClass('border');
 

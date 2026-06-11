@@ -55,7 +55,7 @@ import { useGoals } from './use-goals';
 const goalStepInputSelector = '[data-goal-step-input="true"]';
 
 export function GoalsSurface() {
-  const { dictionary, scope, requestSync } = useAppContext();
+  const { dictionary, scope } = useAppContext();
   const [selectedGoalId, setSelectedGoalId] = useState<string | null>(null);
   const shortGoals = useGoals(scope, 'short');
   const mediumGoals = useGoals(scope, 'medium');
@@ -88,8 +88,6 @@ export function GoalsSurface() {
       category: 'now',
       title: dictionary.goals.newGroupName.toUpperCase(),
     });
-
-    await requestSync();
     setSelectedGoalId(goal.id);
   }
 
@@ -161,7 +159,7 @@ function GoalDetailCard({
   goal: Goal;
   onDelete: () => void;
 }) {
-  const { dictionary, scope, requestSync } = useAppContext();
+  const { dictionary, scope } = useAppContext();
   const [isGoalDeleteDialogOpen, setIsGoalDeleteDialogOpen] = useState(false);
   const goalStepRows = useGoalStepTree(scope, goal.id);
   const visibleGoalStepIds = useMemo(
@@ -181,17 +179,15 @@ function GoalDetailCard({
     async (goalStepId: string) => {
       if (!scope) return;
       await softDeleteGoalStep({ scope, goalStepId });
-      await requestSync();
     },
-    [requestSync, scope],
+    [scope],
   );
   const assignSelectedGoalStepCategory = useCallback(
     async (goalStepId: string, categoryTagId: string | null) => {
       if (!scope) return;
       await assignGoalStepCategory({ scope, goalStepId, categoryTagId });
-      await requestSync();
     },
-    [requestSync, scope],
+    [scope],
   );
   const {
     assignBulkCategory,
@@ -217,9 +213,8 @@ function GoalDetailCard({
         goalId: goal.id,
         title: nextTitle,
       });
-      await requestSync();
     },
-    [goal.id, requestSync, scope],
+    [goal.id, scope],
   );
   const {
     flush: flushTitle,
@@ -237,8 +232,7 @@ function GoalDetailCard({
     }
 
     await createGoalStep({ scope, goalId: goal.id });
-    await requestSync();
-  }, [goal.id, requestSync, scope]);
+  }, [goal.id, scope]);
 
   const deleteGoal = useCallback(async () => {
     if (!scope) {
@@ -248,8 +242,7 @@ function GoalDetailCard({
     setIsGoalDeleteDialogOpen(false);
     await softDeleteGoal({ scope, goalId: goal.id });
     onDelete();
-    await requestSync();
-  }, [goal.id, onDelete, requestSync, scope]);
+  }, [goal.id, onDelete, scope]);
 
   return (
     <section
@@ -347,7 +340,7 @@ function GoalStepRow({
   onBulkDelete: () => void;
   onToggleSelect: (id: string, shiftKey: boolean) => void;
 }) {
-  const { dictionary, scope, requestSync } = useAppContext();
+  const { dictionary, scope } = useAppContext();
   const { goalStep, depth, hasChildren, isFirstSibling, isLastSibling } = row;
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const focusAfterCreate = useFocusAfterCreate();
@@ -365,9 +358,8 @@ function GoalStepRow({
         goalStepId: goalStep.id,
         text: nextText,
       });
-      await requestSync();
     },
-    [goalStep.id, requestSync, scope],
+    [goalStep.id, scope],
   );
   const {
     flush: flushText,
@@ -391,9 +383,8 @@ function GoalStepRow({
       parentId: goalStep.parentId,
       afterGoalStepId: goalStep.id,
     });
-    await requestSync();
     return newStep.id;
-  }, [flushText, goalId, goalStep.id, goalStep.parentId, requestSync, scope]);
+  }, [flushText, goalId, goalStep.id, goalStep.parentId, scope]);
 
   const createChild = useCallback(async () => {
     if (!scope) {
@@ -406,8 +397,7 @@ function GoalStepRow({
       goalId,
       parentGoalStepId: goalStep.id,
     });
-    await requestSync();
-  }, [flushText, goalId, goalStep.id, requestSync, scope]);
+  }, [flushText, goalId, goalStep.id, scope]);
 
   const requestDelete = useCallback(async () => {
     if (!scope) {
@@ -420,8 +410,7 @@ function GoalStepRow({
     }
 
     await softDeleteGoalStep({ scope, goalStepId: goalStep.id });
-    await requestSync();
-  }, [goalStep.id, requestSync, scope, text]);
+  }, [goalStep.id, scope, text]);
 
   const confirmDelete = useCallback(async () => {
     if (!scope) {
@@ -430,8 +419,7 @@ function GoalStepRow({
 
     setIsDeleteDialogOpen(false);
     await softDeleteGoalStep({ scope, goalStepId: goalStep.id });
-    await requestSync();
-  }, [goalStep.id, requestSync, scope]);
+  }, [goalStep.id, scope]);
 
   async function handleKeyDown(event: KeyboardEvent<HTMLInputElement>) {
     if (!scope) {
@@ -441,7 +429,6 @@ function GoalStepRow({
     if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
       event.preventDefault();
       await toggleGoalStepChecked({ scope, goalStepId: goalStep.id });
-      await requestSync();
       return;
     }
 
@@ -480,7 +467,6 @@ function GoalStepRow({
     if (event.key === 'Backspace' && text.length === 0) {
       event.preventDefault();
       await softDeleteGoalStep({ scope, goalStepId: goalStep.id });
-      await requestSync();
     }
   }
 
@@ -503,7 +489,6 @@ function GoalStepRow({
                   scope,
                   goalStepId: goalStep.id,
                 });
-                await requestSync();
               })();
             }
           }}
@@ -519,7 +504,6 @@ function GoalStepRow({
                   scope,
                   goalStepId: goalStep.id,
                 });
-                await requestSync();
               })();
             }
           }}
@@ -563,7 +547,6 @@ function GoalStepRow({
                     goalStepId: goalStep.id,
                     direction: 'up',
                   });
-                  await requestSync();
                 })();
               }
             }}
@@ -581,7 +564,6 @@ function GoalStepRow({
                     goalStepId: goalStep.id,
                     direction: 'down',
                   });
-                  await requestSync();
                 })();
               }
             }}
@@ -595,7 +577,6 @@ function GoalStepRow({
               if (scope) {
                 void (async () => {
                   await indentGoalStep({ scope, goalStepId: goalStep.id });
-                  await requestSync();
                 })();
               }
             }}
@@ -609,7 +590,6 @@ function GoalStepRow({
               if (scope) {
                 void (async () => {
                   await outdentGoalStep({ scope, goalStepId: goalStep.id });
-                  await requestSync();
                 })();
               }
             }}
@@ -638,8 +618,6 @@ function GoalStepRow({
                   scope,
                   goalStepId: goalStep.id,
                   categoryTagId,
-                }).then(async () => {
-                  await requestSync();
                 });
               }
 

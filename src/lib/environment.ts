@@ -50,11 +50,15 @@ export function shouldUseCloudSyncOnHostname({
   const normalizedEnvironment =
     normalizeSupabaseEnvironment(supabaseEnvironment);
 
+  if (!normalizedEnvironment) {
+    return false;
+  }
+
   if (isLocalhostHostname(hostname)) {
     return normalizedEnvironment === 'local' && isLocalSupabaseUrl(supabaseUrl);
   }
 
-  return normalizedEnvironment !== 'local';
+  return normalizedEnvironment === 'production';
 }
 
 export function shouldAllowSupabaseClientOnHostname({
@@ -104,8 +108,12 @@ export function shouldAllowSupabaseClient(): boolean {
 
 function normalizeSupabaseEnvironment(
   value: string | null | undefined,
-): TickSupabaseEnvironment {
-  return value === 'local' ? 'local' : 'production';
+): TickSupabaseEnvironment | null {
+  if (value === 'local' || value === 'production') {
+    return value;
+  }
+
+  return null;
 }
 
 function isLocalSupabaseUrl(value: string | null | undefined): boolean {

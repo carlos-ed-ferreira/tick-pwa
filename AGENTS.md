@@ -2,67 +2,124 @@
 
 ## Propósito
 
-Este guia orienta agentes de código ao alterar o Tick. Ele vale para todo o repositório, salvo quando houver um `AGENTS.md` mais específico em algum subdiretório.
+Este guia orienta agentes de código ao alterar o Tick. Ele vale para todo o
+repositório, salvo quando houver um `AGENTS.md` mais específico.
 
-Use este arquivo para preservar as decisões centrais do projeto: offline-first, persistência local, sincronização segura, UX rápida e documentação atualizada.
+Tick é um app web único, uma PWA de produtividade pessoal mobile-first para
+tarefas diárias, checklists e metas. Preserve simplicidade, velocidade,
+responsividade e uso frequente em dispositivos móveis.
 
-## Fundamentos do projeto
+## Stack
 
-Tick é uma PWA de produtividade pessoal, local-first e mobile-first. A aplicação deve continuar útil sem internet e tratar a rede como melhoria, não como requisito para interação.
+- Next.js 16
+- React 19
+- TypeScript
+- Tailwind CSS 4
+- Dexie + IndexedDB
+- Supabase Auth + Postgres
+- Serwist PWA
+- Vercel
 
-Mantenha o produto simples, responsivo e direto. Prefira auto-save, edição inline, feedback contextual e estados mínimos de carregamento.
+## Arquitetura
 
-## Arquitetura e persistência
-
-IndexedDB, via Dexie, é a base da persistência local. Entidades principais da aplicação devem viver no IndexedDB, incluindo tarefas, checklists, metas, entradas diárias, filas de sincronização e entidades em cache.
-
-Escritas de entidades feitas pela UI devem passar pelos comandos locais em `src/lib/db`. Componentes não devem escrever diretamente nas tabelas Dexie, para preservar escopo, metadados, resumos e outbox.
-
-Use `localStorage` apenas para preferências pequenas, como idioma, tema, flags de UI e escolhas locais simples. Não use `localStorage` para entidades principais da aplicação.
-
-## Autenticação, escopos e sincronização
-
-Usuários autenticados usam Supabase para autenticação, persistência em nuvem e sincronização. O escopo autenticado segue o formato:
-
-```text
-user:<supabaseUserId>
-```
-
-Usuários convidados são locais. Dados de convidados permanecem no dispositivo e não devem ser enviados ao backend. O escopo local segue o formato:
+Estrutura principal:
 
 ```text
-guest:<installationId>
+src/app           rotas Next.js e PWA
+src/components    componentes compartilhados
+src/features      áreas funcionais
+src/hooks         hooks reutilizáveis
+src/lib/db        Dexie, schema local e comandos locais/cache
+src/lib/domain    tipos e regras de domínio
+src/lib/i18n      idioma e dicionários
+src/lib/supabase  client, auth, persistência de conta e cache
+src/lib/time      helpers de data e timezone
+src/providers     providers globais
+tests             testes unitários, integração e E2E
+supabase          configuração, seed e migrations SQL
 ```
 
-Escritas autenticadas devem ser local-first, marcar entidades como pendentes quando aplicável e sincronizar depois pelo outbox. Escritas de convidados devem permanecer locais e não devem criar itens de sincronização remota.
+Mantenha regras de domínio perto da feature ou da camada responsável. UI não
+deve escrever diretamente em tabelas Dexie; use comandos em `src/lib/db` ou a
+camada de persistência apropriada.
 
-Não implemente migração automática de dados de convidado para usuário autenticado sem uma decisão explícita de produto.
+## Modos de uso
 
-Em `localhost`, o app deve autenticar e sincronizar apenas contra o Supabase CLI local. Não use credenciais, URL ou chaves públicas do Supabase de produção em `.env.local`. O ambiente local deve usar `NEXT_PUBLIC_TICK_SUPABASE_ENV=local` e uma URL local (`localhost` ou `127.0.0.1`).
+Existem dois modos separados.
 
-Produção deve usar `NEXT_PUBLIC_TICK_SUPABASE_ENV=production` fora de `localhost`. Comandos que aplicam migrations remotas são restritos ao GitHub Actions; o fluxo local deve usar comandos do Supabase local.
+Modo local sem conta:
 
-## UX e comportamento da aplicação
+- escopo `guest:<installationId>`;
+- entidades ficam apenas no IndexedDB do dispositivo;
+- dados locais não são enviados ao Supabase;
+- dados locais não são migrados automaticamente para conta.
 
-A experiência deve parecer rápida, fluida e adequada a uso móvel. Prefira interações imediatas, auto-save quando fizer sentido e feedback local.
+Modo autenticado com conta:
 
-Evite bloquear fluxos esperando respostas de API. Quando a rede falhar ou estiver ausente, mantenha o usuário no contexto e preserve os dados localmente.
+- escopo `user:<supabaseUserId>`;
+- autenticação via Supabase;
+- dados da conta são persistidos no Supabase;
+- IndexedDB pode ser usado como cache local da conta;
+- dados locais de convidado não entram na conta.
 
-Use componentes compartilhados quando eles reduzirem repetição real e mantiverem clareza. Não extraia abstrações apenas porque dois trechos são parecidos.
+Não implemente sync ou migração automática do modo local para o modo
+autenticado. Se uma mudança parecer exigir isso, pare e valide a decisão de
+produto antes de codar.
 
-## Sistema visual
+## Banco, ambientes e segurança
 
-Prefira cards, painéis, dialogs e contêineres principais sem bordas visíveis. Use as superfícies compartilhadas `card-surface`, `card-surface-soft` e `card-surface-strong` como base para elevação e profundidade.
+IndexedDB/Dexie é a base do modo local. Entidades principais não devem ir para
+`localStorage`; use `localStorage` apenas para preferências pequenas, como
+idioma ou flags de UI.
 
-Quando precisar de uma identidade de cor consistente, ancore a interface no conjunto `#312c51`, `#48426d`, `#f0c38e` e `#f1aa9b`, preservando os fundos neutros quentes e os contrastes suaves já definidos no tema.
+Em desenvolvimento, Supabase autenticado usa Supabase local via Docker. O
+ambiente local deve usar:
 
-## Formulários, validação e feedback
+```bash
+NEXT_PUBLIC_TICK_SUPABASE_ENV=local
+NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321
+```
 
-Validação deve ser controlada pela aplicação e exibida com componentes locais. Formulários React controlados pela aplicação devem usar `noValidate` para impedir popups nativos de validação HTML5.
+Em `localhost`, o app só habilita Supabase quando a URL é local. Nunca use URL
+ou anon key de produção em `.env.local`.
 
-Não dependa de `required`, `pattern`, `minLength`, `maxLength` ou `type="email"` como experiência visível de validação. Se tipos semânticos forem usados por ergonomia, a mensagem visível ainda deve ser local e estilizada pelo app.
+Produção roda na Vercel e usa:
 
-Inputs curtos e estruturados devem desabilitar assistência automática do navegador por padrão:
+```bash
+NEXT_PUBLIC_TICK_SUPABASE_ENV=production
+```
+
+Fora de `localhost`, Supabase só deve ser habilitado quando o ambiente
+`production` estiver explícito. Migrations remotas são restritas ao GitHub
+Actions.
+
+O banco local é gerenciado pelo Supabase CLI/Docker. O banco production é o
+Supabase production configurado na Vercel e no GitHub Actions.
+
+## UX e responsividade
+
+Tick é uma PWA mobile-first. Toda interface deve ser amigável para celulares,
+tablets, notebooks pequenos e desktops grandes.
+
+Prefira auto-save, edição inline, feedback contextual e estados mínimos de
+loading. Não bloqueie fluxos do modo local por rede. Para conta autenticada,
+falhas de Supabase devem ter feedback claro sem misturar dados locais e dados da
+conta.
+
+Use superfícies compartilhadas (`card-surface`, `card-surface-soft`,
+`card-surface-strong`) quando fizer sentido. Evite abstrações visuais sem ganho
+real e evite cards aninhados desnecessários.
+
+## Formulários e feedback
+
+Formulários React controlados pela aplicação devem usar `noValidate`.
+Validação visível deve ser local e estilizada pelo app.
+
+Não use `window.alert`, `window.confirm` ou `window.prompt`. Use mensagens
+inline, toast, banner, modal ou sheet.
+
+Inputs curtos/estruturados devem desabilitar assistência automática quando
+adequado:
 
 ```tsx
 spellCheck={false}
@@ -70,52 +127,37 @@ autoCorrect="off"
 autoCapitalize="none"
 ```
 
-Use os primitivos do projeto, como `Input`, quando eles já centralizam esses padrões.
+Prefira o primitivo `Input` quando ele já centraliza esses padrões.
 
-Não use `window.alert`, `window.confirm`, `window.prompt` nem bibliotecas com comportamento equivalente. Use mensagens inline, toast, banner, modal ou sheet da aplicação.
+## Datas e localização
 
-## Localização e datas
+O app suporta `pt-BR` e `en`. Datas diárias devem usar helpers timezone-aware em
+`src/lib/time`; não recorte strings UTC manualmente para representar dias de
+calendário.
 
-O app suporta `pt-BR` e `en`. Preferências de idioma e timezone são pequenas preferências de UI e podem usar armazenamento local apropriado.
+## TDD e testes
 
-Datas diárias devem usar os helpers timezone-aware em `src/lib/time`. Não calcule dias do calendário por recorte bruto de strings UTC.
+Regra obrigatória: antes de codar qualquer feature ou refatoração
+comportamental, crie ou ajuste testes primeiro.
 
-## Organização de código
+Use:
 
-Mantenha regras de negócio perto da feature ou da camada de persistência responsável. Preserve componentes pequenos, props claras e tipagem forte.
+- unitários para domínio, helpers, datas, validações, hooks e componentes;
+- integração para Dexie, escopos, modo local, modo autenticado, Supabase local e
+  auth;
+- E2E para fluxos críticos de navegador e responsividade.
 
-Use hooks e componentes compartilhados quando o mesmo comportamento aparece em mais de uma superfície e a extração melhora manutenção. Mantenha comandos, labels e regras de domínio dentro da feature dona quando forem específicos.
+Inclua regressões para:
 
-Não adicione infraestrutura, backend ou bibliotecas pesadas sem necessidade clara para a tarefa.
+- modo local sem conta;
+- modo autenticado com conta;
+- troca entre local e conta;
+- garantia de que dados locais não vão para Supabase;
+- garantia de que dados autenticados ficam associados ao usuário correto.
 
-## Testes e verificação
+## Validações
 
-Alterações de código devem vir com testes compatíveis com o risco da mudança. Use o menor nível que cubra o comportamento:
-
-- unitários para lógica pura, helpers, hooks e componentes isolados;
-- integração para comandos Dexie, escopo, outbox, sync e auth;
-- E2E para fluxos críticos de navegador.
-
-Antes de finalizar mudanças de código, rode as verificações aplicáveis. Prefira `make check` ou `npm run check` quando a mudança não for apenas documental.
-
-Se não rodar algum check, informe o motivo.
-
-## Documentação
-
-Atualize `README.md` quando mudar setup, comandos, deploy, autenticação, persistência, sincronização, PWA ou comportamento relevante para humanos usando o repositório.
-
-Atualize `AGENTS.md` quando mudar regras do projeto, decisões arquiteturais, persistência, validação, UX base, testes ou fluxo de trabalho para agentes.
-
-Mantenha a documentação curta, atual e acionável.
-
-## Deploy e migrations
-
-Migrations em `supabase/migrations` são aplicadas em produção por GitHub Actions
-em pushes para `main`. Como a Vercel também deploya automaticamente a partir da
-`main`, mantenha migrations compatíveis com a versão anterior e a nova versão da
-aplicação, salvo quando o fluxo de deploy for explicitamente alterado.
-
-## Comandos úteis
+Comandos Make:
 
 ```bash
 make install
@@ -136,3 +178,33 @@ make supabase-status
 make supabase-reset
 make supabase-types-local
 ```
+
+`make check` delega para `npm run check`, que executa typecheck, lint, testes,
+format-check e build. E2E roda separadamente com `make test-e2e` ou
+`npm run test:e2e`.
+
+Antes de finalizar mudanças de código, rode os checks aplicáveis. Se não rodar
+algum check, informe o motivo.
+
+## CI/CD
+
+- `.github/workflows/app-ci.yml`: roda `npm run check` em PRs e pushes para
+  `main`.
+- `.github/workflows/supabase-migrations.yml`: aplica migrations production via
+  GitHub Actions.
+- Vercel faz deploy automático a partir da `main`.
+
+Migrations em `supabase/migrations` devem ser compatíveis com a versão anterior
+e a nova versão da aplicação, já que Vercel e migrations são acionados a partir
+da `main`.
+
+## Documentação
+
+Atualize `README.md` quando mudar setup, comandos, deploy, autenticação,
+persistência, PWA, Supabase, testes ou comportamento relevante para humanos.
+
+Atualize `AGENTS.md` quando mudar regras do projeto, decisões arquiteturais,
+persistência, validação, UX base, testes, CI/CD ou fluxo de trabalho para
+agentes.
+
+Mantenha documentação curta, atual e acionável.

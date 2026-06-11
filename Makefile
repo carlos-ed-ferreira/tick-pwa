@@ -15,7 +15,7 @@ help:
 	@printf "  %-26s %s\n" "make test-e2e" "Roda testes end-to-end"
 	@printf "  %-26s %s\n" "make format" "Formata o codigo com Prettier"
 	@printf "  %-26s %s\n" "make format-check" "Verifica formatacao com Prettier"
-	@printf "  %-26s %s\n" "make check" "Roda typecheck, lint, format-check e build"
+	@printf "  %-26s %s\n" "make check" "Roda typecheck, lint, testes, format-check e build"
 	@printf "  %-26s %s\n" "make supabase-start" "Inicia o Supabase local"
 	@printf "  %-26s %s\n" "make supabase-stop" "Para o Supabase local"
 	@printf "  %-26s %s\n" "make supabase-status" "Mostra URLs e chaves do Supabase local"

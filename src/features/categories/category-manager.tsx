@@ -18,7 +18,7 @@ function normalizeCategoryDraftName(name: string): string {
 }
 
 export function CategoryManager({ surface }: { surface: CategoryTagSurface }) {
-  const { dictionary, scope, requestSync } = useAppContext();
+  const { dictionary, scope } = useAppContext();
   const categoryTags = useCategoryTags(scope, surface);
 
   async function addCategory() {
@@ -32,7 +32,6 @@ export function CategoryManager({ surface }: { surface: CategoryTagSurface }) {
       name: dictionary.dayEditor.newCategory,
       colorHex: '#71717a',
     });
-    await requestSync();
   }
 
   return (
@@ -98,7 +97,7 @@ function CategoryManagerRow({
   isLast: boolean;
   tag: CategoryTag;
 }) {
-  const { dictionary, scope, requestSync } = useAppContext();
+  const { dictionary, scope } = useAppContext();
   const [draftName, setDraftName] = useState(tag.name);
   const [isComposing, setIsComposing] = useState(false);
 
@@ -125,7 +124,6 @@ function CategoryManagerRow({
       categoryTagId: tag.id,
       name: normalizedName,
     });
-    await requestSync();
   }
 
   function handleKeyDown(event: KeyboardEvent<HTMLInputElement>) {
@@ -158,7 +156,6 @@ function CategoryManagerRow({
                   categoryTagId: tag.id,
                   colorHex: event.target.value,
                 });
-                await requestSync();
               })();
             }
           }}
@@ -204,7 +201,6 @@ function CategoryManagerRow({
                   categoryTagId: tag.id,
                   direction: 'up',
                 });
-                await requestSync();
               })();
             }
           }}
@@ -224,7 +220,6 @@ function CategoryManagerRow({
                   categoryTagId: tag.id,
                   direction: 'down',
                 });
-                await requestSync();
               })();
             }
           }}
@@ -242,7 +237,6 @@ function CategoryManagerRow({
                   scope,
                   categoryTagId: tag.id,
                 });
-                await requestSync();
               })();
             }
           }}

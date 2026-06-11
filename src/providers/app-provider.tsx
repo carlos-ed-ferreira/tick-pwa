@@ -31,10 +31,10 @@ import {
   ensureUserProfile,
   getSupabaseBrowserClient,
   isUserAllowed,
+  refreshAccountCache,
   toTickAuthUser,
   type TickAuthUser,
 } from '@/lib/supabase';
-import { synchronizeScope } from '@/lib/sync';
 import { resolveTimezonePreference } from '@/lib/time';
 
 export type AuthMode =
@@ -105,7 +105,7 @@ interface AppContextValue {
   ) => Promise<PasswordSignInResult>;
   enterLocalMode: () => Promise<void>;
   signOut: () => Promise<void>;
-  requestSync: () => Promise<void>;
+  refreshAccountData: () => Promise<void>;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -125,7 +125,7 @@ export function AppProvider({
   const [locale, setLocaleState] = useState<SupportedLocale>(initialLocale);
   const [timezonePreference, setTimezonePreference] =
     useState<LocalePreference>(() => resolveTimezonePreference(initialLocale));
-  const syncInProgressRef = useRef(false);
+  const accountRefreshInProgressRef = useRef(false);
 
   const applyScopedPreferences = useCallback(
     async (nextScope: AppScope | null) => {
@@ -156,23 +156,23 @@ export function AppProvider({
     [],
   );
 
-  const runScopedSync = useCallback(async (nextScope: AppScope) => {
+  const refreshScopedAccountCache = useCallback(async (nextScope: AppScope) => {
     if (
       !shouldUseCloudSync() ||
       nextScope.kind === 'guest' ||
-      syncInProgressRef.current
+      accountRefreshInProgressRef.current
     ) {
       return;
     }
 
-    syncInProgressRef.current = true;
+    accountRefreshInProgressRef.current = true;
 
     try {
-      await synchronizeScope(nextScope);
+      await refreshAccountCache(nextScope);
     } catch (error) {
-      console.error('Failed to synchronize Tick data.', error);
+      console.error('Failed to refresh Tick account data.', error);
     } finally {
-      syncInProgressRef.current = false;
+      accountRefreshInProgressRef.current = false;
     }
   }, []);
 
@@ -222,7 +222,9 @@ export function AppProvider({
   );
 
   const activateAuthenticatedMode = useCallback(
-    async (user: User): Promise<'authenticated' | 'not_allowed'> => {
+    async (
+      user: User,
+    ): Promise<'authenticated' | 'not_allowed' | 'unavailable'> => {
       const allowed = await isUserAllowed(user);
 
       if (!allowed) {
@@ -231,24 +233,16 @@ export function AppProvider({
       }
 
       if (!shouldUseCloudSync()) {
-        const installationId = await getOrCreateInstallationId();
-        const localScope = createGuestScope(installationId);
-
-        await applyScopedPreferences(localScope);
-
-        setScope(localScope);
-        setAuthUser(toTickAuthUser(user));
-        setAuthError(null);
-        setAuthMode('authenticated');
-        setIsReady(true);
-        return 'authenticated';
+        await activateEntryMode();
+        setAuthError('Supabase is not configured for this environment.');
+        return 'unavailable';
       }
 
       const userScope = createUserScope(user.id);
 
       await ensureUserProfile(user);
       await applyScopedPreferences(userScope);
-      await runScopedSync(userScope);
+      await refreshScopedAccountCache(userScope);
 
       await setLocalPreference<AccessModePreference>(
         ACCESS_MODE_PREFERENCE_KEY,
@@ -262,7 +256,12 @@ export function AppProvider({
       setIsReady(true);
       return 'authenticated';
     },
-    [activateUnauthorizedMode, applyScopedPreferences, runScopedSync],
+    [
+      activateEntryMode,
+      activateUnauthorizedMode,
+      applyScopedPreferences,
+      refreshScopedAccountCache,
+    ],
   );
 
   useEffect(() => {
@@ -358,21 +357,19 @@ export function AppProvider({
       return;
     }
 
-    const sync = () => {
-      void runScopedSync(scope);
+    const refresh = () => {
+      void refreshScopedAccountCache(scope);
     };
 
-    sync();
-    window.addEventListener('online', sync);
-    window.addEventListener('focus', sync);
-    const syncInterval = window.setInterval(sync, 8000);
+    refresh();
+    window.addEventListener('online', refresh);
+    window.addEventListener('focus', refresh);
 
     return () => {
-      window.removeEventListener('online', sync);
-      window.removeEventListener('focus', sync);
-      window.clearInterval(syncInterval);
+      window.removeEventListener('online', refresh);
+      window.removeEventListener('focus', refresh);
     };
-  }, [authMode, runScopedSync, scope]);
+  }, [authMode, refreshScopedAccountCache, scope]);
 
   useEffect(() => {
     document.documentElement.lang = locale;
@@ -511,13 +508,13 @@ export function AppProvider({
     await activateEntryMode();
   }, [activateEntryMode, activateLocalMode]);
 
-  const requestSync = useCallback(async () => {
+  const refreshAccountData = useCallback(async () => {
     if (!scope || scope.kind === 'guest' || !shouldUseCloudSync()) {
       return;
     }
 
-    await runScopedSync(scope);
-  }, [runScopedSync, scope]);
+    await refreshScopedAccountCache(scope);
+  }, [refreshScopedAccountCache, scope]);
 
   const dictionary = useMemo(() => getDictionary(locale), [locale]);
 
@@ -537,7 +534,7 @@ export function AppProvider({
       signInWithPassword,
       enterLocalMode,
       signOut,
-      requestSync,
+      refreshAccountData,
     }),
     [
       authError,
@@ -548,7 +545,7 @@ export function AppProvider({
       isReady,
       locale,
       openAuthEntry,
-      requestSync,
+      refreshAccountData,
       scope,
       setLocale,
       signInWithGoogle,

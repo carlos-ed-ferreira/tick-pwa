@@ -4,6 +4,8 @@ export const labels = {
   calendarLink: /daily calendar|calendario diario|calendário diário/i,
   goalStepEmpty:
     /start this section with a checklist item|comece esta seção com um item de checklist/i,
+  createGoalGroup: /create a new goal group|criar novo grupo de metas/i,
+  newGoalGroup: /^new group$|^novo grupo$/i,
   goalsLink: /^goals$|^metas$/i,
   localModeBadge: /local mode|modo local/i,
   localModeButton:

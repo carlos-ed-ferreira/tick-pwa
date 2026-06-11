@@ -18,7 +18,6 @@ const {
   createGoalMock,
   createGoalStepMock,
   reorderGoalStepMock,
-  requestSyncMock,
   softDeleteGoalMock,
   softDeleteGoalStepMock,
   updateGoalTitleMock,
@@ -30,7 +29,6 @@ const {
   createGoalMock: vi.fn(),
   createGoalStepMock: vi.fn(),
   reorderGoalStepMock: vi.fn().mockResolvedValue(undefined),
-  requestSyncMock: vi.fn().mockResolvedValue(undefined),
   softDeleteGoalMock: vi.fn().mockResolvedValue(undefined),
   softDeleteGoalStepMock: vi.fn().mockResolvedValue(undefined),
   updateGoalTitleMock: vi.fn().mockResolvedValue(undefined),
@@ -114,7 +112,6 @@ vi.mock('@/providers', () => ({
       },
     },
     scope,
-    requestSync: requestSyncMock,
   }),
 }));
 
@@ -169,7 +166,6 @@ describe('GoalsSurface', () => {
     createGoalStepMock.mockReset();
     createGoalStepMock.mockResolvedValue(undefined);
     reorderGoalStepMock.mockClear();
-    requestSyncMock.mockClear();
     softDeleteGoalMock.mockClear();
     softDeleteGoalStepMock.mockClear();
     updateGoalTitleMock.mockClear();
@@ -230,7 +226,6 @@ describe('GoalsSurface', () => {
         title: 'NEW GROUP',
       });
     });
-    expect(requestSyncMock).toHaveBeenCalled();
   });
 
   it('opens a goal and renders one checklist card for it', () => {

@@ -457,8 +457,6 @@ export class TickDatabase extends Dexie {
   categoryTags!: Table<CategoryTag, string>;
   goals!: Table<Goal, string>;
   goalSteps!: Table<GoalStep, string>;
-  syncOutbox!: Table<SyncOutboxItem, string>;
-  syncCursors!: Table<SyncCursor, string>;
   localPreferences!: Table<LocalPreference, string>;
 
   constructor() {
@@ -693,6 +691,22 @@ export class TickDatabase extends Dexie {
         localPreferences: 'key, scopeId, updatedAt',
       })
       .upgrade(reconcileAuthenticatedDailyEntries);
+
+    this.version(7).stores({
+      dailyEntries:
+        'id, scopeId, date, updatedAt, deletedAt, [scopeId+date], [scopeId+updatedAt]',
+      checklistItems:
+        'id, scopeId, dailyEntryId, parentId, updatedAt, deletedAt, [scopeId+dailyEntryId], [scopeId+parentId], [scopeId+updatedAt]',
+      colorTags:
+        'id, scopeId, surface, position, updatedAt, deletedAt, [scopeId+surface], [scopeId+surface+position], [scopeId+updatedAt]',
+      goals:
+        'id, scopeId, category, status, updatedAt, deletedAt, [scopeId+category], [scopeId+status], [scopeId+updatedAt]',
+      goalSteps:
+        'id, scopeId, goalId, parentId, updatedAt, deletedAt, [scopeId+goalId], [scopeId+parentId], [scopeId+updatedAt]',
+      syncOutbox: null,
+      syncCursors: null,
+      localPreferences: 'key, scopeId, updatedAt',
+    });
 
     this.categoryTags = this.table('colorTags');
   }

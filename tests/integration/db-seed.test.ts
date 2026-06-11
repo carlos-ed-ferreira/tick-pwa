@@ -61,7 +61,6 @@ describe('local database bootstrap', () => {
         (tag) => tag.syncStatus === 'local',
       ),
     ).toBe(true);
-    await expect(db.syncOutbox.count()).resolves.toBe(0);
   });
 
   it('does not seed default categories for an authenticated user scope', async () => {
@@ -75,7 +74,6 @@ describe('local database bootstrap', () => {
       .toArray();
 
     expect(categoryTags).toHaveLength(0);
-    await expect(db.syncOutbox.count()).resolves.toBe(0);
   });
 
   it('backfills legacy guest defaults without creating duplicates and re-localizes tracked base tags', async () => {

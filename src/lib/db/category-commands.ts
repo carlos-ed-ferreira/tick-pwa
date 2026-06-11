@@ -18,7 +18,7 @@ import {
   getEntitySyncStatus,
 } from './entity-metadata';
 import { clearGuestDefaultCategoryTagTracking } from './seed';
-import { queueSyncOutboxItem } from './sync-outbox';
+import { persistAccountEntityChange } from './account-persistence';
 
 function normalizeColorHex(colorHex: string): string {
   const normalizedHex = colorHex.trim();
@@ -55,7 +55,7 @@ async function persistCategoryTagUpdate(
   changedFields: string[],
 ): Promise<void> {
   await db.categoryTags.put(categoryTag);
-  await queueSyncOutboxItem({
+  await persistAccountEntityChange({
     scope,
     entityType: 'categoryTag',
     entityId: categoryTag.id,
@@ -91,7 +91,7 @@ export async function createCategoryTag({
   name: string;
   colorHex: string;
 }): Promise<CategoryTag> {
-  return db.transaction('rw', db.categoryTags, db.syncOutbox, async () => {
+  return db.transaction('rw', db.categoryTags, async () => {
     const categoryTags = await getActiveCategoryTags(scope, surface);
     const now = createTimestamp();
     const categoryTag: CategoryTag = {
@@ -111,7 +111,7 @@ export async function createCategoryTag({
     };
 
     await db.categoryTags.add(categoryTag);
-    await queueSyncOutboxItem({
+    await persistAccountEntityChange({
       scope,
       entityType: 'categoryTag',
       entityId: categoryTag.id,
@@ -136,67 +136,61 @@ export async function updateCategoryTag({
   name?: string;
   colorHex?: string;
 }): Promise<void> {
-  await db.transaction(
-    'rw',
-    db.categoryTags,
-    db.localPreferences,
-    db.syncOutbox,
-    async () => {
-      const categoryTag = await db.categoryTags.get(categoryTagId);
+  await db.transaction('rw', db.categoryTags, db.localPreferences, async () => {
+    const categoryTag = await db.categoryTags.get(categoryTagId);
 
-      if (
-        !categoryTag ||
-        categoryTag.scopeId !== scope.id ||
-        categoryTag.deletedAt
-      ) {
-        return;
-      }
+    if (
+      !categoryTag ||
+      categoryTag.scopeId !== scope.id ||
+      categoryTag.deletedAt
+    ) {
+      return;
+    }
 
-      const nextName =
-        name === undefined
-          ? categoryTag.name
-          : normalizeCategoryTagName(name) || categoryTag.name;
-      const nextColorHex =
-        colorHex === undefined
-          ? categoryTag.colorHex
-          : normalizeColorHex(colorHex);
+    const nextName =
+      name === undefined
+        ? categoryTag.name
+        : normalizeCategoryTagName(name) || categoryTag.name;
+    const nextColorHex =
+      colorHex === undefined
+        ? categoryTag.colorHex
+        : normalizeColorHex(colorHex);
 
-      if (
-        nextName === categoryTag.name &&
-        nextColorHex === categoryTag.colorHex
-      ) {
-        return;
-      }
+    if (
+      nextName === categoryTag.name &&
+      nextColorHex === categoryTag.colorHex
+    ) {
+      return;
+    }
 
-      const updatedCategoryTag = touchCategoryTag(scope, {
-        ...categoryTag,
-        name: nextName,
-        colorHex: nextColorHex,
-      });
-      const changedFields = [
-        ...(name === undefined ? [] : ['name']),
-        ...(colorHex === undefined ? [] : ['colorHex']),
-      ];
+    const updatedCategoryTag = touchCategoryTag(scope, {
+      ...categoryTag,
+      name: nextName,
+      colorHex: nextColorHex,
+    });
+    const changedFields = [
+      ...(name === undefined ? [] : ['name']),
+      ...(colorHex === undefined ? [] : ['colorHex']),
+    ];
 
-      if (changedFields.length === 0) {
-        return;
-      }
+    if (changedFields.length === 0) {
+      return;
+    }
 
-      await persistCategoryTagUpdate(scope, updatedCategoryTag, changedFields);
+    await persistCategoryTagUpdate(scope, updatedCategoryTag, changedFields);
 
-      if (
-        scope.kind === 'guest' &&
-        name !== undefined &&
-        nextName !== categoryTag.name
-      ) {
-        await clearGuestDefaultCategoryTagTracking(
-          scope,
-          categoryTag.id,
-          categoryTag.surface,
-        );
-      }
-    },
-  );
+    if (
+      scope.kind === 'guest' &&
+      name !== undefined &&
+      nextName !== categoryTag.name
+    ) {
+      await clearGuestDefaultCategoryTagTracking(
+        scope,
+        categoryTag.id,
+        categoryTag.surface,
+      );
+    }
+  });
 }
 
 export async function reorderCategoryTag({
@@ -208,7 +202,7 @@ export async function reorderCategoryTag({
   categoryTagId: string;
   direction: 'up' | 'down';
 }): Promise<void> {
-  await db.transaction('rw', db.categoryTags, db.syncOutbox, async () => {
+  await db.transaction('rw', db.categoryTags, async () => {
     const targetCategoryTag = await db.categoryTags.get(categoryTagId);
 
     if (
@@ -273,7 +267,6 @@ export async function softDeleteCategoryTag({
       db.goals,
       db.goalSteps,
       db.localPreferences,
-      db.syncOutbox,
     ],
     async () => {
       const categoryTag = await db.categoryTags.get(categoryTagId);
@@ -322,7 +315,7 @@ export async function softDeleteCategoryTag({
         };
 
         await db.checklistItems.put(updatedItem);
-        await queueSyncOutboxItem({
+        await persistAccountEntityChange({
           scope,
           entityType: 'checklistItem',
           entityId: updatedItem.id,
@@ -354,7 +347,7 @@ export async function softDeleteCategoryTag({
           syncStatus: getEntitySyncStatus(scope),
           clientUpdatedAt: now,
         } as Goal);
-        await queueSyncOutboxItem({
+        await persistAccountEntityChange({
           scope,
           entityType: 'goal',
           entityId: goal.id,
@@ -389,7 +382,7 @@ export async function softDeleteCategoryTag({
           syncStatus: getEntitySyncStatus(scope),
           clientUpdatedAt: now,
         } as GoalStep);
-        await queueSyncOutboxItem({
+        await persistAccountEntityChange({
           scope,
           entityType: 'goalStep',
           entityId: goalStep.id,

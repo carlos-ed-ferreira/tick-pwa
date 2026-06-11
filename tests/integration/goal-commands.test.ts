@@ -43,13 +43,13 @@ describe('goal commands', () => {
     const firstGoal = await createGoal({
       scope,
       category: 'short',
-      title: 'First goal',
+      title: 'FIRST GOAL',
     });
     await createGoal({
       scope,
       category: 'short',
       afterGoalId: firstGoal.id,
-      title: 'Second goal',
+      title: 'SECOND GOAL',
     });
     const insertedGoal = await createGoal({
       scope,
@@ -61,7 +61,7 @@ describe('goal commands', () => {
     await updateGoalTitle({
       scope,
       goalId: insertedGoal.id,
-      title: 'Updated inserted goal',
+      title: 'UPDATED INSERTED GOAL',
     });
     await assignGoalCategory({
       scope,
@@ -128,9 +128,9 @@ describe('goal commands', () => {
       .sortBy('sortRank');
 
     expect(orderedGoals.map((goal) => goal.title)).toEqual([
-      'First goal',
-      'Updated inserted goal',
-      'Second goal',
+      'FIRST GOAL',
+      'UPDATED INSERTED GOAL',
+      'SECOND GOAL',
     ]);
 
     const storedGoal = await db.goals.get(insertedGoal.id);
@@ -153,14 +153,12 @@ describe('goal commands', () => {
       .filter((goal) => goal.deletedAt === null)
       .sortBy('sortRank');
     const deletedGoal = await db.goals.get(firstGoal.id);
-    const outboxCount = await db.syncOutbox.count();
 
     expect(remainingGoals.map((goal) => goal.title)).toEqual([
-      'Updated inserted goal',
-      'Second goal',
+      'UPDATED INSERTED GOAL',
+      'SECOND GOAL',
     ]);
     expect(deletedGoal?.deletedAt).not.toBeNull();
-    expect(outboxCount).toBe(0);
   });
 
   it('recalculates progress and cascades goal step deletion', async () => {
@@ -221,31 +219,29 @@ describe('goal commands', () => {
 
     const defaultGoal = await ensureDefaultNowGoal({
       scope,
-      title: 'Focus now',
+      title: 'FOCUS NOW',
     });
     await createGoal({
       scope,
       category: 'now',
       afterGoalId: defaultGoal.id,
-      title: 'Custom focus',
+      title: 'CUSTOM FOCUS',
     });
     const ensuredGoal = await ensureDefaultNowGoal({
       scope,
-      title: 'Focus now',
+      title: 'FOCUS NOW',
     });
     const nowGoals = await db.goals
       .where('[scopeId+category]')
       .equals([scope.id, 'now'])
       .filter((goal) => goal.deletedAt === null)
       .sortBy('sortRank');
-    const outboxCount = await db.syncOutbox.count();
 
     expect(ensuredGoal.id).toBe(defaultGoal.id);
     expect(nowGoals.map((goal) => goal.title)).toEqual([
-      'Focus now',
-      'Custom focus',
+      'FOCUS NOW',
+      'CUSTOM FOCUS',
     ]);
-    expect(outboxCount).toBe(0);
   });
 
   it('merges legacy goals from the same category into a single container', async () => {

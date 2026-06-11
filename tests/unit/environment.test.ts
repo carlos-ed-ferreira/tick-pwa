@@ -96,5 +96,23 @@ describe('environment helpers', () => {
         supabaseUrl: 'https://prod.supabase.co',
       }),
     ).toBe(false);
+
+    expect(
+      shouldUseCloudSyncOnHostname({
+        hostname: 'tick.example.com',
+        disableSupabase: false,
+        supabaseEnvironment: undefined,
+        supabaseUrl: 'https://prod.supabase.co',
+      }),
+    ).toBe(false);
+
+    expect(
+      shouldUseCloudSyncOnHostname({
+        hostname: 'tick.example.com',
+        disableSupabase: false,
+        supabaseEnvironment: 'staging',
+        supabaseUrl: 'https://prod.supabase.co',
+      }),
+    ).toBe(false);
   });
 });

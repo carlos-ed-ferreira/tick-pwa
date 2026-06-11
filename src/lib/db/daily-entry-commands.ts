@@ -12,7 +12,7 @@ import {
   createTimestamp,
   getEntitySyncStatus,
 } from './entity-metadata';
-import { queueSyncOutboxItem } from './sync-outbox';
+import { persistAccountEntityChange } from './account-persistence';
 
 export async function openOrCreateDailyEntry({
   scope,
@@ -23,7 +23,7 @@ export async function openOrCreateDailyEntry({
   date: LocalDateString;
   timezone: string;
 }): Promise<DailyEntry> {
-  return db.transaction('rw', db.dailyEntries, db.syncOutbox, async () => {
+  return db.transaction('rw', db.dailyEntries, async () => {
     const existingEntry = await db.dailyEntries
       .where('[scopeId+date]')
       .equals([scope.id, date])
@@ -46,7 +46,7 @@ export async function openOrCreateDailyEntry({
       };
 
       await db.dailyEntries.put(restoredEntry);
-      await queueSyncOutboxItem({
+      await persistAccountEntityChange({
         scope,
         entityType: 'dailyEntry',
         entityId: restoredEntry.id,
@@ -78,7 +78,7 @@ export async function openOrCreateDailyEntry({
     };
 
     await db.dailyEntries.add(entry);
-    await queueSyncOutboxItem({
+    await persistAccountEntityChange({
       scope,
       entityType: 'dailyEntry',
       entityId: entry.id,
@@ -157,7 +157,7 @@ export async function recalculateDailyEntrySummary({
   };
 
   await db.dailyEntries.put(updatedEntry);
-  await queueSyncOutboxItem({
+  await persistAccountEntityChange({
     scope,
     entityType: 'dailyEntry',
     entityId: updatedEntry.id,

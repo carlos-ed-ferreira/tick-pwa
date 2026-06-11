@@ -52,14 +52,12 @@ describe('checklist commands', () => {
     });
 
     const updatedEntry = await db.dailyEntries.get(entry.id);
-    const outboxCount = await db.syncOutbox.count();
 
     expect(updatedEntry).toMatchObject({
       previewText: 'Plan tomorrow',
       itemCount: 1,
       completedCount: 1,
     });
-    expect(outboxCount).toBe(0);
   });
 
   it('supports nesting changes and cascaded soft delete', async () => {
@@ -569,7 +567,6 @@ describe('checklist commands', () => {
     const updatedFridayEntry = await db.dailyEntries.get(fridayEntry.id);
     const updatedMondayEntry = await db.dailyEntries.get(mondayEntry.id);
     const updatedTuesdayEntry = await db.dailyEntries.get(tuesdayEntry.id);
-    const outboxCount = await db.syncOutbox.count();
 
     expect(fridayItems).toHaveLength(0);
     expect(mondayItems).toHaveLength(0);
@@ -591,6 +588,5 @@ describe('checklist commands', () => {
       previewText: 'Tuesday root',
       itemCount: 1,
     });
-    expect(outboxCount).toBe(0);
   });
 });
