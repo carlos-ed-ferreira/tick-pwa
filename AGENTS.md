@@ -101,6 +101,11 @@ Supabase production configurado na Vercel e no GitHub Actions.
 Tick é uma PWA mobile-first. Toda interface deve ser amigável para celulares,
 tablets, notebooks pequenos e desktops grandes.
 
+Ao alterar UI, trate consistência visual e UX como critério de aceite: preserve
+hierarquia clara, espaçamentos confortáveis, controles próximos do contexto em
+que atuam, alturas coerentes entre elementos relacionados e padrões visuais já
+usados pelo sistema.
+
 Prefira auto-save, edição inline, feedback contextual e estados mínimos de
 loading. Não bloqueie fluxos do modo local por rede. Para conta autenticada,
 falhas de Supabase devem ter feedback claro sem misturar dados locais e dados da

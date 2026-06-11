@@ -9,7 +9,14 @@ import {
   Plus,
   Trash2,
 } from 'lucide-react';
-import { useCallback, useMemo, useState, type KeyboardEvent } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type KeyboardEvent,
+} from 'react';
 import {
   TaskTreeActionGroup,
   TaskTreeCategoryChip,
@@ -56,7 +63,13 @@ const goalStepInputSelector = '[data-goal-step-input="true"]';
 
 export function GoalsSurface() {
   const { dictionary, scope } = useAppContext();
-  const [selectedGoalId, setSelectedGoalId] = useState<string | null>(null);
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const goalIdSearchParam = searchParams.get('goal');
+  const [selectedGoalIdOverride, setSelectedGoalIdOverride] = useState<
+    string | null | undefined
+  >(undefined);
+  const selectedGoalId = selectedGoalIdOverride ?? goalIdSearchParam;
   const shortGoals = useGoals(scope, 'short');
   const mediumGoals = useGoals(scope, 'medium');
   const longGoals = useGoals(scope, 'long');
@@ -71,9 +84,32 @@ export function GoalsSurface() {
   const selectedGoal = selectedGoalId
     ? (goals.find((goal) => goal.id === selectedGoalId) ?? null)
     : null;
+  const selectedGoalStepRows = useGoalStepTree(scope, selectedGoal?.id ?? null);
+
+  useEffect(() => {
+    const clearNavigationOverride = () => {
+      setSelectedGoalIdOverride(undefined);
+    };
+
+    window.addEventListener('popstate', clearNavigationOverride);
+
+    return () => {
+      window.removeEventListener('popstate', clearNavigationOverride);
+    };
+  }, []);
 
   if (!scope) {
     return null;
+  }
+
+  function openGoal(goalId: string) {
+    setSelectedGoalIdOverride(goalId);
+    router.push(`/goals?goal=${encodeURIComponent(goalId)}`);
+  }
+
+  function closeGoal() {
+    setSelectedGoalIdOverride(null);
+    router.push('/goals');
   }
 
   async function createGoalCard() {
@@ -88,33 +124,25 @@ export function GoalsSurface() {
       category: 'now',
       title: dictionary.goals.newGroupName.toUpperCase(),
     });
-    setSelectedGoalId(goal.id);
+    openGoal(goal.id);
   }
 
   return (
-    <section className="grid gap-5">
-      <header className="flex items-center justify-between px-1 sm:px-0">
-        <h2 className="text-2xl font-semibold text-[#fff9f2] sm:text-3xl">
-          {dictionary.goals.title}
-        </h2>
-
-        {selectedGoal ? (
-          <button
-            type="button"
-            className="inline-flex min-h-10 w-fit items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-[#f8f3ea] shadow-sm shadow-[#312c51]/10 transition hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/10 active:translate-y-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0]"
-            onClick={() => setSelectedGoalId(null)}
-          >
-            <ArrowLeft aria-hidden="true" className="size-4" />
-            {dictionary.goals.backToGoalGroups}
-          </button>
-        ) : null}
-      </header>
+    <section className="grid gap-5 pt-4 sm:pt-5 lg:pt-6">
+      {selectedGoal ? (
+        <GoalDetailHeader
+          goal={selectedGoal}
+          hasGoalSteps={selectedGoalStepRows.length > 0}
+          onBack={closeGoal}
+          onDelete={closeGoal}
+        />
+      ) : null}
 
       {selectedGoal ? (
         <GoalDetailCard
           categoryTagMap={categoryTagMap}
           goal={selectedGoal}
-          onDelete={() => setSelectedGoalId(null)}
+          goalStepRows={selectedGoalStepRows}
         />
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -123,7 +151,7 @@ export function GoalsSurface() {
               key={goal.id}
               type="button"
               className="group flex min-h-32 items-center rounded-[1.25rem] bg-white/[0.055] p-5 text-left shadow-[0_12px_30px_rgba(8,6,20,0.1)] ring-1 ring-white/[0.075] transition hover:-translate-y-0.5 hover:bg-white/[0.085] hover:ring-[#f0c38e]/30 active:translate-y-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0]"
-              onClick={() => setSelectedGoalId(goal.id)}
+              onClick={() => openGoal(goal.id)}
             >
               <span className="min-w-0 truncate text-xl font-semibold leading-tight text-[#fff9f2] transition group-hover:text-[#f8dfbd]">
                 {goal.title || dictionary.goals.newGroupName}
@@ -150,18 +178,124 @@ export function GoalsSurface() {
   );
 }
 
-function GoalDetailCard({
-  categoryTagMap,
+function GoalDetailHeader({
   goal,
+  hasGoalSteps,
+  onBack,
   onDelete,
 }: {
-  categoryTagMap: Map<string, { colorHex: string; name: string }>;
   goal: Goal;
+  hasGoalSteps: boolean;
+  onBack: () => void;
   onDelete: () => void;
 }) {
   const { dictionary, scope } = useAppContext();
   const [isGoalDeleteDialogOpen, setIsGoalDeleteDialogOpen] = useState(false);
-  const goalStepRows = useGoalStepTree(scope, goal.id);
+
+  const deleteGoal = useCallback(async () => {
+    if (!scope) {
+      return;
+    }
+
+    setIsGoalDeleteDialogOpen(false);
+    await softDeleteGoal({ scope, goalId: goal.id });
+    onDelete();
+  }, [goal.id, onDelete, scope]);
+
+  return (
+    <>
+      <header className="flex flex-col gap-3 px-1 sm:flex-row sm:items-center sm:px-0">
+        <div className="flex min-w-0 flex-1 items-center gap-2">
+          <GoalTitleEditor goal={goal} />
+          <IconButton
+            aria-label={dictionary.goals.deleteGoal}
+            className="size-10 rounded-md border border-rose-300/20 bg-rose-400/10 text-rose-100 hover:bg-rose-400/18 hover:text-rose-50 focus-visible:outline-rose-200"
+            onClick={() =>
+              hasGoalSteps ? setIsGoalDeleteDialogOpen(true) : void deleteGoal()
+            }
+          >
+            <Trash2 aria-hidden="true" className="size-4" />
+          </IconButton>
+        </div>
+        <button
+          type="button"
+          className="inline-flex min-h-10 w-fit items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-[#f8f3ea] shadow-sm shadow-[#312c51]/10 transition hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/10 active:translate-y-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0]"
+          onClick={onBack}
+        >
+          <ArrowLeft aria-hidden="true" className="size-4" />
+          {dictionary.goals.backToGoalGroups}
+        </button>
+      </header>
+
+      <ConfirmationDialog
+        cancelLabel={dictionary.actions.cancel}
+        confirmLabel={dictionary.actions.delete}
+        description={dictionary.goals.confirmDeleteGoal}
+        open={isGoalDeleteDialogOpen}
+        title={dictionary.goals.deleteGoal}
+        onClose={() => setIsGoalDeleteDialogOpen(false)}
+        onConfirm={() => void deleteGoal()}
+      />
+    </>
+  );
+}
+
+function GoalTitleEditor({ goal }: { goal: Goal }) {
+  const { dictionary, scope } = useAppContext();
+  const saveTitle = useCallback(
+    async (nextTitle: string) => {
+      if (!scope) {
+        return;
+      }
+
+      await updateGoalTitle({
+        scope,
+        goalId: goal.id,
+        title: nextTitle,
+      });
+    },
+    [goal.id, scope],
+  );
+  const {
+    flush: flushTitle,
+    setText: setTitle,
+    text: editableTitle,
+  } = useDebouncedInlineEdit({
+    enabled: Boolean(scope),
+    onSave: saveTitle,
+    value: goal.title,
+  });
+  const titleWidthCh = Math.max(
+    editableTitle.length,
+    dictionary.goals.goalTitlePlaceholder.length,
+    8,
+  );
+
+  return (
+    <Input
+      aria-label={dictionary.goals.renameGoal}
+      className="h-10 min-w-32 max-w-full rounded-md bg-white/[0.045] px-3 py-0 text-xl font-semibold text-[#fff9f2] shadow-sm ring-1 ring-white/[0.07] outline-none transition focus:bg-white/[0.07] focus:ring-[#f0c38e]/35"
+      placeholder={dictionary.goals.goalTitlePlaceholder}
+      style={{
+        width: `min(calc(${titleWidthCh}ch + 2rem), 100%)`,
+      }}
+      value={editableTitle}
+      onBlur={() => void flushTitle()}
+      onChange={(event) => setTitle(event.target.value.toUpperCase())}
+    />
+  );
+}
+
+function GoalDetailCard({
+  categoryTagMap,
+  goal,
+  goalStepRows,
+}: {
+  categoryTagMap: Map<string, { colorHex: string; name: string }>;
+  goal: Goal;
+  goalStepRows: VisibleGoalStepRow[];
+}) {
+  const { dictionary, scope } = useAppContext();
   const visibleGoalStepIds = useMemo(
     () => goalStepRows.map((row) => row.goalStep.id),
     [goalStepRows],
@@ -202,30 +336,6 @@ function GoalDetailCard({
     selectedIds,
   });
 
-  const saveTitle = useCallback(
-    async (nextTitle: string) => {
-      if (!scope) {
-        return;
-      }
-
-      await updateGoalTitle({
-        scope,
-        goalId: goal.id,
-        title: nextTitle,
-      });
-    },
-    [goal.id, scope],
-  );
-  const {
-    flush: flushTitle,
-    setText: setTitle,
-    text: editableTitle,
-  } = useDebouncedInlineEdit({
-    enabled: Boolean(scope),
-    onSave: saveTitle,
-    value: goal.title,
-  });
-
   const createRootGoalStep = useCallback(async () => {
     if (!scope) {
       return;
@@ -234,43 +344,11 @@ function GoalDetailCard({
     await createGoalStep({ scope, goalId: goal.id });
   }, [goal.id, scope]);
 
-  const deleteGoal = useCallback(async () => {
-    if (!scope) {
-      return;
-    }
-
-    setIsGoalDeleteDialogOpen(false);
-    await softDeleteGoal({ scope, goalId: goal.id });
-    onDelete();
-  }, [goal.id, onDelete, scope]);
-
   return (
     <section
       aria-label={goal.title}
       className="flex min-h-0 flex-col rounded-[1.25rem] bg-white/[0.035] p-3 shadow-[0_18px_44px_rgba(8,6,20,0.16)] ring-1 ring-white/[0.07] sm:p-4"
     >
-      <div className="flex items-center gap-2 pb-3">
-        <Input
-          aria-label={dictionary.goals.renameGoal}
-          className="min-w-0 flex-1 rounded-md bg-transparent px-2 py-2 text-base font-semibold text-[#fff9f2] outline-none transition focus:bg-surface focus:shadow-sm"
-          placeholder={dictionary.goals.goalTitlePlaceholder}
-          value={editableTitle}
-          onBlur={() => void flushTitle()}
-          onChange={(event) => setTitle(event.target.value.toUpperCase())}
-        />
-
-        <IconButton
-          aria-label={dictionary.goals.deleteGoal}
-          onClick={() =>
-            goalStepRows.length > 0
-              ? setIsGoalDeleteDialogOpen(true)
-              : void deleteGoal()
-          }
-        >
-          <Trash2 aria-hidden="true" className="size-4" />
-        </IconButton>
-      </div>
-
       <TreeListPanel
         addLabel={dictionary.goals.addStep}
         bulkDeleteDialog={{
@@ -307,16 +385,6 @@ function GoalDetailCard({
           />
         ))}
       </TreeListPanel>
-
-      <ConfirmationDialog
-        cancelLabel={dictionary.actions.cancel}
-        confirmLabel={dictionary.actions.delete}
-        description={dictionary.goals.confirmDeleteGoal}
-        open={isGoalDeleteDialogOpen}
-        title={dictionary.goals.deleteGoal}
-        onClose={() => setIsGoalDeleteDialogOpen(false)}
-        onConfirm={() => void deleteGoal()}
-      />
     </section>
   );
 }

@@ -22,6 +22,7 @@ const {
   softDeleteGoalStepMock,
   updateGoalTitleMock,
   updateGoalStepTextMock,
+  routerPushMock,
   useCategoryTagsMock,
   useGoalsMock,
   useGoalStepTreeMock,
@@ -33,9 +34,17 @@ const {
   softDeleteGoalStepMock: vi.fn().mockResolvedValue(undefined),
   updateGoalTitleMock: vi.fn().mockResolvedValue(undefined),
   updateGoalStepTextMock: vi.fn().mockResolvedValue(undefined),
+  routerPushMock: vi.fn(),
   useCategoryTagsMock: vi.fn(),
   useGoalsMock: vi.fn(),
   useGoalStepTreeMock: vi.fn(),
+}));
+
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({
+    push: routerPushMock,
+  }),
+  useSearchParams: () => new URLSearchParams(window.location.search),
 }));
 
 vi.mock('@/lib/db', () => ({
@@ -168,6 +177,7 @@ describe('GoalsSurface', () => {
     reorderGoalStepMock.mockClear();
     softDeleteGoalMock.mockClear();
     softDeleteGoalStepMock.mockClear();
+    routerPushMock.mockClear();
     updateGoalTitleMock.mockClear();
     updateGoalStepTextMock.mockClear();
     useCategoryTagsMock.mockReset();
@@ -205,6 +215,9 @@ describe('GoalsSurface', () => {
   it('renders goal cards and a new goal card without showing categories as groups', () => {
     render(<GoalsSurface />);
 
+    expect(
+      screen.queryByRole('heading', { name: 'Goals' }),
+    ).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Focus' })).toBeInTheDocument();
     expect(
       screen.getByRole('button', { name: 'Create a new goal group' }),
@@ -226,14 +239,17 @@ describe('GoalsSurface', () => {
         title: 'NEW GROUP',
       });
     });
+    expect(routerPushMock).toHaveBeenCalledWith('/goals?goal=goal-new');
   });
 
-  it('opens a goal and renders one checklist card for it', () => {
+  it('opens a goal as an independent browser history entry and renders one checklist card for it', () => {
     useGoalStepTreeMock.mockReturnValue([goalStep()]);
 
     render(<GoalsSurface />);
     fireEvent.click(screen.getByRole('button', { name: 'Focus' }));
 
+    expect(routerPushMock).toHaveBeenCalledWith('/goals?goal=goal-1');
+    expect(screen.getByLabelText('Rename goal')).toHaveValue('Focus');
     expect(screen.getByDisplayValue('Existing step')).toBeInTheDocument();
     expect(
       screen.getByRole('button', { name: 'Back to goal groups' }),
@@ -355,5 +371,6 @@ describe('GoalsSurface', () => {
         goalId: 'goal-1',
       });
     });
+    expect(routerPushMock).toHaveBeenLastCalledWith('/goals');
   });
 });

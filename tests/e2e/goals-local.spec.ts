@@ -5,6 +5,7 @@ test('persists a goal checklist item in local mode', async ({ page }) => {
   await enterLocalMode(page);
   await page.goto('/goals');
   await page.getByRole('button', { name: labels.createGoalGroup }).click();
+  await page.waitForURL(/\/goals\?goal=.+/);
 
   await page.getByRole('button', { name: labels.goalStepEmpty }).click();
 
@@ -15,8 +16,12 @@ test('persists a goal checklist item in local mode', async ({ page }) => {
   await expect(page.locator('[data-goal-step-input="true"]')).toHaveCount(2);
 
   await page.reload();
-  await page.getByRole('button', { name: labels.newGoalGroup }).click();
   await expect(firstGoalStepInput(page)).toHaveValue(
     'Define integration coverage',
   );
+
+  await page.goBack();
+  await expect(
+    page.getByRole('button', { name: labels.newGoalGroup }),
+  ).toBeVisible();
 });
