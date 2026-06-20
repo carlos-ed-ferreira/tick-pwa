@@ -1,6 +1,14 @@
+import Dexie from 'dexie';
 import type { AppScope, SyncEntityType, SyncOperation } from '@/lib/domain';
-import { persistAccountEntity } from '@/lib/supabase/account-data';
+import {
+  persistAccountEntity,
+  restoreAccountEntity,
+} from '@/lib/supabase/account-data';
 import { db } from './database';
+
+export const accountPersistenceErrorEvent = 'tick:account-persistence-error';
+
+const persistenceQueues = new Map<string, Promise<void>>();
 
 async function markAccountEntityPersisted({
   entityId,
@@ -39,7 +47,52 @@ async function markAccountEntityPersisted({
   await db.goalSteps.update(entityId, update);
 }
 
-export async function persistAccountEntityChange({
+function dispatchPersistenceError({
+  entityId,
+  entityType,
+}: {
+  entityType: SyncEntityType;
+  entityId: string;
+}) {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  window.dispatchEvent(
+    new CustomEvent(accountPersistenceErrorEvent, {
+      detail: { entityId, entityType },
+    }),
+  );
+}
+
+function enqueuePersistence(scopeId: string, task: () => Promise<void>) {
+  const previousTask = persistenceQueues.get(scopeId) ?? Promise.resolve();
+  const nextTask = previousTask
+    .catch(() => undefined)
+    .then(task)
+    .finally(() => {
+      if (persistenceQueues.get(scopeId) === nextTask) {
+        persistenceQueues.delete(scopeId);
+      }
+    });
+
+  persistenceQueues.set(scopeId, nextTask);
+}
+
+export async function waitForAccountPersistence(scopeId?: string) {
+  if (scopeId) {
+    while (persistenceQueues.has(scopeId)) {
+      await persistenceQueues.get(scopeId);
+    }
+    return;
+  }
+
+  while (persistenceQueues.size > 0) {
+    await Promise.all([...persistenceQueues.values()]);
+  }
+}
+
+export function persistAccountEntityChange({
   entityId,
   entityType,
   payload,
@@ -52,20 +105,48 @@ export async function persistAccountEntityChange({
   payload: Record<string, unknown>;
   changedFields: string[];
   baseRevision: number | null;
-}): Promise<void> {
+}): void {
   if (scope.kind === 'guest') {
     return;
   }
 
-  const revision = await persistAccountEntity({
-    entityType,
-    payload,
-    scope,
-  });
+  const persistAfterCommit = () => {
+    enqueuePersistence(scope.id, async () => {
+      try {
+        const revision = await persistAccountEntity({
+          entityType,
+          payload,
+          scope,
+        });
 
-  await markAccountEntityPersisted({
-    entityId,
-    entityType,
-    revision,
-  });
+        await markAccountEntityPersisted({
+          entityId,
+          entityType,
+          revision,
+        });
+      } catch (error) {
+        console.error('Failed to persist Tick account entity.', error);
+
+        try {
+          await restoreAccountEntity({ scope, entityType, entityId });
+        } catch (restoreError) {
+          console.error(
+            'Failed to restore Tick account entity after persistence error.',
+            restoreError,
+          );
+        }
+
+        dispatchPersistenceError({ entityId, entityType });
+      }
+    });
+  };
+
+  const transaction = Dexie.currentTransaction;
+
+  if (transaction) {
+    transaction.on('complete', persistAfterCommit);
+    return;
+  }
+
+  persistAfterCommit();
 }

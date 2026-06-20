@@ -210,11 +210,14 @@ export type Database = {
       goal_steps: {
         Row: {
           client_updated_at: string;
+          collapsed: boolean;
           completed: boolean;
           created_at: string;
           deleted_at: string | null;
           goal_id: string;
           id: string;
+          parent_id: string | null;
+          priority: boolean;
           revision: number;
           sort_rank: string;
           text: string;
@@ -223,11 +226,14 @@ export type Database = {
         };
         Insert: {
           client_updated_at?: string;
+          collapsed?: boolean;
           completed?: boolean;
           created_at?: string;
           deleted_at?: string | null;
           goal_id: string;
           id: string;
+          parent_id?: string | null;
+          priority?: boolean;
           revision?: number;
           sort_rank: string;
           text?: string;
@@ -236,11 +242,14 @@ export type Database = {
         };
         Update: {
           client_updated_at?: string;
+          collapsed?: boolean;
           completed?: boolean;
           created_at?: string;
           deleted_at?: string | null;
           goal_id?: string;
           id?: string;
+          parent_id?: string | null;
+          priority?: boolean;
           revision?: number;
           sort_rank?: string;
           text?: string;

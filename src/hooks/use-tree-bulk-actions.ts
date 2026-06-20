@@ -27,9 +27,9 @@ export function useTreeBulkActions({
   }, []);
 
   const confirmBulkDelete = useCallback(async () => {
-    for (const itemId of selectedIds) {
-      await deleteSelectedItem(itemId);
-    }
+    await Promise.all(
+      [...selectedIds].map((itemId) => deleteSelectedItem(itemId)),
+    );
 
     clearSelection();
     setIsBulkDeleteDialogOpen(false);
@@ -37,9 +37,11 @@ export function useTreeBulkActions({
 
   const assignBulkCategory = useCallback(
     async (categoryTagId: string | null) => {
-      for (const itemId of selectedIds) {
-        await assignSelectedItemCategory(itemId, categoryTagId);
-      }
+      await Promise.all(
+        [...selectedIds].map((itemId) =>
+          assignSelectedItemCategory(itemId, categoryTagId),
+        ),
+      );
 
       clearSelection();
     },

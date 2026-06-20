@@ -4,35 +4,44 @@ import { useCallback } from 'react';
 
 export function useFocusAfterCreate({
   getSelector = (itemId: string) => `[data-item-id="${itemId}"]`,
-  maxRetries = 20,
+  timeoutMs = 10_000,
 }: {
   getSelector?: (itemId: string) => string;
-  maxRetries?: number;
+  timeoutMs?: number;
 } = {}) {
   return useCallback(
     (itemId: string) => {
-      let retries = 0;
-
-      const tryFocus = () => {
+      const focusInput = () => {
         const input = document.querySelector<HTMLInputElement>(
           getSelector(itemId),
         );
 
-        if (input) {
+        if (!input) {
+          return false;
+        }
+
+        window.requestAnimationFrame(() => {
           input.focus();
-          return;
-        }
-
-        if (retries >= maxRetries) {
-          return;
-        }
-
-        retries += 1;
-        window.requestAnimationFrame(tryFocus);
+          const caretPosition = input.value.length;
+          input.setSelectionRange(caretPosition, caretPosition);
+        });
+        return true;
       };
 
-      window.requestAnimationFrame(tryFocus);
+      if (focusInput()) {
+        return;
+      }
+
+      const observer = new MutationObserver(() => {
+        if (focusInput()) {
+          observer.disconnect();
+          window.clearTimeout(timeout);
+        }
+      });
+      const timeout = window.setTimeout(() => observer.disconnect(), timeoutMs);
+
+      observer.observe(document.body, { childList: true, subtree: true });
     },
-    [getSelector, maxRetries],
+    [getSelector, timeoutMs],
   );
 }

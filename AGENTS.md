@@ -59,7 +59,9 @@ Modo autenticado com conta:
 - escopo `user:<supabaseUserId>`;
 - autenticação via Supabase;
 - dados da conta são persistidos no Supabase;
-- IndexedDB pode ser usado como cache local da conta;
+- alterações são confirmadas primeiro no cache IndexedDB da conta;
+- gravações Supabase são executadas em ordem depois do commit local;
+- falhas remotas devem restaurar o valor canônico e mostrar feedback;
 - dados locais de convidado não entram na conta.
 
 Não implemente sync ou migração automática do modo local para o modo
@@ -186,7 +188,8 @@ make supabase-types-local
 
 `make check` delega para `npm run check`, que executa typecheck, lint, testes,
 format-check e build. E2E roda separadamente com `make test-e2e` ou
-`npm run test:e2e`.
+`npm run test:e2e`. O cenário autenticado com latência simulada roda com
+`npm run test:e2e:account`.
 
 Antes de finalizar mudanças de código, rode os checks aplicáveis. Se não rodar
 algum check, informe o motivo.
@@ -201,7 +204,8 @@ algum check, informe o motivo.
 
 Migrations em `supabase/migrations` devem ser compatíveis com a versão anterior
 e a nova versão da aplicação, já que Vercel e migrations são acionados a partir
-da `main`.
+da `main`. Quando o frontend passar a gravar uma coluna nova, faça rollout em
+duas etapas: migration aditiva primeiro e frontend depois da confirmação.
 
 ## Documentação
 

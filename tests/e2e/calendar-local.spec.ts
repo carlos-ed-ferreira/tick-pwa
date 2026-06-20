@@ -16,6 +16,13 @@ test('persists a day checklist item in local mode', async ({ page }) => {
   await expect(dayEditor.locator('[data-checklist-input="true"]')).toHaveCount(
     2,
   );
+  await expect(
+    dayEditor.locator('[data-checklist-input="true"]').nth(1),
+  ).toBeFocused();
+
+  const firstCheckbox = dayEditor.getByRole('checkbox').first();
+  await firstCheckbox.click();
+  await expect(firstCheckbox).toBeChecked();
 
   await page.reload();
   await expect(firstChecklistInput(page.getByRole('dialog'))).toHaveValue(

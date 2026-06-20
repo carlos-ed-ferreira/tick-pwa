@@ -8,6 +8,7 @@ import {
   db,
   openOrCreateDailyEntry,
 } from '@/lib/db';
+import { waitForAccountPersistence } from '@/lib/db/account-persistence';
 import { refreshAccountCache } from '@/lib/supabase/account-cache';
 
 const supabaseMocks = vi.hoisted(() => ({
@@ -138,6 +139,7 @@ describe('account persistence boundaries', () => {
       goalId: goal.id,
       text: 'Cloud goal step',
     });
+    await waitForAccountPersistence(scope.id);
 
     expect(accountClient.writes.map((write) => write.table)).toEqual(
       expect.arrayContaining([
@@ -170,6 +172,49 @@ describe('account persistence boundaries', () => {
     });
   });
 
+  it('commits authenticated cache writes before a delayed Supabase response', async () => {
+    const scope = createUserScope('slow-cloud-user');
+    let resolveWrite!: (value: {
+      data: { revision: number };
+      error: null;
+    }) => void;
+    const delayedWrite = new Promise<{
+      data: { revision: number };
+      error: null;
+    }>((resolve) => {
+      resolveWrite = resolve;
+    });
+    const from = vi.fn(() => ({
+      upsert: vi.fn(() => ({
+        select: vi.fn(() => ({
+          maybeSingle: vi.fn(() => delayedWrite),
+        })),
+      })),
+    }));
+    supabaseMocks.getSupabaseBrowserClient.mockReturnValue({ from });
+
+    const creation = createCategoryTag({
+      scope,
+      surface: 'calendar',
+      name: 'Focus',
+      colorHex: '#2563eb',
+    });
+    const categoryTag = await creation;
+
+    await expect(db.categoryTags.get(categoryTag.id)).resolves.toMatchObject({
+      name: 'FOCUS',
+      syncStatus: 'pending',
+    });
+
+    resolveWrite({ data: { revision: 1 }, error: null });
+    await waitForAccountPersistence(scope.id);
+
+    await expect(db.categoryTags.get(categoryTag.id)).resolves.toMatchObject({
+      syncStatus: 'synced',
+      remoteRevision: 1,
+    });
+  });
+
   it('rolls back account cache writes when Supabase persistence fails', async () => {
     const scope = createUserScope('cloud-failure-user');
     const from = vi.fn(() => ({
@@ -181,17 +226,24 @@ describe('account persistence boundaries', () => {
           }),
         })),
       })),
+      select: vi.fn(() => ({
+        eq: vi.fn(() => ({
+          maybeSingle: vi.fn().mockResolvedValue({
+            data: null,
+            error: null,
+          }),
+        })),
+      })),
     }));
     supabaseMocks.getSupabaseBrowserClient.mockReturnValue({ from });
 
-    await expect(
-      createCategoryTag({
-        scope,
-        surface: 'calendar',
-        name: 'Focus',
-        colorHex: '#2563eb',
-      }),
-    ).rejects.toMatchObject({ message: 'remote write failed' });
+    await createCategoryTag({
+      scope,
+      surface: 'calendar',
+      name: 'Focus',
+      colorHex: '#2563eb',
+    });
+    await waitForAccountPersistence(scope.id);
     await expect(db.categoryTags.count()).resolves.toBe(0);
   });
 

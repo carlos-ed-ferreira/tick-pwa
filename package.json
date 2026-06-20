@@ -17,6 +17,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
+    "test:e2e:account": "playwright test --config playwright.account.config.ts",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "supabase:start": "node scripts/supabase-cli.mjs start",

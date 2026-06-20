@@ -411,12 +411,14 @@ export async function assignGoalCategory({
 export async function createGoalStep({
   scope,
   goalId,
+  id = createId(),
   parentId = null,
   afterGoalStepId = null,
   text = '',
 }: {
   scope: AppScope;
   goalId: string;
+  id?: string;
   parentId?: string | null;
   afterGoalStepId?: string | null;
   text?: string;
@@ -438,12 +440,13 @@ export async function createGoalStep({
     );
     const now = createTimestamp();
     const goalStep: GoalStep = {
-      id: createId(),
+      id,
       scopeId: scope.id,
       goalId,
       parentId: safeParentId,
       text,
       completed: false,
+      priority: false,
       collapsed: false,
       categoryTagId: null,
       sortRank: createGoalStepInsertRank({ siblings, afterGoalStepId }),
@@ -535,6 +538,28 @@ export async function toggleGoalStepChecked({
     });
     await persistGoalStepUpdate(scope, updatedGoalStep, ['completed']);
     await syncGoalProgressFromSteps({ scope, goalId: goalStep.goalId });
+  });
+}
+
+export async function toggleGoalStepPriority({
+  scope,
+  goalStepId,
+}: {
+  scope: AppScope;
+  goalStepId: string;
+}): Promise<void> {
+  await db.transaction('rw', db.goalSteps, async () => {
+    const goalStep = await getScopedGoalStep(scope, goalStepId);
+
+    if (!goalStep) {
+      return;
+    }
+
+    const updatedGoalStep = touchGoalStep(scope, {
+      ...goalStep,
+      priority: !goalStep.priority,
+    });
+    await persistGoalStepUpdate(scope, updatedGoalStep, ['priority']);
   });
 }
 

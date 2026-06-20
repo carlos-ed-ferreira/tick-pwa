@@ -241,6 +241,7 @@ describe('ChecklistSurface delete confirmation', () => {
           ownerId: 'test',
         },
         dailyEntryId: 'entry-1',
+        id: expect.any(String),
         parentId: null,
         afterItemId: 'item-Original task',
       });

@@ -115,6 +115,7 @@ export interface Dictionary {
     bulkDeleteItems: string;
     confirmBulkDeleteItems: string;
     clearSelection: string;
+    saveFailed: string;
   };
   goals: {
     title: string;

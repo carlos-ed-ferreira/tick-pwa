@@ -59,6 +59,7 @@ vi.mock('@/lib/db', () => ({
   softDeleteGoalStep: softDeleteGoalStepMock,
   toggleGoalStepChecked: vi.fn().mockResolvedValue(undefined),
   toggleGoalStepCollapsed: vi.fn().mockResolvedValue(undefined),
+  toggleGoalStepPriority: vi.fn().mockResolvedValue(undefined),
   updateGoalStepText: updateGoalStepTextMock,
   updateGoalTitle: updateGoalTitleMock,
 }));
@@ -255,6 +256,9 @@ describe('GoalsSurface', () => {
       screen.getByRole('button', { name: 'Back to goal groups' }),
     ).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Add goal' })).toBeNull();
+    expect(
+      screen.getByText('Focus', { selector: 'span[aria-hidden="true"]' }),
+    ).toBeInTheDocument();
   });
 
   it('creates the first checklist item from the empty state', async () => {
@@ -307,6 +311,7 @@ describe('GoalsSurface', () => {
       expect(createGoalStepMock).toHaveBeenCalledWith({
         scope,
         goalId: 'goal-1',
+        id: expect.any(String),
         parentId: null,
         afterGoalStepId: 'goal-step-1',
       });

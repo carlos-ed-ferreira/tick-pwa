@@ -30,6 +30,7 @@ export default defineConfig({
       ]
     : 'list',
   testDir: './tests/e2e',
+  testIgnore: 'account-latency.spec.ts',
   timeout: 60_000,
   use: {
     baseURL,

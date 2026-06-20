@@ -75,6 +75,7 @@ export interface RemoteGoalStep extends RemoteBaseRow {
   parent_id: string | null;
   text: string;
   completed: boolean;
+  priority: boolean;
   collapsed: boolean;
   category_tag_id: string | null;
   sort_rank: string;
@@ -230,6 +231,7 @@ export function toRemotePayload(
     parent_id: goalStep.parentId,
     text: goalStep.text,
     completed: goalStep.completed,
+    priority: goalStep.priority,
     collapsed: goalStep.collapsed,
     category_tag_id: goalStep.categoryTagId,
     sort_rank: goalStep.sortRank,
@@ -323,6 +325,7 @@ export function goalStepFromRemote(
     parentId: row.parent_id,
     text: row.text,
     completed: row.completed,
+    priority: row.priority ?? false,
     collapsed: row.collapsed,
     categoryTagId: row.category_tag_id,
     sortRank: row.sort_rank,

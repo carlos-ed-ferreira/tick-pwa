@@ -1,39 +1,12 @@
 'use client';
 
-import {
-  ArrowDown,
-  ArrowLeft,
-  ArrowUp,
-  IndentDecrease,
-  IndentIncrease,
-  Plus,
-  Trash2,
-} from 'lucide-react';
+import { ArrowLeft, Plus, Trash2 } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-  type KeyboardEvent,
-} from 'react';
-import {
-  TaskTreeActionGroup,
-  TaskTreeCategoryChip,
-  TaskTreeCollapseButton,
-  TaskTreeRowLayout,
-  TaskTreeSelectionButton,
-  TreeListPanel,
-} from '@/components/app';
-import {
-  Checkbox,
-  ConfirmationDialog,
-  IconButton,
-  Input,
-} from '@/components/ui';
-import { CategoryAssignmentMenu, useCategoryTags } from '@/features/categories';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { TaskTreeEditableRow, TreeListPanel } from '@/components/app';
+import { ConfirmationDialog, IconButton, Input } from '@/components/ui';
+import { useCategoryTags } from '@/features/categories';
 import { useDebouncedInlineEdit } from '@/hooks/use-debounced-inline-edit';
-import { useFocusAfterCreate } from '@/hooks/use-focus-after-create';
 import { useTreeBulkActions } from '@/hooks/use-tree-bulk-actions';
 import { useTreeSelection } from '@/hooks/use-tree-selection';
 import {
@@ -48,12 +21,12 @@ import {
   softDeleteGoalStep,
   toggleGoalStepChecked,
   toggleGoalStepCollapsed,
+  toggleGoalStepPriority,
   updateGoalStepText,
   updateGoalTitle,
 } from '@/lib/db';
 import type { Goal } from '@/lib/domain';
-import { sortByRank } from '@/lib/domain';
-import { requiresDeleteConfirmation } from '@/lib/confirm-delete';
+import { createId, sortByRank } from '@/lib/domain';
 import { useAppContext } from '@/providers';
 import type { VisibleGoalStepRow } from './goal-step-tree';
 import { useGoalStepTree } from './use-goal-step-tree';
@@ -265,24 +238,26 @@ function GoalTitleEditor({ goal }: { goal: Goal }) {
     onSave: saveTitle,
     value: goal.title,
   });
-  const titleWidthCh = Math.max(
-    editableTitle.length,
-    dictionary.goals.goalTitlePlaceholder.length,
-    8,
-  );
+  const titleMirrorText =
+    editableTitle || dictionary.goals.goalTitlePlaceholder || ' ';
 
   return (
-    <Input
-      aria-label={dictionary.goals.renameGoal}
-      className="h-10 min-w-32 max-w-full rounded-md bg-white/[0.045] px-3 py-0 text-xl font-semibold text-[#fff9f2] shadow-sm ring-1 ring-white/[0.07] outline-none transition focus:bg-white/[0.07] focus:ring-[#f0c38e]/35"
-      placeholder={dictionary.goals.goalTitlePlaceholder}
-      style={{
-        width: `min(calc(${titleWidthCh}ch + 2rem), 100%)`,
-      }}
-      value={editableTitle}
-      onBlur={() => void flushTitle()}
-      onChange={(event) => setTitle(event.target.value.toUpperCase())}
-    />
+    <span className="grid min-w-32 max-w-full">
+      <span
+        aria-hidden="true"
+        className="invisible col-start-1 row-start-1 h-10 whitespace-pre px-3 text-xl font-semibold"
+      >
+        {titleMirrorText}
+      </span>
+      <Input
+        aria-label={dictionary.goals.renameGoal}
+        className="col-start-1 row-start-1 h-10 w-full min-w-0 rounded-md bg-white/[0.045] px-3 py-0 text-xl font-semibold text-[#fff9f2] shadow-sm ring-1 ring-white/[0.07] outline-none transition focus:bg-white/[0.07] focus:ring-[#f0c38e]/35"
+        placeholder={dictionary.goals.goalTitlePlaceholder}
+        value={editableTitle}
+        onBlur={() => void flushTitle()}
+        onChange={(event) => setTitle(event.target.value.toUpperCase())}
+      />
+    </span>
   );
 }
 
@@ -369,6 +344,7 @@ function GoalDetailCard({
         isSelectionMode={isSelectionMode}
         onAddRoot={createRootGoalStep}
         onClearSelection={clearSelection}
+        persistenceErrorLabel={dictionary.dayEditor.saveFailed}
         surface="none"
       >
         {goalStepRows.map((row) => (
@@ -410,309 +386,92 @@ function GoalStepRow({
 }) {
   const { dictionary, scope } = useAppContext();
   const { goalStep, depth, hasChildren, isFirstSibling, isLastSibling } = row;
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const focusAfterCreate = useFocusAfterCreate();
-  const selectedCategory = goalStep.categoryTagId
-    ? (categoryTagMap.get(goalStep.categoryTagId) ?? null)
-    : null;
-  const saveText = useCallback(
-    async (nextText: string) => {
-      if (!scope) {
-        return;
-      }
-
-      await updateGoalStepText({
-        scope,
-        goalStepId: goalStep.id,
-        text: nextText,
-      });
-    },
-    [goalStep.id, scope],
-  );
-  const {
-    flush: flushText,
-    setText,
-    text,
-  } = useDebouncedInlineEdit({
-    enabled: Boolean(scope),
-    onSave: saveText,
-    value: goalStep.text,
-  });
-
-  const createSibling = useCallback(async () => {
-    if (!scope) {
-      return null;
-    }
-
-    await flushText();
-    const newStep = await createGoalStep({
-      scope,
-      goalId,
-      parentId: goalStep.parentId,
-      afterGoalStepId: goalStep.id,
-    });
-    return newStep.id;
-  }, [flushText, goalId, goalStep.id, goalStep.parentId, scope]);
-
-  const createChild = useCallback(async () => {
-    if (!scope) {
-      return;
-    }
-
-    await flushText();
-    await createGoalStepChild({
-      scope,
-      goalId,
-      parentGoalStepId: goalStep.id,
-    });
-  }, [flushText, goalId, goalStep.id, scope]);
-
-  const requestDelete = useCallback(async () => {
-    if (!scope) {
-      return;
-    }
-
-    if (requiresDeleteConfirmation(text)) {
-      setIsDeleteDialogOpen(true);
-      return;
-    }
-
-    await softDeleteGoalStep({ scope, goalStepId: goalStep.id });
-  }, [goalStep.id, scope, text]);
-
-  const confirmDelete = useCallback(async () => {
-    if (!scope) {
-      return;
-    }
-
-    setIsDeleteDialogOpen(false);
-    await softDeleteGoalStep({ scope, goalStepId: goalStep.id });
-  }, [goalStep.id, scope]);
-
-  async function handleKeyDown(event: KeyboardEvent<HTMLInputElement>) {
-    if (!scope) {
-      return;
-    }
-
-    if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
-      event.preventDefault();
-      await toggleGoalStepChecked({ scope, goalStepId: goalStep.id });
-      return;
-    }
-
-    if (event.key === 'Enter') {
-      event.preventDefault();
-      const newStepId = await createSibling();
-      if (newStepId) {
-        focusAfterCreate(newStepId);
-      }
-      return;
-    }
-
-    if (event.key === 'Tab') {
-      const goalStepInputs = Array.from(
-        document.querySelectorAll<HTMLInputElement>(goalStepInputSelector),
-      );
-      const currentIndex = goalStepInputs.indexOf(event.currentTarget);
-      const targetInput =
-        goalStepInputs[currentIndex + (event.shiftKey ? -1 : 1)];
-
-      if (!targetInput) {
-        return;
-      }
-
-      event.preventDefault();
-      await flushText();
-
-      window.requestAnimationFrame(() => {
-        targetInput.focus();
-        const caretPosition = targetInput.value.length;
-        targetInput.setSelectionRange(caretPosition, caretPosition);
-      });
-      return;
-    }
-
-    if (event.key === 'Backspace' && text.length === 0) {
-      event.preventDefault();
-      await softDeleteGoalStep({ scope, goalStepId: goalStep.id });
-    }
+  if (!scope) {
+    return null;
   }
 
   return (
-    <>
-      <TaskTreeRowLayout
-        categoryColorHex={selectedCategory?.colorHex}
-        depth={depth}
-        isSelected={isSelected}
-      >
-        <TaskTreeCollapseButton
-          collapseLabel={dictionary.dayEditor.collapseItem}
-          expandLabel={dictionary.dayEditor.expandItem}
-          hasChildren={hasChildren}
-          isCollapsed={goalStep.collapsed}
-          onClick={() => {
-            if (scope) {
-              void (async () => {
-                await toggleGoalStepCollapsed({
-                  scope,
-                  goalStepId: goalStep.id,
-                });
-              })();
-            }
-          }}
-        />
-
-        <Checkbox
-          aria-label={dictionary.dayEditor.toggleItem}
-          checked={goalStep.completed}
-          onChange={() => {
-            if (scope) {
-              void (async () => {
-                await toggleGoalStepChecked({
-                  scope,
-                  goalStepId: goalStep.id,
-                });
-              })();
-            }
-          }}
-        />
-
-        <Input
-          data-goal-step-input="true"
-          data-item-id={goalStep.id}
-          value={text}
-          placeholder={dictionary.dayEditor.itemPlaceholder}
-          className={`min-w-0 flex-1 rounded-md bg-transparent px-2 py-2 text-sm outline-none transition focus:bg-surface focus:shadow-sm ${
-            goalStep.completed ? 'opacity-50' : 'text-foreground'
-          }`}
-          onBlur={() => void flushText()}
-          onChange={(event) => setText(event.target.value)}
-          onKeyDown={(event) => void handleKeyDown(event)}
-        />
-
-        {selectedCategory ? (
-          <TaskTreeCategoryChip
-            colorHex={selectedCategory.colorHex}
-            name={selectedCategory.name}
-          />
-        ) : null}
-
-        <TaskTreeActionGroup>
-          <IconButton
-            aria-label={dictionary.dayEditor.addChild}
-            onClick={createChild}
-          >
-            <Plus aria-hidden="true" className="size-4" />
-          </IconButton>
-          <IconButton
-            aria-label={dictionary.dayEditor.moveItemUp}
-            disabled={isFirstSibling}
-            onClick={() => {
-              if (scope) {
-                void (async () => {
-                  await reorderGoalStep({
-                    scope,
-                    goalStepId: goalStep.id,
-                    direction: 'up',
-                  });
-                })();
-              }
-            }}
-          >
-            <ArrowUp aria-hidden="true" className="size-4" />
-          </IconButton>
-          <IconButton
-            aria-label={dictionary.dayEditor.moveItemDown}
-            disabled={isLastSibling}
-            onClick={() => {
-              if (scope) {
-                void (async () => {
-                  await reorderGoalStep({
-                    scope,
-                    goalStepId: goalStep.id,
-                    direction: 'down',
-                  });
-                })();
-              }
-            }}
-          >
-            <ArrowDown aria-hidden="true" className="size-4" />
-          </IconButton>
-          <IconButton
-            aria-label={dictionary.dayEditor.indentItem}
-            disabled={isFirstSibling}
-            onClick={() => {
-              if (scope) {
-                void (async () => {
-                  await indentGoalStep({ scope, goalStepId: goalStep.id });
-                })();
-              }
-            }}
-          >
-            <IndentIncrease aria-hidden="true" className="size-4" />
-          </IconButton>
-          <IconButton
-            aria-label={dictionary.dayEditor.outdentItem}
-            disabled={depth === 0}
-            onClick={() => {
-              if (scope) {
-                void (async () => {
-                  await outdentGoalStep({ scope, goalStepId: goalStep.id });
-                })();
-              }
-            }}
-          >
-            <IndentDecrease aria-hidden="true" className="size-4" />
-          </IconButton>
-          <TaskTreeSelectionButton
-            deselectLabel={dictionary.dayEditor.deselectItem}
-            isSelected={isSelected}
-            selectLabel={dictionary.dayEditor.selectItem}
-            onToggle={(shiftKey) => onToggleSelect(goalStep.id, shiftKey)}
-          />
-          <CategoryAssignmentMenu
-            assignLabel={dictionary.dayEditor.assignCategory}
-            clearLabel={dictionary.dayEditor.clearCategory}
-            disabled={isSelectionMode && !isSelected}
-            selectedCategoryTagId={goalStep.categoryTagId}
-            surface="goals"
-            onAssign={(categoryTagId) => {
-              if (isSelectionMode) {
-                return onBulkAssignCategory(categoryTagId);
-              }
-
-              if (scope) {
-                return assignGoalStepCategory({
-                  scope,
-                  goalStepId: goalStep.id,
-                  categoryTagId,
-                });
-              }
-
-              return Promise.resolve();
-            }}
-          />
-          <IconButton
-            aria-label={dictionary.dayEditor.deleteItem}
-            disabled={isSelectionMode && !isSelected}
-            onClick={() =>
-              isSelectionMode ? onBulkDelete() : void requestDelete()
-            }
-          >
-            <Trash2 aria-hidden="true" className="size-4" />
-          </IconButton>
-        </TaskTreeActionGroup>
-      </TaskTreeRowLayout>
-
-      <ConfirmationDialog
-        cancelLabel={dictionary.actions.cancel}
-        confirmLabel={dictionary.actions.delete}
-        description={dictionary.dayEditor.confirmDeleteItem}
-        open={isDeleteDialogOpen}
-        title={dictionary.dayEditor.deleteItem}
-        onClose={() => setIsDeleteDialogOpen(false)}
-        onConfirm={() => void confirmDelete()}
-      />
-    </>
+    <TaskTreeEditableRow
+      categoryTagId={goalStep.categoryTagId}
+      categoryTagMap={categoryTagMap}
+      checked={goalStep.completed}
+      collapsed={goalStep.collapsed}
+      depth={depth}
+      hasChildren={hasChildren}
+      inputDataAttribute="data-goal-step-input"
+      inputSelector={goalStepInputSelector}
+      isFirstSibling={isFirstSibling}
+      isLastSibling={isLastSibling}
+      itemId={goalStep.id}
+      labels={{
+        ...dictionary.dayEditor,
+        cancel: dictionary.actions.cancel,
+        delete: dictionary.actions.delete,
+      }}
+      priority={goalStep.priority}
+      selection={{
+        isSelected,
+        isSelectionMode,
+        onBulkAssignCategory,
+        onBulkDelete,
+        onToggle: (shiftKey) => onToggleSelect(goalStep.id, shiftKey),
+      }}
+      surface="goals"
+      text={goalStep.text}
+      onAssignCategory={(categoryTagId) =>
+        assignGoalStepCategory({
+          scope,
+          goalStepId: goalStep.id,
+          categoryTagId,
+        })
+      }
+      onCreateChild={async () => {
+        await createGoalStepChild({
+          scope,
+          goalId,
+          parentGoalStepId: goalStep.id,
+        });
+      }}
+      onCreateSibling={async () => {
+        const newGoalStepId = createId();
+        const newStep = await createGoalStep({
+          scope,
+          goalId,
+          id: newGoalStepId,
+          parentId: goalStep.parentId,
+          afterGoalStepId: goalStep.id,
+        });
+        return newStep.id;
+      }}
+      onDelete={() => softDeleteGoalStep({ scope, goalStepId: goalStep.id })}
+      onIndent={() => indentGoalStep({ scope, goalStepId: goalStep.id })}
+      onMoveDown={() =>
+        reorderGoalStep({
+          scope,
+          goalStepId: goalStep.id,
+          direction: 'down',
+        })
+      }
+      onMoveUp={() =>
+        reorderGoalStep({
+          scope,
+          goalStepId: goalStep.id,
+          direction: 'up',
+        })
+      }
+      onOutdent={() => outdentGoalStep({ scope, goalStepId: goalStep.id })}
+      onSaveText={(text) =>
+        updateGoalStepText({ scope, goalStepId: goalStep.id, text })
+      }
+      onToggleChecked={() =>
+        toggleGoalStepChecked({ scope, goalStepId: goalStep.id })
+      }
+      onToggleCollapsed={() =>
+        toggleGoalStepCollapsed({ scope, goalStepId: goalStep.id })
+      }
+      onTogglePriority={() =>
+        toggleGoalStepPriority({ scope, goalStepId: goalStep.id })
+      }
+    />
   );
 }

@@ -41,7 +41,9 @@ function BulkActionsHarness({
       </button>
       <button
         type="button"
-        onClick={() => void actions.assignBulkCategory('cat')}
+        onClick={() => {
+          void actions.assignBulkCategory('cat').catch(() => undefined);
+        }}
       >
         assign category
       </button>
@@ -98,6 +100,27 @@ describe('useTreeBulkActions', () => {
       expect(assignSelectedItemCategory).toHaveBeenCalledWith('one', 'cat');
       expect(assignSelectedItemCategory).toHaveBeenCalledWith('two', 'cat');
       expect(screen.getByTestId('selected-count')).toHaveTextContent('0');
+    });
+  });
+
+  it('keeps the selection when a bulk category assignment fails', async () => {
+    const deleteSelectedItem = vi.fn().mockResolvedValue(undefined);
+    const assignSelectedItemCategory = vi
+      .fn()
+      .mockRejectedValue(new Error('remote failure'));
+
+    render(
+      <BulkActionsHarness
+        assignSelectedItemCategory={assignSelectedItemCategory}
+        deleteSelectedItem={deleteSelectedItem}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'assign category' }));
+
+    await waitFor(() => {
+      expect(assignSelectedItemCategory).toHaveBeenCalledTimes(2);
+      expect(screen.getByTestId('selected-count')).toHaveTextContent('2');
     });
   });
 });

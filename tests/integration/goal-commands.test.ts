@@ -18,6 +18,7 @@ import {
   softDeleteGoalStep,
   toggleGoalStepChecked,
   toggleGoalStepCollapsed,
+  toggleGoalStepPriority,
   updateGoalStepText,
   updateGoalTitle,
 } from '@/lib/db';
@@ -100,6 +101,10 @@ describe('goal commands', () => {
       scope,
       goalStepId: rootGoalStep.id,
     });
+    await toggleGoalStepPriority({
+      scope,
+      goalStepId: rootGoalStep.id,
+    });
 
     const reopenedChild = await createGoalStepChild({
       scope,
@@ -143,6 +148,7 @@ describe('goal commands', () => {
     expect(storedNestedGoalStep?.categoryTagId).toBe(categoryTag.id);
     expect(storedNestedGoalStep?.parentId).toBe(rootGoalStep.id);
     expect(storedRootGoalStep?.collapsed).toBe(false);
+    expect(storedRootGoalStep?.priority).toBe(true);
     expect(storedSiblingGoalStep?.parentId).toBeNull();
 
     await softDeleteGoal({ scope, goalId: firstGoal.id });

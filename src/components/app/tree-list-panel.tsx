@@ -1,8 +1,9 @@
 'use client';
 
 import { Plus, X } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { ConfirmationDialog } from '@/components/ui';
+import { accountPersistenceErrorEvent } from '@/lib/db/account-persistence';
 
 interface BulkDeleteDialog {
   cancelLabel: string;
@@ -24,6 +25,7 @@ export function TreeListPanel({
   isSelectionMode,
   onAddRoot,
   onClearSelection,
+  persistenceErrorLabel,
   surface = 'panel',
 }: {
   addLabel: string;
@@ -35,8 +37,29 @@ export function TreeListPanel({
   isSelectionMode: boolean;
   onAddRoot: () => Promise<void> | void;
   onClearSelection: () => void;
+  persistenceErrorLabel: string;
   surface?: 'panel' | 'none';
 }) {
+  const [hasPersistenceError, setHasPersistenceError] = useState(false);
+
+  useEffect(() => {
+    function handlePersistenceError() {
+      setHasPersistenceError(true);
+    }
+
+    window.addEventListener(
+      accountPersistenceErrorEvent,
+      handlePersistenceError,
+    );
+
+    return () => {
+      window.removeEventListener(
+        accountPersistenceErrorEvent,
+        handlePersistenceError,
+      );
+    };
+  }, []);
+
   return (
     <>
       <div
@@ -46,6 +69,23 @@ export function TreeListPanel({
             : 'min-h-0 flex-1 overflow-y-auto'
         }
       >
+        {hasPersistenceError ? (
+          <div
+            role="alert"
+            className="mb-2 flex items-start justify-between gap-3 rounded-xl border border-rose-300/20 bg-rose-400/10 px-3 py-2 text-sm text-rose-100"
+          >
+            <span>{persistenceErrorLabel}</span>
+            <button
+              type="button"
+              aria-label={persistenceErrorLabel}
+              className="shrink-0 rounded-full p-1 hover:bg-white/10"
+              onClick={() => setHasPersistenceError(false)}
+            >
+              <X aria-hidden="true" className="size-3.5" />
+            </button>
+          </div>
+        ) : null}
+
         {hasRows ? (
           <div className="grid gap-1">{children}</div>
         ) : (

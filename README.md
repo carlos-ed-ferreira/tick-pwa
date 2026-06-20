@@ -54,7 +54,9 @@ Modo autenticado com conta:
 - escopo `user:<supabaseUserId>`;
 - autentica com Supabase;
 - persiste dados da conta no Supabase;
-- usa IndexedDB apenas como cache local de leitura/estado da UI;
+- confirma alterações primeiro no cache IndexedDB para manter a UI responsiva;
+- envia as alterações ao Supabase em ordem, depois do commit local;
+- restaura o valor remoto e mostra feedback se a persistência falhar;
 - não importa nem sincroniza dados do modo local.
 
 Não existe sync ou migração automática do modo local para o modo autenticado.
@@ -145,6 +147,10 @@ O workflow roda `npm run supabase:prod:db:dry-run` antes de
 `npm run supabase:prod:db:push`. Esses comandos são bloqueados fora do GitHub
 Actions.
 
+Mudanças que adicionam campos usados pelo frontend devem ser publicadas em duas
+etapas: primeiro a migration aditiva e, após sua confirmação, o frontend que
+passa a gravar o novo campo.
+
 ## Comandos
 
 Make:
@@ -179,6 +185,7 @@ npm run lint
 npm run typecheck
 npm run test
 npm run test:e2e
+npm run test:e2e:account
 npm run format
 npm run format:check
 npm run check
@@ -193,6 +200,8 @@ npm run supabase:types:local
 `npm run check` e `make check` executam typecheck, lint, testes, format-check e
 build. E2E roda separadamente com `npm run test:e2e` ou `make test-e2e`; o
 Playwright gera um build e sobe `next start` em `127.0.0.1:3100`.
+`npm run test:e2e:account` executa o cenário autenticado com Supabase simulado
+e gravações atrasadas em `127.0.0.1:3101`.
 
 ## Qualidade e testes
 

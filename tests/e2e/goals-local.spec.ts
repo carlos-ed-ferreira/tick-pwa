@@ -14,6 +14,13 @@ test('persists a goal checklist item in local mode', async ({ page }) => {
   await itemInput.press('Enter');
 
   await expect(page.locator('[data-goal-step-input="true"]')).toHaveCount(2);
+  await expect(
+    page.locator('[data-goal-step-input="true"]').nth(1),
+  ).toBeFocused();
+
+  const firstCheckbox = page.getByRole('checkbox').first();
+  await firstCheckbox.click();
+  await expect(firstCheckbox).toBeChecked();
 
   await page.reload();
   await expect(firstGoalStepInput(page)).toHaveValue(

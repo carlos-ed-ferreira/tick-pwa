@@ -1,32 +1,8 @@
 'use client';
 
-import {
-  ArrowDown,
-  ArrowUp,
-  IndentDecrease,
-  IndentIncrease,
-  Plus,
-  Star,
-  Trash2,
-} from 'lucide-react';
-import { useCallback, useMemo, useState, type KeyboardEvent } from 'react';
-import {
-  TaskTreeActionGroup,
-  TaskTreeCategoryChip,
-  TaskTreeCollapseButton,
-  TaskTreeRowLayout,
-  TaskTreeSelectionButton,
-  TreeListPanel,
-} from '@/components/app';
-import {
-  Checkbox,
-  ConfirmationDialog,
-  IconButton,
-  Input,
-} from '@/components/ui';
-import { CategoryAssignmentMenu, useCategoryTags } from '@/features/categories';
-import { useDebouncedInlineEdit } from '@/hooks/use-debounced-inline-edit';
-import { useFocusAfterCreate } from '@/hooks/use-focus-after-create';
+import { useCallback, useMemo } from 'react';
+import { TaskTreeEditableRow, TreeListPanel } from '@/components/app';
+import { useCategoryTags } from '@/features/categories';
 import { useTreeBulkActions } from '@/hooks/use-tree-bulk-actions';
 import { useTreeSelection } from '@/hooks/use-tree-selection';
 import {
@@ -42,7 +18,7 @@ import {
   toggleChecklistItemPriority,
   updateChecklistItemText,
 } from '@/lib/db';
-import { requiresDeleteConfirmation } from '@/lib/confirm-delete';
+import { createId } from '@/lib/domain';
 import { useAppContext } from '@/providers';
 import type { VisibleChecklistRow } from './checklist-tree';
 import { useChecklistTree } from './use-checklist-tree';
@@ -125,6 +101,7 @@ export function ChecklistSurface({ dailyEntryId }: { dailyEntryId: string }) {
         isSelectionMode={isSelectionMode}
         onAddRoot={createRootItem}
         onClearSelection={clearSelection}
+        persistenceErrorLabel={dictionary.dayEditor.saveFailed}
       >
         {rows.map((row) => (
           <ChecklistRow
@@ -165,312 +142,92 @@ function ChecklistRow({
 }) {
   const { dictionary, scope } = useAppContext();
   const { item, depth, hasChildren, isFirstSibling, isLastSibling } = row;
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const focusAfterCreate = useFocusAfterCreate();
-  const selectedCategory = item.categoryTagId
-    ? (categoryTagMap.get(item.categoryTagId) ?? null)
-    : null;
-  const saveText = useCallback(
-    async (nextText: string) => {
-      if (!scope) {
-        return;
-      }
-
-      await updateChecklistItemText({
-        scope,
-        itemId: item.id,
-        text: nextText,
-      });
-    },
-    [item.id, scope],
-  );
-  const {
-    flush: flushText,
-    setText,
-    text,
-  } = useDebouncedInlineEdit({
-    enabled: Boolean(scope),
-    onSave: saveText,
-    value: item.text,
-  });
-
-  const createSibling = useCallback(async () => {
-    if (!scope) {
-      return null;
-    }
-
-    await flushText();
-    const newItem = await createChecklistItem({
-      scope,
-      dailyEntryId,
-      parentId: item.parentId,
-      afterItemId: item.id,
-    });
-    return newItem.id;
-  }, [dailyEntryId, flushText, item.id, item.parentId, scope]);
-
-  const createChild = useCallback(async () => {
-    if (!scope) {
-      return;
-    }
-
-    await flushText();
-    await createChecklistChild({ scope, dailyEntryId, parentItemId: item.id });
-  }, [dailyEntryId, flushText, item.id, scope]);
-
-  const deleteItem = useCallback(async () => {
-    if (!scope) {
-      return;
-    }
-
-    if (requiresDeleteConfirmation(text)) {
-      setIsDeleteDialogOpen(true);
-      return;
-    }
-
-    await softDeleteChecklistItem({ scope, itemId: item.id });
-  }, [item.id, scope, text]);
-
-  const confirmDeleteItem = useCallback(async () => {
-    if (!scope) {
-      return;
-    }
-
-    setIsDeleteDialogOpen(false);
-    await softDeleteChecklistItem({ scope, itemId: item.id });
-  }, [item.id, scope]);
-
-  async function handleKeyDown(event: KeyboardEvent<HTMLInputElement>) {
-    if (!scope) {
-      return;
-    }
-
-    if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
-      event.preventDefault();
-      await toggleChecklistItemChecked({ scope, itemId: item.id });
-      return;
-    }
-
-    if (event.key === 'Enter') {
-      event.preventDefault();
-      const newItemId = await createSibling();
-      if (newItemId) {
-        focusAfterCreate(newItemId);
-      }
-      return;
-    }
-
-    if (event.key === 'Tab') {
-      const checklistInputs = Array.from(
-        document.querySelectorAll<HTMLInputElement>(checklistInputSelector),
-      );
-      const currentIndex = checklistInputs.indexOf(event.currentTarget);
-      const targetInput =
-        checklistInputs[currentIndex + (event.shiftKey ? -1 : 1)];
-
-      if (!targetInput) {
-        return;
-      }
-
-      event.preventDefault();
-      await flushText();
-
-      window.requestAnimationFrame(() => {
-        targetInput.focus();
-        const caretPosition = targetInput.value.length;
-        targetInput.setSelectionRange(caretPosition, caretPosition);
-      });
-      return;
-    }
-
-    if (event.key === 'Backspace' && text.length === 0) {
-      event.preventDefault();
-      await softDeleteChecklistItem({ scope, itemId: item.id });
-    }
+  if (!scope) {
+    return null;
   }
 
   return (
-    <>
-      <TaskTreeRowLayout
-        categoryColorHex={selectedCategory?.colorHex}
-        depth={depth}
-        isPriority={item.priority}
-        isSelected={isSelected}
-      >
-        <TaskTreeCollapseButton
-          collapseLabel={dictionary.dayEditor.collapseItem}
-          expandLabel={dictionary.dayEditor.expandItem}
-          hasChildren={hasChildren}
-          isCollapsed={item.collapsed}
-          onClick={() => {
-            if (scope) {
-              void toggleChecklistItemCollapsed({ scope, itemId: item.id });
-            }
-          }}
-        />
-
-        <Checkbox
-          aria-label={dictionary.dayEditor.toggleItem}
-          checked={item.checked}
-          onChange={() => {
-            if (scope) {
-              void toggleChecklistItemChecked({ scope, itemId: item.id });
-            }
-          }}
-        />
-
-        <Input
-          data-checklist-input="true"
-          data-item-id={item.id}
-          value={text}
-          placeholder={dictionary.dayEditor.itemPlaceholder}
-          className={`min-w-0 flex-1 rounded-xl border border-transparent bg-transparent px-2 py-2 text-sm outline-none transition placeholder:text-[#8f85aa] focus:border-[#f0c38e]/28 focus:bg-white/[0.055] focus:shadow-sm ${
-            item.checked ? 'text-[#8f85aa] opacity-75' : 'text-[#fff9f2]'
-          }`}
-          onBlur={() => void flushText()}
-          onChange={(event) => setText(event.target.value)}
-          onKeyDown={(event) => void handleKeyDown(event)}
-        />
-
-        {selectedCategory ? (
-          <TaskTreeCategoryChip
-            colorHex={selectedCategory.colorHex}
-            name={selectedCategory.name}
-          />
-        ) : null}
-
-        <TaskTreeActionGroup>
-          <IconButton
-            aria-label={
-              item.priority
-                ? dictionary.dayEditor.unmarkPriority
-                : dictionary.dayEditor.markPriority
-            }
-            className="rounded-full hover:bg-white/[0.08] hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
-            onClick={() => {
-              if (scope) {
-                void toggleChecklistItemPriority({ scope, itemId: item.id });
-              }
-            }}
-          >
-            <Star
-              aria-hidden="true"
-              className={`size-4 ${item.priority ? 'fill-current text-[#f0c38e]' : 'opacity-60'}`}
-            />
-          </IconButton>
-          <IconButton
-            aria-label={dictionary.dayEditor.addChild}
-            className="rounded-full hover:bg-white/[0.08] hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
-            onClick={createChild}
-          >
-            <Plus aria-hidden="true" className="size-4" />
-          </IconButton>
-          <IconButton
-            aria-label={dictionary.dayEditor.moveItemUp}
-            className="rounded-full hover:bg-white/[0.08] hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
-            disabled={isFirstSibling}
-            onClick={() => {
-              if (scope) {
-                void reorderChecklistItem({
-                  scope,
-                  itemId: item.id,
-                  direction: 'up',
-                });
-              }
-            }}
-          >
-            <ArrowUp aria-hidden="true" className="size-4" />
-          </IconButton>
-          <IconButton
-            aria-label={dictionary.dayEditor.moveItemDown}
-            className="rounded-full hover:bg-white/[0.08] hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
-            disabled={isLastSibling}
-            onClick={() => {
-              if (scope) {
-                void reorderChecklistItem({
-                  scope,
-                  itemId: item.id,
-                  direction: 'down',
-                });
-              }
-            }}
-          >
-            <ArrowDown aria-hidden="true" className="size-4" />
-          </IconButton>
-          <IconButton
-            aria-label={dictionary.dayEditor.indentItem}
-            className="rounded-full hover:bg-white/[0.08] hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
-            disabled={isFirstSibling}
-            onClick={() => {
-              if (scope) {
-                void indentChecklistItem({ scope, itemId: item.id });
-              }
-            }}
-          >
-            <IndentIncrease aria-hidden="true" className="size-4" />
-          </IconButton>
-          <IconButton
-            aria-label={dictionary.dayEditor.outdentItem}
-            className="rounded-full hover:bg-white/[0.08] hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
-            disabled={depth === 0}
-            onClick={() => {
-              if (scope) {
-                void outdentChecklistItem({ scope, itemId: item.id });
-              }
-            }}
-          >
-            <IndentDecrease aria-hidden="true" className="size-4" />
-          </IconButton>
-          <TaskTreeSelectionButton
-            deselectLabel={dictionary.dayEditor.deselectItem}
-            isSelected={isSelected}
-            selectLabel={dictionary.dayEditor.selectItem}
-            onToggle={(shiftKey) => onToggleSelect(item.id, shiftKey)}
-          />
-          <CategoryAssignmentMenu
-            assignLabel={dictionary.dayEditor.assignCategory}
-            clearLabel={dictionary.dayEditor.clearCategory}
-            disabled={isSelectionMode && !isSelected}
-            selectedCategoryTagId={item.categoryTagId}
-            surface="calendar"
-            onAssign={(categoryTagId) => {
-              if (isSelectionMode) {
-                return onBulkAssignCategory(categoryTagId);
-              }
-
-              if (scope) {
-                return assignChecklistItemCategory({
-                  scope,
-                  itemId: item.id,
-                  categoryTagId,
-                });
-              }
-
-              return Promise.resolve();
-            }}
-          />
-          <IconButton
-            aria-label={dictionary.dayEditor.deleteItem}
-            className="rounded-full hover:bg-rose-400/[0.12] hover:text-rose-100 focus-visible:outline-[#f0c38e]"
-            disabled={isSelectionMode && !isSelected}
-            onClick={() =>
-              isSelectionMode ? onBulkDelete() : void deleteItem()
-            }
-          >
-            <Trash2 aria-hidden="true" className="size-4" />
-          </IconButton>
-        </TaskTreeActionGroup>
-      </TaskTreeRowLayout>
-
-      <ConfirmationDialog
-        cancelLabel={dictionary.actions.cancel}
-        confirmLabel={dictionary.actions.delete}
-        description={dictionary.dayEditor.confirmDeleteItem}
-        open={isDeleteDialogOpen}
-        title={dictionary.dayEditor.deleteItem}
-        onClose={() => setIsDeleteDialogOpen(false)}
-        onConfirm={() => void confirmDeleteItem()}
-      />
-    </>
+    <TaskTreeEditableRow
+      categoryTagId={item.categoryTagId}
+      categoryTagMap={categoryTagMap}
+      checked={item.checked}
+      collapsed={item.collapsed}
+      depth={depth}
+      hasChildren={hasChildren}
+      inputDataAttribute="data-checklist-input"
+      inputSelector={checklistInputSelector}
+      isFirstSibling={isFirstSibling}
+      isLastSibling={isLastSibling}
+      itemId={item.id}
+      labels={{
+        ...dictionary.dayEditor,
+        cancel: dictionary.actions.cancel,
+        delete: dictionary.actions.delete,
+      }}
+      priority={item.priority}
+      selection={{
+        isSelected,
+        isSelectionMode,
+        onBulkAssignCategory,
+        onBulkDelete,
+        onToggle: (shiftKey) => onToggleSelect(item.id, shiftKey),
+      }}
+      surface="calendar"
+      text={item.text}
+      onAssignCategory={(categoryTagId) =>
+        assignChecklistItemCategory({
+          scope,
+          itemId: item.id,
+          categoryTagId,
+        })
+      }
+      onCreateChild={async () => {
+        await createChecklistChild({
+          scope,
+          dailyEntryId,
+          parentItemId: item.id,
+        });
+      }}
+      onCreateSibling={async () => {
+        const newItemId = createId();
+        const newItem = await createChecklistItem({
+          scope,
+          dailyEntryId,
+          id: newItemId,
+          parentId: item.parentId,
+          afterItemId: item.id,
+        });
+        return newItem.id;
+      }}
+      onDelete={() => softDeleteChecklistItem({ scope, itemId: item.id })}
+      onIndent={() => indentChecklistItem({ scope, itemId: item.id })}
+      onMoveDown={() =>
+        reorderChecklistItem({
+          scope,
+          itemId: item.id,
+          direction: 'down',
+        })
+      }
+      onMoveUp={() =>
+        reorderChecklistItem({
+          scope,
+          itemId: item.id,
+          direction: 'up',
+        })
+      }
+      onOutdent={() => outdentChecklistItem({ scope, itemId: item.id })}
+      onSaveText={(text) =>
+        updateChecklistItemText({ scope, itemId: item.id, text })
+      }
+      onToggleChecked={() =>
+        toggleChecklistItemChecked({ scope, itemId: item.id })
+      }
+      onToggleCollapsed={() =>
+        toggleChecklistItemCollapsed({ scope, itemId: item.id })
+      }
+      onTogglePriority={() =>
+        toggleChecklistItemPriority({ scope, itemId: item.id })
+      }
+    />
   );
 }

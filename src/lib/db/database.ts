@@ -38,10 +38,11 @@ type LegacyGoal = Omit<Goal, 'categoryTagId'> & {
 
 type LegacyGoalStep = Omit<
   GoalStep,
-  'parentId' | 'collapsed' | 'categoryTagId'
+  'parentId' | 'collapsed' | 'categoryTagId' | 'priority'
 > & {
   parentId?: string | null;
   collapsed?: boolean;
+  priority?: boolean;
   categoryTagId?: string | null;
   colorTagId?: string | null;
 };
@@ -113,12 +114,14 @@ function migrateCategoryTag(categoryTag: LegacyCategoryTag): CategoryTag {
 }
 
 function migrateGoalStep(goalStep: LegacyGoalStep): GoalStep {
-  const { categoryTagId, collapsed, colorTagId, parentId, ...rest } = goalStep;
+  const { categoryTagId, collapsed, colorTagId, parentId, priority, ...rest } =
+    goalStep;
 
   return {
     ...rest,
     parentId: parentId ?? null,
     collapsed: collapsed ?? false,
+    priority: priority ?? false,
     categoryTagId: categoryTagId ?? colorTagId ?? null,
   };
 }
@@ -707,6 +710,31 @@ export class TickDatabase extends Dexie {
       syncCursors: null,
       localPreferences: 'key, scopeId, updatedAt',
     });
+
+    this.version(8)
+      .stores({
+        dailyEntries:
+          'id, scopeId, date, updatedAt, deletedAt, [scopeId+date], [scopeId+updatedAt]',
+        checklistItems:
+          'id, scopeId, dailyEntryId, parentId, updatedAt, deletedAt, [scopeId+dailyEntryId], [scopeId+parentId], [scopeId+updatedAt]',
+        colorTags:
+          'id, scopeId, surface, position, updatedAt, deletedAt, [scopeId+surface], [scopeId+surface+position], [scopeId+updatedAt]',
+        goals:
+          'id, scopeId, category, status, updatedAt, deletedAt, [scopeId+category], [scopeId+status], [scopeId+updatedAt]',
+        goalSteps:
+          'id, scopeId, goalId, parentId, updatedAt, deletedAt, [scopeId+goalId], [scopeId+parentId], [scopeId+updatedAt]',
+        localPreferences: 'key, scopeId, updatedAt',
+      })
+      .upgrade(async (transaction) => {
+        const goalStepsTable = transaction.table('goalSteps') as Table<
+          LegacyGoalStep,
+          string
+        >;
+
+        for (const goalStep of await goalStepsTable.toArray()) {
+          await goalStepsTable.put(migrateGoalStep(goalStep) as LegacyGoalStep);
+        }
+      });
 
     this.categoryTags = this.table('colorTags');
   }

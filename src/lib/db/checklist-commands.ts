@@ -82,12 +82,14 @@ export interface ChecklistTemplateItem {
 export async function createChecklistItem({
   scope,
   dailyEntryId,
+  id = createId(),
   parentId = null,
   afterItemId = null,
   text = '',
 }: {
   scope: AppScope;
   dailyEntryId: string;
+  id?: string;
   parentId?: string | null;
   afterItemId?: string | null;
   text?: string;
@@ -115,7 +117,7 @@ export async function createChecklistItem({
     );
     const now = createTimestamp();
     const item: ChecklistItem = {
-      id: createId(),
+      id,
       scopeId: scope.id,
       dailyEntryId,
       parentId: safeParentId,

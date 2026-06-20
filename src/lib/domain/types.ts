@@ -120,6 +120,7 @@ export interface GoalStep extends BaseEntity {
   parentId: string | null;
   text: string;
   completed: boolean;
+  priority: boolean;
   collapsed: boolean;
   categoryTagId: string | null;
   sortRank: string;

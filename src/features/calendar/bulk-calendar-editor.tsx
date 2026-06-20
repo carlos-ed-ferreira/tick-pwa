@@ -1,37 +1,15 @@
 'use client';
 
-import {
-  ArrowDown,
-  ArrowUp,
-  IndentDecrease,
-  IndentIncrease,
-  Plus,
-  Star,
-  Trash2,
-} from 'lucide-react';
-import { useCallback, useMemo, useState, type KeyboardEvent } from 'react';
-import {
-  TaskTreeActionGroup,
-  TaskTreeCategoryChip,
-  TaskTreeCollapseButton,
-  TaskTreeRowLayout,
-} from '@/components/app';
-import {
-  Button,
-  Checkbox,
-  ConfirmationDialog,
-  Dialog,
-  IconButton,
-  Input,
-} from '@/components/ui';
-import { CategoryAssignmentMenu, useCategoryTags } from '@/features/categories';
-import { useFocusAfterCreate } from '@/hooks/use-focus-after-create';
+import { Plus, Trash2 } from 'lucide-react';
+import { useCallback, useMemo, useState } from 'react';
+import { TaskTreeEditableRow } from '@/components/app';
+import { Button, Dialog, Input } from '@/components/ui';
+import { useCategoryTags } from '@/features/categories';
 import {
   applyChecklistTemplateToDateRange,
   clearChecklistItemsFromDateRange,
 } from '@/lib/db';
 import { createId } from '@/lib/domain';
-import { requiresDeleteConfirmation } from '@/lib/confirm-delete';
 import type { WeekdayIndex } from '@/lib/time';
 import {
   getDatesInRangeForWeekdays,
@@ -415,256 +393,103 @@ function BulkChecklistRow({
 }) {
   const { dictionary } = useAppContext();
   const { item, depth, hasChildren, isFirstSibling, isLastSibling } = row;
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const focusAfterCreate = useFocusAfterCreate();
-  const selectedCategory = item.categoryTagId
-    ? (categoryTagMap.get(item.categoryTagId) ?? null)
-    : null;
-
-  const createSibling = useCallback(() => {
-    const newId = createId();
-    setDraftItems((currentItems) =>
-      createBulkChecklistDraftItem(currentItems, {
-        id: newId,
-        parentId: item.parentId,
-        afterItemId: item.id,
-      }),
-    );
-    return newId;
-  }, [item.id, item.parentId, setDraftItems]);
-
-  const createChild = useCallback(() => {
-    setDraftItems((currentItems) =>
-      createBulkChecklistDraftChild(currentItems, item.id),
-    );
-  }, [item.id, setDraftItems]);
-
-  const deleteItem = useCallback(() => {
-    if (requiresDeleteConfirmation(item.text)) {
-      setIsDeleteDialogOpen(true);
-      return;
-    }
-
-    setDraftItems((currentItems) =>
-      deleteBulkChecklistDraftItem(currentItems, item.id),
-    );
-  }, [item.id, item.text, setDraftItems]);
-
-  const confirmDeleteItem = useCallback(() => {
-    setIsDeleteDialogOpen(false);
-    setDraftItems((currentItems) =>
-      deleteBulkChecklistDraftItem(currentItems, item.id),
-    );
-  }, [item.id, setDraftItems]);
-
-  function handleKeyDown(event: KeyboardEvent<HTMLInputElement>) {
-    if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
-      event.preventDefault();
-      setDraftItems((currentItems) =>
-        toggleBulkChecklistDraftItemChecked(currentItems, item.id),
-      );
-      return;
-    }
-
-    if (event.key === 'Enter') {
-      event.preventDefault();
-      const newItemId = createSibling();
-      focusAfterCreate(newItemId);
-      return;
-    }
-
-    if (event.key === 'Tab') {
-      const checklistInputs = Array.from(
-        document.querySelectorAll<HTMLInputElement>(bulkChecklistInputSelector),
-      );
-      const currentIndex = checklistInputs.indexOf(event.currentTarget);
-      const targetInput =
-        checklistInputs[currentIndex + (event.shiftKey ? -1 : 1)];
-
-      if (!targetInput) {
-        return;
-      }
-
-      event.preventDefault();
-
-      window.requestAnimationFrame(() => {
-        targetInput.focus();
-        const caretPosition = targetInput.value.length;
-        targetInput.setSelectionRange(caretPosition, caretPosition);
-      });
-      return;
-    }
-
-    if (event.key === 'Backspace' && item.text.length === 0) {
-      event.preventDefault();
-      setDraftItems((currentItems) =>
-        deleteBulkChecklistDraftItem(currentItems, item.id),
-      );
-    }
-  }
 
   return (
-    <>
-      <TaskTreeRowLayout
-        categoryColorHex={selectedCategory?.colorHex}
-        depth={depth}
-        isPriority={item.priority}
-      >
-        <TaskTreeCollapseButton
-          collapseLabel={dictionary.dayEditor.collapseItem}
-          expandLabel={dictionary.dayEditor.expandItem}
-          hasChildren={hasChildren}
-          isCollapsed={item.collapsed}
-          onClick={() =>
-            setDraftItems((currentItems) =>
-              toggleBulkChecklistDraftItemCollapsed(currentItems, item.id),
-            )
-          }
-        />
-
-        <Checkbox
-          aria-label={dictionary.dayEditor.toggleItem}
-          checked={item.checked}
-          onChange={() =>
-            setDraftItems((currentItems) =>
-              toggleBulkChecklistDraftItemChecked(currentItems, item.id),
-            )
-          }
-        />
-
-        <Input
-          data-bulk-checklist-input="true"
-          data-item-id={item.id}
-          value={item.text}
-          placeholder={dictionary.dayEditor.itemPlaceholder}
-          className={`min-w-0 flex-1 rounded-xl border border-transparent bg-transparent px-2 py-2 text-sm outline-none transition placeholder:text-[#8f85aa] focus:border-[#f0c38e]/[0.28] focus:bg-white/[0.055] focus:shadow-sm ${
-            item.checked ? 'text-[#8f85aa] opacity-75' : 'text-[#fff9f2]'
-          }`}
-          onChange={(event) =>
-            setDraftItems((currentItems) =>
-              updateBulkChecklistDraftItemText(
-                currentItems,
-                item.id,
-                event.target.value,
-              ),
-            )
-          }
-          onKeyDown={handleKeyDown}
-        />
-
-        {selectedCategory ? (
-          <TaskTreeCategoryChip
-            colorHex={selectedCategory.colorHex}
-            name={selectedCategory.name}
-          />
-        ) : null}
-
-        <TaskTreeActionGroup>
-          <IconButton
-            aria-label={
-              item.priority
-                ? dictionary.dayEditor.unmarkPriority
-                : dictionary.dayEditor.markPriority
-            }
-            className="rounded-full hover:bg-white/[0.08] hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
-            onClick={() =>
-              setDraftItems((currentItems) =>
-                toggleBulkChecklistDraftItemPriority(currentItems, item.id),
-              )
-            }
-          >
-            <Star
-              aria-hidden="true"
-              className={`size-4 ${item.priority ? 'fill-current text-[#f0c38e]' : 'opacity-60'}`}
-            />
-          </IconButton>
-          <IconButton
-            aria-label={dictionary.dayEditor.moveItemUp}
-            className="rounded-full hover:bg-white/[0.08] hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
-            disabled={isFirstSibling}
-            onClick={() =>
-              setDraftItems((currentItems) =>
-                reorderBulkChecklistDraftItem(currentItems, item.id, 'up'),
-              )
-            }
-          >
-            <ArrowUp aria-hidden="true" className="size-4" />
-          </IconButton>
-          <IconButton
-            aria-label={dictionary.dayEditor.moveItemDown}
-            className="rounded-full hover:bg-white/[0.08] hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
-            disabled={isLastSibling}
-            onClick={() =>
-              setDraftItems((currentItems) =>
-                reorderBulkChecklistDraftItem(currentItems, item.id, 'down'),
-              )
-            }
-          >
-            <ArrowDown aria-hidden="true" className="size-4" />
-          </IconButton>
-          <IconButton
-            aria-label={dictionary.dayEditor.addChild}
-            className="rounded-full hover:bg-white/[0.08] hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
-            onClick={createChild}
-          >
-            <Plus aria-hidden="true" className="size-4" />
-          </IconButton>
-          <IconButton
-            aria-label={dictionary.dayEditor.indentItem}
-            className="rounded-full hover:bg-white/[0.08] hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
-            onClick={() =>
-              setDraftItems((currentItems) =>
-                indentBulkChecklistDraftItem(currentItems, item.id),
-              )
-            }
-          >
-            <IndentIncrease aria-hidden="true" className="size-4" />
-          </IconButton>
-          <IconButton
-            aria-label={dictionary.dayEditor.outdentItem}
-            className="rounded-full hover:bg-white/[0.08] hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
-            onClick={() =>
-              setDraftItems((currentItems) =>
-                outdentBulkChecklistDraftItem(currentItems, item.id),
-              )
-            }
-          >
-            <IndentDecrease aria-hidden="true" className="size-4" />
-          </IconButton>
-          <CategoryAssignmentMenu
-            assignLabel={dictionary.dayEditor.assignCategory}
-            clearLabel={dictionary.dayEditor.clearCategory}
-            selectedCategoryTagId={item.categoryTagId}
-            surface="calendar"
-            onAssign={(categoryTagId) =>
-              setDraftItems((currentItems) =>
-                assignBulkChecklistDraftItemCategory(
-                  currentItems,
-                  item.id,
-                  categoryTagId,
-                ),
-              )
-            }
-          />
-          <IconButton
-            aria-label={dictionary.dayEditor.deleteItem}
-            className="rounded-full hover:bg-rose-400/[0.12] hover:text-rose-100 focus-visible:outline-[#f0c38e]"
-            onClick={() => deleteItem()}
-          >
-            <Trash2 aria-hidden="true" className="size-4" />
-          </IconButton>
-        </TaskTreeActionGroup>
-      </TaskTreeRowLayout>
-
-      <ConfirmationDialog
-        cancelLabel={dictionary.actions.cancel}
-        confirmLabel={dictionary.actions.delete}
-        description={dictionary.dayEditor.confirmDeleteItem}
-        open={isDeleteDialogOpen}
-        title={dictionary.dayEditor.deleteItem}
-        onClose={() => setIsDeleteDialogOpen(false)}
-        onConfirm={confirmDeleteItem}
-      />
-    </>
+    <TaskTreeEditableRow
+      categoryTagId={item.categoryTagId}
+      categoryTagMap={categoryTagMap}
+      checked={item.checked}
+      collapsed={item.collapsed}
+      depth={depth}
+      hasChildren={hasChildren}
+      inputDataAttribute="data-bulk-checklist-input"
+      inputSelector={bulkChecklistInputSelector}
+      isFirstSibling={isFirstSibling}
+      isLastSibling={isLastSibling}
+      itemId={item.id}
+      labels={{
+        ...dictionary.dayEditor,
+        cancel: dictionary.actions.cancel,
+        delete: dictionary.actions.delete,
+      }}
+      priority={item.priority}
+      surface="calendar"
+      text={item.text}
+      onAssignCategory={(categoryTagId) =>
+        setDraftItems((currentItems) =>
+          assignBulkChecklistDraftItemCategory(
+            currentItems,
+            item.id,
+            categoryTagId,
+          ),
+        )
+      }
+      onCreateChild={() =>
+        setDraftItems((currentItems) =>
+          createBulkChecklistDraftChild(currentItems, item.id),
+        )
+      }
+      onCreateSibling={() => {
+        const newId = createId();
+        setDraftItems((currentItems) =>
+          createBulkChecklistDraftItem(currentItems, {
+            id: newId,
+            parentId: item.parentId,
+            afterItemId: item.id,
+          }),
+        );
+        return newId;
+      }}
+      onDelete={() =>
+        setDraftItems((currentItems) =>
+          deleteBulkChecklistDraftItem(currentItems, item.id),
+        )
+      }
+      onIndent={() =>
+        setDraftItems((currentItems) =>
+          indentBulkChecklistDraftItem(currentItems, item.id),
+        )
+      }
+      onMoveDown={() =>
+        setDraftItems((currentItems) =>
+          reorderBulkChecklistDraftItem(currentItems, item.id, 'down'),
+        )
+      }
+      onMoveUp={() =>
+        setDraftItems((currentItems) =>
+          reorderBulkChecklistDraftItem(currentItems, item.id, 'up'),
+        )
+      }
+      onOutdent={() =>
+        setDraftItems((currentItems) =>
+          outdentBulkChecklistDraftItem(currentItems, item.id),
+        )
+      }
+      onSaveText={(text) =>
+        setDraftItems((currentItems) =>
+          updateBulkChecklistDraftItemText(currentItems, item.id, text),
+        )
+      }
+      onTextChange={(text) =>
+        setDraftItems((currentItems) =>
+          updateBulkChecklistDraftItemText(currentItems, item.id, text),
+        )
+      }
+      onToggleChecked={() =>
+        setDraftItems((currentItems) =>
+          toggleBulkChecklistDraftItemChecked(currentItems, item.id),
+        )
+      }
+      onToggleCollapsed={() =>
+        setDraftItems((currentItems) =>
+          toggleBulkChecklistDraftItemCollapsed(currentItems, item.id),
+        )
+      }
+      onTogglePriority={() =>
+        setDraftItems((currentItems) =>
+          toggleBulkChecklistDraftItemPriority(currentItems, item.id),
+        )
+      }
+    />
   );
 }
