@@ -294,7 +294,11 @@ export async function updateGoalTitle({
 
     const normalizedTitle = normalizeGoalTitle(title);
 
-    if (!goal || goal.title === normalizedTitle) {
+    if (
+      !goal ||
+      normalizedTitle.length === 0 ||
+      goal.title === normalizedTitle
+    ) {
       return;
     }
 

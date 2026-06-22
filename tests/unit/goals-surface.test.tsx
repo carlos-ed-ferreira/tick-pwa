@@ -254,11 +254,16 @@ describe('GoalsSurface', () => {
     expect(screen.getByDisplayValue('Existing step')).toBeInTheDocument();
     expect(
       screen.getByRole('button', { name: 'Back to goal groups' }),
-    ).toBeInTheDocument();
+    ).toHaveClass('shrink-0');
     expect(screen.queryByRole('button', { name: 'Add goal' })).toBeNull();
     expect(
       screen.getByText('Focus', { selector: 'span[aria-hidden="true"]' }),
     ).toBeInTheDocument();
+    expect(
+      screen.getByText('Focus', { selector: 'span[aria-hidden="true"]' })
+        .parentElement,
+    ).toHaveClass('shrink', 'overflow-hidden');
+    expect(screen.getByLabelText('Rename goal')).toHaveAttribute('size', '1');
   });
 
   it('creates the first checklist item from the empty state', async () => {
@@ -363,6 +368,14 @@ describe('GoalsSurface', () => {
         title: 'UPDATED GOAL',
       });
     });
+
+    fireEvent.change(titleInput, { target: { value: '' } });
+    fireEvent.blur(titleInput);
+
+    await waitFor(() => {
+      expect(updateGoalTitleMock).toHaveBeenCalledTimes(1);
+    });
+    expect(screen.getByLabelText('Rename goal')).toHaveDisplayValue('Focus');
 
     fireEvent.click(screen.getByRole('button', { name: 'Delete goal' }));
     expect(

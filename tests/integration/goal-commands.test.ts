@@ -167,6 +167,25 @@ describe('goal commands', () => {
     expect(deletedGoal?.deletedAt).not.toBeNull();
   });
 
+  it('ignores empty goal title updates', async () => {
+    const scope = createGuestScope('goals-empty-title-test');
+    const goal = await createGoal({
+      scope,
+      category: 'now',
+      title: 'FOCUS NOW',
+    });
+
+    await updateGoalTitle({
+      scope,
+      goalId: goal.id,
+      title: '   ',
+    });
+
+    const storedGoal = await db.goals.get(goal.id);
+
+    expect(storedGoal?.title).toBe('FOCUS NOW');
+  });
+
   it('recalculates progress and cascades goal step deletion', async () => {
     const scope = createGuestScope('goals-progress-test');
     const goal = await createGoal({

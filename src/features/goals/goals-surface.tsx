@@ -177,8 +177,8 @@ function GoalDetailHeader({
 
   return (
     <>
-      <header className="flex flex-col gap-3 px-1 sm:flex-row sm:items-center sm:px-0">
-        <div className="flex min-w-0 flex-1 items-center gap-2">
+      <header className="flex flex-col gap-3 px-1 sm:grid sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:px-0">
+        <div className="flex min-w-0 items-center gap-2">
           <GoalTitleEditor goal={goal} />
           <IconButton
             aria-label={dictionary.goals.deleteGoal}
@@ -192,7 +192,7 @@ function GoalDetailHeader({
         </div>
         <button
           type="button"
-          className="inline-flex min-h-10 w-fit items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-[#f8f3ea] shadow-sm shadow-[#312c51]/10 transition hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/10 active:translate-y-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0]"
+          className="inline-flex min-h-10 w-fit shrink-0 items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-[#f8f3ea] shadow-sm shadow-[#312c51]/10 transition hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/10 active:translate-y-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0]"
           onClick={onBack}
         >
           <ArrowLeft aria-hidden="true" className="size-4" />
@@ -235,24 +235,31 @@ function GoalTitleEditor({ goal }: { goal: Goal }) {
     text: editableTitle,
   } = useDebouncedInlineEdit({
     enabled: Boolean(scope),
-    onSave: saveTitle,
+    onSave: async (nextTitle) => {
+      if (nextTitle.normalize('NFC').trim().length === 0) {
+        setTitle(goal.title);
+        return;
+      }
+
+      await saveTitle(nextTitle);
+    },
     value: goal.title,
   });
-  const titleMirrorText =
-    editableTitle || dictionary.goals.goalTitlePlaceholder || ' ';
+  const titleMirrorText = editableTitle.length > 0 ? editableTitle : ' ';
 
   return (
-    <span className="grid min-w-32 max-w-full">
+    <span className="inline-grid min-w-0 max-w-full shrink overflow-hidden">
       <span
         aria-hidden="true"
-        className="invisible col-start-1 row-start-1 h-10 whitespace-pre px-3 text-xl font-semibold"
+        className="invisible col-start-1 row-start-1 h-10 min-w-0 overflow-hidden whitespace-pre px-3 text-xl font-semibold"
       >
         {titleMirrorText}
       </span>
       <Input
         aria-label={dictionary.goals.renameGoal}
-        className="col-start-1 row-start-1 h-10 w-full min-w-0 rounded-md bg-white/[0.045] px-3 py-0 text-xl font-semibold text-[#fff9f2] shadow-sm ring-1 ring-white/[0.07] outline-none transition focus:bg-white/[0.07] focus:ring-[#f0c38e]/35"
+        className="col-start-1 row-start-1 h-10 w-full min-w-0 max-w-full rounded-md bg-white/[0.045] px-3 py-0 text-xl font-semibold text-[#fff9f2] shadow-sm ring-1 ring-white/[0.07] outline-none transition focus:bg-white/[0.07] focus:ring-[#f0c38e]/35"
         placeholder={dictionary.goals.goalTitlePlaceholder}
+        size={1}
         value={editableTitle}
         onBlur={() => void flushTitle()}
         onChange={(event) => setTitle(event.target.value.toUpperCase())}
