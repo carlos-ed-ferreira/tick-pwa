@@ -128,8 +128,12 @@ export function createBulkChecklistDraftItem(
 export function createBulkChecklistDraftChild(
   items: BulkChecklistDraftItem[],
   parentItemId: string,
+  id?: string,
 ): BulkChecklistDraftItem[] {
-  return createBulkChecklistDraftItem(items, { parentId: parentItemId });
+  return createBulkChecklistDraftItem(items, {
+    id,
+    parentId: parentItemId,
+  });
 }
 
 export function updateBulkChecklistDraftItemText(

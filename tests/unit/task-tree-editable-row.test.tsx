@@ -1,5 +1,6 @@
 import {
   cleanup,
+  act,
   fireEvent,
   render,
   screen,
@@ -49,7 +50,7 @@ function renderRow(
 ) {
   const callbacks = {
     onAssignCategory: vi.fn(),
-    onCreateChild: vi.fn(),
+    onCreateChild: vi.fn().mockResolvedValue('new-item'),
     onCreateSibling: vi.fn().mockResolvedValue('new-item'),
     onDelete: vi.fn(),
     onIndent: vi.fn(),
@@ -116,6 +117,40 @@ describe('TaskTreeEditableRow', () => {
       expect(callbacks.onSaveText).toHaveBeenCalledWith('Edited item');
       expect(callbacks.onCreateSibling).toHaveBeenCalledOnce();
     });
+  });
+
+  it('creates and focuses a child row with ArrowDown', async () => {
+    const originalRequestAnimationFrame = window.requestAnimationFrame;
+    const frameCallbacks: FrameRequestCallback[] = [];
+
+    window.requestAnimationFrame = ((callback: FrameRequestCallback) => {
+      frameCallbacks.push(callback);
+      return frameCallbacks.length;
+    }) as typeof window.requestAnimationFrame;
+
+    try {
+      const callbacks = renderRow();
+      render(<input data-item-id="new-item" aria-label="Created child" />);
+      const input = screen.getByDisplayValue('Existing item');
+
+      fireEvent.change(input, { target: { value: 'Edited item' } });
+      fireEvent.keyDown(input, { key: 'ArrowDown' });
+
+      await waitFor(() => {
+        expect(callbacks.onSaveText).toHaveBeenCalledWith('Edited item');
+        expect(callbacks.onCreateChild).toHaveBeenCalledOnce();
+      });
+
+      act(() => {
+        while (frameCallbacks.length > 0) {
+          frameCallbacks.shift()?.(0);
+        }
+      });
+
+      expect(screen.getByLabelText('Created child')).toHaveFocus();
+    } finally {
+      window.requestAnimationFrame = originalRequestAnimationFrame;
+    }
   });
 
   it('uses the same category adapter for individual rows', () => {

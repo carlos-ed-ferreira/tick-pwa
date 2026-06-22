@@ -424,11 +424,14 @@ function BulkChecklistRow({
           ),
         )
       }
-      onCreateChild={() =>
+      onCreateChild={() => {
+        const newId = createId();
         setDraftItems((currentItems) =>
-          createBulkChecklistDraftChild(currentItems, item.id),
-        )
-      }
+          createBulkChecklistDraftChild(currentItems, item.id, newId),
+        );
+
+        return newId;
+      }}
       onCreateSibling={() => {
         const newId = createId();
         setDraftItems((currentItems) =>

@@ -182,11 +182,13 @@ function ChecklistRow({
         })
       }
       onCreateChild={async () => {
-        await createChecklistChild({
+        const newItem = await createChecklistChild({
           scope,
           dailyEntryId,
           parentItemId: item.id,
         });
+
+        return newItem.id;
       }}
       onCreateSibling={async () => {
         const newItemId = createId();

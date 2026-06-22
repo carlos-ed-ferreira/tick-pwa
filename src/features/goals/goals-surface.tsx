@@ -433,11 +433,13 @@ function GoalStepRow({
         })
       }
       onCreateChild={async () => {
-        await createGoalStepChild({
+        const newStep = await createGoalStepChild({
           scope,
           goalId,
           parentGoalStepId: goalStep.id,
         });
+
+        return newStep.id;
       }}
       onCreateSibling={async () => {
         const newGoalStepId = createId();

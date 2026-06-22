@@ -57,6 +57,17 @@ interface TaskTreeSelection {
   onToggle: (shiftKey: boolean) => void;
 }
 
+async function createAndFocusNewItem(
+  createItem: () => Promise<string | null> | string | null,
+  focusAfterCreate: (itemId: string) => void,
+) {
+  const newItemId = await createItem();
+
+  if (newItemId) {
+    focusAfterCreate(newItemId);
+  }
+}
+
 export function TaskTreeEditableRow({
   categoryTagId,
   categoryTagMap,
@@ -108,7 +119,7 @@ export function TaskTreeEditableRow({
   surface: CategoryTagSurface;
   text: string;
   onAssignCategory: (categoryTagId: string | null) => Promise<void> | void;
-  onCreateChild: () => Promise<void> | void;
+  onCreateChild: () => Promise<string | null> | string | null;
   onCreateSibling: () => Promise<string | null> | string | null;
   onDelete: () => Promise<void> | void;
   onIndent: () => Promise<void> | void;
@@ -209,6 +220,13 @@ export function TaskTreeEditableRow({
       return;
     }
 
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      await flushText();
+      await createAndFocusNewItem(onCreateChild, focusAfterCreate);
+      return;
+    }
+
     if (event.key === 'Tab') {
       const inputs = Array.from(
         document.querySelectorAll<HTMLInputElement>(inputSelector),
@@ -300,7 +318,7 @@ export function TaskTreeEditableRow({
             onClick={() =>
               void (async () => {
                 await flushText();
-                await onCreateChild();
+                await createAndFocusNewItem(onCreateChild, focusAfterCreate);
               })()
             }
           >
