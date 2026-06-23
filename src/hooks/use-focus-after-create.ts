@@ -12,9 +12,9 @@ export function useFocusAfterCreate({
   return useCallback(
     (itemId: string) => {
       const focusInput = () => {
-        const input = document.querySelector<HTMLInputElement>(
-          getSelector(itemId),
-        );
+        const input = document.querySelector<
+          HTMLInputElement | HTMLTextAreaElement
+        >(getSelector(itemId));
 
         if (!input) {
           return false;

@@ -119,6 +119,27 @@ describe('TaskTreeEditableRow', () => {
     });
   });
 
+  it('renders the item text as a one-row textarea that grows with its content', () => {
+    renderRow();
+    const textarea = screen.getByDisplayValue(
+      'Existing item',
+    ) as HTMLTextAreaElement;
+
+    expect(textarea.tagName).toBe('TEXTAREA');
+    expect(textarea.rows).toBe(1);
+
+    Object.defineProperty(textarea, 'scrollHeight', {
+      configurable: true,
+      value: 72,
+    });
+
+    fireEvent.change(textarea, {
+      target: { value: 'A task whose text wraps onto multiple lines' },
+    });
+
+    expect(textarea.style.height).toBe('72px');
+  });
+
   it('creates and focuses a child row with ArrowDown', async () => {
     const originalRequestAnimationFrame = window.requestAnimationFrame;
     const frameCallbacks: FrameRequestCallback[] = [];

@@ -11,10 +11,10 @@ import {
 } from 'lucide-react';
 import { useCallback, useState, type KeyboardEvent } from 'react';
 import {
+  AutoResizeTextarea,
   Checkbox,
   ConfirmationDialog,
   IconButton,
-  Input,
 } from '@/components/ui';
 import { CategoryAssignmentMenu } from '@/features/categories';
 import { useDebouncedInlineEdit } from '@/hooks/use-debounced-inline-edit';
@@ -202,7 +202,7 @@ export function TaskTreeEditableRow({
     await onDelete();
   }, [onDelete, text]);
 
-  async function handleKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+  async function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
     if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
       event.preventDefault();
       await toggleChecked();
@@ -229,7 +229,7 @@ export function TaskTreeEditableRow({
 
     if (event.key === 'Tab') {
       const inputs = Array.from(
-        document.querySelectorAll<HTMLInputElement>(inputSelector),
+        document.querySelectorAll<HTMLTextAreaElement>(inputSelector),
       );
       const currentIndex = inputs.indexOf(event.currentTarget);
       const targetInput = inputs[currentIndex + (event.shiftKey ? -1 : 1)];
@@ -274,12 +274,13 @@ export function TaskTreeEditableRow({
           onChange={() => void toggleChecked()}
         />
 
-        <Input
+        <AutoResizeTextarea
           {...{ [inputDataAttribute]: 'true' }}
           data-item-id={itemId}
+          rows={1}
           value={text}
           placeholder={labels.itemPlaceholder}
-          className={`min-w-0 flex-1 rounded-xl border border-transparent bg-transparent px-2 py-2 text-sm outline-none transition placeholder:text-[#8f85aa] focus:border-[#f0c38e]/28 focus:bg-white/[0.055] focus:shadow-sm ${
+          className={`min-w-0 flex-1 rounded-xl border border-transparent bg-transparent px-2 py-2 text-sm leading-5 outline-none transition placeholder:text-[#8f85aa] focus:border-[#f0c38e]/28 focus:bg-white/[0.055] focus:shadow-sm ${
             displayedChecked ? 'text-[#8f85aa] opacity-75' : 'text-[#fff9f2]'
           }`}
           onBlur={() => void flushText()}
