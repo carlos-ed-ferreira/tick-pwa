@@ -248,13 +248,23 @@ describe('GoalsSurface', () => {
   it('renders active goals with a New goal action and no New group action', () => {
     render(<GoalsSurface />);
 
-    expect(
-      screen.getByRole('button', { name: 'New goal' }),
-    ).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'New goal' })).toHaveLength(1);
     expect(
       screen.queryByRole('button', { name: /new group/i }),
     ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Archived' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Active' }),
+    ).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Focus' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Focus' })).toHaveClass(
+      'cursor-pointer',
+    );
+    expect(screen.getByRole('button', { name: 'Focus' })).toHaveClass('p-4');
+    expect(screen.getByLabelText('Drag goal')).toHaveClass('size-4');
+    expect(screen.getByText('Focus')).toHaveClass('text-base');
     expect(screen.getByText('2/3')).toBeInTheDocument();
   });
 
@@ -293,6 +303,7 @@ describe('GoalsSurface', () => {
     ).toBeInTheDocument();
     expect(screen.getByText('Health')).toBeInTheDocument();
     expect(screen.getByText('Work')).toBeInTheDocument();
+    expect(screen.getByText('Health').parentElement).toHaveClass('px-4');
     expect(screen.queryByText('2/3')).not.toBeInTheDocument();
   });
 
