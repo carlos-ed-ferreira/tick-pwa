@@ -114,11 +114,19 @@ make supabase-start
 make supabase-stop
 make supabase-status
 make supabase-reset
+make supabase-diff
+make supabase-lint
+make supabase-test-db
 make supabase-types-local
 ```
 
 `make supabase-reset` aplica migrations e seed local. O seed cria/libera o
 usuário `dev@email.com` com senha `12341234` para desenvolvimento.
+
+O estado desejado do banco fica em `supabase/schemas/tick.sql`. Altere esse
+arquivo e use `make supabase-diff` para gerar/revisar migrations incrementais.
+`make supabase-test-db` executa os testes pgTAP e `make supabase-lint` valida o
+schema local.
 
 ## Produção
 
@@ -172,6 +180,9 @@ make supabase-start
 make supabase-stop
 make supabase-status
 make supabase-reset
+make supabase-diff
+make supabase-lint
+make supabase-test-db
 make supabase-types-local
 ```
 

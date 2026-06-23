@@ -182,8 +182,10 @@ export function AppProvider({
       const guestScope = createGuestScope(installationId);
       const nextLocale = await applyScopedPreferences(guestScope);
 
-      await seedDefaultCategoryTags(guestScope, nextLocale, 'calendar');
-      await seedDefaultCategoryTags(guestScope, nextLocale, 'goals');
+      await seedDefaultCategoryTags(guestScope, nextLocale, 'checklist_item');
+      await seedDefaultCategoryTags(guestScope, nextLocale, 'goal_group');
+      await seedDefaultCategoryTags(guestScope, nextLocale, 'goal');
+      await seedDefaultCategoryTags(guestScope, nextLocale, 'goal_step');
 
       if (persistChoice) {
         await setLocalPreference<AccessModePreference>(
@@ -396,8 +398,10 @@ export function AppProvider({
           );
 
           if (scope.kind === 'guest') {
-            await seedDefaultCategoryTags(scope, nextLocale, 'calendar');
-            await seedDefaultCategoryTags(scope, nextLocale, 'goals');
+            await seedDefaultCategoryTags(scope, nextLocale, 'checklist_item');
+            await seedDefaultCategoryTags(scope, nextLocale, 'goal_group');
+            await seedDefaultCategoryTags(scope, nextLocale, 'goal');
+            await seedDefaultCategoryTags(scope, nextLocale, 'goal_step');
           }
         })();
       }

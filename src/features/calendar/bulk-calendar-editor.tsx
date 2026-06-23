@@ -330,7 +330,7 @@ function BulkChecklistSurface({
   setDraftItems: React.Dispatch<React.SetStateAction<BulkChecklistDraftItem[]>>;
 }) {
   const { dictionary, scope } = useAppContext();
-  const categoryTags = useCategoryTags(scope, 'calendar');
+  const categoryTags = useCategoryTags(scope, 'checklist_item');
   const categoryTagMap = new Map(categoryTags.map((tag) => [tag.id, tag]));
   const rows = useMemo(
     () => buildVisibleBulkChecklistDraftRows(draftItems),
@@ -413,7 +413,7 @@ function BulkChecklistRow({
         delete: dictionary.actions.delete,
       }}
       priority={item.priority}
-      surface="calendar"
+      surface="checklist_item"
       text={item.text}
       onAssignCategory={(categoryTagId) =>
         setDraftItems((currentItems) =>

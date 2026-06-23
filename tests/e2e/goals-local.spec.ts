@@ -4,7 +4,7 @@ import { enterLocalMode, firstGoalStepInput, labels } from './helpers';
 test('persists a goal checklist item in local mode', async ({ page }) => {
   await enterLocalMode(page);
   await page.goto('/goals');
-  await page.getByRole('button', { name: labels.createGoalGroup }).click();
+  await page.getByRole('button', { name: labels.createGoal }).click();
   await page.waitForURL(/\/goals\?goal=.+/);
 
   await page.getByRole('button', { name: labels.goalStepEmpty }).click();
@@ -29,7 +29,7 @@ test('persists a goal checklist item in local mode', async ({ page }) => {
 
   await page.goBack();
   await expect(
-    page.getByRole('button', { name: labels.newGoalGroup }),
+    page.getByRole('button', { name: labels.createGoal }).first(),
   ).toBeVisible();
 });
 
@@ -38,7 +38,7 @@ test('caps a long goal title without deforming the back button or overflowing th
 }) => {
   await enterLocalMode(page);
   await page.goto('/goals');
-  await page.getByRole('button', { name: labels.createGoalGroup }).click();
+  await page.getByRole('button', { name: labels.createGoal }).click();
   await page.waitForURL(/\/goals\?goal=.+/);
 
   const backButton = page.getByRole('button', {

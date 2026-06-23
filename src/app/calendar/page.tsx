@@ -87,7 +87,7 @@ export default function CalendarPage() {
         </div>
         <CategoryManagerDialog
           open={isCategoryManagerOpen}
-          surface="calendar"
+          surface="checklist_item"
           title={dictionary.calendar.editCategories}
           onClose={() => setIsCategoryManagerOpen(false)}
         />

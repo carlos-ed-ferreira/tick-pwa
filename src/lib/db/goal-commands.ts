@@ -10,7 +10,6 @@ import {
   createId,
   createReorderedRank,
   createSortRankBetween,
-  compareSortRanks,
   sortByRank,
 } from '@/lib/domain';
 import { db } from './database';
@@ -21,74 +20,12 @@ import {
 } from './entity-metadata';
 import { persistAccountEntityChange } from './account-persistence';
 
-function sortGoals(goals: Goal[]): Goal[] {
-  return sortByRank(goals);
-}
-
-function sortGroupedGoals(goals: Goal[]): Goal[] {
-  return [...goals].sort((firstGoal, secondGoal) => {
-    const rankOrder = compareSortRanks(firstGoal.sortRank, secondGoal.sortRank);
-
-    if (rankOrder !== 0) {
-      return rankOrder;
-    }
-
-    const createdAtOrder = firstGoal.createdAt.localeCompare(
-      secondGoal.createdAt,
-    );
-
-    if (createdAtOrder !== 0) {
-      return createdAtOrder;
-    }
-
-    return firstGoal.id.localeCompare(secondGoal.id);
-  });
-}
-
 function normalizeGoalTitle(title: string): string {
   return title.normalize('NFC').trim().toLocaleUpperCase();
 }
 
 function sortGoalSteps(goalSteps: GoalStep[]): GoalStep[] {
   return sortByRank(goalSteps);
-}
-
-async function getActiveGoals(
-  scope: AppScope,
-  category: GoalCategory,
-): Promise<Goal[]> {
-  return db.goals
-    .where('[scopeId+category]')
-    .equals([scope.id, category])
-    .filter((goal) => goal.deletedAt === null && goal.archivedAt === null)
-    .toArray();
-}
-
-function collectGoalStepDescendants(
-  goalSteps: GoalStep[],
-  parentGoalStepId: string,
-): GoalStep[] {
-  const descendants: GoalStep[] = [];
-  const stack = [parentGoalStepId];
-
-  while (stack.length > 0) {
-    const currentParentId = stack.pop();
-
-    if (!currentParentId) {
-      continue;
-    }
-
-    for (const goalStep of goalSteps) {
-      if (goalStep.parentId !== currentParentId) {
-        continue;
-      }
-
-      descendants.push(goalStep);
-      stack.push(goalStep.id);
-    }
-  }
-
-  return descendants;
 }
 
 async function getActiveGoalSteps(
@@ -410,6 +347,7 @@ export async function moveGoalToGroup({
     if (!goal || goal.groupId === safeGroupId) {
       return;
     }
+    const sourceGroupId = goal.groupId;
 
     const targetGoals = await db.goals
       .where('scopeId')
@@ -431,6 +369,109 @@ export async function moveGoalToGroup({
       }),
       ['groupId', 'sortRank'],
     );
+
+    await deleteGroupIfEmpty(scope, sourceGroupId);
+  });
+}
+
+async function deleteGroupIfEmpty(
+  scope: AppScope,
+  goalGroupId: string | null,
+): Promise<void> {
+  if (!goalGroupId) {
+    return;
+  }
+
+  const group = await getScopedGoalGroup(scope, goalGroupId);
+
+  if (!group) {
+    return;
+  }
+
+  const remainingGoals = await db.goals
+    .where('[scopeId+groupId]')
+    .equals([scope.id, goalGroupId])
+    .filter((goal) => goal.deletedAt === null)
+    .limit(1)
+    .toArray();
+
+  if (remainingGoals.length > 0) {
+    return;
+  }
+
+  await persistGoalGroupUpdate(
+    scope,
+    touchGoalGroup(scope, { ...group, deletedAt: createTimestamp() }),
+    ['deletedAt'],
+  );
+}
+
+export async function groupGoalsTogether({
+  scope,
+  sourceGoalId,
+  targetGoalId,
+  title = '',
+}: {
+  scope: AppScope;
+  sourceGoalId: string;
+  targetGoalId: string;
+  title?: string;
+}): Promise<GoalGroup | null> {
+  return db.transaction('rw', db.goalGroups, db.goals, async () => {
+    if (sourceGoalId === targetGoalId) {
+      return null;
+    }
+
+    const sourceGoal = await getScopedGoal(scope, sourceGoalId);
+    const targetGoal = await getScopedGoal(scope, targetGoalId);
+
+    if (
+      !sourceGoal ||
+      !targetGoal ||
+      sourceGoal.completedAt ||
+      targetGoal.completedAt
+    ) {
+      return null;
+    }
+
+    if (targetGoal.groupId) {
+      await moveGoalToGroup({
+        scope,
+        goalId: sourceGoal.id,
+        groupId: targetGoal.groupId,
+      });
+
+      return getScopedGoalGroup(scope, targetGoal.groupId);
+    }
+
+    const group = await createGoalGroup({
+      scope,
+      title: title || targetGoal.title || sourceGoal.title,
+    });
+    const firstRank = createSortRankBetween(null, null);
+    const secondRank = createSortRankBetween(firstRank, null);
+
+    await persistGoalUpdate(
+      scope,
+      touchGoal(scope, {
+        ...targetGoal,
+        groupId: group.id,
+        sortRank: firstRank,
+      }),
+      ['groupId', 'sortRank'],
+    );
+    await persistGoalUpdate(
+      scope,
+      touchGoal(scope, {
+        ...sourceGoal,
+        groupId: group.id,
+        sortRank: secondRank,
+      }),
+      ['groupId', 'sortRank'],
+    );
+    await deleteGroupIfEmpty(scope, sourceGoal.groupId);
+
+    return group;
   });
 }
 
@@ -570,42 +611,9 @@ async function getScopedGoalStep(
   return goalStep;
 }
 
-async function syncGoalProgressFromSteps({
-  scope,
-  goalId,
-}: {
-  scope: AppScope;
-  goalId: string;
-}): Promise<void> {
-  const goal = await getScopedGoal(scope, goalId);
-
-  if (!goal || goal.progressMode !== 'steps') {
-    return;
-  }
-
-  const activeGoalSteps = await getActiveGoalSteps(scope, goalId);
-  const completedGoalSteps = activeGoalSteps.filter(
-    (goalStep) => goalStep.completed,
-  );
-  const nextProgressValue =
-    activeGoalSteps.length === 0
-      ? 0
-      : Math.round((completedGoalSteps.length / activeGoalSteps.length) * 100);
-
-  if (goal.progressValue === nextProgressValue) {
-    return;
-  }
-
-  const updatedGoal = touchGoal(scope, {
-    ...goal,
-    progressValue: nextProgressValue,
-  });
-  await persistGoalUpdate(scope, updatedGoal, ['progressValue']);
-}
-
 export async function createGoal({
   scope,
-  category = 'now',
+  category: _category = 'now',
   groupId = null,
   afterGoalId = null,
   title = '',
@@ -616,20 +624,29 @@ export async function createGoal({
   afterGoalId?: string | null;
   title?: string;
 }): Promise<Goal> {
+  void _category;
+
   return db.transaction('rw', db.goalGroups, db.goals, async () => {
     const group = groupId ? await db.goalGroups.get(groupId) : null;
     const safeGroupId =
       group && group.scopeId === scope.id && !group.deletedAt ? group.id : null;
-    const activeGoals = (await getActiveGoals(scope, category)).filter(
-      (goal) => goal.groupId === safeGroupId,
-    );
+    const activeGoals = await db.goals
+      .where('scopeId')
+      .equals(scope.id)
+      .filter(
+        (goal) =>
+          goal.deletedAt === null &&
+          goal.completedAt === null &&
+          goal.groupId === safeGroupId,
+      )
+      .toArray();
     const now = createTimestamp();
     const normalizedTitle = normalizeGoalTitle(title);
     const goal: Goal = {
       id: createId(),
       scopeId: scope.id,
       groupId: safeGroupId,
-      category,
+      category: 'now',
       title: normalizedTitle,
       description: '',
       status: 'active',
@@ -688,69 +705,6 @@ export async function updateGoalTitle({
   });
 }
 
-export async function ensureDefaultNowGoal({
-  scope,
-  title,
-}: {
-  scope: AppScope;
-  title: string;
-}): Promise<Goal> {
-  return db.transaction('rw', db.goals, async () => {
-    const activeGoals = sortGoals(await getActiveGoals(scope, 'now'));
-    const defaultGoal = activeGoals[0];
-    const normalizedTitle = normalizeGoalTitle(title);
-
-    if (!defaultGoal) {
-      const now = createTimestamp();
-      const goal: Goal = {
-        id: createId(),
-        scopeId: scope.id,
-        groupId: null,
-        category: 'now',
-        title: normalizedTitle,
-        description: '',
-        status: 'active',
-        progressMode: 'steps',
-        progressValue: 0,
-        dueDate: null,
-        categoryTagId: null,
-        sortRank: createGoalInsertRank({ siblings: [] }),
-        archivedAt: null,
-        completedAt: null,
-        createdAt: now,
-        updatedAt: now,
-        deletedAt: null,
-        ...createSyncMetadata(scope, now),
-      };
-
-      await db.goals.add(goal);
-      await persistAccountEntityChange({
-        scope,
-        entityType: 'goal',
-        entityId: goal.id,
-        operation: 'upsert',
-        payload: goal as unknown as Record<string, unknown>,
-        changedFields: ['created'],
-        baseRevision: null,
-      });
-
-      return goal;
-    }
-
-    if (defaultGoal.title === normalizedTitle) {
-      return defaultGoal;
-    }
-
-    const updatedGoal = touchGoal(scope, {
-      ...defaultGoal,
-      title: normalizedTitle,
-    });
-    await persistGoalUpdate(scope, updatedGoal, ['title']);
-
-    return updatedGoal;
-  });
-}
-
 export async function assignGoalCategory({
   scope,
   goalId,
@@ -776,7 +730,7 @@ export async function assignGoalCategory({
       (!categoryTag ||
         categoryTag.scopeId !== scope.id ||
         categoryTag.deletedAt ||
-        !['goal', 'goals'].includes(categoryTag.surface))
+        categoryTag.surface !== 'goal')
     ) {
       return;
     }
@@ -862,8 +816,6 @@ export async function createGoalStep({
       await persistGoalStepUpdate(scope, updatedParent, ['collapsed']);
     }
 
-    await syncGoalProgressFromSteps({ scope, goalId });
-
     return goalStep;
   });
 }
@@ -924,7 +876,6 @@ export async function toggleGoalStepChecked({
       completed: !goalStep.completed,
     });
     await persistGoalStepUpdate(scope, updatedGoalStep, ['completed']);
-    await syncGoalProgressFromSteps({ scope, goalId: goalStep.goalId });
   });
 }
 
@@ -997,7 +948,7 @@ export async function assignGoalStepCategory({
       (!categoryTag ||
         categoryTag.scopeId !== scope.id ||
         categoryTag.deletedAt ||
-        !['goal_step', 'goals'].includes(categoryTag.surface))
+        categoryTag.surface !== 'goal_step')
     ) {
       return;
     }
@@ -1014,197 +965,6 @@ export async function assignGoalStepCategory({
     });
     await persistGoalStepUpdate(scope, updatedGoalStep, ['categoryTagId']);
   });
-}
-
-export async function mergeGoalsInCategory({
-  scope,
-  category,
-}: {
-  scope: AppScope;
-  category: GoalCategory;
-}): Promise<Goal | null> {
-  return db.transaction('rw', db.goals, db.goalSteps, async () => {
-    const activeGoals = sortGoals(await getActiveGoals(scope, category));
-
-    if (activeGoals.length === 0) {
-      return null;
-    }
-
-    const [primaryGoal, ...legacyGoals] = activeGoals;
-
-    if (legacyGoals.length === 0) {
-      return primaryGoal;
-    }
-
-    let primaryGoalSteps = await getActiveGoalSteps(scope, primaryGoal.id);
-    let lastRootSortRank =
-      sortGoalSteps(
-        primaryGoalSteps.filter((goalStep) => goalStep.parentId === null),
-      ).at(-1)?.sortRank ?? null;
-
-    for (const legacyGoal of legacyGoals) {
-      const legacyGoalSteps = await getActiveGoalSteps(scope, legacyGoal.id);
-      const rootGoalSteps = sortGoalSteps(
-        legacyGoalSteps.filter((goalStep) => goalStep.parentId === null),
-      );
-
-      for (const rootGoalStep of rootGoalSteps) {
-        const nextRootSortRank = createSortRankBetween(lastRootSortRank, null);
-        const movedRootGoalStep = touchGoalStep(scope, {
-          ...rootGoalStep,
-          goalId: primaryGoal.id,
-          sortRank: nextRootSortRank,
-        });
-
-        await persistGoalStepUpdate(scope, movedRootGoalStep, [
-          'goalId',
-          'sortRank',
-        ]);
-
-        for (const descendantGoalStep of collectGoalStepDescendants(
-          legacyGoalSteps,
-          rootGoalStep.id,
-        )) {
-          const movedDescendantGoalStep = touchGoalStep(scope, {
-            ...descendantGoalStep,
-            goalId: primaryGoal.id,
-          });
-
-          await persistGoalStepUpdate(scope, movedDescendantGoalStep, [
-            'goalId',
-          ]);
-        }
-
-        lastRootSortRank = nextRootSortRank;
-      }
-
-      const archivedLegacyGoal = touchGoal(scope, {
-        ...legacyGoal,
-        deletedAt: createTimestamp(),
-      });
-      await persistGoalUpdate(scope, archivedLegacyGoal, ['deletedAt']);
-
-      primaryGoalSteps = await getActiveGoalSteps(scope, primaryGoal.id);
-      lastRootSortRank =
-        sortGoalSteps(
-          primaryGoalSteps.filter((goalStep) => goalStep.parentId === null),
-        ).at(-1)?.sortRank ?? lastRootSortRank;
-    }
-
-    await syncGoalProgressFromSteps({ scope, goalId: primaryGoal.id });
-
-    return (await getScopedGoal(scope, primaryGoal.id)) ?? primaryGoal;
-  });
-}
-
-export async function mergeGoalsInCategoryTag({
-  scope,
-  categoryTagId,
-}: {
-  scope: AppScope;
-  categoryTagId: string;
-}): Promise<Goal | null> {
-  return db.transaction(
-    'rw',
-    db.goals,
-    db.goalSteps,
-    db.categoryTags,
-    async () => {
-      const categoryTag = await db.categoryTags.get(categoryTagId);
-
-      if (
-        !categoryTag ||
-        categoryTag.scopeId !== scope.id ||
-        categoryTag.deletedAt ||
-        !['goal', 'goals'].includes(categoryTag.surface)
-      ) {
-        return null;
-      }
-
-      const activeGoals = sortGroupedGoals(
-        await db.goals
-          .where('scopeId')
-          .equals(scope.id)
-          .filter(
-            (goal) =>
-              goal.deletedAt === null &&
-              goal.archivedAt === null &&
-              goal.categoryTagId === categoryTag.id,
-          )
-          .toArray(),
-      );
-
-      if (activeGoals.length === 0) {
-        return null;
-      }
-
-      const [primaryGoal, ...legacyGoals] = activeGoals;
-
-      if (legacyGoals.length === 0) {
-        return primaryGoal;
-      }
-
-      let primaryGoalSteps = await getActiveGoalSteps(scope, primaryGoal.id);
-      let lastRootSortRank =
-        sortGoalSteps(
-          primaryGoalSteps.filter((goalStep) => goalStep.parentId === null),
-        ).at(-1)?.sortRank ?? null;
-
-      for (const legacyGoal of legacyGoals) {
-        const legacyGoalSteps = await getActiveGoalSteps(scope, legacyGoal.id);
-        const rootGoalSteps = sortGoalSteps(
-          legacyGoalSteps.filter((goalStep) => goalStep.parentId === null),
-        );
-
-        for (const rootGoalStep of rootGoalSteps) {
-          const nextRootSortRank = createSortRankBetween(
-            lastRootSortRank,
-            null,
-          );
-          const movedRootGoalStep = touchGoalStep(scope, {
-            ...rootGoalStep,
-            goalId: primaryGoal.id,
-            sortRank: nextRootSortRank,
-          });
-
-          await persistGoalStepUpdate(scope, movedRootGoalStep, [
-            'goalId',
-            'sortRank',
-          ]);
-
-          for (const descendantGoalStep of collectGoalStepDescendants(
-            legacyGoalSteps,
-            rootGoalStep.id,
-          )) {
-            const movedDescendantGoalStep = touchGoalStep(scope, {
-              ...descendantGoalStep,
-              goalId: primaryGoal.id,
-            });
-
-            await persistGoalStepUpdate(scope, movedDescendantGoalStep, [
-              'goalId',
-            ]);
-          }
-
-          lastRootSortRank = nextRootSortRank;
-        }
-
-        const deletedLegacyGoal = touchGoal(scope, {
-          ...legacyGoal,
-          deletedAt: createTimestamp(),
-        });
-        await persistGoalUpdate(scope, deletedLegacyGoal, ['deletedAt']);
-
-        primaryGoalSteps = await getActiveGoalSteps(scope, primaryGoal.id);
-        lastRootSortRank =
-          sortGoalSteps(
-            primaryGoalSteps.filter((goalStep) => goalStep.parentId === null),
-          ).at(-1)?.sortRank ?? lastRootSortRank;
-      }
-
-      return primaryGoal;
-    },
-  );
 }
 
 export async function softDeleteGoal({
@@ -1288,8 +1048,6 @@ export async function softDeleteGoalStep({
       });
       await persistGoalStepUpdate(scope, updatedGoalStep, ['deletedAt']);
     }
-
-    await syncGoalProgressFromSteps({ scope, goalId: goalStep.goalId });
   });
 }
 

@@ -1,6 +1,6 @@
 NPM = npm
 
-.PHONY: help require-npm install dev build start lint typecheck test test-e2e format format-check check clean supabase-start supabase-stop supabase-status supabase-reset supabase-types-local
+.PHONY: help require-npm install dev build start lint typecheck test test-e2e format format-check check clean supabase-start supabase-stop supabase-status supabase-reset supabase-diff supabase-lint supabase-test-db supabase-types-local
 .DEFAULT_GOAL := help
 
 help:
@@ -20,6 +20,9 @@ help:
 	@printf "  %-26s %s\n" "make supabase-stop" "Para o Supabase local"
 	@printf "  %-26s %s\n" "make supabase-status" "Mostra URLs e chaves do Supabase local"
 	@printf "  %-26s %s\n" "make supabase-reset" "Reseta o banco Supabase local com migrations e seed"
+	@printf "  %-26s %s\n" "make supabase-diff" "Compara migrations com o schema declarativo"
+	@printf "  %-26s %s\n" "make supabase-lint" "Valida o schema Postgres local"
+	@printf "  %-26s %s\n" "make supabase-test-db" "Roda os testes pgTAP do banco"
 	@printf "  %-26s %s\n" "make supabase-types-local" "Gera tipos TypeScript do schema Supabase local"
 	@printf "  %-26s %s\n" "make clean" "Remove artefatos locais de build"
 	@printf "\n"
@@ -89,6 +92,15 @@ supabase-status: require-npm
 
 supabase-reset: require-npm
 	$(NPM) run supabase:db:reset
+
+supabase-diff: require-npm
+	$(NPM) run supabase:db:diff
+
+supabase-lint: require-npm
+	$(NPM) run supabase:db:lint
+
+supabase-test-db: require-npm
+	$(NPM) run supabase:test:db
 
 supabase-types-local: require-npm
 	$(NPM) run supabase:types:local

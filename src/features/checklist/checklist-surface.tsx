@@ -28,7 +28,7 @@ const checklistInputSelector = '[data-checklist-input="true"]';
 export function ChecklistSurface({ dailyEntryId }: { dailyEntryId: string }) {
   const { dictionary, scope } = useAppContext();
   const rows = useChecklistTree(scope, dailyEntryId);
-  const categoryTags = useCategoryTags(scope, 'calendar');
+  const categoryTags = useCategoryTags(scope, 'checklist_item');
   const categoryTagMap = new Map(categoryTags.map((tag) => [tag.id, tag]));
   const visibleItemIds = useMemo(() => rows.map((row) => row.item.id), [rows]);
   const {
@@ -172,7 +172,7 @@ function ChecklistRow({
         onBulkDelete,
         onToggle: (shiftKey) => onToggleSelect(item.id, shiftKey),
       }}
-      surface="calendar"
+      surface="checklist_item"
       text={item.text}
       onAssignCategory={(categoryTagId) =>
         assignChecklistItemCategory({

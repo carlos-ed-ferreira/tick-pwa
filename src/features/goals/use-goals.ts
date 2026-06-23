@@ -1,13 +1,19 @@
 'use client';
 
 import { useLiveQuery } from 'dexie-react-hooks';
-import type { AppScope, Goal, GoalCategory } from '@/lib/domain';
-import { compareSortRanks } from '@/lib/domain';
+import type { AppScope, Goal } from '@/lib/domain';
+import { sortByRank } from '@/lib/domain';
 import { db } from '@/lib/db';
 
 export function useGoals(
   scope: AppScope | null,
-  category: GoalCategory,
+  {
+    archived = false,
+    groupId,
+  }: {
+    archived?: boolean;
+    groupId?: string | null;
+  } = {},
 ): Goal[] {
   return (
     useLiveQuery(
@@ -17,16 +23,21 @@ export function useGoals(
         }
 
         const goals = await db.goals
-          .where('[scopeId+category]')
-          .equals([scope.id, category])
-          .filter((goal) => goal.deletedAt === null && goal.archivedAt === null)
+          .where('scopeId')
+          .equals(scope.id)
+          .filter(
+            (goal) =>
+              goal.deletedAt === null &&
+              (archived
+                ? goal.completedAt !== null
+                : goal.completedAt === null) &&
+              (groupId === undefined || goal.groupId === groupId),
+          )
           .toArray();
 
-        return goals.sort((firstGoal, secondGoal) =>
-          compareSortRanks(firstGoal.sortRank, secondGoal.sortRank),
-        );
+        return sortByRank(goals);
       },
-      [scope?.id, category],
+      [archived, groupId, scope?.id],
       [],
     ) ?? []
   );

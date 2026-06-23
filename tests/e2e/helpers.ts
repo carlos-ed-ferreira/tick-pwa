@@ -3,9 +3,8 @@ import { expect, type Locator, type Page } from '@playwright/test';
 export const labels = {
   calendarLink: /daily calendar|calendario diario|calendário diário/i,
   goalStepEmpty:
-    /start this section with a checklist item|comece esta seção com um item de checklist/i,
-  createGoalGroup: /create a new goal group|criar novo grupo de metas/i,
-  newGoalGroup: /^new group$|^novo grupo$/i,
+    /start this goal with a checklist item|comece esta meta com um item de checklist/i,
+  createGoal: /^new goal$|^nova meta$/i,
   goalsLink: /^goals$|^metas$/i,
   localModeBadge: /local mode|modo local/i,
   localModeButton:

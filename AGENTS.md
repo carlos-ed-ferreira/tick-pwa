@@ -95,6 +95,11 @@ Fora de `localhost`, Supabase só deve ser habilitado quando o ambiente
 `production` estiver explícito. Migrations remotas são restritas ao GitHub
 Actions.
 
+O estado declarativo do Postgres fica em `supabase/schemas/tick.sql`.
+Migrations futuras devem ser geradas por diff a partir desse arquivo e
+revisadas antes de serem aplicadas. Testes estruturais do banco ficam em
+`supabase/tests` e rodam com `make supabase-test-db`.
+
 O banco local é gerenciado pelo Supabase CLI/Docker. O banco production é o
 Supabase production configurado na Vercel e no GitHub Actions.
 
@@ -183,6 +188,9 @@ make supabase-start
 make supabase-stop
 make supabase-status
 make supabase-reset
+make supabase-diff
+make supabase-lint
+make supabase-test-db
 make supabase-types-local
 ```
 

@@ -73,6 +73,7 @@ export function CategoryManagerDialog({
   title: string;
 }) {
   const { dictionary } = useAppContext();
+  const isGoalSurface = surface === 'goal';
 
   return (
     <Dialog
@@ -82,9 +83,43 @@ export function CategoryManagerDialog({
       onClose={onClose}
     >
       <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-5">
-        <CategoryManager surface={surface} />
+        {isGoalSurface ? (
+          <div className="grid gap-6">
+            <CategoryManagerSection
+              label={dictionary.goals.groupCategories}
+              surface="goal_group"
+            />
+            <CategoryManagerSection
+              label={dictionary.goals.goalCategories}
+              surface="goal"
+            />
+            <CategoryManagerSection
+              label={dictionary.goals.itemCategories}
+              surface="goal_step"
+            />
+          </div>
+        ) : (
+          <CategoryManager surface={surface} />
+        )}
       </div>
     </Dialog>
+  );
+}
+
+function CategoryManagerSection({
+  label,
+  surface,
+}: {
+  label: string;
+  surface: CategoryTagSurface;
+}) {
+  return (
+    <section className="grid gap-3">
+      <h3 className="px-1 text-sm font-semibold uppercase tracking-[0.18em] text-[#d8d0e8]">
+        {label}
+      </h3>
+      <CategoryManager surface={surface} />
+    </section>
   );
 }
 

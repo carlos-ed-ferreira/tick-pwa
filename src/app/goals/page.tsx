@@ -82,7 +82,7 @@ export default function GoalsPage() {
         </div>
         <CategoryManagerDialog
           open={isCategoryManagerOpen}
-          surface="goals"
+          surface="goal"
           title={dictionary.goals.editCategories}
           onClose={() => setIsCategoryManagerOpen(false)}
         />
