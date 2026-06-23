@@ -41,6 +41,28 @@ try {
     process.exit(0);
   }
 
+  if (command === 'db:diff') {
+    await executeSupabase(['db', 'diff', ...extraArgs]);
+    process.exit(0);
+  }
+
+  if (command === 'db:lint') {
+    await executeSupabase([
+      'db',
+      'lint',
+      '--local',
+      '--fail-on',
+      'error',
+      ...extraArgs,
+    ]);
+    process.exit(0);
+  }
+
+  if (command === 'test:db') {
+    await executeSupabase(['test', 'db', 'supabase/tests', ...extraArgs]);
+    process.exit(0);
+  }
+
   if (command === 'types:local') {
     const output = await executeSupabase(
       [
@@ -68,6 +90,26 @@ try {
       'push',
       '--linked',
       '--include-all',
+      ...extraArgs,
+    ]);
+    process.exit(0);
+  }
+
+  if (command === 'prod:migrations:repair') {
+    ensureProductionCommandAllowed();
+    await ensureLinkedProject();
+    await executeSupabase([
+      '--yes',
+      'migration',
+      'repair',
+      '--linked',
+      '--status',
+      'reverted',
+      '20260517103000',
+      '20260518110000',
+      '20260527120000',
+      '20260603000000',
+      '20260619120000',
       ...extraArgs,
     ]);
     process.exit(0);
@@ -123,9 +165,13 @@ Commands:
   stop             Stop the local Supabase stack
   status           Show local Supabase services and keys
   db:reset         Reset the local Supabase database
+  db:diff          Diff migrations against supabase/schemas
+  db:lint          Lint the local public schema
+  test:db          Run pgTAP tests against the local database
   types:local      Generate src/lib/supabase/database.types.ts from local Supabase
   prod:db:dry-run  Preview production migrations on GitHub Actions only
   prod:db:push     Apply production migrations on GitHub Actions only
+  prod:migrations:repair  Remove superseded migration versions from remote history
   prod:types       Generate types from production on GitHub Actions only
 
 The script loads .env.local by default. Override it with SUPABASE_ENV_FILE=/path/to/file.

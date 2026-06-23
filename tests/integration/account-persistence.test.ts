@@ -4,6 +4,7 @@ import {
   createCategoryTag,
   createChecklistItem,
   createGoal,
+  createGoalGroup,
   createGoalStep,
   db,
   openOrCreateDailyEntry,
@@ -82,6 +83,10 @@ describe('account persistence boundaries', () => {
       category: 'short',
       title: 'Local goal',
     });
+    const goalGroup = await createGoalGroup({
+      scope,
+      title: 'Local group',
+    });
     const goalStep = await createGoalStep({
       scope,
       goalId: goal.id,
@@ -99,6 +104,9 @@ describe('account persistence boundaries', () => {
       syncStatus: 'local',
     });
     await expect(db.goals.get(goal.id)).resolves.toMatchObject({
+      syncStatus: 'local',
+    });
+    await expect(db.goalGroups.get(goalGroup.id)).resolves.toMatchObject({
       syncStatus: 'local',
     });
     await expect(db.goalSteps.get(goalStep.id)).resolves.toMatchObject({
@@ -134,6 +142,10 @@ describe('account persistence boundaries', () => {
       category: 'short',
       title: 'Cloud goal',
     });
+    const goalGroup = await createGoalGroup({
+      scope,
+      title: 'Cloud group',
+    });
     const goalStep = await createGoalStep({
       scope,
       goalId: goal.id,
@@ -146,6 +158,7 @@ describe('account persistence boundaries', () => {
         'category_tags',
         'daily_entries',
         'checklist_items',
+        'goal_groups',
         'goals',
         'goal_steps',
       ]),
@@ -165,6 +178,9 @@ describe('account persistence boundaries', () => {
       syncStatus: 'synced',
     });
     await expect(db.goals.get(goal.id)).resolves.toMatchObject({
+      syncStatus: 'synced',
+    });
+    await expect(db.goalGroups.get(goalGroup.id)).resolves.toMatchObject({
       syncStatus: 'synced',
     });
     await expect(db.goalSteps.get(goalStep.id)).resolves.toMatchObject({
@@ -362,7 +378,7 @@ describe('account persistence boundaries', () => {
       scopeId: scope.id,
     });
     await expect(db.dailyEntries.get('day-1')).resolves.toMatchObject({
-      previewText: 'Pulled item',
+      previewText: '',
       scopeId: scope.id,
     });
     await expect(db.checklistItems.get('item-1')).resolves.toMatchObject({

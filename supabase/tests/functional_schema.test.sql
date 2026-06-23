@@ -1,0 +1,74 @@
+begin;
+select plan(19);
+
+select has_table('public', 'goal_groups', 'goal_groups exists');
+select has_table('public', 'goals', 'goals exists');
+select has_table('public', 'goal_steps', 'goal_steps exists');
+
+select hasnt_column('public', 'daily_entries', 'title', 'daily_entries.title was removed');
+select hasnt_column('public', 'daily_entries', 'note', 'daily_entries.note was removed');
+select hasnt_column('public', 'daily_entries', 'preview_text', 'daily_entries.preview_text was removed');
+
+select has_column('public', 'goals', 'group_id', 'goals.group_id exists');
+select has_column('public', 'goals', 'completed_at', 'goals.completed_at exists');
+select hasnt_column('public', 'goals', 'category', 'goals.category was removed');
+select hasnt_column('public', 'goals', 'status', 'goals.status was removed');
+select hasnt_column('public', 'goals', 'progress_mode', 'goals.progress_mode was removed');
+select hasnt_column('public', 'goals', 'progress_value', 'goals.progress_value was removed');
+select hasnt_column('public', 'goals', 'due_date', 'goals.due_date was removed');
+select hasnt_column('public', 'goals', 'archived_at', 'goals.archived_at was removed');
+
+select ok(
+  (
+    select pg_get_constraintdef(oid)
+    from pg_constraint
+    where conname = 'goals_group_fkey' and contype = 'f'
+  ) like '%FOREIGN KEY (group_id, user_id)%REFERENCES goal_groups(id, user_id)%',
+  'goals enforce a same-user group foreign key'
+);
+
+select ok(
+  (
+    select pg_get_constraintdef(oid)
+    from pg_constraint
+    where conname = 'goal_steps_goal_fkey' and contype = 'f'
+  ) like '%FOREIGN KEY (goal_id, user_id)%REFERENCES goals(id, user_id)%',
+  'goal steps enforce a same-user goal foreign key'
+);
+
+select ok(
+  (
+    select pg_get_constraintdef(oid)
+    from pg_constraint
+    where conname = 'category_tags_surface_check'
+  ) like '%checklist_item%goal_group%goal%goal_step%',
+  'category surfaces are constrained'
+);
+
+select ok(
+  (
+    select count(*) from pg_policies
+    where schemaname = 'public' and tablename = 'goal_groups'
+  ) = 4,
+  'goal groups have four RLS policies'
+);
+
+select ok(
+  (
+    select count(*) from pg_tables
+    where schemaname = 'public'
+      and tablename in (
+        'category_tags',
+        'daily_entries',
+        'checklist_items',
+        'goal_groups',
+        'goals',
+        'goal_steps'
+      )
+      and rowsecurity
+  ) = 6,
+  'all functional tables have RLS enabled'
+);
+
+select * from finish();
+rollback;

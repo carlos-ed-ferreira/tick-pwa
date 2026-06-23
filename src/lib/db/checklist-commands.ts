@@ -322,7 +322,7 @@ export async function assignChecklistItemCategory({
         (!categoryTag ||
           categoryTag.scopeId !== scope.id ||
           categoryTag.deletedAt ||
-          categoryTag.surface !== 'calendar')
+          !['checklist_item', 'calendar'].includes(categoryTag.surface))
       ) {
         return;
       }

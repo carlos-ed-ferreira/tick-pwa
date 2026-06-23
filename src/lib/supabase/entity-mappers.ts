@@ -6,6 +6,7 @@ import type {
   DailyEntry,
   DailyEntryCategorySummary,
   Goal,
+  GoalGroup,
   GoalStep,
   SyncEntityType,
 } from '@/lib/domain';
@@ -14,6 +15,7 @@ export type RemoteEntityTable =
   | 'category_tags'
   | 'daily_entries'
   | 'checklist_items'
+  | 'goal_groups'
   | 'goals'
   | 'goal_steps';
 
@@ -37,9 +39,6 @@ export interface RemoteCategoryTag extends RemoteBaseRow {
 export interface RemoteDailyEntry extends RemoteBaseRow {
   date: string;
   timezone: string;
-  title: string;
-  note: string;
-  preview_text: string;
   item_count: number;
   completed_count: number;
   category_tag_ids: string[];
@@ -58,16 +57,17 @@ export interface RemoteChecklistItem extends RemoteBaseRow {
 }
 
 export interface RemoteGoal extends RemoteBaseRow {
-  category: Goal['category'];
+  group_id: string | null;
   title: string;
-  description: string;
-  status: Goal['status'];
-  progress_mode: Goal['progressMode'];
-  progress_value: number | string;
-  due_date: string | null;
   category_tag_id: string | null;
   sort_rank: string;
-  archived_at: string | null;
+  completed_at: string | null;
+}
+
+export interface RemoteGoalGroup extends RemoteBaseRow {
+  title: string;
+  category_tag_id: string | null;
+  sort_rank: string;
 }
 
 export interface RemoteGoalStep extends RemoteBaseRow {
@@ -85,6 +85,7 @@ export type RemoteRow =
   | RemoteCategoryTag
   | RemoteDailyEntry
   | RemoteChecklistItem
+  | RemoteGoalGroup
   | RemoteGoal
   | RemoteGoalStep;
 
@@ -101,6 +102,10 @@ export function getRemoteTableName(
 
   if (entityType === 'checklistItem') {
     return 'checklist_items';
+  }
+
+  if (entityType === 'goalGroup') {
+    return 'goal_groups';
   }
 
   if (entityType === 'goal') {
@@ -125,6 +130,7 @@ type RemoteLocalEntity =
   | CategoryTag
   | DailyEntry
   | ChecklistItem
+  | GoalGroup
   | Goal
   | GoalStep;
 
@@ -162,13 +168,19 @@ export function toRemotePayload(
 ): Record<string, unknown> {
   if (entityType === 'categoryTag') {
     const categoryTag = payload as unknown as CategoryTag;
+    const surface =
+      categoryTag.surface === 'calendar'
+        ? 'checklist_item'
+        : categoryTag.surface === 'goals'
+          ? 'goal'
+          : categoryTag.surface;
 
     return {
       ...serializeBaseEntity(scope, categoryTag),
       name: categoryTag.name,
       color_hex: categoryTag.colorHex,
       position: categoryTag.position,
-      surface: categoryTag.surface,
+      surface,
     };
   }
 
@@ -179,9 +191,6 @@ export function toRemotePayload(
       ...serializeBaseEntity(scope, entry),
       date: entry.date,
       timezone: entry.timezone,
-      title: entry.title,
-      note: entry.note,
-      preview_text: entry.previewText,
       item_count: entry.itemCount,
       completed_count: entry.completedCount,
       category_tag_ids: entry.categoryTagIds,
@@ -205,21 +214,27 @@ export function toRemotePayload(
     };
   }
 
+  if (entityType === 'goalGroup') {
+    const goalGroup = payload as unknown as GoalGroup;
+
+    return {
+      ...serializeBaseEntity(scope, goalGroup),
+      title: goalGroup.title,
+      category_tag_id: goalGroup.categoryTagId,
+      sort_rank: goalGroup.sortRank,
+    };
+  }
+
   if (entityType === 'goal') {
     const goal = payload as unknown as Goal;
 
     return {
       ...serializeBaseEntity(scope, goal),
-      category: goal.category,
+      group_id: goal.groupId,
       title: goal.title,
-      description: goal.description,
-      status: goal.status,
-      progress_mode: goal.progressMode,
-      progress_value: goal.progressValue,
-      due_date: goal.dueDate,
       category_tag_id: goal.categoryTagId,
       sort_rank: goal.sortRank,
-      archived_at: goal.archivedAt,
+      completed_at: goal.completedAt,
     };
   }
 
@@ -272,13 +287,25 @@ export function dailyEntryFromRemote(
     ...baseFromRemote(scope, row),
     date: row.date as DailyEntry['date'],
     timezone: row.timezone,
-    title: row.title,
-    note: row.note,
-    previewText: row.preview_text,
+    title: '',
+    note: '',
+    previewText: '',
     itemCount: row.item_count,
     completedCount: row.completed_count,
     categoryTagIds: row.category_tag_ids,
     categorySummaries: parseCategorySummaries(row.category_summaries),
+  };
+}
+
+export function goalGroupFromRemote(
+  scope: AppScope,
+  row: RemoteGoalGroup,
+): GoalGroup {
+  return {
+    ...baseFromRemote(scope, row),
+    title: row.title,
+    categoryTagId: row.category_tag_id,
+    sortRank: row.sort_rank,
   };
 }
 
@@ -302,16 +329,18 @@ export function checklistItemFromRemote(
 export function goalFromRemote(scope: AppScope, row: RemoteGoal): Goal {
   return {
     ...baseFromRemote(scope, row),
-    category: row.category,
+    groupId: row.group_id,
+    completedAt: row.completed_at,
+    category: 'now',
     title: row.title,
-    description: row.description,
-    status: row.status,
-    progressMode: row.progress_mode,
-    progressValue: Number(row.progress_value),
-    dueDate: row.due_date as Goal['dueDate'],
+    description: '',
+    status: row.completed_at ? 'completed' : 'active',
+    progressMode: 'steps',
+    progressValue: 0,
+    dueDate: null,
     categoryTagId: row.category_tag_id,
     sortRank: row.sort_rank,
-    archivedAt: row.archived_at,
+    archivedAt: row.completed_at,
   };
 }
 

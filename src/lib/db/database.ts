@@ -4,6 +4,7 @@ import type {
   ChecklistItem,
   DailyEntry,
   Goal,
+  GoalGroup,
   GoalStep,
   LocalPreference,
   SyncCursor,
@@ -460,6 +461,7 @@ export class TickDatabase extends Dexie {
   categoryTags!: Table<CategoryTag, string>;
   goals!: Table<Goal, string>;
   goalSteps!: Table<GoalStep, string>;
+  goalGroups!: Table<GoalGroup, string>;
   localPreferences!: Table<LocalPreference, string>;
 
   constructor() {
@@ -733,6 +735,155 @@ export class TickDatabase extends Dexie {
 
         for (const goalStep of await goalStepsTable.toArray()) {
           await goalStepsTable.put(migrateGoalStep(goalStep) as LegacyGoalStep);
+        }
+      });
+
+    this.version(9)
+      .stores({
+        dailyEntries:
+          'id, scopeId, date, updatedAt, deletedAt, [scopeId+date], [scopeId+updatedAt]',
+        checklistItems:
+          'id, scopeId, dailyEntryId, parentId, updatedAt, deletedAt, [scopeId+dailyEntryId], [scopeId+parentId], [scopeId+updatedAt]',
+        colorTags:
+          'id, scopeId, surface, position, updatedAt, deletedAt, [scopeId+surface], [scopeId+surface+position], [scopeId+updatedAt]',
+        goalGroups: 'id, scopeId, updatedAt, deletedAt, [scopeId+updatedAt]',
+        goals:
+          'id, scopeId, groupId, category, completedAt, updatedAt, deletedAt, [scopeId+groupId], [scopeId+category], [scopeId+completedAt], [scopeId+updatedAt]',
+        goalSteps:
+          'id, scopeId, goalId, parentId, updatedAt, deletedAt, [scopeId+goalId], [scopeId+parentId], [scopeId+updatedAt]',
+        localPreferences: 'key, scopeId, updatedAt',
+      })
+      .upgrade(async (transaction) => {
+        const dailyEntries = transaction.table('dailyEntries') as Table<
+          DailyEntry,
+          string
+        >;
+        const checklistItems = transaction.table('checklistItems') as Table<
+          ChecklistItem,
+          string
+        >;
+        const categoryTags = transaction.table('colorTags') as Table<
+          CategoryTag,
+          string
+        >;
+        const goalGroups = transaction.table('goalGroups') as Table<
+          GoalGroup,
+          string
+        >;
+        const goals = transaction.table('goals') as Table<Goal, string>;
+        const goalSteps = transaction.table('goalSteps') as Table<
+          GoalStep,
+          string
+        >;
+
+        const userScopeIds = new Set(
+          [
+            ...(await dailyEntries.toArray()),
+            ...(await checklistItems.toArray()),
+            ...(await categoryTags.toArray()),
+            ...(await goals.toArray()),
+            ...(await goalSteps.toArray()),
+          ]
+            .map((entity) => entity.scopeId)
+            .filter((scopeId) => scopeId.startsWith('user:')),
+        );
+
+        for (const scopeId of userScopeIds) {
+          await dailyEntries.where('scopeId').equals(scopeId).delete();
+          await checklistItems.where('scopeId').equals(scopeId).delete();
+          await categoryTags.where('scopeId').equals(scopeId).delete();
+          await goals.where('scopeId').equals(scopeId).delete();
+          await goalSteps.where('scopeId').equals(scopeId).delete();
+        }
+
+        for (const categoryTag of await categoryTags.toArray()) {
+          await categoryTags.put({
+            ...categoryTag,
+            surface:
+              categoryTag.surface === 'calendar'
+                ? 'checklist_item'
+                : categoryTag.surface === 'goals'
+                  ? 'goal'
+                  : categoryTag.surface,
+          });
+        }
+
+        const guestGoals = (await goals.toArray()).filter((goal) =>
+          goal.scopeId.startsWith('guest:'),
+        );
+        const guestGoalSteps = (await goalSteps.toArray()).filter((step) =>
+          step.scopeId.startsWith('guest:'),
+        );
+
+        for (const legacyGoal of guestGoals) {
+          const groupId = `group:${legacyGoal.id}`;
+          await goalGroups.put({
+            id: groupId,
+            scopeId: legacyGoal.scopeId,
+            title: legacyGoal.title,
+            categoryTagId: null,
+            sortRank: legacyGoal.sortRank,
+            createdAt: legacyGoal.createdAt,
+            updatedAt: legacyGoal.updatedAt,
+            deletedAt: legacyGoal.deletedAt,
+            syncStatus: legacyGoal.syncStatus,
+            remoteRevision: null,
+            clientUpdatedAt: legacyGoal.clientUpdatedAt,
+          });
+
+          const rootSteps = guestGoalSteps.filter(
+            (step) => step.goalId === legacyGoal.id && step.parentId === null,
+          );
+
+          for (const rootStep of rootSteps) {
+            await goals.put({
+              ...legacyGoal,
+              id: rootStep.id,
+              groupId,
+              title: rootStep.text,
+              categoryTagId: rootStep.categoryTagId,
+              sortRank: rootStep.sortRank,
+              completedAt: rootStep.completed ? rootStep.updatedAt : null,
+              archivedAt: rootStep.completed ? rootStep.updatedAt : null,
+              status: rootStep.completed ? 'completed' : 'active',
+              createdAt: rootStep.createdAt,
+              updatedAt: rootStep.updatedAt,
+              clientUpdatedAt: rootStep.clientUpdatedAt,
+            });
+
+            for (const descendant of guestGoalSteps.filter(
+              (step) =>
+                step.goalId === legacyGoal.id && step.id !== rootStep.id,
+            )) {
+              let ancestorId = descendant.parentId;
+              let belongsToRoot = false;
+
+              while (ancestorId) {
+                if (ancestorId === rootStep.id) {
+                  belongsToRoot = true;
+                  break;
+                }
+                ancestorId =
+                  guestGoalSteps.find((step) => step.id === ancestorId)
+                    ?.parentId ?? null;
+              }
+
+              if (belongsToRoot) {
+                await goalSteps.put({
+                  ...descendant,
+                  goalId: rootStep.id,
+                  parentId:
+                    descendant.parentId === rootStep.id
+                      ? null
+                      : descendant.parentId,
+                });
+              }
+            }
+
+            await goalSteps.delete(rootStep.id);
+          }
+
+          await goals.delete(legacyGoal.id);
         }
       });
 

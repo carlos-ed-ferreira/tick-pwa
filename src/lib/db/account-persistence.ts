@@ -39,6 +39,11 @@ async function markAccountEntityPersisted({
     return;
   }
 
+  if (entityType === 'goalGroup') {
+    await db.goalGroups.update(entityId, update);
+    return;
+  }
+
   if (entityType === 'goal') {
     await db.goals.update(entityId, update);
     return;

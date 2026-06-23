@@ -24,9 +24,13 @@
     "supabase:stop": "node scripts/supabase-cli.mjs stop",
     "supabase:status": "node scripts/supabase-cli.mjs status",
     "supabase:db:reset": "node scripts/supabase-cli.mjs db:reset",
+    "supabase:db:diff": "node scripts/supabase-cli.mjs db:diff",
+    "supabase:db:lint": "node scripts/supabase-cli.mjs db:lint",
+    "supabase:test:db": "node scripts/supabase-cli.mjs test:db",
     "supabase:types:local": "node scripts/supabase-cli.mjs types:local",
     "supabase:prod:db:push": "node scripts/supabase-cli.mjs prod:db:push",
     "supabase:prod:db:dry-run": "node scripts/supabase-cli.mjs prod:db:dry-run",
+    "supabase:prod:migrations:repair": "node scripts/supabase-cli.mjs prod:migrations:repair",
     "supabase:prod:types": "node scripts/supabase-cli.mjs prod:types",
     "check": "npm run typecheck && npm run lint && npm run test && npm run format:check && npm run build",
     "clean": "rm -rf .next out build coverage public/sw.js public/sw.js.map public/swe-worker*.js"

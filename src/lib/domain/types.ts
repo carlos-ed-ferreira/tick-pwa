@@ -25,12 +25,21 @@ export type GoalStatus = 'active' | 'paused' | 'completed' | 'archived';
 
 export type GoalProgressMode = 'manual' | 'steps';
 
-export type CategoryTagSurface = 'calendar' | 'goals';
+export type PersistedCategoryTagSurface =
+  | 'checklist_item'
+  | 'goal_group'
+  | 'goal'
+  | 'goal_step';
+export type CategoryTagSurface =
+  | PersistedCategoryTagSurface
+  | 'calendar'
+  | 'goals';
 
 export type SyncEntityType =
   | 'dailyEntry'
   | 'checklistItem'
   | 'categoryTag'
+  | 'goalGroup'
   | 'goal'
   | 'goalStep';
 
@@ -103,6 +112,12 @@ export interface CategoryTag extends BaseEntity {
 }
 
 export interface Goal extends BaseEntity {
+  groupId: string | null;
+  completedAt: string | null;
+  /**
+   * Temporary local compatibility fields for the current Goals UI.
+   * They are not persisted by the new Supabase schema.
+   */
   category: GoalCategory;
   title: string;
   description: string;
@@ -113,6 +128,12 @@ export interface Goal extends BaseEntity {
   categoryTagId: string | null;
   sortRank: string;
   archivedAt: string | null;
+}
+
+export interface GoalGroup extends BaseEntity {
+  title: string;
+  categoryTagId: string | null;
+  sortRank: string;
 }
 
 export interface GoalStep extends BaseEntity {

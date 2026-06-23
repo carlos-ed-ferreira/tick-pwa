@@ -3,6 +3,7 @@ import type {
   CategoryTag,
   CategoryTagSurface,
   Goal,
+  GoalGroup,
   GoalStep,
 } from '@/lib/domain';
 import {
@@ -264,6 +265,7 @@ export async function softDeleteCategoryTag({
       db.dailyEntries,
       db.checklistItems,
       db.categoryTags,
+      db.goalGroups,
       db.goals,
       db.goalSteps,
       db.localPreferences,
@@ -328,6 +330,35 @@ export async function softDeleteCategoryTag({
 
       for (const dailyEntryId of affectedDailyEntryIds) {
         await recalculateDailyEntrySummary({ scope, dailyEntryId });
+      }
+
+      const affectedGoalGroups = await db.goalGroups
+        .where('scopeId')
+        .equals(scope.id)
+        .filter(
+          (group) =>
+            group.deletedAt === null && group.categoryTagId === categoryTag.id,
+        )
+        .toArray();
+
+      for (const group of affectedGoalGroups) {
+        const updatedGroup = {
+          ...group,
+          categoryTagId: null,
+          updatedAt: now,
+          syncStatus: getEntitySyncStatus(scope),
+          clientUpdatedAt: now,
+        } as GoalGroup;
+        await db.goalGroups.put(updatedGroup);
+        await persistAccountEntityChange({
+          scope,
+          entityType: 'goalGroup',
+          entityId: group.id,
+          operation: 'upsert',
+          payload: updatedGroup as unknown as Record<string, unknown>,
+          changedFields: ['categoryTagId'],
+          baseRevision: group.remoteRevision,
+        });
       }
 
       const affectedGoals = await db.goals

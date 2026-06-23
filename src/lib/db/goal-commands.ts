@@ -1,4 +1,10 @@
-import type { AppScope, Goal, GoalCategory, GoalStep } from '@/lib/domain';
+import type {
+  AppScope,
+  Goal,
+  GoalCategory,
+  GoalGroup,
+  GoalStep,
+} from '@/lib/domain';
 import {
   createRankAfter,
   createId,
@@ -172,6 +178,359 @@ function touchGoalStep(scope: AppScope, goalStep: GoalStep): GoalStep {
   };
 }
 
+function touchGoalGroup(scope: AppScope, goalGroup: GoalGroup): GoalGroup {
+  const now = createTimestamp();
+
+  return {
+    ...goalGroup,
+    updatedAt: now,
+    syncStatus: getEntitySyncStatus(scope),
+    clientUpdatedAt: now,
+  };
+}
+
+async function persistGoalGroupUpdate(
+  scope: AppScope,
+  goalGroup: GoalGroup,
+  changedFields: string[],
+): Promise<void> {
+  await db.goalGroups.put(goalGroup);
+  await persistAccountEntityChange({
+    scope,
+    entityType: 'goalGroup',
+    entityId: goalGroup.id,
+    operation: goalGroup.deletedAt ? 'delete' : 'upsert',
+    payload: goalGroup as unknown as Record<string, unknown>,
+    changedFields,
+    baseRevision: goalGroup.remoteRevision,
+  });
+}
+
+export async function createGoalGroup({
+  scope,
+  title = '',
+  afterGoalGroupId = null,
+}: {
+  scope: AppScope;
+  title?: string;
+  afterGoalGroupId?: string | null;
+}): Promise<GoalGroup> {
+  return db.transaction('rw', db.goalGroups, async () => {
+    const groups = await db.goalGroups
+      .where('scopeId')
+      .equals(scope.id)
+      .filter((group) => group.deletedAt === null)
+      .toArray();
+    const now = createTimestamp();
+    const goalGroup: GoalGroup = {
+      id: createId(),
+      scopeId: scope.id,
+      title: normalizeGoalTitle(title),
+      categoryTagId: null,
+      sortRank: createRankAfter({
+        items: sortByRank(groups),
+        afterItemId: afterGoalGroupId,
+      }),
+      createdAt: now,
+      updatedAt: now,
+      deletedAt: null,
+      ...createSyncMetadata(scope, now),
+    };
+
+    await db.goalGroups.add(goalGroup);
+    await persistAccountEntityChange({
+      scope,
+      entityType: 'goalGroup',
+      entityId: goalGroup.id,
+      operation: 'upsert',
+      payload: goalGroup as unknown as Record<string, unknown>,
+      changedFields: ['created'],
+      baseRevision: null,
+    });
+
+    return goalGroup;
+  });
+}
+
+export async function assignGoalGroupCategory({
+  scope,
+  goalGroupId,
+  categoryTagId,
+}: {
+  scope: AppScope;
+  goalGroupId: string;
+  categoryTagId: string | null;
+}): Promise<void> {
+  await db.transaction('rw', db.goalGroups, db.categoryTags, async () => {
+    const group = await db.goalGroups.get(goalGroupId);
+    const categoryTag = categoryTagId
+      ? await db.categoryTags.get(categoryTagId)
+      : null;
+
+    if (!group || group.scopeId !== scope.id || group.deletedAt) {
+      return;
+    }
+
+    const safeCategoryTagId =
+      categoryTag &&
+      categoryTag.scopeId === scope.id &&
+      !categoryTag.deletedAt &&
+      categoryTag.surface === 'goal_group'
+        ? categoryTag.id
+        : null;
+
+    if (group.categoryTagId === safeCategoryTagId) {
+      return;
+    }
+
+    await persistGoalGroupUpdate(
+      scope,
+      touchGoalGroup(scope, { ...group, categoryTagId: safeCategoryTagId }),
+      ['categoryTagId'],
+    );
+  });
+}
+
+export async function updateGoalGroupTitle({
+  scope,
+  goalGroupId,
+  title,
+}: {
+  scope: AppScope;
+  goalGroupId: string;
+  title: string;
+}): Promise<void> {
+  await db.transaction('rw', db.goalGroups, async () => {
+    const group = await getScopedGoalGroup(scope, goalGroupId);
+    const normalizedTitle = normalizeGoalTitle(title);
+
+    if (!group || !normalizedTitle || group.title === normalizedTitle) {
+      return;
+    }
+
+    await persistGoalGroupUpdate(
+      scope,
+      touchGoalGroup(scope, { ...group, title: normalizedTitle }),
+      ['title'],
+    );
+  });
+}
+
+export async function reorderGoalGroup({
+  scope,
+  goalGroupId,
+  direction,
+}: {
+  scope: AppScope;
+  goalGroupId: string;
+  direction: 'up' | 'down';
+}): Promise<void> {
+  await db.transaction('rw', db.goalGroups, async () => {
+    const group = await getScopedGoalGroup(scope, goalGroupId);
+
+    if (!group) {
+      return;
+    }
+
+    const groups = await db.goalGroups
+      .where('scopeId')
+      .equals(scope.id)
+      .filter((candidate) => candidate.deletedAt === null)
+      .toArray();
+    const sortRank = createReorderedRank({
+      items: groups,
+      itemId: group.id,
+      direction,
+    });
+
+    if (!sortRank || sortRank === group.sortRank) {
+      return;
+    }
+
+    await persistGoalGroupUpdate(
+      scope,
+      touchGoalGroup(scope, { ...group, sortRank }),
+      ['sortRank'],
+    );
+  });
+}
+
+export async function softDeleteGoalGroup({
+  scope,
+  goalGroupId,
+}: {
+  scope: AppScope;
+  goalGroupId: string;
+}): Promise<void> {
+  await db.transaction('rw', db.goalGroups, db.goals, async () => {
+    const group = await getScopedGoalGroup(scope, goalGroupId);
+
+    if (!group) {
+      return;
+    }
+
+    const deletedAt = createTimestamp();
+    await persistGoalGroupUpdate(
+      scope,
+      touchGoalGroup(scope, { ...group, deletedAt }),
+      ['deletedAt'],
+    );
+
+    const goals = await db.goals
+      .where('[scopeId+groupId]')
+      .equals([scope.id, group.id])
+      .filter((goal) => goal.deletedAt === null)
+      .toArray();
+
+    for (const goal of goals) {
+      await persistGoalUpdate(
+        scope,
+        touchGoal(scope, { ...goal, groupId: null }),
+        ['groupId'],
+      );
+    }
+  });
+}
+
+export async function moveGoalToGroup({
+  scope,
+  goalId,
+  groupId,
+}: {
+  scope: AppScope;
+  goalId: string;
+  groupId: string | null;
+}): Promise<void> {
+  await db.transaction('rw', db.goalGroups, db.goals, async () => {
+    const goal = await getScopedGoal(scope, goalId);
+    const group = groupId ? await db.goalGroups.get(groupId) : null;
+    const safeGroupId =
+      group && group.scopeId === scope.id && !group.deletedAt ? group.id : null;
+
+    if (!goal || goal.groupId === safeGroupId) {
+      return;
+    }
+
+    const targetGoals = await db.goals
+      .where('scopeId')
+      .equals(scope.id)
+      .filter(
+        (candidate) =>
+          candidate.groupId === safeGroupId &&
+          candidate.deletedAt === null &&
+          candidate.completedAt === null,
+      )
+      .toArray();
+
+    await persistGoalUpdate(
+      scope,
+      touchGoal(scope, {
+        ...goal,
+        groupId: safeGroupId,
+        sortRank: createRankAfter({ items: targetGoals }),
+      }),
+      ['groupId', 'sortRank'],
+    );
+  });
+}
+
+export async function reorderGoal({
+  scope,
+  goalId,
+  direction,
+}: {
+  scope: AppScope;
+  goalId: string;
+  direction: 'up' | 'down';
+}): Promise<void> {
+  await db.transaction('rw', db.goals, async () => {
+    const goal = await getScopedGoal(scope, goalId);
+
+    if (!goal) {
+      return;
+    }
+
+    const siblings = await db.goals
+      .where('scopeId')
+      .equals(scope.id)
+      .filter(
+        (candidate) =>
+          candidate.groupId === goal.groupId &&
+          candidate.deletedAt === null &&
+          candidate.completedAt === null,
+      )
+      .toArray();
+    const sortRank = createReorderedRank({
+      items: siblings,
+      itemId: goal.id,
+      direction,
+    });
+
+    if (!sortRank || sortRank === goal.sortRank) {
+      return;
+    }
+
+    await persistGoalUpdate(scope, touchGoal(scope, { ...goal, sortRank }), [
+      'sortRank',
+    ]);
+  });
+}
+
+export async function completeGoal({
+  scope,
+  goalId,
+}: {
+  scope: AppScope;
+  goalId: string;
+}): Promise<void> {
+  await db.transaction('rw', db.goals, async () => {
+    const goal = await getScopedGoal(scope, goalId);
+
+    if (!goal || goal.completedAt) {
+      return;
+    }
+
+    const completedAt = createTimestamp();
+    await persistGoalUpdate(
+      scope,
+      touchGoal(scope, {
+        ...goal,
+        completedAt,
+        archivedAt: completedAt,
+        status: 'completed',
+      }),
+      ['completedAt'],
+    );
+  });
+}
+
+export async function reopenGoal({
+  scope,
+  goalId,
+}: {
+  scope: AppScope;
+  goalId: string;
+}): Promise<void> {
+  await db.transaction('rw', db.goals, async () => {
+    const goal = await getScopedGoal(scope, goalId);
+
+    if (!goal || !goal.completedAt) {
+      return;
+    }
+
+    await persistGoalUpdate(
+      scope,
+      touchGoal(scope, {
+        ...goal,
+        completedAt: null,
+        archivedAt: null,
+        status: 'active',
+      }),
+      ['completedAt'],
+    );
+  });
+}
+
 async function getScopedGoal(
   scope: AppScope,
   goalId: string,
@@ -183,6 +542,19 @@ async function getScopedGoal(
   }
 
   return goal;
+}
+
+async function getScopedGoalGroup(
+  scope: AppScope,
+  goalGroupId: string,
+): Promise<GoalGroup | null> {
+  const group = await db.goalGroups.get(goalGroupId);
+
+  if (!group || group.scopeId !== scope.id || group.deletedAt) {
+    return null;
+  }
+
+  return group;
 }
 
 async function getScopedGoalStep(
@@ -233,22 +605,30 @@ async function syncGoalProgressFromSteps({
 
 export async function createGoal({
   scope,
-  category,
+  category = 'now',
+  groupId = null,
   afterGoalId = null,
   title = '',
 }: {
   scope: AppScope;
-  category: GoalCategory;
+  category?: GoalCategory;
+  groupId?: string | null;
   afterGoalId?: string | null;
   title?: string;
 }): Promise<Goal> {
-  return db.transaction('rw', db.goals, async () => {
-    const activeGoals = await getActiveGoals(scope, category);
+  return db.transaction('rw', db.goalGroups, db.goals, async () => {
+    const group = groupId ? await db.goalGroups.get(groupId) : null;
+    const safeGroupId =
+      group && group.scopeId === scope.id && !group.deletedAt ? group.id : null;
+    const activeGoals = (await getActiveGoals(scope, category)).filter(
+      (goal) => goal.groupId === safeGroupId,
+    );
     const now = createTimestamp();
     const normalizedTitle = normalizeGoalTitle(title);
     const goal: Goal = {
       id: createId(),
       scopeId: scope.id,
+      groupId: safeGroupId,
       category,
       title: normalizedTitle,
       description: '',
@@ -259,6 +639,7 @@ export async function createGoal({
       categoryTagId: null,
       sortRank: createGoalInsertRank({ siblings: activeGoals, afterGoalId }),
       archivedAt: null,
+      completedAt: null,
       createdAt: now,
       updatedAt: now,
       deletedAt: null,
@@ -324,6 +705,7 @@ export async function ensureDefaultNowGoal({
       const goal: Goal = {
         id: createId(),
         scopeId: scope.id,
+        groupId: null,
         category: 'now',
         title: normalizedTitle,
         description: '',
@@ -334,6 +716,7 @@ export async function ensureDefaultNowGoal({
         categoryTagId: null,
         sortRank: createGoalInsertRank({ siblings: [] }),
         archivedAt: null,
+        completedAt: null,
         createdAt: now,
         updatedAt: now,
         deletedAt: null,
@@ -393,7 +776,7 @@ export async function assignGoalCategory({
       (!categoryTag ||
         categoryTag.scopeId !== scope.id ||
         categoryTag.deletedAt ||
-        categoryTag.surface !== 'goals')
+        !['goal', 'goals'].includes(categoryTag.surface))
     ) {
       return;
     }
@@ -614,7 +997,7 @@ export async function assignGoalStepCategory({
       (!categoryTag ||
         categoryTag.scopeId !== scope.id ||
         categoryTag.deletedAt ||
-        categoryTag.surface !== 'goals')
+        !['goal_step', 'goals'].includes(categoryTag.surface))
     ) {
       return;
     }
@@ -733,7 +1116,7 @@ export async function mergeGoalsInCategoryTag({
         !categoryTag ||
         categoryTag.scopeId !== scope.id ||
         categoryTag.deletedAt ||
-        categoryTag.surface !== 'goals'
+        !['goal', 'goals'].includes(categoryTag.surface)
       ) {
         return null;
       }

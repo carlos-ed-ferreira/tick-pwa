@@ -6,11 +6,13 @@ import {
   checklistItemFromRemote,
   dailyEntryFromRemote,
   goalFromRemote,
+  goalGroupFromRemote,
   goalStepFromRemote,
   type RemoteCategoryTag,
   type RemoteChecklistItem,
   type RemoteDailyEntry,
   type RemoteGoal,
+  type RemoteGoalGroup,
   type RemoteGoalStep,
 } from './entity-mappers';
 
@@ -29,12 +31,14 @@ export async function refreshAccountCache(scope: AppScope): Promise<void> {
     categoryTagsResponse,
     dailyEntriesResponse,
     checklistItemsResponse,
+    goalGroupsResponse,
     goalsResponse,
     goalStepsResponse,
   ] = await Promise.all([
     client.from('category_tags').select('*'),
     client.from('daily_entries').select('*'),
     client.from('checklist_items').select('*'),
+    client.from('goal_groups').select('*'),
     client.from('goals').select('*'),
     client.from('goal_steps').select('*'),
   ]);
@@ -43,6 +47,7 @@ export async function refreshAccountCache(scope: AppScope): Promise<void> {
     categoryTagsResponse.error ??
     dailyEntriesResponse.error ??
     checklistItemsResponse.error ??
+    goalGroupsResponse.error ??
     goalsResponse.error ??
     goalStepsResponse.error;
 
@@ -56,10 +61,19 @@ export async function refreshAccountCache(scope: AppScope): Promise<void> {
       db.categoryTags,
       db.dailyEntries,
       db.checklistItems,
+      db.goalGroups,
       db.goals,
       db.goalSteps,
     ],
     async () => {
+      await Promise.all([
+        db.categoryTags.where('scopeId').equals(scope.id).delete(),
+        db.dailyEntries.where('scopeId').equals(scope.id).delete(),
+        db.checklistItems.where('scopeId').equals(scope.id).delete(),
+        db.goalGroups.where('scopeId').equals(scope.id).delete(),
+        db.goals.where('scopeId').equals(scope.id).delete(),
+        db.goalSteps.where('scopeId').equals(scope.id).delete(),
+      ]);
       await db.categoryTags.bulkPut(
         ((categoryTagsResponse.data ?? []) as RemoteCategoryTag[]).map((row) =>
           categoryTagFromRemote(scope, row),
@@ -73,6 +87,11 @@ export async function refreshAccountCache(scope: AppScope): Promise<void> {
       await db.checklistItems.bulkPut(
         ((checklistItemsResponse.data ?? []) as RemoteChecklistItem[]).map(
           (row) => checklistItemFromRemote(scope, row),
+        ),
+      );
+      await db.goalGroups.bulkPut(
+        ((goalGroupsResponse.data ?? []) as RemoteGoalGroup[]).map((row) =>
+          goalGroupFromRemote(scope, row),
         ),
       );
       await db.goals.bulkPut(

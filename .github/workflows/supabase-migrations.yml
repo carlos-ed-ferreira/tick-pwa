@@ -11,6 +11,8 @@ on:
       - 'scripts/supabase-cli.mjs'
       - 'supabase/config.toml'
       - 'supabase/migrations/**'
+      - 'supabase/schemas/**'
+      - 'supabase/tests/**'
   workflow_dispatch:
 
 concurrency:
@@ -43,6 +45,9 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Repair superseded migration history
+        run: npm run supabase:prod:migrations:repair
 
       - name: Preview migrations
         run: npm run supabase:prod:db:dry-run

@@ -7,11 +7,6 @@ export type Json =
   | Json[];
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
-  __InternalSupabase: {
-    PostgrestVersion: '14.5';
-  };
   public: {
     Tables: {
       account_access: {
@@ -44,8 +39,8 @@ export type Database = {
           id: string;
           name: string;
           position: string;
-          surface: string;
           revision: number;
+          surface: string;
           updated_at: string;
           user_id: string;
         };
@@ -57,8 +52,8 @@ export type Database = {
           id: string;
           name: string;
           position: string;
-          surface?: string;
           revision?: number;
+          surface: string;
           updated_at?: string;
           user_id: string;
         };
@@ -70,8 +65,8 @@ export type Database = {
           id?: string;
           name?: string;
           position?: string;
-          surface?: string;
           revision?: number;
+          surface?: string;
           updated_at?: string;
           user_id?: string;
         };
@@ -88,6 +83,7 @@ export type Database = {
           deleted_at: string | null;
           id: string;
           parent_id: string | null;
+          priority: boolean;
           revision: number;
           sort_rank: string;
           text: string;
@@ -104,6 +100,7 @@ export type Database = {
           deleted_at?: string | null;
           id: string;
           parent_id?: string | null;
+          priority?: boolean;
           revision?: number;
           sort_rank: string;
           text?: string;
@@ -120,6 +117,7 @@ export type Database = {
           deleted_at?: string | null;
           id?: string;
           parent_id?: string | null;
+          priority?: boolean;
           revision?: number;
           sort_rank?: string;
           text?: string;
@@ -128,25 +126,25 @@ export type Database = {
         };
         Relationships: [
           {
-            foreignKeyName: 'checklist_items_category_tag_id_fkey';
-            columns: ['category_tag_id'];
+            foreignKeyName: 'checklist_items_category_tag_fkey';
+            columns: ['category_tag_id', 'user_id'];
             isOneToOne: false;
             referencedRelation: 'category_tags';
-            referencedColumns: ['id'];
+            referencedColumns: ['id', 'user_id'];
           },
           {
-            foreignKeyName: 'checklist_items_daily_entry_id_fkey';
-            columns: ['daily_entry_id'];
+            foreignKeyName: 'checklist_items_daily_entry_fkey';
+            columns: ['daily_entry_id', 'user_id'];
             isOneToOne: false;
             referencedRelation: 'daily_entries';
-            referencedColumns: ['id'];
+            referencedColumns: ['id', 'user_id'];
           },
           {
-            foreignKeyName: 'checklist_items_parent_id_fkey';
-            columns: ['parent_id'];
+            foreignKeyName: 'checklist_items_parent_fkey';
+            columns: ['parent_id', 'user_id'];
             isOneToOne: false;
             referencedRelation: 'checklist_items';
-            referencedColumns: ['id'];
+            referencedColumns: ['id', 'user_id'];
           },
         ];
       };
@@ -161,11 +159,8 @@ export type Database = {
           deleted_at: string | null;
           id: string;
           item_count: number;
-          note: string;
-          preview_text: string;
           revision: number;
           timezone: string;
-          title: string;
           updated_at: string;
           user_id: string;
         };
@@ -179,11 +174,8 @@ export type Database = {
           deleted_at?: string | null;
           id: string;
           item_count?: number;
-          note?: string;
-          preview_text?: string;
           revision?: number;
           timezone: string;
-          title?: string;
           updated_at?: string;
           user_id: string;
         };
@@ -197,18 +189,63 @@ export type Database = {
           deleted_at?: string | null;
           id?: string;
           item_count?: number;
-          note?: string;
-          preview_text?: string;
           revision?: number;
           timezone?: string;
-          title?: string;
           updated_at?: string;
           user_id?: string;
         };
         Relationships: [];
       };
+      goal_groups: {
+        Row: {
+          category_tag_id: string | null;
+          client_updated_at: string;
+          created_at: string;
+          deleted_at: string | null;
+          id: string;
+          revision: number;
+          sort_rank: string;
+          title: string;
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          category_tag_id?: string | null;
+          client_updated_at?: string;
+          created_at?: string;
+          deleted_at?: string | null;
+          id: string;
+          revision?: number;
+          sort_rank: string;
+          title?: string;
+          updated_at?: string;
+          user_id: string;
+        };
+        Update: {
+          category_tag_id?: string | null;
+          client_updated_at?: string;
+          created_at?: string;
+          deleted_at?: string | null;
+          id?: string;
+          revision?: number;
+          sort_rank?: string;
+          title?: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'goal_groups_category_tag_fkey';
+            columns: ['category_tag_id', 'user_id'];
+            isOneToOne: false;
+            referencedRelation: 'category_tags';
+            referencedColumns: ['id', 'user_id'];
+          },
+        ];
+      };
       goal_steps: {
         Row: {
+          category_tag_id: string | null;
           client_updated_at: string;
           collapsed: boolean;
           completed: boolean;
@@ -225,6 +262,7 @@ export type Database = {
           user_id: string;
         };
         Insert: {
+          category_tag_id?: string | null;
           client_updated_at?: string;
           collapsed?: boolean;
           completed?: boolean;
@@ -241,6 +279,7 @@ export type Database = {
           user_id: string;
         };
         Update: {
+          category_tag_id?: string | null;
           client_updated_at?: string;
           collapsed?: boolean;
           completed?: boolean;
@@ -258,79 +297,85 @@ export type Database = {
         };
         Relationships: [
           {
-            foreignKeyName: 'goal_steps_goal_id_fkey';
-            columns: ['goal_id'];
+            foreignKeyName: 'goal_steps_category_tag_fkey';
+            columns: ['category_tag_id', 'user_id'];
+            isOneToOne: false;
+            referencedRelation: 'category_tags';
+            referencedColumns: ['id', 'user_id'];
+          },
+          {
+            foreignKeyName: 'goal_steps_goal_fkey';
+            columns: ['goal_id', 'user_id'];
             isOneToOne: false;
             referencedRelation: 'goals';
-            referencedColumns: ['id'];
+            referencedColumns: ['id', 'user_id'];
+          },
+          {
+            foreignKeyName: 'goal_steps_parent_fkey';
+            columns: ['parent_id', 'user_id'];
+            isOneToOne: false;
+            referencedRelation: 'goal_steps';
+            referencedColumns: ['id', 'user_id'];
           },
         ];
       };
       goals: {
         Row: {
-          archived_at: string | null;
-          category: string;
           category_tag_id: string | null;
           client_updated_at: string;
+          completed_at: string | null;
           created_at: string;
           deleted_at: string | null;
-          description: string;
-          due_date: string | null;
+          group_id: string | null;
           id: string;
-          progress_mode: string;
-          progress_value: number;
           revision: number;
           sort_rank: string;
-          status: string;
           title: string;
           updated_at: string;
           user_id: string;
         };
         Insert: {
-          archived_at?: string | null;
-          category: string;
           category_tag_id?: string | null;
           client_updated_at?: string;
+          completed_at?: string | null;
           created_at?: string;
           deleted_at?: string | null;
-          description?: string;
-          due_date?: string | null;
+          group_id?: string | null;
           id: string;
-          progress_mode: string;
-          progress_value?: number;
           revision?: number;
           sort_rank: string;
-          status: string;
           title?: string;
           updated_at?: string;
           user_id: string;
         };
         Update: {
-          archived_at?: string | null;
-          category?: string;
           category_tag_id?: string | null;
           client_updated_at?: string;
+          completed_at?: string | null;
           created_at?: string;
           deleted_at?: string | null;
-          description?: string;
-          due_date?: string | null;
+          group_id?: string | null;
           id?: string;
-          progress_mode?: string;
-          progress_value?: number;
           revision?: number;
           sort_rank?: string;
-          status?: string;
           title?: string;
           updated_at?: string;
           user_id?: string;
         };
         Relationships: [
           {
-            foreignKeyName: 'goals_category_tag_id_fkey';
-            columns: ['category_tag_id'];
+            foreignKeyName: 'goals_category_tag_fkey';
+            columns: ['category_tag_id', 'user_id'];
             isOneToOne: false;
             referencedRelation: 'category_tags';
-            referencedColumns: ['id'];
+            referencedColumns: ['id', 'user_id'];
+          },
+          {
+            foreignKeyName: 'goals_group_fkey';
+            columns: ['group_id', 'user_id'];
+            isOneToOne: false;
+            referencedRelation: 'goal_groups';
+            referencedColumns: ['id', 'user_id'];
           },
         ];
       };

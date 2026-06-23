@@ -7,12 +7,14 @@ import {
   dailyEntryFromRemote,
   getRemoteTableName,
   goalFromRemote,
+  goalGroupFromRemote,
   goalStepFromRemote,
   toRemotePayload,
   type RemoteCategoryTag,
   type RemoteChecklistItem,
   type RemoteDailyEntry,
   type RemoteGoal,
+  type RemoteGoalGroup,
   type RemoteGoalStep,
 } from './entity-mappers';
 
@@ -102,6 +104,11 @@ export async function restoreAccountEntity({
       return;
     }
 
+    if (entityType === 'goalGroup') {
+      await db.goalGroups.delete(entityId);
+      return;
+    }
+
     await db.goalSteps.delete(entityId);
     return;
   }
@@ -129,6 +136,13 @@ export async function restoreAccountEntity({
 
   if (entityType === 'goal') {
     await db.goals.put(goalFromRemote(scope, data as RemoteGoal));
+    return;
+  }
+
+  if (entityType === 'goalGroup') {
+    await db.goalGroups.put(
+      goalGroupFromRemote(scope, data as RemoteGoalGroup),
+    );
     return;
   }
 
