@@ -20,7 +20,6 @@ import {
   useRef,
   useState,
   type ReactNode,
-  type DragEvent,
   type PointerEvent,
 } from 'react';
 import { TaskTreeEditableRow, TreeListPanel } from '@/components/app';
@@ -29,6 +28,7 @@ import { CategoryAssignmentMenu, useCategoryTags } from '@/features/categories';
 import { useDebouncedInlineEdit } from '@/hooks/use-debounced-inline-edit';
 import { useTreeBulkActions } from '@/hooks/use-tree-bulk-actions';
 import { useTreeSelection } from '@/hooks/use-tree-selection';
+import { toAlphaColor } from '@/lib/color';
 import {
   assignGoalCategory,
   assignGoalGroupCategory,
@@ -39,11 +39,14 @@ import {
   createGoalStepChild,
   groupGoalsTogether,
   indentGoalStep,
+  moveGoalAfter,
+  moveGoalBefore,
+  moveGoalGroupAfter,
+  moveGoalGroupBefore,
   moveGoalToGroup,
   outdentGoalStep,
   reopenGoal,
   reorderGoal,
-  reorderGoalGroup,
   reorderGoalStep,
   softDeleteGoal,
   softDeleteGoalStep,
@@ -71,27 +74,19 @@ const goalStepInputSelector = '[data-goal-step-input="true"]';
 const visibleCategoryLimit = 4;
 
 type DragPayload = { id: string; type: 'goal' } | { id: string; type: 'group' };
-
-function encodeDragPayload(payload: DragPayload): string {
-  return JSON.stringify(payload);
-}
-
-function decodeDragPayload(value: string): DragPayload | null {
-  try {
-    const parsed = JSON.parse(value) as Partial<DragPayload>;
-
-    if (
-      (parsed.type === 'goal' || parsed.type === 'group') &&
-      typeof parsed.id === 'string'
-    ) {
-      return parsed as DragPayload;
-    }
-  } catch {
-    return null;
-  }
-
-  return null;
-}
+type PositionSide = 'before' | 'after';
+type DragTarget =
+  | { id: string; type: 'goal-combine' }
+  | { id: string; side: PositionSide; type: 'goal-position' }
+  | { id: string; type: 'group-combine' }
+  | { id: string; side: PositionSide; type: 'group-position' }
+  | { type: 'ungrouped' };
+type PointerDragState = {
+  offsetX: number;
+  offsetY: number;
+  payload: DragPayload;
+  pointerId: number;
+};
 
 function getProgressTone(summary: GoalStepSummary) {
   const ratio =
@@ -151,17 +146,167 @@ function isCategoryComplete(summary: GoalStepSummary, categoryTagId: string) {
   );
 }
 
-function createDragBind(payload: DragPayload) {
-  return {
-    draggable: true,
-    onDragStart(event: DragEvent<HTMLElement>) {
-      event.dataTransfer.effectAllowed = 'move';
-      event.dataTransfer.setData(
-        'application/x-tick-goals',
-        encodeDragPayload(payload),
-      );
-    },
-  };
+function isSameDragPayload(
+  first: DragPayload | null,
+  second: DragPayload,
+): boolean {
+  return Boolean(first && first.type === second.type && first.id === second.id);
+}
+
+function isSameDragTarget(
+  first: DragTarget | null,
+  second: DragTarget,
+): boolean {
+  if (!first || first.type !== second.type) {
+    return false;
+  }
+
+  if (first.type === 'ungrouped' || second.type === 'ungrouped') {
+    return first.type === second.type;
+  }
+
+  if (first.id !== second.id) {
+    return false;
+  }
+
+  if ('side' in first || 'side' in second) {
+    return 'side' in first && 'side' in second && first.side === second.side;
+  }
+
+  return true;
+}
+
+function createPositionDragTarget(
+  payload: DragPayload,
+  id: string,
+  side: PositionSide,
+): DragTarget {
+  return payload.type === 'group'
+    ? { id, side, type: 'group-position' }
+    : { id, side, type: 'goal-position' };
+}
+
+function getPositionTargetFromPoint(
+  payload: DragPayload,
+  clientX: number,
+  clientY: number,
+): DragTarget | null {
+  const selector =
+    payload.type === 'group' ? '[data-group-drop-id]' : '[data-goal-drop-id]';
+  const cards = Array.from(document.querySelectorAll<HTMLElement>(selector))
+    .map((element) => {
+      const id =
+        payload.type === 'group'
+          ? element.dataset.groupDropId
+          : element.dataset.goalDropId;
+
+      return id
+        ? {
+            id,
+            rect: element.getBoundingClientRect(),
+          }
+        : null;
+    })
+    .filter((card): card is { id: string; rect: DOMRect } =>
+      Boolean(card && card.id !== payload.id),
+    );
+
+  if (cards.length === 0) {
+    return null;
+  }
+
+  const rowCards = cards.filter(
+    ({ rect }) => clientY >= rect.top - 14 && clientY <= rect.bottom + 14,
+  );
+  const candidates =
+    rowCards.length > 0
+      ? rowCards
+      : cards.filter(({ rect }) => {
+          const closestDistance = Math.min(
+            ...cards.map((card) =>
+              Math.abs(clientY - (card.rect.top + card.rect.height / 2)),
+            ),
+          );
+
+          return (
+            Math.abs(clientY - (rect.top + rect.height / 2)) === closestDistance
+          );
+        });
+  const sortedCandidates = [...candidates].sort(
+    (first, second) => first.rect.left - second.rect.left,
+  );
+  const firstCandidate = sortedCandidates[0];
+
+  if (
+    firstCandidate &&
+    clientX < firstCandidate.rect.left + firstCandidate.rect.width / 2
+  ) {
+    return createPositionDragTarget(payload, firstCandidate.id, 'before');
+  }
+
+  const target =
+    sortedCandidates
+      .filter(({ rect }) => clientX >= rect.left + rect.width / 2)
+      .at(-1) ?? sortedCandidates[0];
+
+  if (!target) {
+    return null;
+  }
+
+  return createPositionDragTarget(payload, target.id, 'after');
+}
+
+function getDragTargetFromPoint(
+  payload: DragPayload,
+  clientX: number,
+  clientY: number,
+): DragTarget | null {
+  const target = document.elementFromPoint(
+    clientX,
+    clientY,
+  ) as HTMLElement | null;
+  const goalId =
+    target?.closest<HTMLElement>('[data-goal-drop-id]')?.dataset.goalDropId ??
+    null;
+  const groupId =
+    target?.closest<HTMLElement>('[data-group-drop-id]')?.dataset.groupDropId ??
+    null;
+  const ungroupedDropZone = target?.closest<HTMLElement>(
+    '[data-ungrouped-drop-zone="true"]',
+  );
+
+  if (payload.type === 'group') {
+    if (groupId && groupId !== payload.id) {
+      const groupElement = target?.closest<HTMLElement>('[data-group-drop-id]');
+      const rect = groupElement?.getBoundingClientRect();
+      const side =
+        rect && clientX < rect.left + rect.width / 2 ? 'before' : 'after';
+
+      return { id: groupId, side, type: 'group-position' };
+    }
+
+    return getPositionTargetFromPoint(payload, clientX, clientY);
+  }
+
+  if (goalId && goalId !== payload.id) {
+    return { id: goalId, type: 'goal-combine' };
+  }
+
+  if (groupId) {
+    return { id: groupId, type: 'group-combine' };
+  }
+
+  const positionTarget = getPositionTargetFromPoint(payload, clientX, clientY);
+
+  if (positionTarget) {
+    return positionTarget;
+  }
+
+  if (ungroupedDropZone) {
+    return { type: 'ungrouped' };
+  }
+
+  return null;
 }
 
 export function GoalsSurface() {
@@ -200,7 +345,6 @@ export function GoalsSurface() {
     [stepCategoryTags],
   );
   const [view, setView] = useState<'active' | 'archived'>('active');
-  const [focusedGroupId, setFocusedGroupId] = useState<string | null>(null);
   const selectedGoal = selectedGoalId
     ? ([...activeGoals, ...archivedGoals].find(
         (goal) => goal.id === selectedGoalId,
@@ -215,26 +359,71 @@ export function GoalsSurface() {
     () => new Map(groups.map((group) => [group.id, group])),
     [groups],
   );
-  const touchDragTimerRef = useRef<number | null>(null);
-  const touchDragPayloadRef = useRef<DragPayload | null>(null);
-  const [isTouchDragging, setIsTouchDragging] = useState(false);
+  const pointerDragRef = useRef<PointerDragState | null>(null);
+  const dragPreviewRef = useRef<HTMLElement | null>(null);
+  const [activeDragPayload, setActiveDragPayload] =
+    useState<DragPayload | null>(null);
+  const [dragTarget, setDragTarget] = useState<DragTarget | null>(null);
 
-  const beginTouchDrag = useCallback(
+  const clearDragState = useCallback(() => {
+    dragPreviewRef.current?.remove();
+    dragPreviewRef.current = null;
+    pointerDragRef.current = null;
+    setActiveDragPayload(null);
+    setDragTarget(null);
+  }, []);
+
+  const setCurrentDragTarget = useCallback((target: DragTarget | null) => {
+    setDragTarget((current) =>
+      target && isSameDragTarget(current, target) ? current : target,
+    );
+  }, []);
+
+  const beginPointerDrag = useCallback(
     (payload: DragPayload, event: PointerEvent<HTMLElement>) => {
-      if (event.pointerType === 'mouse') {
+      if (!event.isPrimary) {
         return;
       }
 
-      if (touchDragTimerRef.current !== null) {
-        window.clearTimeout(touchDragTimerRef.current);
+      const card = event.currentTarget.closest<HTMLElement>(
+        '[data-drag-card="true"]',
+      );
+
+      if (!card) {
+        return;
       }
 
-      touchDragTimerRef.current = window.setTimeout(() => {
-        touchDragPayloadRef.current = payload;
-        setIsTouchDragging(true);
-      }, 350);
+      event.preventDefault();
+      event.stopPropagation();
+
+      dragPreviewRef.current?.remove();
+
+      const rect = card.getBoundingClientRect();
+      const preview = card.cloneNode(true) as HTMLElement;
+      preview.setAttribute('aria-hidden', 'true');
+      preview.style.position = 'fixed';
+      preview.style.left = '0';
+      preview.style.top = '0';
+      preview.style.width = `${rect.width}px`;
+      preview.style.height = `${rect.height}px`;
+      preview.style.zIndex = '2147483647';
+      preview.style.pointerEvents = 'none';
+      preview.style.transform = `translate3d(${rect.left}px, ${rect.top}px, 0)`;
+      preview.style.transition = 'none';
+      preview.style.boxShadow = '0 24px 56px rgba(8, 6, 20, 0.35)';
+      document.body.appendChild(preview);
+
+      pointerDragRef.current = {
+        offsetX: event.clientX - rect.left,
+        offsetY: event.clientY - rect.top,
+        payload,
+        pointerId: event.pointerId,
+      };
+      dragPreviewRef.current = preview;
+      setActiveDragPayload(payload);
+      setCurrentDragTarget(null);
     },
-    [],
+    [setCurrentDragTarget],
   );
 
   useEffect(() => {
@@ -251,57 +440,97 @@ export function GoalsSurface() {
   }, []);
 
   useEffect(() => {
-    function clearTouchDragTimer() {
-      if (touchDragTimerRef.current !== null) {
-        window.clearTimeout(touchDragTimerRef.current);
-        touchDragTimerRef.current = null;
-      }
-    }
+    return () => {
+      dragPreviewRef.current?.remove();
+    };
+  }, []);
 
+  useEffect(() => {
     function handlePointerCancel() {
-      clearTouchDragTimer();
-      touchDragPayloadRef.current = null;
-      setIsTouchDragging(false);
+      clearDragState();
     }
 
-    function handlePointerUp(event: globalThis.PointerEvent) {
-      clearTouchDragTimer();
+    function handlePointerMove(event: globalThis.PointerEvent) {
+      const dragState = pointerDragRef.current;
 
-      const payload = touchDragPayloadRef.current;
-      touchDragPayloadRef.current = null;
-      setIsTouchDragging(false);
-
-      if (!payload || !scope) {
+      if (!dragState || dragState.pointerId !== event.pointerId) {
         return;
       }
 
-      const target = document.elementFromPoint(
-        event.clientX,
-        event.clientY,
-      ) as HTMLElement | null;
-      const goalId =
-        target?.closest<HTMLElement>('[data-goal-drop-id]')?.dataset
-          .goalDropId ?? null;
-      const groupId =
-        target?.closest<HTMLElement>('[data-group-drop-id]')?.dataset
-          .groupDropId ?? null;
-      const ungroupedDropZone = target?.closest<HTMLElement>(
-        '[data-ungrouped-drop-zone="true"]',
+      dragPreviewRef.current?.style.setProperty(
+        'transform',
+        `translate3d(${event.clientX - dragState.offsetX}px, ${
+          event.clientY - dragState.offsetY
+        }px, 0)`,
       );
 
+      const target = getDragTargetFromPoint(
+        dragState.payload,
+        event.clientX,
+        event.clientY,
+      );
+
+      setCurrentDragTarget(target);
+    }
+
+    function handlePointerUp(event: globalThis.PointerEvent) {
+      const dragState = pointerDragRef.current;
+
+      if (!dragState || dragState.pointerId !== event.pointerId) {
+        return;
+      }
+
+      const target = getDragTargetFromPoint(
+        dragState.payload,
+        event.clientX,
+        event.clientY,
+      );
+      const combineGoalId = target?.type === 'goal-combine' ? target.id : null;
+      const positionGoalTarget =
+        target?.type === 'goal-position' ? target : null;
+      const combineGroupId =
+        target?.type === 'group-combine' ? target.id : null;
+      const positionGroupTarget =
+        target?.type === 'group-position' ? target : null;
+      const ungroupedDropZone = target?.type === 'ungrouped';
+      const { payload } = dragState;
+      clearDragState();
+
+      if (!scope) {
+        return;
+      }
+
       if (payload.type === 'goal') {
-        if (goalId && goalId !== payload.id) {
+        if (combineGoalId) {
           void groupGoalsTogether({
             scope,
             sourceGoalId: payload.id,
-            targetGoalId: goalId,
+            targetGoalId: combineGoalId,
             title: dictionary.goals.newGroupName,
           });
           return;
         }
 
-        if (groupId) {
-          void moveGoalToGroup({ scope, goalId: payload.id, groupId });
+        if (combineGroupId) {
+          void moveGoalToGroup({
+            scope,
+            goalId: payload.id,
+            groupId: combineGroupId,
+          });
+          return;
+        }
+
+        if (positionGoalTarget) {
+          const moveGoal =
+            positionGoalTarget.side === 'before'
+              ? moveGoalBefore
+              : moveGoalAfter;
+
+          void moveGoal({
+            scope,
+            goalId: payload.id,
+            targetGoalId: positionGoalTarget.id,
+          });
           return;
         }
 
@@ -311,28 +540,35 @@ export function GoalsSurface() {
         return;
       }
 
-      if (payload.type === 'group' && groupId && groupId !== payload.id) {
-        void reorderGoalGroup({
+      if (payload.type === 'group' && positionGroupTarget) {
+        const moveGoalGroup =
+          positionGroupTarget.side === 'before'
+            ? moveGoalGroupBefore
+            : moveGoalGroupAfter;
+
+        void moveGoalGroup({
           scope,
           goalGroupId: payload.id,
-          direction:
-            groups.findIndex((group) => group.id === payload.id) >
-            groups.findIndex((group) => group.id === groupId)
-              ? 'up'
-              : 'down',
+          targetGoalGroupId: positionGroupTarget.id,
         });
       }
     }
 
+    window.addEventListener('pointermove', handlePointerMove);
     window.addEventListener('pointerup', handlePointerUp);
     window.addEventListener('pointercancel', handlePointerCancel);
 
     return () => {
-      clearTouchDragTimer();
+      window.removeEventListener('pointermove', handlePointerMove);
       window.removeEventListener('pointerup', handlePointerUp);
       window.removeEventListener('pointercancel', handlePointerCancel);
     };
-  }, [dictionary.goals.newGroupName, groups, scope]);
+  }, [
+    clearDragState,
+    dictionary.goals.newGroupName,
+    scope,
+    setCurrentDragTarget,
+  ]);
 
   if (!scope) {
     return null;
@@ -364,67 +600,6 @@ export function GoalsSurface() {
       title: dictionary.goals.newGoalTitle,
     });
     openGoal(goal.id);
-  }
-
-  async function handleGoalDrop(
-    event: DragEvent<HTMLElement>,
-    targetGoal: Goal,
-  ) {
-    event.preventDefault();
-    const payload = decodeDragPayload(
-      event.dataTransfer.getData('application/x-tick-goals'),
-    );
-
-    if (!payload || payload.type !== 'goal' || payload.id === targetGoal.id) {
-      return;
-    }
-
-    const group = await groupGoalsTogether({
-      scope: activeScope,
-      sourceGoalId: payload.id,
-      targetGoalId: targetGoal.id,
-      title: dictionary.goals.newGroupName,
-    });
-
-    if (group) {
-      setFocusedGroupId(group.id);
-      openGroup(group.id);
-    }
-  }
-
-  async function handleGroupDrop(
-    event: DragEvent<HTMLElement>,
-    targetGroup: GoalGroup,
-  ) {
-    event.preventDefault();
-    const payload = decodeDragPayload(
-      event.dataTransfer.getData('application/x-tick-goals'),
-    );
-
-    if (!payload) {
-      return;
-    }
-
-    if (payload.type === 'goal') {
-      await moveGoalToGroup({
-        scope: activeScope,
-        goalId: payload.id,
-        groupId: targetGroup.id,
-      });
-      return;
-    }
-
-    if (payload.type === 'group' && payload.id !== targetGroup.id) {
-      await reorderGoalGroup({
-        scope: activeScope,
-        goalGroupId: payload.id,
-        direction:
-          groups.findIndex((group) => group.id === payload.id) >
-          groups.findIndex((group) => group.id === targetGroup.id)
-            ? 'up'
-            : 'down',
-      });
-    }
   }
 
   if (selectedGoal) {
@@ -470,10 +645,7 @@ export function GoalsSurface() {
                   selectedGroup.categoryTagId ?? '',
                 )}
               />
-              <GoalGroupTitleEditor
-                autoFocus={focusedGroupId === selectedGroup.id}
-                group={selectedGroup}
-              />
+              <GoalGroupTitleEditor autoFocus={false} group={selectedGroup} />
               <CategoryAssignmentMenu
                 assignLabel={dictionary.goals.assignGroupCategory}
                 clearLabel={dictionary.dayEditor.clearCategory}
@@ -505,16 +677,16 @@ export function GoalsSurface() {
           description={String(groupGoals.length)}
         >
           <GoalGrid
+            activeDragPayload={activeDragPayload}
             archived={false}
+            dragTarget={dragTarget}
             goals={groupGoals}
             groups={groups}
             goalCategoryMap={goalCategoryMap}
-            isTouchDragging={isTouchDragging}
             stepCategoryMap={stepCategoryMap}
             summaries={goalStepSummaries}
-            onBeginTouchDrag={beginTouchDrag}
+            onBeginPointerDrag={beginPointerDrag}
             onComplete={(goalId) => completeGoal({ scope, goalId })}
-            onDropGoal={handleGoalDrop}
             onMoveGoal={(goalId, groupId) =>
               moveGoalToGroup({ scope, goalId, groupId })
             }
@@ -548,14 +720,16 @@ export function GoalsSurface() {
           }
         >
           <GoalGrid
+            activeDragPayload={activeDragPayload}
             archived
+            dragTarget={dragTarget}
             goals={archivedGoals}
             groups={groups}
             goalCategoryMap={goalCategoryMap}
             groupById={archivedGroupMap}
-            isTouchDragging={isTouchDragging}
             stepCategoryMap={stepCategoryMap}
             summaries={goalStepSummaries}
+            onBeginPointerDrag={beginPointerDrag}
             onOpenGoal={openGoal}
             onRestore={(goalId) => reopenGoal({ scope, goalId })}
           />
@@ -563,22 +737,13 @@ export function GoalsSurface() {
       ) : (
         <>
           <div
-            className="grid gap-3 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+            className={`grid gap-3 rounded-[1.35rem] md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 ${
+              dragTarget?.type === 'ungrouped' &&
+              activeDragPayload?.type === 'goal'
+                ? 'ring-1 ring-[#f0c38e]/45'
+                : ''
+            }`}
             data-ungrouped-drop-zone="true"
-            onDragOver={(event) => event.preventDefault()}
-            onDrop={(event) => {
-              const payload = decodeDragPayload(
-                event.dataTransfer.getData('application/x-tick-goals'),
-              );
-
-              if (payload?.type === 'goal') {
-                void moveGoalToGroup({
-                  scope,
-                  goalId: payload.id,
-                  groupId: null,
-                });
-              }
-            }}
           >
             {groups.map((group) => {
               const groupGoals = activeGoals.filter(
@@ -588,13 +753,13 @@ export function GoalsSurface() {
               return (
                 <GoalGroupCard
                   key={group.id}
+                  activeDragPayload={activeDragPayload}
                   category={groupCategoryMap.get(group.categoryTagId ?? '')}
+                  dragTarget={dragTarget}
                   goals={groupGoals}
                   group={group}
                   goalCategoryMap={goalCategoryMap}
-                  isTouchDragging={isTouchDragging}
-                  onBeginTouchDrag={beginTouchDrag}
-                  onDropGroup={handleGroupDrop}
+                  onBeginPointerDrag={beginPointerDrag}
                   onOpen={openGroup}
                 />
               );
@@ -603,18 +768,18 @@ export function GoalsSurface() {
             {ungroupedActiveGoals.map((goal, index) => (
               <GoalCard
                 key={goal.id}
+                activeDragPayload={activeDragPayload}
                 archived={false}
+                dragTarget={dragTarget}
                 goal={goal}
                 goalCategory={goalCategoryMap.get(goal.categoryTagId ?? '')}
                 groups={groups}
                 isFirst={index === 0}
                 isLast={index === ungroupedActiveGoals.length - 1}
-                isTouchDragging={isTouchDragging}
                 stepCategoryMap={stepCategoryMap}
                 summary={getGoalStepSummary(goalStepSummaries, goal.id)}
-                onBeginTouchDrag={beginTouchDrag}
+                onBeginPointerDrag={beginPointerDrag}
                 onComplete={(goalId) => completeGoal({ scope, goalId })}
-                onDropGoal={handleGoalDrop}
                 onMoveGoal={(goalId, groupId) =>
                   moveGoalToGroup({ scope, goalId, groupId })
                 }
@@ -695,6 +860,26 @@ function NewEntityCard({
   );
 }
 
+function DropTargetOverlay() {
+  return (
+    <span
+      aria-hidden="true"
+      className="pointer-events-none absolute inset-0 z-10 rounded-[inherit] border border-dashed border-[#f0c38e]/80 bg-[#f0c38e]/10 shadow-[inset_0_0_0_1px_rgba(240,195,142,0.2),0_18px_34px_rgba(8,6,20,0.12)]"
+    />
+  );
+}
+
+function PositionIndicator({ side }: { side: PositionSide }) {
+  return (
+    <span
+      aria-hidden="true"
+      className={`pointer-events-none absolute top-4 z-20 h-[calc(100%-2rem)] w-1 rounded-full bg-[#f0c38e] shadow-[0_0_0_3px_rgba(240,195,142,0.16),0_0_18px_rgba(240,195,142,0.42)] ${
+        side === 'before' ? '-left-2' : '-right-2'
+      }`}
+    />
+  );
+}
+
 function CategoryAccent({
   category,
   position = 'dot',
@@ -738,125 +923,155 @@ function CategoryAccent({
 }
 
 function GoalGroupCard({
+  activeDragPayload,
   category,
+  dragTarget,
   goals,
   group,
   goalCategoryMap,
-  isTouchDragging,
-  onBeginTouchDrag,
-  onDropGroup,
+  onBeginPointerDrag,
   onOpen,
 }: {
+  activeDragPayload: DragPayload | null;
   category?: CategoryTag | null;
+  dragTarget: DragTarget | null;
   goals: Goal[];
   group: GoalGroup;
   goalCategoryMap: Map<string, CategoryTag>;
-  isTouchDragging: boolean;
-  onBeginTouchDrag: (
+  onBeginPointerDrag: (
     payload: DragPayload,
     event: PointerEvent<HTMLElement>,
   ) => void;
-  onDropGroup: (
-    event: DragEvent<HTMLElement>,
-    group: GoalGroup,
-  ) => Promise<void>;
   onOpen: (groupId: string) => void;
 }) {
   const { dictionary } = useAppContext();
+  const groupPayload = { id: group.id, type: 'group' } satisfies DragPayload;
+  const isDragging = isSameDragPayload(activeDragPayload, groupPayload);
+  const showDropTarget =
+    activeDragPayload?.type === 'goal' &&
+    dragTarget?.type === 'group-combine' &&
+    dragTarget.id === group.id &&
+    !isDragging;
+  const positionTarget =
+    activeDragPayload?.type === 'group' &&
+    dragTarget?.type === 'group-position' &&
+    dragTarget.id === group.id &&
+    !isDragging
+      ? dragTarget
+      : null;
 
   return (
-    <button
-      type="button"
-      className={`group relative grid h-32 cursor-pointer content-start gap-3 overflow-hidden rounded-[1.35rem] bg-white/[0.05] p-4 text-left shadow-[0_14px_34px_rgba(8,6,20,0.12)] ring-1 ring-white/[0.08] transition hover:-translate-y-0.5 hover:bg-white/[0.075] hover:ring-[#f0c38e]/25 active:translate-y-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0] ${
-        isTouchDragging ? 'ring-[#f0c38e]/45' : ''
-      }`}
-      data-group-drop-id={group.id}
-      onClick={() => onOpen(group.id)}
-      onDragOver={(event) => event.preventDefault()}
-      onDrop={(event) => void onDropGroup(event, group)}
-      onPointerDown={(event) =>
-        onBeginTouchDrag({ type: 'group', id: group.id }, event)
-      }
-      {...createDragBind({ type: 'group', id: group.id })}
-    >
-      <span className="flex min-w-0 items-center justify-start gap-2">
-        <GripVertical
-          aria-hidden="true"
-          className="size-4 shrink-0 text-[#9f96b8] opacity-70"
-        />
-        <span className="truncate text-base font-semibold text-[#fff9f2]">
-          {group.title || dictionary.goals.newGroupName}
-        </span>
-        {category ? (
-          <span
-            className="flex items-center gap-1.5 rounded-full bg-white/[0.05] px-2 py-0.5 text-[0.65rem] font-bold uppercase tracking-wider opacity-90"
-            style={{ color: category.colorHex }}
-          >
-            <CategoryAccent category={category} position="dot" />
-            <span className="truncate">{category.name}</span>
-          </span>
+    <>
+      <article
+        role="button"
+        tabIndex={0}
+        className={`group relative grid h-32 cursor-pointer content-start gap-2 rounded-[1.35rem] bg-white/[0.05] px-4 pb-5 pt-3.5 text-left shadow-[0_14px_34px_rgba(8,6,20,0.12)] ring-1 ring-white/[0.08] transition hover:-translate-y-0.5 hover:bg-white/[0.075] hover:ring-[#f0c38e]/25 active:translate-y-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0] ${
+          isDragging ? 'invisible' : ''
+        }`}
+        data-drag-card="true"
+        data-group-drop-id={group.id}
+        onClick={() => onOpen(group.id)}
+        onKeyDown={(event) => {
+          if (event.currentTarget !== event.target) {
+            return;
+          }
+
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            onOpen(group.id);
+          }
+        }}
+      >
+        {showDropTarget ? <DropTargetOverlay /> : null}
+        {positionTarget ? (
+          <PositionIndicator side={positionTarget.side} />
         ) : null}
-      </span>
-      <span className="grid grid-cols-2 gap-2">
-        {goals.slice(0, goals.length > 4 ? 3 : 4).map((goal) => {
-          const cat = goalCategoryMap.get(goal.categoryTagId ?? '');
-          return (
+        <span className="flex min-w-0 items-center justify-start gap-2">
+          <button
+            type="button"
+            aria-label={dictionary.goals.dragGoal}
+            className="inline-flex size-7 shrink-0 touch-none cursor-grab items-center justify-center rounded-full border border-white/10 bg-white/[0.045] text-[#bdb4d4] transition hover:-translate-y-0.5 hover:border-[#f0c38e]/50 hover:bg-[#f0c38e]/14 hover:text-[#fff9f2] hover:shadow-[0_10px_22px_rgba(240,195,142,0.16)] active:translate-y-0 active:cursor-grabbing focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0]"
+            onClick={(event) => event.stopPropagation()}
+            onPointerDown={(event) => onBeginPointerDrag(groupPayload, event)}
+          >
+            <GripVertical aria-hidden="true" className="size-4" />
+          </button>
+          <span className="min-w-0 truncate text-base font-semibold leading-tight text-[#fff9f2]">
+            {group.title || dictionary.goals.newGroupName}
+          </span>
+          {category ? (
             <span
-              key={goal.id}
-              className="relative flex flex-col justify-center overflow-hidden truncate rounded-[0.95rem] bg-white/[0.05] py-2 text-left ring-1 ring-white/[0.05]"
+              className="inline-flex min-h-7 shrink-0 items-center gap-2 rounded-full border px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.24em] text-[#f7e8ce] shadow-sm shadow-[#312c51]/10"
+              style={{
+                borderColor: toAlphaColor(category.colorHex, 0.6),
+                backgroundColor: toAlphaColor(category.colorHex, 0.14),
+              }}
             >
-              <CategoryAccent category={cat} position="vertical" />
+              <span className="truncate">{category.name}</span>
+            </span>
+          ) : null}
+        </span>
+        <span className="grid grid-cols-2 gap-2 self-start">
+          {goals.slice(0, goals.length > 4 ? 3 : 4).map((goal) => {
+            const cat = goalCategoryMap.get(goal.categoryTagId ?? '');
+            return (
               <span
-                className={`flex flex-col justify-center truncate ${cat ? 'pl-5 pr-3' : 'px-4'}`}
+                key={goal.id}
+                className="relative flex min-h-0 flex-col justify-center overflow-hidden truncate rounded-[0.95rem] bg-white/[0.05] py-1.5 text-left ring-1 ring-white/[0.05]"
               >
-                <span className="truncate text-xs font-semibold text-[#f8f3ea]">
-                  {goal.title || dictionary.goals.newGoalTitle}
+                <CategoryAccent category={cat} position="vertical" />
+                <span
+                  className={`flex flex-col justify-center truncate leading-tight ${cat ? 'pl-5 pr-3' : 'px-4'}`}
+                >
+                  <span className="truncate text-xs font-semibold text-[#f8f3ea]">
+                    {goal.title || dictionary.goals.newGoalTitle}
+                  </span>
                 </span>
               </span>
+            );
+          })}
+          {goals.length > 4 ? (
+            <span className="flex items-center justify-center truncate rounded-[0.95rem] bg-white/[0.05] px-3 py-1.5 text-center text-xs font-medium text-[#f8f3ea] ring-1 ring-white/[0.05]">
+              +{goals.length - 3}
             </span>
-          );
-        })}
-        {goals.length > 4 ? (
-          <span className="truncate rounded-[0.95rem] bg-white/[0.05] px-3 py-1.5 text-xs font-medium text-[#f8f3ea] text-center flex items-center justify-center ring-1 ring-white/[0.05]">
-            +{goals.length - 3}
-          </span>
-        ) : null}
-      </span>
-    </button>
+          ) : null}
+        </span>
+      </article>
+    </>
   );
 }
 
 function GoalGrid({
+  activeDragPayload,
   archived,
+  dragTarget,
   goals,
   groups,
   goalCategoryMap,
   groupById,
-  isTouchDragging,
   stepCategoryMap,
   summaries,
-  onBeginTouchDrag,
+  onBeginPointerDrag,
   onComplete,
-  onDropGoal,
   onMoveGoal,
   onOpenGoal,
   onReorderGoal,
   onRestore,
 }: {
+  activeDragPayload: DragPayload | null;
   archived: boolean;
+  dragTarget: DragTarget | null;
   goals: Goal[];
   groups: GoalGroup[];
   goalCategoryMap: Map<string, CategoryTag>;
   groupById?: Map<string, GoalGroup>;
-  isTouchDragging: boolean;
   stepCategoryMap: Map<string, CategoryTag>;
   summaries: Map<string, GoalStepSummary>;
-  onBeginTouchDrag?: (
+  onComplete?: (goalId: string) => Promise<void> | void;
+  onBeginPointerDrag?: (
     payload: DragPayload,
     event: PointerEvent<HTMLElement>,
   ) => void;
-  onComplete?: (goalId: string) => Promise<void> | void;
-  onDropGoal?: (event: DragEvent<HTMLElement>, goal: Goal) => Promise<void>;
   onMoveGoal?: (goalId: string, groupId: string | null) => Promise<void> | void;
   onOpenGoal: (goalId: string) => void;
   onReorderGoal?: (
@@ -874,19 +1089,19 @@ function GoalGrid({
       {goals.map((goal, index) => (
         <GoalCard
           key={goal.id}
+          activeDragPayload={activeDragPayload}
           archived={archived}
+          dragTarget={dragTarget}
           goal={goal}
           goalCategory={goalCategoryMap.get(goal.categoryTagId ?? '')}
           group={goal.groupId ? groupById?.get(goal.groupId) : undefined}
           groups={groups}
           isFirst={index === 0}
           isLast={index === goals.length - 1}
-          isTouchDragging={isTouchDragging}
           stepCategoryMap={stepCategoryMap}
           summary={getGoalStepSummary(summaries, goal.id)}
-          onBeginTouchDrag={onBeginTouchDrag}
+          onBeginPointerDrag={onBeginPointerDrag}
           onComplete={onComplete}
-          onDropGoal={onDropGoal}
           onMoveGoal={onMoveGoal}
           onOpen={onOpenGoal}
           onReorder={onReorderGoal}
@@ -898,40 +1113,40 @@ function GoalGrid({
 }
 
 function GoalCard({
+  activeDragPayload,
   archived,
+  dragTarget,
   goal,
   goalCategory,
   group,
   groups,
   isFirst,
   isLast,
-  isTouchDragging,
   stepCategoryMap,
   summary,
-  onBeginTouchDrag,
+  onBeginPointerDrag,
   onComplete,
-  onDropGoal,
   onMoveGoal,
   onOpen,
   onReorder,
   onRestore,
 }: {
+  activeDragPayload: DragPayload | null;
   archived: boolean;
+  dragTarget: DragTarget | null;
   goal: Goal;
   goalCategory?: CategoryTag | null;
   group?: GoalGroup;
   groups: GoalGroup[];
   isFirst: boolean;
   isLast: boolean;
-  isTouchDragging: boolean;
   stepCategoryMap: Map<string, CategoryTag>;
   summary: GoalStepSummary;
-  onBeginTouchDrag?: (
+  onComplete?: (goalId: string) => Promise<void> | void;
+  onBeginPointerDrag?: (
     payload: DragPayload,
     event: PointerEvent<HTMLElement>,
   ) => void;
-  onComplete?: (goalId: string) => Promise<void> | void;
-  onDropGoal?: (event: DragEvent<HTMLElement>, goal: Goal) => Promise<void>;
   onMoveGoal?: (goalId: string, groupId: string | null) => Promise<void> | void;
   onOpen: (goalId: string) => void;
   onReorder?: (
@@ -943,157 +1158,167 @@ function GoalCard({
   const { dictionary } = useAppContext();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const progressTone = getProgressTone(summary);
+  const goalPayload = { id: goal.id, type: 'goal' } satisfies DragPayload;
+  const isDragging = isSameDragPayload(activeDragPayload, goalPayload);
+  const showDropTarget =
+    activeDragPayload?.type === 'goal' &&
+    dragTarget?.type === 'goal-combine' &&
+    dragTarget.id === goal.id &&
+    !isDragging;
+  const positionTarget =
+    activeDragPayload?.type === 'goal' &&
+    dragTarget?.type === 'goal-position' &&
+    dragTarget.id === goal.id &&
+    !isDragging
+      ? dragTarget
+      : null;
 
   return (
-    <article
-      aria-label={goal.title || dictionary.goals.newGoalTitle}
-      className={`group relative grid h-32 cursor-pointer content-start gap-3 overflow-hidden rounded-[1.35rem] bg-white/[0.055] p-4 text-left shadow-[0_14px_34px_rgba(8,6,20,0.12)] ring-1 ring-white/[0.08] transition hover:-translate-y-0.5 hover:bg-white/[0.08] hover:ring-[#f0c38e]/25 ${
-        archived ? 'opacity-95' : ''
-      } ${isTouchDragging && !archived ? 'ring-[#f0c38e]/45' : ''}`}
-      data-goal-drop-id={archived ? undefined : goal.id}
-      role="button"
-      tabIndex={0}
-      onClick={() => onOpen(goal.id)}
-      onDragOver={(event) => {
-        if (!archived) {
-          event.preventDefault();
-        }
-      }}
-      onDrop={(event) => {
-        if (!archived && onDropGoal) {
-          void onDropGoal(event, goal);
-        }
-      }}
-      onKeyDown={(event) => {
-        if (
-          event.currentTarget === event.target &&
-          (event.key === 'Enter' || event.key === ' ')
-        ) {
-          event.preventDefault();
-          onOpen(goal.id);
-        }
-      }}
-    >
-      <CategoryAccent category={goalCategory} position="vertical" />
-      <div className="flex min-w-0 items-center justify-start gap-2 pr-10">
-        {!archived ? (
-          <button
-            type="button"
-            aria-label={dictionary.goals.dragGoal}
-            className="inline-flex size-4 shrink-0 items-center justify-center text-[#9f96b8] opacity-70 transition hover:text-[#fff9f2] hover:opacity-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0]"
-            onClick={(event) => event.stopPropagation()}
-            onPointerDown={(event) =>
-              onBeginTouchDrag?.({ type: 'goal', id: goal.id }, event)
-            }
-            {...createDragBind({ type: 'goal', id: goal.id })}
-          >
-            <GripVertical aria-hidden="true" className="size-4" />
-          </button>
-        ) : null}
-        <span className="min-w-0 flex-1 truncate text-base font-semibold text-[#fff9f2]">
-          {goal.title || dictionary.goals.newGoalTitle}
-        </span>
-      </div>
-      <div
-        className="absolute right-4 top-3"
-        onClick={(event) => event.stopPropagation()}
+    <>
+      <article
+        aria-label={goal.title || dictionary.goals.newGoalTitle}
+        className={`group relative grid h-32 cursor-pointer content-start gap-3 rounded-[1.35rem] bg-white/[0.055] p-4 text-left shadow-[0_14px_34px_rgba(8,6,20,0.12)] ring-1 ring-white/[0.08] transition hover:-translate-y-0.5 hover:bg-white/[0.08] hover:ring-[#f0c38e]/25 ${
+          archived ? 'opacity-95' : ''
+        } ${isDragging ? 'invisible' : ''}`}
+        data-drag-card="true"
+        data-goal-drop-id={archived ? undefined : goal.id}
+        role="button"
+        tabIndex={0}
+        onClick={() => onOpen(goal.id)}
+        onKeyDown={(event) => {
+          if (
+            event.currentTarget === event.target &&
+            (event.key === 'Enter' || event.key === ' ')
+          ) {
+            event.preventDefault();
+            onOpen(goal.id);
+          }
+        }}
       >
-        <IconButton
-          aria-expanded={isMenuOpen}
-          aria-label={dictionary.goals.goalMenu}
-          className="size-8 rounded-full text-[#bdb4d4] hover:bg-white/[0.08] hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
-          onClick={(event) => {
-            event.stopPropagation();
-            setIsMenuOpen((current) => !current);
-          }}
-        >
-          <MoreHorizontal aria-hidden="true" className="size-4" />
-        </IconButton>
-        {isMenuOpen ? (
-          <div
-            className="modal-panel absolute right-0 top-10 z-20 grid min-w-48 gap-1 p-2 text-sm"
-            onClick={(event) => event.stopPropagation()}
-          >
-            {!archived && onComplete ? (
-              <button
-                type="button"
-                className="flex items-center gap-2 rounded-xl px-2 py-2 text-left text-[#f8f3ea] hover:bg-white/[0.08]"
-                onClick={() => {
-                  setIsMenuOpen(false);
-                  void onComplete(goal.id);
-                }}
-              >
-                <Check aria-hidden="true" className="size-4" />
-                {dictionary.goals.completeGoal}
-              </button>
-            ) : null}
-            {archived && onRestore ? (
-              <button
-                type="button"
-                className="flex items-center gap-2 rounded-xl px-2 py-2 text-left text-[#f8f3ea] hover:bg-white/[0.08]"
-                onClick={() => {
-                  setIsMenuOpen(false);
-                  void onRestore(goal.id);
-                }}
-              >
-                <RotateCcw aria-hidden="true" className="size-4" />
-                {dictionary.goals.restoreGoal}
-              </button>
-            ) : null}
-            {!archived && onMoveGoal ? (
-              <MoveGoalMenu
-                currentGroupId={goal.groupId}
-                groups={groups}
-                onMove={(groupId) => {
-                  setIsMenuOpen(false);
-                  return onMoveGoal(goal.id, groupId);
-                }}
-              />
-            ) : null}
-            {!archived && onReorder ? (
-              <div className="flex gap-1 px-1 pt-1">
-                <IconButton
-                  aria-label={dictionary.dayEditor.moveItemUp}
-                  className="size-8 rounded-full"
-                  disabled={isFirst}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    setIsMenuOpen(false);
-                    void onReorder(goal.id, 'up');
-                  }}
-                >
-                  <ArrowUp aria-hidden="true" className="size-4" />
-                </IconButton>
-                <IconButton
-                  aria-label={dictionary.dayEditor.moveItemDown}
-                  className="size-8 rounded-full"
-                  disabled={isLast}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    setIsMenuOpen(false);
-                    void onReorder(goal.id, 'down');
-                  }}
-                >
-                  <ArrowDown aria-hidden="true" className="size-4" />
-                </IconButton>
-              </div>
-            ) : null}
-          </div>
+        {showDropTarget ? <DropTargetOverlay /> : null}
+        {positionTarget ? (
+          <PositionIndicator side={positionTarget.side} />
         ) : null}
-      </div>
+        <CategoryAccent category={goalCategory} position="vertical" />
+        <div className="flex min-w-0 items-center justify-start gap-2 pr-10">
+          {!archived ? (
+            <button
+              type="button"
+              aria-label={dictionary.goals.dragGoal}
+              className="inline-flex size-7 shrink-0 touch-none cursor-grab items-center justify-center rounded-full border border-white/10 bg-white/[0.045] text-[#bdb4d4] transition hover:-translate-y-0.5 hover:border-[#f0c38e]/50 hover:bg-[#f0c38e]/14 hover:text-[#fff9f2] hover:shadow-[0_10px_22px_rgba(240,195,142,0.16)] active:translate-y-0 active:cursor-grabbing focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0]"
+              onClick={(event) => event.stopPropagation()}
+              onPointerDown={(event) =>
+                onBeginPointerDrag?.(goalPayload, event)
+              }
+            >
+              <GripVertical aria-hidden="true" className="size-4" />
+            </button>
+          ) : null}
+          <span className="min-w-0 flex-1 truncate text-base font-semibold leading-tight text-[#fff9f2]">
+            {goal.title || dictionary.goals.newGoalTitle}
+          </span>
+        </div>
+        <div
+          className="absolute right-4 top-3"
+          onClick={(event) => event.stopPropagation()}
+        >
+          <IconButton
+            aria-expanded={isMenuOpen}
+            aria-label={dictionary.goals.goalMenu}
+            className="size-8 rounded-full text-[#bdb4d4] hover:bg-white/[0.08] hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
+            onClick={(event) => {
+              event.stopPropagation();
+              setIsMenuOpen((current) => !current);
+            }}
+          >
+            <MoreHorizontal aria-hidden="true" className="size-4" />
+          </IconButton>
+          {isMenuOpen ? (
+            <div
+              className="modal-panel absolute right-0 top-10 z-20 grid min-w-48 gap-1 p-2 text-sm"
+              onClick={(event) => event.stopPropagation()}
+            >
+              {!archived && onComplete ? (
+                <button
+                  type="button"
+                  className="flex items-center gap-2 rounded-xl px-2 py-2 text-left text-[#f8f3ea] hover:bg-white/[0.08]"
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    void onComplete(goal.id);
+                  }}
+                >
+                  <Check aria-hidden="true" className="size-4" />
+                  {dictionary.goals.completeGoal}
+                </button>
+              ) : null}
+              {archived && onRestore ? (
+                <button
+                  type="button"
+                  className="flex items-center gap-2 rounded-xl px-2 py-2 text-left text-[#f8f3ea] hover:bg-white/[0.08]"
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    void onRestore(goal.id);
+                  }}
+                >
+                  <RotateCcw aria-hidden="true" className="size-4" />
+                  {dictionary.goals.restoreGoal}
+                </button>
+              ) : null}
+              {!archived && onMoveGoal ? (
+                <MoveGoalMenu
+                  currentGroupId={goal.groupId}
+                  groups={groups}
+                  onMove={(groupId) => {
+                    setIsMenuOpen(false);
+                    return onMoveGoal(goal.id, groupId);
+                  }}
+                />
+              ) : null}
+              {!archived && onReorder ? (
+                <div className="flex gap-1 px-1 pt-1">
+                  <IconButton
+                    aria-label={dictionary.dayEditor.moveItemUp}
+                    className="size-8 rounded-full"
+                    disabled={isFirst}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setIsMenuOpen(false);
+                      void onReorder(goal.id, 'up');
+                    }}
+                  >
+                    <ArrowUp aria-hidden="true" className="size-4" />
+                  </IconButton>
+                  <IconButton
+                    aria-label={dictionary.dayEditor.moveItemDown}
+                    className="size-8 rounded-full"
+                    disabled={isLast}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setIsMenuOpen(false);
+                      void onReorder(goal.id, 'down');
+                    }}
+                  >
+                    <ArrowDown aria-hidden="true" className="size-4" />
+                  </IconButton>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
 
-      <GoalPreview
-        categoryTagMap={stepCategoryMap}
-        summary={summary}
-        tone={progressTone}
-      />
+        <GoalPreview
+          categoryTagMap={stepCategoryMap}
+          summary={summary}
+          tone={progressTone}
+        />
 
-      {archived && group ? (
-        <span className="text-xs font-medium text-[#bdb4d4]">
-          {dictionary.goals.originGroup}: {group.title}
-        </span>
-      ) : null}
-    </article>
+        {archived && group ? (
+          <span className="text-xs font-medium text-[#bdb4d4]">
+            {dictionary.goals.originGroup}: {group.title}
+          </span>
+        ) : null}
+      </article>
+    </>
   );
 }
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { CalendarDays, Tags, Trophy } from 'lucide-react';
+import { CalendarDays, Tags, Target } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useState, Suspense } from 'react';
@@ -62,7 +62,7 @@ export default function CalendarPage() {
                 {dictionary.navigation.calendar}
               </Link>
               <Link href="/goals" className={navigationItemClassName}>
-                <Trophy aria-hidden="true" className="size-4" />
+                <Target aria-hidden="true" className="size-4" />
                 {dictionary.navigation.goals}
               </Link>
             </nav>

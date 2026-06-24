@@ -1,7 +1,8 @@
 import { expect, type Locator, type Page } from '@playwright/test';
 
 export const labels = {
-  calendarLink: /daily calendar|calendario diario|calendário diário/i,
+  calendarLink:
+    /daily calendar|calendario diario|calendário diário|tarefas do dia/i,
   goalStepEmpty:
     /start this goal with a checklist item|comece esta meta com um item de checklist/i,
   createGoal: /^new goal$|^nova meta$/i,

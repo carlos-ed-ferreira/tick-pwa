@@ -292,6 +292,108 @@ export async function reorderGoalGroup({
   });
 }
 
+export async function moveGoalGroupAfter({
+  scope,
+  goalGroupId,
+  targetGoalGroupId,
+}: {
+  scope: AppScope;
+  goalGroupId: string;
+  targetGoalGroupId: string;
+}): Promise<void> {
+  await db.transaction('rw', db.goalGroups, async () => {
+    if (goalGroupId === targetGoalGroupId) {
+      return;
+    }
+
+    const group = await getScopedGoalGroup(scope, goalGroupId);
+    const targetGroup = await getScopedGoalGroup(scope, targetGoalGroupId);
+
+    if (!group || !targetGroup) {
+      return;
+    }
+
+    const groups = await db.goalGroups
+      .where('scopeId')
+      .equals(scope.id)
+      .filter(
+        (candidate) =>
+          candidate.deletedAt === null && candidate.id !== group.id,
+      )
+      .toArray();
+    const sortRank = createRankAfter({
+      afterItemId: targetGroup.id,
+      items: groups,
+    });
+
+    if (sortRank === group.sortRank) {
+      return;
+    }
+
+    await persistGoalGroupUpdate(
+      scope,
+      touchGoalGroup(scope, { ...group, sortRank }),
+      ['sortRank'],
+    );
+  });
+}
+
+export async function moveGoalGroupBefore({
+  scope,
+  goalGroupId,
+  targetGoalGroupId,
+}: {
+  scope: AppScope;
+  goalGroupId: string;
+  targetGoalGroupId: string;
+}): Promise<void> {
+  await db.transaction('rw', db.goalGroups, async () => {
+    if (goalGroupId === targetGoalGroupId) {
+      return;
+    }
+
+    const group = await getScopedGoalGroup(scope, goalGroupId);
+    const targetGroup = await getScopedGoalGroup(scope, targetGoalGroupId);
+
+    if (!group || !targetGroup) {
+      return;
+    }
+
+    const groups = await db.goalGroups
+      .where('scopeId')
+      .equals(scope.id)
+      .filter(
+        (candidate) =>
+          candidate.deletedAt === null && candidate.id !== group.id,
+      )
+      .toArray();
+    const orderedGroups = sortByRank(groups);
+    const targetIndex = orderedGroups.findIndex(
+      (candidate) => candidate.id === targetGroup.id,
+    );
+
+    if (targetIndex < 0) {
+      return;
+    }
+
+    const previousGroup = orderedGroups[targetIndex - 1] ?? null;
+    const sortRank = createSortRankBetween(
+      previousGroup?.sortRank ?? null,
+      targetGroup.sortRank,
+    );
+
+    if (sortRank === group.sortRank) {
+      return;
+    }
+
+    await persistGoalGroupUpdate(
+      scope,
+      touchGoalGroup(scope, { ...group, sortRank }),
+      ['sortRank'],
+    );
+  });
+}
+
 export async function softDeleteGoalGroup({
   scope,
   goalGroupId,
@@ -514,6 +616,130 @@ export async function reorderGoal({
     await persistGoalUpdate(scope, touchGoal(scope, { ...goal, sortRank }), [
       'sortRank',
     ]);
+  });
+}
+
+export async function moveGoalAfter({
+  scope,
+  goalId,
+  targetGoalId,
+}: {
+  scope: AppScope;
+  goalId: string;
+  targetGoalId: string;
+}): Promise<void> {
+  await db.transaction('rw', db.goalGroups, db.goals, async () => {
+    if (goalId === targetGoalId) {
+      return;
+    }
+
+    const goal = await getScopedGoal(scope, goalId);
+    const targetGoal = await getScopedGoal(scope, targetGoalId);
+
+    if (!goal || !targetGoal) {
+      return;
+    }
+
+    const sourceGroupId = goal.groupId;
+    const targetGroupId = targetGoal.groupId;
+    const targetGoals = await db.goals
+      .where('scopeId')
+      .equals(scope.id)
+      .filter(
+        (candidate) =>
+          candidate.groupId === targetGroupId &&
+          candidate.deletedAt === null &&
+          candidate.completedAt === null &&
+          candidate.id !== goal.id,
+      )
+      .toArray();
+    const sortRank = createRankAfter({
+      afterItemId: targetGoal.id,
+      items: targetGoals,
+    });
+
+    if (sortRank === goal.sortRank && goal.groupId === targetGroupId) {
+      return;
+    }
+
+    await persistGoalUpdate(
+      scope,
+      touchGoal(scope, {
+        ...goal,
+        groupId: targetGroupId,
+        sortRank,
+      }),
+      ['groupId', 'sortRank'],
+    );
+
+    await deleteGroupIfEmpty(scope, sourceGroupId);
+  });
+}
+
+export async function moveGoalBefore({
+  scope,
+  goalId,
+  targetGoalId,
+}: {
+  scope: AppScope;
+  goalId: string;
+  targetGoalId: string;
+}): Promise<void> {
+  await db.transaction('rw', db.goalGroups, db.goals, async () => {
+    if (goalId === targetGoalId) {
+      return;
+    }
+
+    const goal = await getScopedGoal(scope, goalId);
+    const targetGoal = await getScopedGoal(scope, targetGoalId);
+
+    if (!goal || !targetGoal) {
+      return;
+    }
+
+    const sourceGroupId = goal.groupId;
+    const targetGroupId = targetGoal.groupId;
+    const targetGoals = await db.goals
+      .where('scopeId')
+      .equals(scope.id)
+      .filter(
+        (candidate) =>
+          candidate.groupId === targetGroupId &&
+          candidate.deletedAt === null &&
+          candidate.completedAt === null &&
+          candidate.id !== goal.id,
+      )
+      .toArray();
+    const orderedGoals = sortByRank(targetGoals);
+    const targetIndex = orderedGoals.findIndex(
+      (candidate) => candidate.id === targetGoal.id,
+    );
+
+    if (targetIndex < 0) {
+      return;
+    }
+
+    const previousGoal = orderedGoals[targetIndex - 1] ?? null;
+    const sortRank = createSortRankBetween(
+      previousGoal?.sortRank ?? null,
+      targetGoal.sortRank,
+    );
+
+    if (sortRank === goal.sortRank && goal.groupId === targetGroupId) {
+      return;
+    }
+
+    await persistGoalUpdate(
+      scope,
+      touchGoal(scope, {
+        ...goal,
+        groupId: targetGroupId,
+        sortRank,
+      }),
+      ['groupId', 'sortRank'],
+    );
+
+    await deleteGroupIfEmpty(scope, sourceGroupId);
   });
 }
 

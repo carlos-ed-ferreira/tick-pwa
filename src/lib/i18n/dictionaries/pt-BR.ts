@@ -56,12 +56,12 @@ export const ptBRDictionary = {
   },
   navigation: {
     home: 'Tick',
-    calendar: 'Calendário diário',
+    calendar: 'Tarefas do dia',
     goals: 'Metas',
     categories: 'Categorias',
   },
   calendar: {
-    title: 'Calendário diário',
+    title: 'Tarefas do dia',
     editCategories: 'Editar categorias do calendário',
     bulkApply: 'Criar',
     bulkClear: 'Limpar em lote',

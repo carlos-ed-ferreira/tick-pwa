@@ -7,6 +7,10 @@ import {
   createGoal,
   createGoalGroup,
   db,
+  moveGoalAfter,
+  moveGoalBefore,
+  moveGoalGroupAfter,
+  moveGoalGroupBefore,
   moveGoalToGroup,
   reorderGoal,
   reorderGoalGroup,
@@ -78,6 +82,108 @@ describe('goal group commands', () => {
     await expect(db.goals.get(groupedGoal.id)).resolves.toMatchObject({
       groupId: null,
     });
+  });
+
+  it('moves goals and groups after a specific target', async () => {
+    const scope = createGuestScope('goal-move-after');
+    const firstGroup = await createGoalGroup({ scope, title: 'First group' });
+    const secondGroup = await createGoalGroup({ scope, title: 'Second group' });
+    const thirdGroup = await createGoalGroup({ scope, title: 'Third group' });
+    const firstGoal = await createGoal({ scope, title: 'First goal' });
+    const secondGoal = await createGoal({
+      scope,
+      afterGoalId: firstGoal.id,
+      title: 'Second goal',
+    });
+    const thirdGoal = await createGoal({
+      scope,
+      afterGoalId: secondGoal.id,
+      title: 'Third goal',
+    });
+
+    await moveGoalGroupAfter({
+      scope,
+      goalGroupId: firstGroup.id,
+      targetGoalGroupId: thirdGroup.id,
+    });
+    await moveGoalAfter({
+      scope,
+      goalId: firstGoal.id,
+      targetGoalId: thirdGoal.id,
+    });
+
+    const orderedGroups = await db.goalGroups
+      .where('scopeId')
+      .equals(scope.id)
+      .filter((group) => group.deletedAt === null)
+      .sortBy('sortRank');
+    const orderedGoals = await db.goals
+      .where('scopeId')
+      .equals(scope.id)
+      .filter((goal) => goal.deletedAt === null)
+      .sortBy('sortRank');
+
+    expect(orderedGroups.map((group) => group.id)).toEqual([
+      secondGroup.id,
+      thirdGroup.id,
+      firstGroup.id,
+    ]);
+    expect(orderedGoals.map((goal) => goal.title)).toEqual([
+      'SECOND GOAL',
+      'THIRD GOAL',
+      'FIRST GOAL',
+    ]);
+  });
+
+  it('moves goals and groups before a specific target', async () => {
+    const scope = createGuestScope('goal-move-before');
+    const firstGroup = await createGoalGroup({ scope, title: 'First group' });
+    const secondGroup = await createGoalGroup({ scope, title: 'Second group' });
+    const thirdGroup = await createGoalGroup({ scope, title: 'Third group' });
+    const firstGoal = await createGoal({ scope, title: 'First goal' });
+    const secondGoal = await createGoal({
+      scope,
+      afterGoalId: firstGoal.id,
+      title: 'Second goal',
+    });
+    const thirdGoal = await createGoal({
+      scope,
+      afterGoalId: secondGoal.id,
+      title: 'Third goal',
+    });
+
+    await moveGoalGroupBefore({
+      scope,
+      goalGroupId: thirdGroup.id,
+      targetGoalGroupId: firstGroup.id,
+    });
+    await moveGoalBefore({
+      scope,
+      goalId: thirdGoal.id,
+      targetGoalId: firstGoal.id,
+    });
+
+    const orderedGroups = await db.goalGroups
+      .where('scopeId')
+      .equals(scope.id)
+      .filter((group) => group.deletedAt === null)
+      .sortBy('sortRank');
+    const orderedGoals = await db.goals
+      .where('scopeId')
+      .equals(scope.id)
+      .filter((goal) => goal.deletedAt === null)
+      .sortBy('sortRank');
+
+    expect(orderedGroups.map((group) => group.id)).toEqual([
+      thirdGroup.id,
+      firstGroup.id,
+      secondGroup.id,
+    ]);
+    expect(orderedGoals.map((goal) => goal.title)).toEqual([
+      'THIRD GOAL',
+      'FIRST GOAL',
+      'SECOND GOAL',
+    ]);
   });
 
   it('uses independent categories for groups and goals', async () => {

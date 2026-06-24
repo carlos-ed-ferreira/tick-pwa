@@ -57,6 +57,10 @@ vi.mock('@/lib/db', () => ({
   createGoalStepChild: vi.fn().mockResolvedValue({ id: 'child' }),
   groupGoalsTogether: vi.fn().mockResolvedValue({ id: 'group-new' }),
   indentGoalStep: vi.fn().mockResolvedValue(undefined),
+  moveGoalAfter: vi.fn().mockResolvedValue(undefined),
+  moveGoalBefore: vi.fn().mockResolvedValue(undefined),
+  moveGoalGroupAfter: vi.fn().mockResolvedValue(undefined),
+  moveGoalGroupBefore: vi.fn().mockResolvedValue(undefined),
   moveGoalToGroup: moveGoalToGroupMock,
   outdentGoalStep: vi.fn().mockResolvedValue(undefined),
   reopenGoal: reopenGoalMock,
@@ -263,7 +267,11 @@ describe('GoalsSurface', () => {
       'cursor-pointer',
     );
     expect(screen.getByRole('button', { name: 'Focus' })).toHaveClass('p-4');
-    expect(screen.getByLabelText('Drag goal')).toHaveClass('size-4');
+    expect(screen.getByLabelText('Drag goal')).toHaveClass(
+      'size-7',
+      'rounded-full',
+      'hover:bg-[#f0c38e]/14',
+    );
     expect(screen.getByText('Focus')).toHaveClass('text-base');
     expect(screen.getByText('2/3')).toBeInTheDocument();
   });
@@ -298,13 +306,67 @@ describe('GoalsSurface', () => {
 
     render(<GoalsSurface />);
 
-    expect(
-      screen.getByRole('button', { name: /LifeHealthWork/ }),
-    ).toBeInTheDocument();
+    const groupCard = screen.getByRole('button', { name: /LifeHealthWork/ });
+
+    expect(groupCard).toBeInTheDocument();
+    expect(groupCard).toHaveClass('h-32', 'pt-3.5', 'pb-5', 'gap-2');
+    expect(screen.getByLabelText('Drag goal')).toHaveClass(
+      'size-7',
+      'rounded-full',
+      'hover:bg-[#f0c38e]/14',
+    );
     expect(screen.getByText('Health')).toBeInTheDocument();
     expect(screen.getByText('Work')).toBeInTheDocument();
-    expect(screen.getByText('Health').parentElement).toHaveClass('px-4');
+    expect(screen.getByText('Health').parentElement).toHaveClass(
+      'px-4',
+      'leading-tight',
+    );
     expect(screen.queryByText('2/3')).not.toBeInTheDocument();
+  });
+
+  it('renders the group category badge with the shared system badge pattern', () => {
+    useCategoryTagsMock.mockReturnValue([
+      {
+        id: 'category-1',
+        name: 'Modo local',
+        colorHex: '#f97316',
+        position: '1',
+        surface: 'goals',
+      },
+    ]);
+    useGoalGroupsMock.mockReturnValue([
+      group({
+        id: 'group-1',
+        title: 'Life',
+        categoryTagId: 'category-1',
+      }),
+    ]);
+
+    render(<GoalsSurface />);
+
+    const badge = screen.getByText('Modo local').parentElement;
+
+    expect(badge).toHaveClass(
+      'inline-flex',
+      'min-h-7',
+      'items-center',
+      'gap-2',
+      'rounded-full',
+      'border',
+      'px-3',
+      'py-1',
+      'text-[0.68rem]',
+      'font-semibold',
+      'uppercase',
+      'tracking-[0.24em]',
+      'text-[#f7e8ce]',
+      'shadow-sm',
+      'shadow-[#312c51]/10',
+    );
+    expect(badge).toHaveStyle({
+      borderColor: 'rgba(249, 115, 22, 0.6)',
+      backgroundColor: 'rgba(249, 115, 22, 0.14)',
+    });
   });
 
   it('opens a group and then opens a goal inside that group', () => {
