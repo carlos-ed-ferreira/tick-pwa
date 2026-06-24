@@ -1,9 +1,10 @@
 'use client';
 
-import { CalendarDays, Tags, Target } from 'lucide-react';
+import { CalendarDays, Tags } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useState, Suspense } from 'react';
+import { TbTargetArrow } from 'react-icons/tb';
 import { Button } from '@/components/ui';
 import { LanguageSwitcher } from '@/components/app';
 import { AccountStatus, AuthGate } from '@/features/auth';
@@ -62,7 +63,7 @@ export default function CalendarPage() {
                 {dictionary.navigation.calendar}
               </Link>
               <Link href="/goals" className={navigationItemClassName}>
-                <Target aria-hidden="true" className="size-4" />
+                <TbTargetArrow aria-hidden="true" className="size-4" />
                 {dictionary.navigation.goals}
               </Link>
             </nav>

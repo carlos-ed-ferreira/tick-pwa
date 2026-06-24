@@ -21,7 +21,10 @@ vi.mock('lucide-react', () => ({
   CalendarDays: iconMock('CalendarDays'),
   Tags: iconMock('Tags'),
   Trophy: iconMock('Trophy'),
-  Target: iconMock('Target'),
+}));
+
+vi.mock('react-icons/tb', () => ({
+  TbTargetArrow: iconMock('TbTargetArrow'),
 }));
 
 vi.mock('next/image', () => ({
@@ -84,7 +87,7 @@ describe('navigation labels and icons', () => {
     expect(ptBRDictionary.navigation.calendar).toBe('Tarefas do dia');
   });
 
-  it('renders the goals navigation icon as a target on both pages', async () => {
+  it('renders the goals navigation icon as a target arrow on both pages', async () => {
     const { default: CalendarPage } = await import('@/app/calendar/page');
     const { default: GoalsPage } = await import('@/app/goals/page');
 
@@ -93,7 +96,7 @@ describe('navigation labels and icons', () => {
     expect(
       screen
         .getByRole('link', { name: 'Metas' })
-        .querySelector('svg[data-icon="Target"]'),
+        .querySelector('svg[data-icon="TbTargetArrow"]'),
     ).toBeTruthy();
 
     unmount();
@@ -103,7 +106,7 @@ describe('navigation labels and icons', () => {
     expect(
       screen
         .getByRole('link', { name: 'Metas' })
-        .querySelector('svg[data-icon="Target"]'),
+        .querySelector('svg[data-icon="TbTargetArrow"]'),
     ).toBeTruthy();
   });
 });
