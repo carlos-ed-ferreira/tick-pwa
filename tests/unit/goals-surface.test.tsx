@@ -21,6 +21,7 @@ const {
   moveGoalToGroupMock,
   reopenGoalMock,
   routerPushMock,
+  updateGoalTitleMock,
   useCategoryTagsMock,
   useGoalGroupsMock,
   useGoalsMock,
@@ -33,6 +34,7 @@ const {
   moveGoalToGroupMock: vi.fn().mockResolvedValue(undefined),
   reopenGoalMock: vi.fn().mockResolvedValue(undefined),
   routerPushMock: vi.fn(),
+  updateGoalTitleMock: vi.fn().mockResolvedValue(undefined),
   useCategoryTagsMock: vi.fn(),
   useGoalGroupsMock: vi.fn(),
   useGoalsMock: vi.fn(),
@@ -74,7 +76,7 @@ vi.mock('@/lib/db', () => ({
   toggleGoalStepPriority: vi.fn().mockResolvedValue(undefined),
   updateGoalGroupTitle: vi.fn().mockResolvedValue(undefined),
   updateGoalStepText: vi.fn().mockResolvedValue(undefined),
-  updateGoalTitle: vi.fn().mockResolvedValue(undefined),
+  updateGoalTitle: updateGoalTitleMock,
 }));
 
 vi.mock('@/providers', () => ({
@@ -109,6 +111,7 @@ vi.mock('@/providers', () => ({
         assignGroupCategory: 'Assign group category',
         backToGoalGroups: 'Back to goal groups',
         completeGoal: 'Complete goal',
+        confirmCompleteGoal: 'Complete this goal?',
         confirmDeleteGoal: 'Delete this goal?',
         deleteGoal: 'Delete goal',
         dragGoal: 'Drag goal',
@@ -136,8 +139,7 @@ vi.mock('@/providers', () => ({
   }),
 }));
 
-vi.mock('@/features/categories', () => ({
-  CategoryAssignmentMenu: () => null,
+vi.mock('@/features/categories/use-category-tags', () => ({
   useCategoryTags: useCategoryTagsMock,
 }));
 
@@ -221,7 +223,22 @@ describe('GoalsSurface', () => {
     moveGoalToGroupMock.mockClear();
     reopenGoalMock.mockClear();
     routerPushMock.mockClear();
-    useCategoryTagsMock.mockReturnValue([]);
+    updateGoalTitleMock.mockClear();
+    useCategoryTagsMock.mockImplementation((_scope, surface) => {
+      if (surface === 'goal') {
+        return [
+          {
+            id: 'category-1',
+            name: 'Modo local',
+            colorHex: '#f97316',
+            position: '1',
+            surface: 'goal',
+          },
+        ];
+      }
+
+      return [];
+    });
     useGoalGroupsMock.mockReturnValue([]);
     useGoalsMock.mockImplementation((_scope, options = {}) => {
       if (options.archived) {
@@ -385,7 +402,9 @@ describe('GoalsSurface', () => {
     fireEvent.click(screen.getByRole('button', { name: /LifeFocus/i }));
     fireEvent.click(screen.getByRole('button', { name: 'Goal actions' }));
 
-    const completeButton = screen.getByRole('button', { name: 'Complete goal' });
+    const completeButton = screen.getByRole('button', {
+      name: 'Complete goal',
+    });
 
     expect(completeButton.closest('article')).toBeNull();
     expect(
@@ -394,7 +413,9 @@ describe('GoalsSurface', () => {
     expect(
       screen.queryByRole('button', { name: 'NOVO GRUPO' }),
     ).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'No group' })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'No group' }),
+    ).not.toBeInTheDocument();
     expect(
       screen.getByRole('button', { name: 'Remove from group' }),
     ).toHaveClass('hover:bg-white/[0.08]');
@@ -462,6 +483,159 @@ describe('GoalsSurface', () => {
       expect(reopenGoalMock).toHaveBeenCalledWith({
         scope,
         goalId: 'goal-archived',
+      });
+    });
+  });
+
+  it('asks for confirmation before completing a goal from the card menu', async () => {
+    render(<GoalsSurface />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Goal actions' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Complete goal' }));
+
+    expect(screen.getAllByText('Complete goal')).toHaveLength(2);
+    expect(screen.getByText('Complete this goal?')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Complete goal' }));
+
+    await waitFor(() => {
+      expect(completeGoalMock).toHaveBeenCalledWith({
+        scope,
+        goalId: 'goal-1',
+      });
+    });
+  });
+
+  it('renders the uncategorized goal trigger as an action box in the goal header', () => {
+    useGoalStepTreeMock.mockReturnValue([goalStep()]);
+
+    render(<GoalsSurface />);
+    fireEvent.click(screen.getByRole('button', { name: 'Focus' }));
+
+    const categoryButton = screen.getByRole('button', {
+      name: 'Assign goal category',
+    });
+
+    expect(categoryButton).toHaveClass(
+      'size-10',
+      'rounded-md',
+      'border',
+      'border-white/10',
+      'bg-white/5',
+      'text-[#d8d0e8]',
+    );
+    expect(categoryButton).not.toHaveTextContent('Modo local');
+  });
+
+  it('renders the selected goal category as a pill badge in the goal header', () => {
+    useGoalsMock.mockImplementation((_scope, options = {}) => {
+      if (options.archived) {
+        return [];
+      }
+
+      return [
+        goal({
+          id: 'goal-1',
+          title: 'Focus',
+          categoryTagId: 'category-1',
+        }),
+      ];
+    });
+    useGoalStepTreeMock.mockReturnValue([goalStep()]);
+
+    render(<GoalsSurface />);
+    fireEvent.click(screen.getByRole('button', { name: 'Focus' }));
+
+    const categoryButton = screen.getByRole('button', {
+      name: 'Assign goal category',
+    });
+    const categoryBadge = screen.getByText('Modo local').parentElement;
+
+    expect(categoryButton).toHaveClass(
+      'size-10',
+      'rounded-md',
+      'border',
+      'border-white/10',
+      'bg-white/5',
+      'text-[#d8d0e8]',
+    );
+    expect(categoryBadge).toHaveClass(
+      'inline-flex',
+      'min-h-10',
+      'max-w-full',
+      'rounded-full',
+      'border',
+      'px-3',
+      'py-1',
+      'text-sm',
+      'font-medium',
+      'text-[#f7e8ce]',
+    );
+    expect(categoryBadge).toHaveTextContent('Modo local');
+    expect(categoryBadge?.querySelector('.rounded-full')).toBeNull();
+    expect(categoryBadge).toHaveStyle({
+      borderColor: 'rgba(249, 115, 22, 0.6)',
+      backgroundColor: 'rgba(249, 115, 22, 0.14)',
+    });
+  });
+
+  it('uses an adaptive title width with only a max width in the goal header', () => {
+    useGoalStepTreeMock.mockReturnValue([goalStep()]);
+
+    render(<GoalsSurface />);
+    fireEvent.click(screen.getByRole('button', { name: 'Focus' }));
+
+    const input = screen.getByLabelText('Rename goal');
+    const wrapper = input.parentElement;
+
+    expect(input).not.toHaveAttribute('placeholder');
+    expect(input).not.toHaveClass('flex-1');
+    expect(input).toHaveClass('absolute', 'inset-0', 'w-full', 'px-2');
+    expect(wrapper).toHaveClass(
+      'relative',
+      'inline-block',
+      'min-w-0',
+      'shrink',
+    );
+    expect(wrapper).not.toHaveStyle({
+      maxWidth: 'min(100%, 24rem)',
+    });
+  });
+
+  it('does not persist an empty goal title and restores the previous title on blur', async () => {
+    useGoalStepTreeMock.mockReturnValue([goalStep()]);
+
+    render(<GoalsSurface />);
+    fireEvent.click(screen.getByRole('button', { name: 'Focus' }));
+
+    const input = screen.getByLabelText('Rename goal');
+
+    fireEvent.change(input, { target: { value: '' } });
+    fireEvent.blur(input);
+
+    await waitFor(() => {
+      expect(updateGoalTitleMock).not.toHaveBeenCalled();
+      expect(screen.getByLabelText('Rename goal')).toHaveValue('Focus');
+    });
+  });
+
+  it('asks for confirmation before completing a goal from the detail header', async () => {
+    useGoalStepTreeMock.mockReturnValue([goalStep()]);
+
+    render(<GoalsSurface />);
+    fireEvent.click(screen.getByRole('button', { name: 'Focus' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Complete goal' }));
+
+    expect(screen.getByText('Complete this goal?')).toBeInTheDocument();
+
+    fireEvent.click(
+      screen.getAllByRole('button', { name: 'Complete goal' })[1],
+    );
+
+    await waitFor(() => {
+      expect(completeGoalMock).toHaveBeenCalledWith({
+        scope,
+        goalId: 'goal-1',
       });
     });
   });

@@ -158,6 +158,7 @@ export interface Dictionary {
     emptyGoal: string;
     goalPlaceholder: string;
     deleteGoal: string;
+    confirmCompleteGoal: string;
     confirmDeleteGoal: string;
     progress: string;
   };

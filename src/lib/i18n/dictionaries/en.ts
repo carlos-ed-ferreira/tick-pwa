@@ -169,6 +169,7 @@ export const enDictionary = {
     emptyGoal: 'Start this goal with a checklist item',
     goalPlaceholder: 'Write a goal',
     deleteGoal: 'Delete goal',
+    confirmCompleteGoal: 'Are you sure you want to complete this goal?',
     confirmDeleteGoal: confirmDeleteItem,
     progress: 'Progress',
   },

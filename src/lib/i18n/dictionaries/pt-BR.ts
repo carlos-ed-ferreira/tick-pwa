@@ -170,6 +170,7 @@ export const ptBRDictionary = {
     emptyGoal: 'Comece esta meta com um item de checklist',
     goalPlaceholder: 'Escreva uma meta',
     deleteGoal: 'Excluir meta',
+    confirmCompleteGoal: 'Tem certeza que deseja concluir esta meta?',
     confirmDeleteGoal: confirmDeleteItem,
     progress: 'Progresso',
   },

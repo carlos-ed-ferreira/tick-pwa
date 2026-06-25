@@ -6,8 +6,9 @@ import {
   Check,
   GripVertical,
   MoreHorizontal,
-  Plus,
   LogOut,
+  Palette,
+  Plus,
   RotateCcw,
   Trash2,
 } from 'lucide-react';
@@ -1131,6 +1132,7 @@ function GoalCard({
 }) {
   const { dictionary } = useAppContext();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isCompleteDialogOpen, setIsCompleteDialogOpen] = useState(false);
   const [menuStyle, setMenuStyle] = useState<{
     top: number;
     right: number;
@@ -1259,7 +1261,7 @@ function GoalCard({
                 className="flex items-center gap-2 rounded-xl px-2 py-2 text-left text-[#f8f3ea] hover:bg-white/[0.08]"
                 onClick={() => {
                   closeMenu();
-                  void onComplete(goal.id);
+                  setIsCompleteDialogOpen(true);
                 }}
               >
                 <Check aria-hidden="true" className="size-4" />
@@ -1356,7 +1358,9 @@ function GoalCard({
               aria-label={dictionary.goals.dragGoal}
               className="inline-flex size-7 shrink-0 touch-none cursor-grab items-center justify-center rounded-full border border-white/10 bg-white/[0.045] text-[#bdb4d4] transition hover:-translate-y-0.5 hover:border-[#f0c38e]/50 hover:bg-[#f0c38e]/14 hover:text-[#fff9f2] hover:shadow-[0_10px_22px_rgba(240,195,142,0.16)] active:translate-y-0 active:cursor-grabbing focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0]"
               onClick={(event) => event.stopPropagation()}
-              onPointerDown={(event) => onBeginPointerDrag?.(goalPayload, event)}
+              onPointerDown={(event) =>
+                onBeginPointerDrag?.(goalPayload, event)
+              }
             >
               <GripVertical aria-hidden="true" className="size-4" />
             </button>
@@ -1386,6 +1390,18 @@ function GoalCard({
           </IconButton>
         </div>
         {menu}
+        <ConfirmationDialog
+          cancelLabel={dictionary.actions.cancel}
+          confirmLabel={dictionary.goals.completeGoal}
+          description={dictionary.goals.confirmCompleteGoal}
+          open={isCompleteDialogOpen}
+          title={dictionary.goals.completeGoal}
+          onClose={() => setIsCompleteDialogOpen(false)}
+          onConfirm={() => {
+            setIsCompleteDialogOpen(false);
+            void onComplete?.(goal.id);
+          }}
+        />
 
         <GoalPreview
           categoryTagMap={stepCategoryMap}
@@ -1435,7 +1451,7 @@ function MoveGoalMenu({
         >
           {group.title}
         </button>
-        ))}
+      ))}
     </div>
   );
 }
@@ -1576,7 +1592,19 @@ function GoalDetailHeader({
   onDelete: () => void;
 }) {
   const { dictionary, scope } = useAppContext();
+  const [isGoalCompleteDialogOpen, setIsGoalCompleteDialogOpen] =
+    useState(false);
   const [isGoalDeleteDialogOpen, setIsGoalDeleteDialogOpen] = useState(false);
+  const goalCategory = goalCategoryMap.get(goal.categoryTagId ?? '') ?? null;
+
+  const completeSelectedGoal = useCallback(async () => {
+    if (!scope) {
+      return;
+    }
+
+    setIsGoalCompleteDialogOpen(false);
+    await completeGoal({ scope, goalId: goal.id });
+  }, [goal.id, scope]);
 
   const deleteGoal = useCallback(async () => {
     if (!scope) {
@@ -1590,14 +1618,29 @@ function GoalDetailHeader({
 
   return (
     <>
-      <header className="flex flex-col gap-3 px-1 sm:grid sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:px-0">
-        <div className="flex min-w-0 items-center gap-2">
+      <header className="flex flex-col gap-3 px-1 sm:grid sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-2 sm:px-0">
+        <div className="flex min-w-0 flex-wrap items-center gap-2 sm:flex-nowrap">
           <GoalTitleEditor goal={goal} />
+          {goalCategory ? (
+            <span
+              className="inline-flex min-h-10 max-w-full shrink-0 items-center rounded-full border px-3 py-1 text-sm font-medium text-[#f7e8ce] shadow-sm shadow-[#312c51]/10"
+              style={{
+                borderColor: toAlphaColor(goalCategory.colorHex, 0.6),
+                backgroundColor: toAlphaColor(goalCategory.colorHex, 0.14),
+              }}
+            >
+              <span className="truncate">{goalCategory.name}</span>
+            </span>
+          ) : null}
           <CategoryAssignmentMenu
             assignLabel={dictionary.goals.assignGoalCategory}
             clearLabel={dictionary.dayEditor.clearCategory}
+            renderTriggerContent={() => (
+              <Palette aria-hidden="true" className="size-4" />
+            )}
             selectedCategoryTagId={goal.categoryTagId}
             surface="goal"
+            triggerClassName="size-10 shrink-0 rounded-md border border-white/10 bg-white/5 text-[#d8d0e8] shadow-sm shadow-[#312c51]/10 hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/10 hover:text-[#fff9f2] focus-visible:outline-[#f7d9b0]"
             onAssign={(categoryTagId) => {
               if (!scope) return;
               return assignGoalCategory({
@@ -1607,16 +1650,11 @@ function GoalDetailHeader({
               });
             }}
           />
-          <CategoryAccent
-            category={goalCategoryMap.get(goal.categoryTagId ?? '')}
-          />
           {!isArchived ? (
             <IconButton
               aria-label={dictionary.goals.completeGoal}
               className="size-10 rounded-md border border-emerald-300/20 bg-emerald-400/10 text-emerald-100 hover:bg-emerald-400/18 hover:text-emerald-50 focus-visible:outline-emerald-200"
-              onClick={() => {
-                if (scope) void completeGoal({ scope, goalId: goal.id });
-              }}
+              onClick={() => setIsGoalCompleteDialogOpen(true)}
             >
               <Check aria-hidden="true" className="size-4" />
             </IconButton>
@@ -1650,6 +1688,16 @@ function GoalDetailHeader({
           {dictionary.goals.backToGoalGroups}
         </button>
       </header>
+
+      <ConfirmationDialog
+        cancelLabel={dictionary.actions.cancel}
+        confirmLabel={dictionary.goals.completeGoal}
+        description={dictionary.goals.confirmCompleteGoal}
+        open={isGoalCompleteDialogOpen}
+        title={dictionary.goals.completeGoal}
+        onClose={() => setIsGoalCompleteDialogOpen(false)}
+        onConfirm={() => void completeSelectedGoal()}
+      />
 
       <ConfirmationDialog
         cancelLabel={dictionary.actions.cancel}
@@ -1687,16 +1735,24 @@ function GoalTitleEditor({ goal }: { goal: Goal }) {
     },
     value: goal.title,
   });
+  const titleMeasurement = editableTitle || ' ';
 
   return (
-    <Input
-      aria-label={dictionary.goals.renameGoal}
-      className="min-w-0 flex-1 rounded-md bg-transparent px-0 py-1 text-2xl font-semibold text-[#fff9f2] outline-none transition placeholder:text-[#8f85aa] focus:bg-white/[0.04] focus:px-3 focus:ring-1 focus:ring-[#f0c38e]/35"
-      placeholder={dictionary.goals.goalTitlePlaceholder}
-      value={editableTitle}
-      onBlur={() => void flushTitle()}
-      onChange={(event) => setTitle(event.target.value.toUpperCase())}
-    />
+    <span className="relative inline-block min-w-0 max-w-full shrink align-middle">
+      <span
+        aria-hidden="true"
+        className="invisible block max-w-full overflow-hidden whitespace-pre rounded-md px-2 py-1 text-2xl font-semibold"
+      >
+        {titleMeasurement}
+      </span>
+      <Input
+        aria-label={dictionary.goals.renameGoal}
+        className="absolute inset-0 h-full w-full rounded-md bg-transparent px-2 py-1 text-2xl font-semibold text-[#fff9f2] outline-none transition focus:bg-white/[0.04] focus:ring-1 focus:ring-[#f0c38e]/35"
+        value={editableTitle}
+        onBlur={() => void flushTitle()}
+        onChange={(event) => setTitle(event.target.value.toUpperCase())}
+      />
+    </span>
   );
 }
 

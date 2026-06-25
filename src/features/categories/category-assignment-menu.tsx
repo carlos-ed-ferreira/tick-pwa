@@ -2,44 +2,54 @@
 
 import { Palette, X } from 'lucide-react';
 import { createPortal } from 'react-dom';
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { IconButton } from '@/components/ui';
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from 'react';
 import type { CategoryTagSurface } from '@/lib/domain';
 import { useAppContext } from '@/providers';
 import { useCategoryTags } from './use-category-tags';
 
 const menuOffset = 8;
 const viewportPadding = 16;
+const menuPreferredWidth = 192;
 
 export function CategoryAssignmentMenu({
   assignLabel,
   clearLabel,
   disabled,
+  renderTriggerContent,
   selectedCategoryTagId,
   surface,
+  triggerClassName,
+  triggerStyle,
   onAssign,
 }: {
   assignLabel: string;
   clearLabel: string;
   disabled?: boolean;
+  renderTriggerContent?: (args: {
+    isOpen: boolean;
+    selectedCategory: {
+      colorHex: string;
+      id: string;
+      name: string;
+    } | null;
+  }) => ReactNode;
   selectedCategoryTagId: string | null;
   surface: CategoryTagSurface;
+  triggerClassName?: string;
+  triggerStyle?: CSSProperties;
   onAssign: (categoryTagId: string | null) => Promise<void> | void;
 }) {
   const { scope } = useAppContext();
   const categoryTags = useCategoryTags(scope, surface);
   const [isOpen, setIsOpen] = useState(false);
-  const [menuStyle, setMenuStyle] = useState<
-    | {
-        top: number;
-        right: number;
-      }
-    | {
-        bottom: number;
-        right: number;
-      }
-    | null
-  >(null);
+  const [menuStyle, setMenuStyle] = useState<CSSProperties | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
@@ -55,6 +65,14 @@ export function CategoryAssignmentMenu({
     }
 
     const triggerRect = trigger.getBoundingClientRect();
+    const menuWidth = Math.min(
+      menuPreferredWidth,
+      Math.max(0, window.innerWidth - viewportPadding * 2),
+    );
+    const left = Math.min(
+      Math.max(viewportPadding, triggerRect.left),
+      window.innerWidth - viewportPadding - menuWidth,
+    );
     const estimatedMenuHeight = Math.min(
       56 + categoryTags.length * 40,
       window.innerHeight - viewportPadding * 2,
@@ -63,10 +81,7 @@ export function CategoryAssignmentMenu({
       triggerRect.bottom + menuOffset + estimatedMenuHeight >
         window.innerHeight - viewportPadding &&
       triggerRect.top > window.innerHeight - triggerRect.bottom;
-    const right = Math.max(
-      viewportPadding,
-      window.innerWidth - triggerRect.right,
-    );
+    const width = menuWidth;
 
     if (shouldOpenUpward) {
       return {
@@ -74,13 +89,15 @@ export function CategoryAssignmentMenu({
           viewportPadding,
           window.innerHeight - triggerRect.top + menuOffset,
         ),
-        right,
+        left,
+        width,
       };
     }
 
     return {
+      left,
       top: Math.max(viewportPadding, triggerRect.bottom + menuOffset),
-      right,
+      width,
     };
   }, [categoryTags.length]);
 
@@ -174,7 +191,7 @@ export function CategoryAssignmentMenu({
       ? createPortal(
           <div
             ref={menuRef}
-            className="modal-panel fixed z-60 grid max-h-[min(20rem,calc(100vh-2rem))] min-w-48 gap-1 overflow-y-auto p-2 text-sm text-[#fff9f2] shadow-[0_24px_70px_rgba(8,6,20,0.44)]"
+            className="modal-panel fixed z-60 grid max-h-[min(20rem,calc(100vh-2rem))] gap-1 overflow-y-auto p-2 text-sm text-[#fff9f2] shadow-[0_24px_70px_rgba(8,6,20,0.44)]"
             style={menuStyle}
           >
             <button
@@ -207,14 +224,20 @@ export function CategoryAssignmentMenu({
 
   return (
     <div ref={containerRef} className="relative">
-      <IconButton
+      <button
         aria-expanded={isOpen}
         aria-label={assignLabel}
-        className={`rounded-full hover:bg-white/[0.08] hover:text-[#fff9f2] focus-visible:outline-[#f0c38e] ${
-          selectedCategory ? 'text-[#fff9f2]' : ''
+        className={`inline-flex items-center justify-center rounded-md text-muted transition hover:bg-background hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground disabled:cursor-not-allowed disabled:opacity-40 ${
+          renderTriggerContent
+            ? (triggerClassName ?? '')
+            : `size-9 rounded-full hover:bg-white/[0.08] hover:text-[#fff9f2] focus-visible:outline-[#f0c38e] ${
+                selectedCategory ? 'text-[#fff9f2]' : ''
+              } ${triggerClassName ?? ''}`
         }`}
         disabled={disabled}
         ref={triggerRef}
+        style={triggerStyle}
+        type="button"
         onClick={() => {
           if (isOpen) {
             closeMenu();
@@ -225,16 +248,31 @@ export function CategoryAssignmentMenu({
           setIsOpen(true);
         }}
       >
-        {selectedCategory ? (
-          <span
-            aria-hidden="true"
-            className="size-4 rounded-full border border-white/25"
-            style={{ backgroundColor: selectedCategory.colorHex }}
-          />
+        {renderTriggerContent ? (
+          renderTriggerContent({
+            isOpen,
+            selectedCategory: selectedCategory
+              ? {
+                  colorHex: selectedCategory.colorHex,
+                  id: selectedCategory.id,
+                  name: selectedCategory.name,
+                }
+              : null,
+          })
         ) : (
-          <Palette aria-hidden="true" className="size-4" />
+          <>
+            {selectedCategory ? (
+              <span
+                aria-hidden="true"
+                className="size-4 rounded-full border border-white/25"
+                style={{ backgroundColor: selectedCategory.colorHex }}
+              />
+            ) : (
+              <Palette aria-hidden="true" className="size-4" />
+            )}
+          </>
         )}
-      </IconButton>
+      </button>
 
       {menu}
     </div>

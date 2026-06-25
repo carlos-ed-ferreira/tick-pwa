@@ -74,4 +74,51 @@ describe('CategoryAssignmentMenu', () => {
       expect(onAssign).toHaveBeenCalledWith('category-home');
     });
   });
+
+  it('keeps the portal menu inside a narrow viewport', async () => {
+    Object.defineProperty(window, 'innerHeight', {
+      configurable: true,
+      value: 720,
+    });
+    Object.defineProperty(window, 'innerWidth', {
+      configurable: true,
+      value: 160,
+    });
+
+    render(
+      <CategoryAssignmentMenu
+        assignLabel="Assign category"
+        clearLabel="Clear category"
+        selectedCategoryTagId={null}
+        surface="calendar"
+        onAssign={vi.fn()}
+      />,
+    );
+
+    const trigger = screen.getByRole('button', { name: 'Assign category' });
+    trigger.getBoundingClientRect = vi.fn(
+      () =>
+        ({
+          bottom: 58,
+          height: 40,
+          left: 82,
+          right: 122,
+          top: 18,
+          width: 40,
+          x: 82,
+          y: 18,
+          toJSON: () => ({}),
+        }) as DOMRect,
+    );
+
+    fireEvent.click(trigger);
+
+    const menu = (await screen.findByRole('button', { name: 'Home' }))
+      .parentElement;
+
+    expect(menu).toHaveStyle({
+      left: '16px',
+      width: '128px',
+    });
+  });
 });

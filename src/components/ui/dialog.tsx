@@ -1,6 +1,7 @@
 'use client';
 
 import { X } from 'lucide-react';
+import { createPortal } from 'react-dom';
 import { useEffect, useRef, type MouseEvent, type ReactNode } from 'react';
 import { IconButton } from './icon-button';
 
@@ -63,7 +64,7 @@ export function Dialog({
     }
   }
 
-  return (
+  const dialog = (
     <div
       className="fixed inset-0 z-50 flex items-end bg-[#090716]/70 backdrop-blur-xl sm:items-center sm:justify-center sm:p-6"
       onMouseDown={handleBackdropMouseDown}
@@ -92,4 +93,8 @@ export function Dialog({
       </div>
     </div>
   );
+
+  return typeof document === 'undefined'
+    ? dialog
+    : createPortal(dialog, document.body);
 }
