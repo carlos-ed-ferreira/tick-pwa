@@ -2,17 +2,17 @@
 
 import {
   Archive,
-  ArrowDown,
   ArrowLeft,
-  ArrowUp,
   Check,
   GripVertical,
   MoreHorizontal,
   Plus,
+  LogOut,
   RotateCcw,
   Trash2,
 } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { createPortal } from 'react-dom';
 import {
   useCallback,
   useEffect,
@@ -20,7 +20,7 @@ import {
   useRef,
   useState,
   type ReactNode,
-  type PointerEvent,
+  type PointerEvent as ReactPointerEvent,
 } from 'react';
 import { TaskTreeEditableRow, TreeListPanel } from '@/components/app';
 import { Button, ConfirmationDialog, IconButton, Input } from '@/components/ui';
@@ -46,7 +46,6 @@ import {
   moveGoalToGroup,
   outdentGoalStep,
   reopenGoal,
-  reorderGoal,
   reorderGoalStep,
   softDeleteGoal,
   softDeleteGoalStep,
@@ -380,7 +379,7 @@ export function GoalsSurface() {
   }, []);
 
   const beginPointerDrag = useCallback(
-    (payload: DragPayload, event: PointerEvent<HTMLElement>) => {
+    (payload: DragPayload, event: ReactPointerEvent<HTMLElement>) => {
       if (!event.isPrimary) {
         return;
       }
@@ -691,9 +690,6 @@ export function GoalsSurface() {
               moveGoalToGroup({ scope, goalId, groupId })
             }
             onOpenGoal={openGoal}
-            onReorderGoal={(goalId, direction) =>
-              reorderGoal({ scope, goalId, direction })
-            }
           />
         </GoalSection>
       </section>
@@ -765,7 +761,7 @@ export function GoalsSurface() {
               );
             })}
 
-            {ungroupedActiveGoals.map((goal, index) => (
+            {ungroupedActiveGoals.map((goal) => (
               <GoalCard
                 key={goal.id}
                 activeDragPayload={activeDragPayload}
@@ -774,8 +770,6 @@ export function GoalsSurface() {
                 goal={goal}
                 goalCategory={goalCategoryMap.get(goal.categoryTagId ?? '')}
                 groups={groups}
-                isFirst={index === 0}
-                isLast={index === ungroupedActiveGoals.length - 1}
                 stepCategoryMap={stepCategoryMap}
                 summary={getGoalStepSummary(goalStepSummaries, goal.id)}
                 onBeginPointerDrag={beginPointerDrag}
@@ -784,9 +778,6 @@ export function GoalsSurface() {
                   moveGoalToGroup({ scope, goalId, groupId })
                 }
                 onOpen={openGoal}
-                onReorder={(goalId, direction) =>
-                  reorderGoal({ scope, goalId, direction })
-                }
               />
             ))}
 
@@ -940,7 +931,7 @@ function GoalGroupCard({
   goalCategoryMap: Map<string, CategoryTag>;
   onBeginPointerDrag: (
     payload: DragPayload,
-    event: PointerEvent<HTMLElement>,
+    event: ReactPointerEvent<HTMLElement>,
   ) => void;
   onOpen: (groupId: string) => void;
 }) {
@@ -1055,7 +1046,6 @@ function GoalGrid({
   onComplete,
   onMoveGoal,
   onOpenGoal,
-  onReorderGoal,
   onRestore,
 }: {
   activeDragPayload: DragPayload | null;
@@ -1070,14 +1060,10 @@ function GoalGrid({
   onComplete?: (goalId: string) => Promise<void> | void;
   onBeginPointerDrag?: (
     payload: DragPayload,
-    event: PointerEvent<HTMLElement>,
+    event: ReactPointerEvent<HTMLElement>,
   ) => void;
   onMoveGoal?: (goalId: string, groupId: string | null) => Promise<void> | void;
   onOpenGoal: (goalId: string) => void;
-  onReorderGoal?: (
-    goalId: string,
-    direction: 'up' | 'down',
-  ) => Promise<void> | void;
   onRestore?: (goalId: string) => Promise<void> | void;
 }) {
   if (goals.length === 0) {
@@ -1086,7 +1072,7 @@ function GoalGrid({
 
   return (
     <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-      {goals.map((goal, index) => (
+      {goals.map((goal) => (
         <GoalCard
           key={goal.id}
           activeDragPayload={activeDragPayload}
@@ -1096,15 +1082,12 @@ function GoalGrid({
           goalCategory={goalCategoryMap.get(goal.categoryTagId ?? '')}
           group={goal.groupId ? groupById?.get(goal.groupId) : undefined}
           groups={groups}
-          isFirst={index === 0}
-          isLast={index === goals.length - 1}
           stepCategoryMap={stepCategoryMap}
           summary={getGoalStepSummary(summaries, goal.id)}
           onBeginPointerDrag={onBeginPointerDrag}
           onComplete={onComplete}
           onMoveGoal={onMoveGoal}
           onOpen={onOpenGoal}
-          onReorder={onReorderGoal}
           onRestore={onRestore}
         />
       ))}
@@ -1120,15 +1103,12 @@ function GoalCard({
   goalCategory,
   group,
   groups,
-  isFirst,
-  isLast,
   stepCategoryMap,
   summary,
   onBeginPointerDrag,
   onComplete,
   onMoveGoal,
   onOpen,
-  onReorder,
   onRestore,
 }: {
   activeDragPayload: DragPayload | null;
@@ -1138,25 +1118,25 @@ function GoalCard({
   goalCategory?: CategoryTag | null;
   group?: GoalGroup;
   groups: GoalGroup[];
-  isFirst: boolean;
-  isLast: boolean;
   stepCategoryMap: Map<string, CategoryTag>;
   summary: GoalStepSummary;
   onComplete?: (goalId: string) => Promise<void> | void;
   onBeginPointerDrag?: (
     payload: DragPayload,
-    event: PointerEvent<HTMLElement>,
+    event: ReactPointerEvent<HTMLElement>,
   ) => void;
   onMoveGoal?: (goalId: string, groupId: string | null) => Promise<void> | void;
   onOpen: (goalId: string) => void;
-  onReorder?: (
-    goalId: string,
-    direction: 'up' | 'down',
-  ) => Promise<void> | void;
   onRestore?: (goalId: string) => Promise<void> | void;
 }) {
   const { dictionary } = useAppContext();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [menuStyle, setMenuStyle] = useState<{
+    top: number;
+    right: number;
+  } | null>(null);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
   const progressTone = getProgressTone(summary);
   const goalPayload = { id: goal.id, type: 'goal' } satisfies DragPayload;
   const isDragging = isSameDragPayload(activeDragPayload, goalPayload);
@@ -1172,6 +1152,162 @@ function GoalCard({
     !isDragging
       ? dragTarget
       : null;
+  const getMenuStyle = useCallback(() => {
+    const trigger = triggerRef.current;
+
+    if (!trigger || typeof window === 'undefined') {
+      return null;
+    }
+
+    const triggerRect = trigger.getBoundingClientRect();
+    const viewportPadding = 16;
+    const menuOffset = 8;
+    const right = Math.max(
+      viewportPadding,
+      window.innerWidth - triggerRect.right,
+    );
+
+    return {
+      right,
+      top: Math.max(viewportPadding, triggerRect.bottom + menuOffset),
+    };
+  }, []);
+
+  const closeMenu = useCallback(() => {
+    setIsMenuOpen(false);
+    setMenuStyle(null);
+  }, []);
+
+  useEffect(() => {
+    if (!isMenuOpen) {
+      return;
+    }
+
+    function handlePointerDown(event: globalThis.PointerEvent) {
+      const target = event.target as Node;
+
+      if (
+        !triggerRef.current?.contains(target) &&
+        !menuRef.current?.contains(target)
+      ) {
+        closeMenu();
+      }
+    }
+
+    function handleFocusIn(event: FocusEvent) {
+      const target = event.target as Node;
+
+      if (
+        !triggerRef.current?.contains(target) &&
+        !menuRef.current?.contains(target)
+      ) {
+        closeMenu();
+      }
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        closeMenu();
+        triggerRef.current?.focus();
+      }
+    }
+
+    document.addEventListener('pointerdown', handlePointerDown);
+    document.addEventListener('focusin', handleFocusIn);
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown);
+      document.removeEventListener('focusin', handleFocusIn);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [closeMenu, isMenuOpen]);
+
+  useEffect(() => {
+    if (!isMenuOpen) {
+      return;
+    }
+
+    function updateMenuStyle() {
+      const nextMenuStyle = getMenuStyle();
+
+      if (nextMenuStyle) {
+        setMenuStyle(nextMenuStyle);
+      }
+    }
+
+    window.addEventListener('resize', updateMenuStyle);
+    window.addEventListener('scroll', updateMenuStyle, true);
+
+    return () => {
+      window.removeEventListener('resize', updateMenuStyle);
+      window.removeEventListener('scroll', updateMenuStyle, true);
+    };
+  }, [getMenuStyle, isMenuOpen]);
+
+  const menu =
+    isMenuOpen && menuStyle && typeof document !== 'undefined'
+      ? createPortal(
+          <div
+            ref={menuRef}
+            className="modal-panel fixed z-60 grid max-h-[min(20rem,calc(100vh-2rem))] min-w-48 gap-1 overflow-y-auto p-2 text-sm shadow-[0_24px_70px_rgba(8,6,20,0.44)]"
+            style={menuStyle}
+          >
+            {!archived && onComplete ? (
+              <button
+                type="button"
+                className="flex items-center gap-2 rounded-xl px-2 py-2 text-left text-[#f8f3ea] hover:bg-white/[0.08]"
+                onClick={() => {
+                  closeMenu();
+                  void onComplete(goal.id);
+                }}
+              >
+                <Check aria-hidden="true" className="size-4" />
+                {dictionary.goals.completeGoal}
+              </button>
+            ) : null}
+            {archived && onRestore ? (
+              <button
+                type="button"
+                className="flex items-center gap-2 rounded-xl px-2 py-2 text-left text-[#f8f3ea] hover:bg-white/[0.08]"
+                onClick={() => {
+                  closeMenu();
+                  void onRestore(goal.id);
+                }}
+              >
+                <RotateCcw aria-hidden="true" className="size-4" />
+                {dictionary.goals.restoreGoal}
+              </button>
+            ) : null}
+            {!archived && onMoveGoal && goal.groupId !== null ? (
+              <button
+                type="button"
+                className="flex w-full items-center gap-2 rounded-xl px-2 py-2 text-left text-[#f8f3ea] hover:bg-white/[0.08] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e]"
+                onClick={() => {
+                  closeMenu();
+                  void onMoveGoal(goal.id, null);
+                }}
+              >
+                <LogOut aria-hidden="true" className="size-4" />
+                <span className="text-sm font-medium leading-tight">
+                  {dictionary.goals.removeFromGroup}
+                </span>
+              </button>
+            ) : null}
+            {!archived && onMoveGoal ? (
+              <MoveGoalMenu
+                currentGroupId={goal.groupId}
+                groups={groups}
+                onMove={(groupId) => {
+                  closeMenu();
+                  return onMoveGoal(goal.id, groupId);
+                }}
+              />
+            ) : null}
+          </div>,
+          document.body,
+        )
+      : null;
 
   return (
     <>
@@ -1184,13 +1320,26 @@ function GoalCard({
         data-goal-drop-id={archived ? undefined : goal.id}
         role="button"
         tabIndex={0}
-        onClick={() => onOpen(goal.id)}
+        onClick={() => {
+          if (isMenuOpen) {
+            closeMenu();
+            return;
+          }
+
+          onOpen(goal.id);
+        }}
         onKeyDown={(event) => {
           if (
             event.currentTarget === event.target &&
             (event.key === 'Enter' || event.key === ' ')
           ) {
             event.preventDefault();
+
+            if (isMenuOpen) {
+              closeMenu();
+              return;
+            }
+
             onOpen(goal.id);
           }
         }}
@@ -1207,9 +1356,7 @@ function GoalCard({
               aria-label={dictionary.goals.dragGoal}
               className="inline-flex size-7 shrink-0 touch-none cursor-grab items-center justify-center rounded-full border border-white/10 bg-white/[0.045] text-[#bdb4d4] transition hover:-translate-y-0.5 hover:border-[#f0c38e]/50 hover:bg-[#f0c38e]/14 hover:text-[#fff9f2] hover:shadow-[0_10px_22px_rgba(240,195,142,0.16)] active:translate-y-0 active:cursor-grabbing focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0]"
               onClick={(event) => event.stopPropagation()}
-              onPointerDown={(event) =>
-                onBeginPointerDrag?.(goalPayload, event)
-              }
+              onPointerDown={(event) => onBeginPointerDrag?.(goalPayload, event)}
             >
               <GripVertical aria-hidden="true" className="size-4" />
             </button>
@@ -1218,93 +1365,27 @@ function GoalCard({
             {goal.title || dictionary.goals.newGoalTitle}
           </span>
         </div>
-        <div
-          className="absolute right-4 top-3"
-          onClick={(event) => event.stopPropagation()}
-        >
+        <div className="absolute right-4 top-3">
           <IconButton
+            ref={triggerRef}
             aria-expanded={isMenuOpen}
             aria-label={dictionary.goals.goalMenu}
             className="size-8 rounded-full text-[#bdb4d4] hover:bg-white/[0.08] hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
             onClick={(event) => {
               event.stopPropagation();
-              setIsMenuOpen((current) => !current);
+              if (isMenuOpen) {
+                closeMenu();
+                return;
+              }
+
+              setMenuStyle(getMenuStyle());
+              setIsMenuOpen(true);
             }}
           >
             <MoreHorizontal aria-hidden="true" className="size-4" />
           </IconButton>
-          {isMenuOpen ? (
-            <div
-              className="modal-panel absolute right-0 top-10 z-20 grid min-w-48 gap-1 p-2 text-sm"
-              onClick={(event) => event.stopPropagation()}
-            >
-              {!archived && onComplete ? (
-                <button
-                  type="button"
-                  className="flex items-center gap-2 rounded-xl px-2 py-2 text-left text-[#f8f3ea] hover:bg-white/[0.08]"
-                  onClick={() => {
-                    setIsMenuOpen(false);
-                    void onComplete(goal.id);
-                  }}
-                >
-                  <Check aria-hidden="true" className="size-4" />
-                  {dictionary.goals.completeGoal}
-                </button>
-              ) : null}
-              {archived && onRestore ? (
-                <button
-                  type="button"
-                  className="flex items-center gap-2 rounded-xl px-2 py-2 text-left text-[#f8f3ea] hover:bg-white/[0.08]"
-                  onClick={() => {
-                    setIsMenuOpen(false);
-                    void onRestore(goal.id);
-                  }}
-                >
-                  <RotateCcw aria-hidden="true" className="size-4" />
-                  {dictionary.goals.restoreGoal}
-                </button>
-              ) : null}
-              {!archived && onMoveGoal ? (
-                <MoveGoalMenu
-                  currentGroupId={goal.groupId}
-                  groups={groups}
-                  onMove={(groupId) => {
-                    setIsMenuOpen(false);
-                    return onMoveGoal(goal.id, groupId);
-                  }}
-                />
-              ) : null}
-              {!archived && onReorder ? (
-                <div className="flex gap-1 px-1 pt-1">
-                  <IconButton
-                    aria-label={dictionary.dayEditor.moveItemUp}
-                    className="size-8 rounded-full"
-                    disabled={isFirst}
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      setIsMenuOpen(false);
-                      void onReorder(goal.id, 'up');
-                    }}
-                  >
-                    <ArrowUp aria-hidden="true" className="size-4" />
-                  </IconButton>
-                  <IconButton
-                    aria-label={dictionary.dayEditor.moveItemDown}
-                    className="size-8 rounded-full"
-                    disabled={isLast}
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      setIsMenuOpen(false);
-                      void onReorder(goal.id, 'down');
-                    }}
-                  >
-                    <ArrowDown aria-hidden="true" className="size-4" />
-                  </IconButton>
-                </div>
-              ) : null}
-            </div>
-          ) : null}
         </div>
+        {menu}
 
         <GoalPreview
           categoryTagMap={stepCategoryMap}
@@ -1332,31 +1413,29 @@ function MoveGoalMenu({
   onMove: (groupId: string | null) => Promise<void> | void;
 }) {
   const { dictionary } = useAppContext();
+  const movableGroups = groups.filter(
+    (group) => group.id !== currentGroupId && group.title.trim().length > 0,
+  );
+
+  if (movableGroups.length === 0) {
+    return null;
+  }
 
   return (
-    <div className="grid gap-1 border-t border-white/10 pt-1">
+    <div className="grid gap-2 border-t border-white/10 pt-2">
       <span className="px-2 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-[#9f96b8]">
         {dictionary.goals.moveTo}
       </span>
-      <button
-        type="button"
-        disabled={currentGroupId === null}
-        className="rounded-xl px-2 py-2 text-left text-[#f8f3ea] hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-40"
-        onClick={() => void onMove(null)}
-      >
-        {dictionary.goals.noGroup}
-      </button>
-      {groups.map((group) => (
+      {movableGroups.map((group) => (
         <button
           key={group.id}
           type="button"
-          disabled={currentGroupId === group.id}
-          className="rounded-xl px-2 py-2 text-left text-[#f8f3ea] hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-40"
+          className="rounded-xl px-2 py-2 text-left text-[#f8f3ea] transition hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-40"
           onClick={() => void onMove(group.id)}
         >
           {group.title}
         </button>
-      ))}
+        ))}
     </div>
   );
 }

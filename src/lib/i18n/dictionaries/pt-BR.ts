@@ -155,6 +155,7 @@ export const ptBRDictionary = {
     groupCategories: 'Grupos',
     itemCategories: 'Itens',
     moveTo: 'Mover para...',
+    removeFromGroup: 'Retirar do Grupo',
     noGroup: 'Sem grupo',
     originGroup: 'Grupo de origem',
     renameGroup: 'Renomear grupo',

@@ -154,6 +154,7 @@ export const enDictionary = {
     groupCategories: 'Groups',
     itemCategories: 'Items',
     moveTo: 'Move to...',
+    removeFromGroup: 'Remove from group',
     noGroup: 'No group',
     originGroup: 'Original group',
     renameGroup: 'Rename group',

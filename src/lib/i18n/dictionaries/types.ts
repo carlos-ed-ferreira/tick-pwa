@@ -143,6 +143,7 @@ export interface Dictionary {
     groupCategories: string;
     itemCategories: string;
     moveTo: string;
+    removeFromGroup: string;
     noGroup: string;
     originGroup: string;
     renameGroup: string;

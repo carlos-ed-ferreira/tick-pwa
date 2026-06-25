@@ -120,6 +120,7 @@ vi.mock('@/providers', () => ({
         moveTo: 'Move to...',
         newGoalTitle: 'New goal',
         newGroupName: 'New group',
+        removeFromGroup: 'Remove from group',
         noGroup: 'No group',
         originGroup: 'Original group',
         renameGoal: 'Rename goal',
@@ -366,6 +367,44 @@ describe('GoalsSurface', () => {
     expect(badge).toHaveStyle({
       borderColor: 'rgba(249, 115, 22, 0.6)',
       backgroundColor: 'rgba(249, 115, 22, 0.14)',
+    });
+  });
+
+  it('renders goal actions in a portal, shows remove from group for grouped goals, omits new group and closes on outside click', async () => {
+    useGoalGroupsMock.mockReturnValue([
+      group({ id: 'group-1', title: 'Life' }),
+    ]);
+    useGoalsMock.mockImplementation((_scope, options = {}) => {
+      if (options.archived) return [];
+
+      return [goal({ id: 'goal-1', title: 'Focus', groupId: 'group-1' })];
+    });
+
+    render(<GoalsSurface />);
+
+    fireEvent.click(screen.getByRole('button', { name: /LifeFocus/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'Goal actions' }));
+
+    const completeButton = screen.getByRole('button', { name: 'Complete goal' });
+
+    expect(completeButton.closest('article')).toBeNull();
+    expect(
+      screen.queryByRole('button', { name: 'New group' }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'NOVO GRUPO' }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'No group' })).not.toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Remove from group' }),
+    ).toHaveClass('hover:bg-white/[0.08]');
+
+    fireEvent.pointerDown(document.body);
+
+    await waitFor(() => {
+      expect(
+        screen.queryByRole('button', { name: 'Complete goal' }),
+      ).not.toBeInTheDocument();
     });
   });
 
