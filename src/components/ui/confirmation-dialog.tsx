@@ -1,11 +1,13 @@
 'use client';
 
+import type { ButtonTone } from './button';
 import { Button } from './button';
 import { Dialog } from './dialog';
 import { Text } from './text';
 
 export function ConfirmationDialog({
   cancelLabel,
+  confirmTone = 'danger',
   confirmLabel,
   description,
   open,
@@ -14,6 +16,7 @@ export function ConfirmationDialog({
   onConfirm,
 }: {
   cancelLabel: string;
+  confirmTone?: ButtonTone;
   confirmLabel: string;
   description: string;
   open: boolean;
@@ -44,8 +47,12 @@ export function ConfirmationDialog({
             {cancelLabel}
           </Button>
           <Button
-            className="h-12 rounded-[1.15rem] border border-rose-300/24 bg-rose-400/15 px-5 text-rose-50 shadow-[0_14px_28px_rgba(244,63,94,0.14)] hover:bg-rose-400/22 focus-visible:outline-rose-200"
-            tone="danger"
+            className={`h-12 rounded-[1.15rem] px-5 ${
+              confirmTone === 'danger'
+                ? 'border border-rose-300/24 bg-rose-400/15 text-rose-50 shadow-[0_14px_28px_rgba(244,63,94,0.14)] hover:bg-rose-400/22 focus-visible:outline-rose-200'
+                : 'shadow-[0_14px_28px_rgba(59,130,246,0.18)]'
+            }`}
+            tone={confirmTone}
             onClick={onConfirm}
           >
             {confirmLabel}

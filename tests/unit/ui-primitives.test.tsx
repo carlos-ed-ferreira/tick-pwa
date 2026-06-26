@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { Button, Input, Text } from '@/components/ui';
+import { Button, ConfirmationDialog, Input, Text } from '@/components/ui';
 
 describe('UI primitives', () => {
   it('applies structured input text assistance defaults', () => {
@@ -50,5 +50,45 @@ describe('UI primitives', () => {
 
     expect(button).toHaveClass('bg-secondary', 'text-primary-foreground');
     expect(button).not.toHaveClass('shadow-sm');
+  });
+
+  it('keeps danger styling reserved for destructive confirmation dialogs', () => {
+    const noop = () => {};
+    const { rerender } = render(
+      <ConfirmationDialog
+        cancelLabel="Cancel"
+        confirmLabel="Delete"
+        description="Delete this item?"
+        open
+        title="Delete item"
+        onClose={noop}
+        onConfirm={noop}
+      />,
+    );
+
+    expect(screen.getByRole('button', { name: 'Delete' })).toHaveClass(
+      'border-rose-300/24',
+      'bg-rose-400/15',
+      'text-rose-50',
+    );
+
+    rerender(
+      <ConfirmationDialog
+        cancelLabel="Cancel"
+        confirmLabel="Archive"
+        confirmTone="primary"
+        description="Archive this goal?"
+        open
+        title="Archive goal"
+        onClose={noop}
+        onConfirm={noop}
+      />,
+    );
+
+    expect(screen.getByRole('button', { name: 'Archive' })).toHaveClass(
+      'bg-primary',
+      'text-primary-foreground',
+      'shadow-[0_14px_28px_rgba(59,130,246,0.18)]',
+    );
   });
 });

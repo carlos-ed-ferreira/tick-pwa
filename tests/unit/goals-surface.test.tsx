@@ -18,6 +18,7 @@ const {
   completeGoalMock,
   createGoalMock,
   createGoalStepMock,
+  groupGoalsTogetherMock,
   moveGoalToGroupMock,
   reopenGoalMock,
   routerPushMock,
@@ -31,6 +32,7 @@ const {
   completeGoalMock: vi.fn().mockResolvedValue(undefined),
   createGoalMock: vi.fn(),
   createGoalStepMock: vi.fn(),
+  groupGoalsTogetherMock: vi.fn().mockResolvedValue({ id: 'group-new' }),
   moveGoalToGroupMock: vi.fn().mockResolvedValue(undefined),
   reopenGoalMock: vi.fn().mockResolvedValue(undefined),
   routerPushMock: vi.fn(),
@@ -57,7 +59,7 @@ vi.mock('@/lib/db', () => ({
   createGoal: createGoalMock,
   createGoalStep: createGoalStepMock,
   createGoalStepChild: vi.fn().mockResolvedValue({ id: 'child' }),
-  groupGoalsTogether: vi.fn().mockResolvedValue({ id: 'group-new' }),
+  groupGoalsTogether: groupGoalsTogetherMock,
   indentGoalStep: vi.fn().mockResolvedValue(undefined),
   moveGoalAfter: vi.fn().mockResolvedValue(undefined),
   moveGoalBefore: vi.fn().mockResolvedValue(undefined),
@@ -110,8 +112,8 @@ vi.mock('@/providers', () => ({
         assignGoalCategory: 'Assign goal category',
         assignGroupCategory: 'Assign group category',
         backToGoalGroups: 'Back to goal groups',
-        completeGoal: 'Complete goal',
-        confirmCompleteGoal: 'Complete this goal?',
+        completeGoal: 'Archive goal',
+        confirmCompleteGoal: 'Archive this goal?',
         confirmDeleteGoal: 'Delete this goal?',
         deleteGoal: 'Delete goal',
         dragGoal: 'Drag goal',
@@ -120,6 +122,9 @@ vi.mock('@/providers', () => ({
         goalTitlePlaceholder: 'Goal name',
         groupCategories: 'Groups',
         groupTitlePlaceholder: 'Group name',
+        createGroupTitle: 'Create group',
+        createGroupDescription: 'Choose the initial name for this group.',
+        createGroupConfirm: 'Create group',
         moveTo: 'Move to...',
         newGoalTitle: 'New goal',
         newGroupName: 'New group',
@@ -128,6 +133,7 @@ vi.mock('@/providers', () => ({
         originGroup: 'Original group',
         renameGoal: 'Rename goal',
         renameGroup: 'Rename group',
+        confirmRestoreGoal: 'Restore this goal?',
         restoreGoal: 'Restore goal',
       },
       actions: {
@@ -220,6 +226,7 @@ describe('GoalsSurface', () => {
     createGoalStepMock.mockReset();
     createGoalStepMock.mockResolvedValue({ id: 'step-new' });
     completeGoalMock.mockClear();
+    groupGoalsTogetherMock.mockClear();
     moveGoalToGroupMock.mockClear();
     reopenGoalMock.mockClear();
     routerPushMock.mockClear();
@@ -307,6 +314,95 @@ describe('GoalsSurface', () => {
       });
     });
     expect(routerPushMock).toHaveBeenCalledWith('/goals?goal=goal-new');
+  });
+
+  it('asks for the initial group name before combining two ungrouped goals', async () => {
+    useGoalsMock.mockImplementation((_scope, options = {}) => {
+      if (options.archived) {
+        return [];
+      }
+
+      return [
+        goal({ id: 'goal-1', title: 'Focus' }),
+        goal({ id: 'goal-2', title: 'Health' }),
+      ];
+    });
+
+    render(<GoalsSurface />);
+
+    const sourceGoal = screen.getByRole('button', { name: 'Focus' });
+    const targetGoal = screen.getByRole('button', { name: 'Health' });
+    const dragHandle = screen.getAllByLabelText('Drag goal')[0];
+    const dragCard = dragHandle.closest('article');
+
+    if (!dragCard) {
+      throw new Error('Drag card not found');
+    }
+
+    dragCard.getBoundingClientRect = vi.fn(() => ({
+      bottom: 120,
+      height: 80,
+      left: 20,
+      right: 220,
+      top: 40,
+      width: 200,
+      x: 20,
+      y: 40,
+      toJSON: () => ({}),
+    }));
+
+    Object.defineProperty(document, 'elementFromPoint', {
+      configurable: true,
+      value: vi.fn(() => targetGoal),
+    });
+
+    fireEvent.pointerDown(dragHandle, {
+      button: 0,
+      clientX: 40,
+      clientY: 60,
+      isPrimary: true,
+      pointerId: 1,
+    });
+    fireEvent.pointerMove(window, {
+      clientX: 120,
+      clientY: 80,
+      pointerId: 1,
+    });
+    fireEvent.pointerUp(window, {
+      clientX: 120,
+      clientY: 80,
+      pointerId: 1,
+    });
+
+    expect(
+      screen.getByRole('dialog', { name: 'Create group' }),
+    ).toBeInTheDocument();
+
+    const input = screen.getByLabelText('Group name');
+
+    expect(input).toHaveValue('NEW GROUP');
+
+    input.focus();
+    fireEvent.change(input, { target: { value: 'Health plan' } });
+
+    expect(input).toHaveValue('HEALTH PLAN');
+    expect(input).toHaveFocus();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Create group' }));
+
+    await waitFor(() => {
+      expect(groupGoalsTogetherMock).toHaveBeenCalledWith({
+        scope,
+        sourceGoalId: 'goal-1',
+        targetGoalId: 'goal-2',
+        title: 'HEALTH PLAN',
+      });
+    });
+
+    expect(
+      screen.queryByRole('dialog', { name: 'Create group' }),
+    ).not.toBeInTheDocument();
+    expect(sourceGoal).toBeInTheDocument();
   });
 
   it('renders groups as main cards with compact goal tiles', () => {
@@ -403,7 +499,7 @@ describe('GoalsSurface', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Goal actions' }));
 
     const completeButton = screen.getByRole('button', {
-      name: 'Complete goal',
+      name: 'Archive goal',
     });
 
     expect(completeButton.closest('article')).toBeNull();
@@ -424,7 +520,7 @@ describe('GoalsSurface', () => {
 
     await waitFor(() => {
       expect(
-        screen.queryByRole('button', { name: 'Complete goal' }),
+        screen.queryByRole('button', { name: 'Archive goal' }),
       ).not.toBeInTheDocument();
     });
   });
@@ -448,6 +544,95 @@ describe('GoalsSurface', () => {
     expect(routerPushMock).toHaveBeenCalledWith('/goals?goal=goal-1');
   });
 
+  it('renders the group detail header using the same input and back-button pattern as goal detail', () => {
+    useGoalGroupsMock.mockReturnValue([
+      group({ id: 'group-1', title: 'Life' }),
+    ]);
+    useGoalsMock.mockImplementation((_scope, options = {}) => {
+      if (options.archived) return [];
+
+      return [goal({ id: 'goal-1', title: 'Health', groupId: 'group-1' })];
+    });
+
+    render(<GoalsSurface />);
+    fireEvent.click(screen.getByRole('button', { name: /LifeHealth/i }));
+
+    const backButton = screen.getByRole('button', {
+      name: 'Back to goal groups',
+    });
+    const titleInput = screen.getByLabelText('Rename group');
+    const categoryButton = screen.getByRole('button', {
+      name: 'Assign group category',
+    });
+
+    expect(backButton).toHaveClass(
+      'min-h-10',
+      'rounded-full',
+      'border',
+      'border-white/10',
+      'bg-white/5',
+      'px-4',
+      'py-2',
+    );
+    expect(titleInput).toHaveValue('Life');
+    expect(titleInput).not.toHaveAttribute('placeholder');
+    expect(titleInput).toHaveClass(
+      'absolute',
+      'inset-0',
+      'h-full',
+      'w-full',
+      'px-2',
+      'py-1',
+      'text-2xl',
+      'font-semibold',
+    );
+    expect(titleInput.parentElement).toHaveClass(
+      'relative',
+      'inline-block',
+      'min-w-0',
+      'max-w-full',
+      'shrink',
+      'align-middle',
+    );
+    expect(categoryButton).toHaveClass(
+      'size-10',
+      'rounded-md',
+      'border',
+      'border-white/10',
+      'bg-white/5',
+      'text-[#d8d0e8]',
+    );
+  });
+
+  it('renders group goals without an extra wrapper card and adds New goal as a tile', () => {
+    useGoalGroupsMock.mockReturnValue([
+      group({ id: 'group-1', title: 'Life' }),
+    ]);
+    useGoalsMock.mockImplementation((_scope, options = {}) => {
+      if (options.archived) return [];
+
+      return [goal({ id: 'goal-1', title: 'Health', groupId: 'group-1' })];
+    });
+
+    render(<GoalsSurface />);
+    fireEvent.click(screen.getByRole('button', { name: /LifeHealth/i }));
+
+    const newGoalCard = screen.getByRole('button', { name: 'New goal' });
+
+    expect(newGoalCard).toHaveClass(
+      'h-32',
+      'border-dashed',
+      'justify-center',
+      'rounded-[1.35rem]',
+    );
+    expect(
+      screen.queryByRole('heading', { name: 'Life' }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText('This group has no goals yet. Create the first goal.'),
+    ).not.toBeInTheDocument();
+  });
+
   it('opens a goal detail preserving the checklist item surface', () => {
     useGoalStepTreeMock.mockReturnValue([goalStep()]);
 
@@ -459,7 +644,7 @@ describe('GoalsSurface', () => {
     expect(screen.getByDisplayValue('Existing step')).toBeInTheDocument();
   });
 
-  it('shows archived goals and restores them', async () => {
+  it('asks for confirmation before restoring an archived goal from the card menu', async () => {
     useGoalsMock.mockImplementation((_scope, options = {}) => {
       if (options.archived) {
         return [
@@ -479,6 +664,10 @@ describe('GoalsSurface', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Goal actions' }));
     fireEvent.click(screen.getByRole('button', { name: 'Restore goal' }));
 
+    expect(screen.getByText('Restore this goal?')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Restore goal' }));
+
     await waitFor(() => {
       expect(reopenGoalMock).toHaveBeenCalledWith({
         scope,
@@ -487,16 +676,16 @@ describe('GoalsSurface', () => {
     });
   });
 
-  it('asks for confirmation before completing a goal from the card menu', async () => {
+  it('asks for confirmation before archiving a goal from the card menu', async () => {
     render(<GoalsSurface />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Goal actions' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Complete goal' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Archive goal' }));
 
-    expect(screen.getAllByText('Complete goal')).toHaveLength(2);
-    expect(screen.getByText('Complete this goal?')).toBeInTheDocument();
+    expect(screen.getAllByText('Archive goal')).toHaveLength(2);
+    expect(screen.getByText('Archive this goal?')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Complete goal' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Archive goal' }));
 
     await waitFor(() => {
       expect(completeGoalMock).toHaveBeenCalledWith({
@@ -619,23 +808,56 @@ describe('GoalsSurface', () => {
     });
   });
 
-  it('asks for confirmation before completing a goal from the detail header', async () => {
+  it('asks for confirmation before archiving a goal from the detail header', async () => {
     useGoalStepTreeMock.mockReturnValue([goalStep()]);
 
     render(<GoalsSurface />);
     fireEvent.click(screen.getByRole('button', { name: 'Focus' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Complete goal' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Archive goal' }));
 
-    expect(screen.getByText('Complete this goal?')).toBeInTheDocument();
+    expect(screen.getByText('Archive this goal?')).toBeInTheDocument();
 
-    fireEvent.click(
-      screen.getAllByRole('button', { name: 'Complete goal' })[1],
-    );
+    fireEvent.click(screen.getAllByRole('button', { name: 'Archive goal' })[1]);
 
     await waitFor(() => {
       expect(completeGoalMock).toHaveBeenCalledWith({
         scope,
         goalId: 'goal-1',
+      });
+    });
+  });
+
+  it('asks for confirmation before restoring an archived goal from the detail header', async () => {
+    useGoalsMock.mockImplementation((_scope, options = {}) => {
+      if (options.archived) {
+        return [
+          goal({
+            id: 'goal-archived',
+            title: 'Done',
+            completedAt: '2026-06-23T12:00:00.000Z',
+          }),
+        ];
+      }
+
+      return [];
+    });
+    useGoalStepTreeMock.mockReturnValue([
+      goalStep({ goalId: 'goal-archived' }),
+    ]);
+
+    render(<GoalsSurface />);
+    fireEvent.click(screen.getByRole('button', { name: 'Archived' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Restore goal' }));
+
+    expect(screen.getByText('Restore this goal?')).toBeInTheDocument();
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Restore goal' })[1]);
+
+    await waitFor(() => {
+      expect(reopenGoalMock).toHaveBeenCalledWith({
+        scope,
+        goalId: 'goal-archived',
       });
     });
   });

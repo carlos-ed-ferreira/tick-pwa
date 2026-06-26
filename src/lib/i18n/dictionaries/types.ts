@@ -139,6 +139,9 @@ export interface Dictionary {
     newGoalTitle: string;
     goalMenu: string;
     groupTitlePlaceholder: string;
+    createGroupTitle: string;
+    createGroupDescription: string;
+    createGroupConfirm: string;
     goalCategories: string;
     groupCategories: string;
     itemCategories: string;
@@ -148,6 +151,7 @@ export interface Dictionary {
     originGroup: string;
     renameGroup: string;
     restoreGoal: string;
+    confirmRestoreGoal: string;
     goalTitlePlaceholder: string;
     renameGoal: string;
     addGoal: string;
