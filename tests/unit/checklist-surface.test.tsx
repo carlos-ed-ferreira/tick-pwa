@@ -41,6 +41,10 @@ vi.mock('@/lib/db', () => ({
 vi.mock('@/providers', () => ({
   useAppContext: () => ({
     dictionary: {
+      actions: {
+        cancel: 'Cancel',
+        delete: 'Delete',
+      },
       dayEditor: {
         addItem: 'Add item',
         emptyChecklist: 'Start this day with a checklist item',
@@ -66,15 +70,15 @@ vi.mock('@/providers', () => ({
         confirmBulkDeleteItems: 'Are you sure you want to delete this item?',
         clearSelection: 'Clear selection',
       },
-      actions: {
-        cancel: 'Cancel',
-        delete: 'Delete',
-      },
     },
     scope: {
       id: 'guest:test',
       kind: 'guest',
       ownerId: 'test',
+    },
+    locale: 'en',
+    timezonePreference: {
+      timezone: 'America/Sao_Paulo',
     },
   }),
 }));
@@ -287,9 +291,11 @@ describe('ChecklistSurface delete confirmation', () => {
         itemId: 'item-First task',
       });
     });
-    expect(
-      screen.queryByRole('button', { name: 'Clear selection' }),
-    ).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(
+        screen.queryByRole('button', { name: 'Clear selection' }),
+      ).not.toBeInTheDocument();
+    });
   });
 
   it('bulk selects a visible range with shift click', async () => {

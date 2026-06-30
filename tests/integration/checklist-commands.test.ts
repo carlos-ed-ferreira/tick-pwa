@@ -8,8 +8,12 @@ import {
   createChecklistItem,
   createCategoryTag,
   db,
+  duplicateChecklistItemToDate,
+  duplicateChecklistItemsToDate,
   indentChecklistItem,
   openOrCreateDailyEntry,
+  moveChecklistItemToDate,
+  moveChecklistItemsToDate,
   outdentChecklistItem,
   reorderChecklistItem,
   reorderCategoryTag,
@@ -108,6 +112,300 @@ describe('checklist commands', () => {
     expect(updatedEntry).toMatchObject({
       previewText: 'Second',
       itemCount: 1,
+    });
+  });
+
+  it('moves a checklist tree to another day and updates both summaries', async () => {
+    const scope = createGuestScope('move-tree-test');
+    const sourceEntry = await openOrCreateDailyEntry({
+      scope,
+      date: '2026-05-21',
+      timezone: 'America/Sao_Paulo',
+    });
+    const targetEntry = await openOrCreateDailyEntry({
+      scope,
+      date: '2026-05-22',
+      timezone: 'America/Sao_Paulo',
+    });
+    const sourceRoot = await createChecklistItem({
+      scope,
+      dailyEntryId: sourceEntry.id,
+      text: 'Source root',
+    });
+    const sourceChild = await createChecklistChild({
+      scope,
+      dailyEntryId: sourceEntry.id,
+      parentItemId: sourceRoot.id,
+    });
+    await updateChecklistItemText({
+      scope,
+      itemId: sourceChild.id,
+      text: 'Source child',
+    });
+    await createChecklistItem({
+      scope,
+      dailyEntryId: targetEntry.id,
+      text: 'Target root',
+    });
+
+    await moveChecklistItemToDate({
+      scope,
+      itemId: sourceRoot.id,
+      targetDate: '2026-05-22',
+      timezone: 'America/Sao_Paulo',
+    });
+
+    const movedSourceRoot = await db.checklistItems.get(sourceRoot.id);
+    const movedSourceChild = await db.checklistItems.get(sourceChild.id);
+    const updatedSourceEntry = await db.dailyEntries.get(sourceEntry.id);
+    const updatedTargetEntry = await db.dailyEntries.get(targetEntry.id);
+    const targetItems = await db.checklistItems
+      .where('[scopeId+dailyEntryId]')
+      .equals([scope.id, targetEntry.id])
+      .filter((item) => item.deletedAt === null)
+      .sortBy('sortRank');
+
+    expect(movedSourceRoot).toMatchObject({
+      dailyEntryId: targetEntry.id,
+    });
+    expect(movedSourceChild).toMatchObject({
+      dailyEntryId: targetEntry.id,
+    });
+    expect(
+      targetItems.filter((item) => item.parentId === null).map((item) => item.text),
+    ).toEqual(['Target root', 'Source root']);
+    expect(
+      targetItems.filter((item) => item.parentId === sourceRoot.id).map((item) => item.text),
+    ).toEqual(['Source child']);
+    expect(updatedSourceEntry).toMatchObject({
+      previewText: '',
+      itemCount: 0,
+      completedCount: 0,
+      categoryTagIds: [],
+    });
+    expect(updatedTargetEntry).toMatchObject({
+      previewText: 'Target root',
+      itemCount: 3,
+      completedCount: 0,
+    });
+  });
+
+  it('duplicates a checklist tree into another day without changing the source', async () => {
+    const scope = createGuestScope('duplicate-tree-test');
+    const sourceEntry = await openOrCreateDailyEntry({
+      scope,
+      date: '2026-05-21',
+      timezone: 'America/Sao_Paulo',
+    });
+    const targetEntry = await openOrCreateDailyEntry({
+      scope,
+      date: '2026-05-22',
+      timezone: 'America/Sao_Paulo',
+    });
+    const sourceRoot = await createChecklistItem({
+      scope,
+      dailyEntryId: sourceEntry.id,
+      text: 'Source root',
+    });
+    const sourceChild = await createChecklistChild({
+      scope,
+      dailyEntryId: sourceEntry.id,
+      parentItemId: sourceRoot.id,
+    });
+    await updateChecklistItemText({
+      scope,
+      itemId: sourceChild.id,
+      text: 'Source child',
+    });
+
+    await duplicateChecklistItemToDate({
+      scope,
+      itemId: sourceRoot.id,
+      targetDate: '2026-05-22',
+      timezone: 'America/Sao_Paulo',
+    });
+
+    const sourceItems = await db.checklistItems
+      .where('[scopeId+dailyEntryId]')
+      .equals([scope.id, sourceEntry.id])
+      .filter((item) => item.deletedAt === null)
+      .sortBy('sortRank');
+    const targetItems = await db.checklistItems
+      .where('[scopeId+dailyEntryId]')
+      .equals([scope.id, targetEntry.id])
+      .filter((item) => item.deletedAt === null)
+      .sortBy('sortRank');
+    const duplicatedRoot = targetItems.find((item) => item.parentId === null);
+    const duplicatedChild = targetItems.find(
+      (item) => item.parentId === duplicatedRoot?.id,
+    );
+    const updatedTargetEntry = await db.dailyEntries.get(targetEntry.id);
+
+    expect(sourceItems.filter((item) => item.parentId === null).map((item) => item.text)).toEqual([
+      'Source root',
+    ]);
+    expect(sourceItems.filter((item) => item.parentId === sourceRoot.id).map((item) => item.text)).toEqual([
+      'Source child',
+    ]);
+    expect(
+      targetItems.filter((item) => item.parentId === null).map((item) => item.text),
+    ).toEqual(['Source root']);
+    expect(
+      targetItems.filter((item) => item.parentId === duplicatedRoot?.id).map((item) => item.text),
+    ).toEqual(['Source child']);
+    expect(duplicatedRoot?.id).not.toBe(sourceRoot.id);
+    expect(duplicatedChild?.id).not.toBe(sourceChild.id);
+    expect(duplicatedChild?.parentId).toBe(duplicatedRoot?.id ?? null);
+    expect(updatedTargetEntry).toMatchObject({
+      previewText: 'Source root',
+      itemCount: 2,
+      completedCount: 0,
+    });
+  });
+
+  it('moves all checklist items from one day to another day', async () => {
+    const scope = createGuestScope('move-day-test');
+    const sourceEntry = await openOrCreateDailyEntry({
+      scope,
+      date: '2026-05-21',
+      timezone: 'America/Sao_Paulo',
+    });
+    const targetEntry = await openOrCreateDailyEntry({
+      scope,
+      date: '2026-05-22',
+      timezone: 'America/Sao_Paulo',
+    });
+    const sourceRoot = await createChecklistItem({
+      scope,
+      dailyEntryId: sourceEntry.id,
+      text: 'Source root',
+    });
+    const sourceChild = await createChecklistChild({
+      scope,
+      dailyEntryId: sourceEntry.id,
+      parentItemId: sourceRoot.id,
+    });
+    await updateChecklistItemText({
+      scope,
+      itemId: sourceChild.id,
+      text: 'Source child',
+    });
+    await createChecklistItem({
+      scope,
+      dailyEntryId: targetEntry.id,
+      text: 'Target root',
+    });
+
+    await moveChecklistItemsToDate({
+      scope,
+      sourceDailyEntryId: sourceEntry.id,
+      targetDate: '2026-05-22',
+      timezone: 'America/Sao_Paulo',
+    });
+
+    const movedSourceItems = await db.checklistItems
+      .where('[scopeId+dailyEntryId]')
+      .equals([scope.id, sourceEntry.id])
+      .filter((item) => item.deletedAt === null)
+      .toArray();
+    const targetItems = await db.checklistItems
+      .where('[scopeId+dailyEntryId]')
+      .equals([scope.id, targetEntry.id])
+      .filter((item) => item.deletedAt === null)
+      .toArray();
+    const updatedSourceEntry = await db.dailyEntries.get(sourceEntry.id);
+    const updatedTargetEntry = await db.dailyEntries.get(targetEntry.id);
+
+    expect(movedSourceItems).toHaveLength(0);
+    expect(
+      targetItems.filter((item) => item.parentId === null).map((item) => item.text),
+    ).toEqual(['Target root', 'Source root']);
+    expect(
+      targetItems.filter((item) => item.parentId === sourceRoot.id).map((item) => item.text),
+    ).toEqual(['Source child']);
+    expect(updatedSourceEntry).toMatchObject({
+      previewText: '',
+      itemCount: 0,
+      completedCount: 0,
+      categoryTagIds: [],
+    });
+    expect(updatedTargetEntry).toMatchObject({
+      previewText: 'Target root',
+      itemCount: 3,
+      completedCount: 0,
+    });
+  });
+
+  it('duplicates all checklist items from one day into another day', async () => {
+    const scope = createGuestScope('duplicate-day-test');
+    const sourceEntry = await openOrCreateDailyEntry({
+      scope,
+      date: '2026-05-21',
+      timezone: 'America/Sao_Paulo',
+    });
+    const targetEntry = await openOrCreateDailyEntry({
+      scope,
+      date: '2026-05-22',
+      timezone: 'America/Sao_Paulo',
+    });
+    const sourceRoot = await createChecklistItem({
+      scope,
+      dailyEntryId: sourceEntry.id,
+      text: 'Source root',
+    });
+    const sourceChild = await createChecklistChild({
+      scope,
+      dailyEntryId: sourceEntry.id,
+      parentItemId: sourceRoot.id,
+    });
+    await updateChecklistItemText({
+      scope,
+      itemId: sourceChild.id,
+      text: 'Source child',
+    });
+
+    await duplicateChecklistItemsToDate({
+      scope,
+      sourceDailyEntryId: sourceEntry.id,
+      targetDate: '2026-05-22',
+      timezone: 'America/Sao_Paulo',
+    });
+
+    const sourceItems = await db.checklistItems
+      .where('[scopeId+dailyEntryId]')
+      .equals([scope.id, sourceEntry.id])
+      .filter((item) => item.deletedAt === null)
+      .toArray();
+    const targetItems = await db.checklistItems
+      .where('[scopeId+dailyEntryId]')
+      .equals([scope.id, targetEntry.id])
+      .filter((item) => item.deletedAt === null)
+      .toArray();
+    const duplicatedRoot = targetItems.find((item) => item.parentId === null);
+    const duplicatedChild = targetItems.find(
+      (item) => item.parentId === duplicatedRoot?.id,
+    );
+    const updatedTargetEntry = await db.dailyEntries.get(targetEntry.id);
+
+    expect(
+      sourceItems.filter((item) => item.parentId === null).map((item) => item.text),
+    ).toEqual(['Source root']);
+    expect(
+      sourceItems.filter((item) => item.parentId === sourceRoot.id).map((item) => item.text),
+    ).toEqual(['Source child']);
+    expect(
+      targetItems.filter((item) => item.parentId === null).map((item) => item.text),
+    ).toEqual(['Source root']);
+    expect(
+      targetItems.filter((item) => item.parentId === duplicatedRoot?.id).map((item) => item.text),
+    ).toEqual(['Source child']);
+    expect(duplicatedRoot?.id).not.toBe(sourceRoot.id);
+    expect(duplicatedChild?.id).not.toBe(sourceChild.id);
+    expect(duplicatedChild?.parentId).toBe(duplicatedRoot?.id ?? null);
+    expect(updatedTargetEntry).toMatchObject({
+      previewText: 'Source root',
+      itemCount: 2,
+      completedCount: 0,
     });
   });
 

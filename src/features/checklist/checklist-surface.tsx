@@ -25,7 +25,11 @@ import { useChecklistTree } from './use-checklist-tree';
 
 const checklistInputSelector = '[data-checklist-input="true"]';
 
-export function ChecklistSurface({ dailyEntryId }: { dailyEntryId: string }) {
+export function ChecklistSurface({
+  dailyEntryId,
+}: {
+  dailyEntryId: string;
+}) {
   const { dictionary, scope } = useAppContext();
   const rows = useChecklistTree(scope, dailyEntryId);
   const categoryTags = useCategoryTags(scope, 'checklist_item');
