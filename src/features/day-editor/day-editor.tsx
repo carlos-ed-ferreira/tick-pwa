@@ -1,6 +1,12 @@
 'use client';
 
+import { useCallback } from 'react';
 import { ChecklistSurface } from '@/features/checklist';
+import { CalendarTaskTransferAction } from '@/features/calendar/calendar-task-transfer-action';
+import {
+  duplicateChecklistItemsToDate,
+  moveChecklistItemsToDate,
+} from '@/lib/db';
 import type { LocalDateString } from '@/lib/domain';
 import { Dialog } from '@/components/ui';
 import { formatLocalDateLabel } from '@/lib/i18n';
@@ -41,6 +47,36 @@ export function DayEditor({
         timezonePreference.timezone,
       )
     : dictionary.dayEditor.title;
+  const handleDuplicateDay = useCallback(
+    async (targetDate: LocalDateString) => {
+      if (!entry || !date || !scope) {
+        return;
+      }
+
+      await duplicateChecklistItemsToDate({
+        scope,
+        sourceDailyEntryId: entry.id,
+        targetDate,
+        timezone: timezonePreference.timezone,
+      });
+    },
+    [date, entry, scope, timezonePreference.timezone],
+  );
+  const handleMoveDay = useCallback(
+    async (targetDate: LocalDateString) => {
+      if (!entry || !date || !scope) {
+        return;
+      }
+
+      await moveChecklistItemsToDate({
+        scope,
+        sourceDailyEntryId: entry.id,
+        targetDate,
+        timezone: timezonePreference.timezone,
+      });
+    },
+    [date, entry, scope, timezonePreference.timezone],
+  );
 
   return (
     <Dialog
@@ -50,6 +86,23 @@ export function DayEditor({
       onClose={onClose}
     >
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-4 sm:p-5">
+        {entry && date ? (
+          <div className="modal-panel mb-3 flex items-center justify-between gap-3 px-4 py-3">
+            <div className="min-w-0">
+              <div className="text-sm font-medium text-[#fff9f2]">
+                {dictionary.calendar.transferDialogTitle}
+              </div>
+              <div className="text-xs text-[#bdb4d4]">
+                {dictionary.calendar.transferDescription}
+              </div>
+            </div>
+            <CalendarTaskTransferAction
+              sourceDate={date}
+              onDuplicateToDate={handleDuplicateDay}
+              onMoveToDate={handleMoveDay}
+            />
+          </div>
+        ) : null}
         {entry ? (
           <ChecklistSurface dailyEntryId={entry.id} />
         ) : (

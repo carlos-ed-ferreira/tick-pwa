@@ -68,6 +68,191 @@ function getSortedTemplateChildren(
   return sortByRank(templateItems.filter((item) => item.parentId === parentId));
 }
 
+function getChecklistSubtreeIds(
+  items: ChecklistItem[],
+  rootItemId: string,
+): Set<string> {
+  const childrenByParentId = new Map<string, ChecklistItem[]>();
+
+  for (const item of items) {
+    if (!item.parentId) {
+      continue;
+    }
+
+    const children = childrenByParentId.get(item.parentId) ?? [];
+    children.push(item);
+    childrenByParentId.set(item.parentId, children);
+  }
+
+  const subtreeIds = new Set<string>();
+
+  function visit(parentItemId: string) {
+    subtreeIds.add(parentItemId);
+
+    for (const child of sortChecklistItems(
+      childrenByParentId.get(parentItemId) ?? [],
+    )) {
+      visit(child.id);
+    }
+  }
+
+  visit(rootItemId);
+
+  return subtreeIds;
+}
+
+function getChecklistSubtreeItems(
+  items: ChecklistItem[],
+  rootItemId: string,
+): ChecklistItem[] {
+  const itemMap = new Map(items.map((item) => [item.id, item]));
+  const childrenByParentId = new Map<string, ChecklistItem[]>();
+
+  for (const item of items) {
+    if (!item.parentId) {
+      continue;
+    }
+
+    const children = childrenByParentId.get(item.parentId) ?? [];
+    children.push(item);
+    childrenByParentId.set(item.parentId, children);
+  }
+
+  const subtreeItems: ChecklistItem[] = [];
+
+  function visit(parentItemId: string) {
+    const item = itemMap.get(parentItemId);
+
+    if (!item) {
+      return;
+    }
+
+    subtreeItems.push(item);
+
+    for (const child of sortChecklistItems(
+      childrenByParentId.get(parentItemId) ?? [],
+    )) {
+      visit(child.id);
+    }
+  }
+
+  visit(rootItemId);
+
+  return subtreeItems;
+}
+
+async function cloneChecklistChildrenToDailyEntry({
+  scope,
+  sourceItems,
+  targetDailyEntryId,
+  targetItems,
+  sourceParentId,
+  targetParentId,
+  previousSortRank,
+}: {
+  scope: AppScope;
+  sourceItems: ChecklistItem[];
+  targetDailyEntryId: string;
+  targetItems: ChecklistItem[];
+  sourceParentId: string | null;
+  targetParentId: string | null;
+  previousSortRank: string | null;
+}): Promise<string | null> {
+  let nextSortRank = previousSortRank;
+
+  for (const sourceItem of sortChecklistItems(
+    sourceItems.filter((item) => item.parentId === sourceParentId),
+  )) {
+    const currentSortRank = createSortRankBetween(nextSortRank, null);
+    const now = createTimestamp();
+    const clonedItem: ChecklistItem = {
+      id: createId(),
+      scopeId: scope.id,
+      dailyEntryId: targetDailyEntryId,
+      parentId: targetParentId,
+      text: sourceItem.text,
+      checked: sourceItem.checked,
+      priority: sourceItem.priority,
+      collapsed: sourceItem.collapsed,
+      categoryTagId: sourceItem.categoryTagId,
+      sortRank: currentSortRank,
+      createdAt: now,
+      updatedAt: now,
+      deletedAt: null,
+      ...createSyncMetadata(scope, now),
+    };
+
+    await db.checklistItems.add(clonedItem);
+    await persistAccountEntityChange({
+      scope,
+      entityType: 'checklistItem',
+      entityId: clonedItem.id,
+      operation: 'upsert',
+      payload: clonedItem as unknown as Record<string, unknown>,
+      changedFields: ['created'],
+      baseRevision: null,
+    });
+
+    targetItems.push(clonedItem);
+
+    nextSortRank =
+      (await cloneChecklistChildrenToDailyEntry({
+        scope,
+        sourceItems,
+        targetDailyEntryId,
+        targetItems,
+        sourceParentId: sourceItem.id,
+        targetParentId: clonedItem.id,
+        previousSortRank: currentSortRank,
+      })) ?? currentSortRank;
+  }
+
+  return nextSortRank;
+}
+
+async function moveChecklistChildrenToDailyEntry({
+  scope,
+  sourceItems,
+  targetDailyEntryId,
+  sourceParentId,
+  previousSortRank,
+}: {
+  scope: AppScope;
+  sourceItems: ChecklistItem[];
+  targetDailyEntryId: string;
+  sourceParentId: string | null;
+  previousSortRank: string | null;
+}): Promise<string | null> {
+  let nextSortRank = previousSortRank;
+
+  for (const sourceItem of sortChecklistItems(
+    sourceItems.filter((item) => item.parentId === sourceParentId),
+  )) {
+    const currentSortRank = createSortRankBetween(nextSortRank, null);
+    const updatedItem = touchChecklistItem(scope, {
+      ...sourceItem,
+      dailyEntryId: targetDailyEntryId,
+      sortRank: currentSortRank,
+    });
+
+    await persistChecklistItemUpdate(scope, updatedItem, [
+      'dailyEntryId',
+      'sortRank',
+    ]);
+
+    nextSortRank =
+      (await moveChecklistChildrenToDailyEntry({
+        scope,
+        sourceItems,
+        targetDailyEntryId,
+        sourceParentId: sourceItem.id,
+        previousSortRank: currentSortRank,
+      })) ?? currentSortRank;
+  }
+
+  return nextSortRank;
+}
+
 export interface ChecklistTemplateItem {
   id: string;
   parentId: string | null;
@@ -528,6 +713,363 @@ export async function reorderChecklistItem({
     await recalculateDailyEntrySummary({
       scope,
       dailyEntryId: item.dailyEntryId,
+    });
+  });
+}
+
+async function cloneChecklistItemDescendants({
+  scope,
+  sourceItems,
+  targetDailyEntryId,
+  targetItems,
+  sourceParentId,
+  targetParentId,
+  previousSortRank,
+}: {
+  scope: AppScope;
+  sourceItems: ChecklistItem[];
+  targetDailyEntryId: string;
+  targetItems: ChecklistItem[];
+  sourceParentId: string;
+  targetParentId: string | null;
+  previousSortRank: string | null;
+}): Promise<string | null> {
+  let nextSortRank = previousSortRank;
+
+  for (const sourceItem of sortChecklistItems(
+    sourceItems.filter((item) => item.parentId === sourceParentId),
+  )) {
+    const currentSortRank = createSortRankBetween(nextSortRank, null);
+    const now = createTimestamp();
+    const clonedItem: ChecklistItem = {
+      id: createId(),
+      scopeId: scope.id,
+      dailyEntryId: targetDailyEntryId,
+      parentId: targetParentId,
+      text: sourceItem.text,
+      checked: sourceItem.checked,
+      priority: sourceItem.priority,
+      collapsed: sourceItem.collapsed,
+      categoryTagId: sourceItem.categoryTagId,
+      sortRank: currentSortRank,
+      createdAt: now,
+      updatedAt: now,
+      deletedAt: null,
+      ...createSyncMetadata(scope, now),
+    };
+
+    await db.checklistItems.add(clonedItem);
+    await persistAccountEntityChange({
+      scope,
+      entityType: 'checklistItem',
+      entityId: clonedItem.id,
+      operation: 'upsert',
+      payload: clonedItem as unknown as Record<string, unknown>,
+      changedFields: ['created'],
+      baseRevision: null,
+    });
+
+    targetItems.push(clonedItem);
+    nextSortRank = currentSortRank;
+
+    nextSortRank =
+      (await cloneChecklistItemDescendants({
+        scope,
+        sourceItems,
+        targetDailyEntryId,
+        targetItems,
+        sourceParentId: sourceItem.id,
+        targetParentId: clonedItem.id,
+        previousSortRank: nextSortRank,
+      })) ?? nextSortRank;
+  }
+
+  return nextSortRank;
+}
+
+export async function duplicateChecklistItemToDate({
+  scope,
+  itemId,
+  targetDate,
+  timezone,
+}: {
+  scope: AppScope;
+  itemId: string;
+  targetDate: LocalDateString;
+  timezone: string;
+}): Promise<void> {
+  const sourceItem = await getScopedChecklistItem(scope, itemId);
+
+  if (!sourceItem || sourceItem.parentId !== null) {
+    return;
+  }
+
+  const sourceEntry = await db.dailyEntries.get(sourceItem.dailyEntryId);
+
+  if (!sourceEntry || sourceEntry.scopeId !== scope.id || sourceEntry.deletedAt) {
+    return;
+  }
+
+  const targetEntry = await openOrCreateDailyEntry({
+    scope,
+    date: targetDate,
+    timezone,
+  });
+
+  await db.transaction('rw', db.dailyEntries, db.checklistItems, async () => {
+    const activeSourceItems = await getActiveChecklistItems(
+      scope,
+      sourceEntry.id,
+    );
+    const subtreeIds = getChecklistSubtreeIds(activeSourceItems, sourceItem.id);
+    const sourceSubtreeItems = activeSourceItems.filter((item) =>
+      subtreeIds.has(item.id),
+    );
+    const targetItems = await getActiveChecklistItems(scope, targetEntry.id);
+    const targetRootItems = sortChecklistItems(
+      targetItems.filter((item) => item.parentId === null),
+    );
+    const targetInsertionRank = createInsertRank({
+      siblings: targetRootItems,
+    });
+    const now = createTimestamp();
+    const clonedRoot: ChecklistItem = {
+      id: createId(),
+      scopeId: scope.id,
+      dailyEntryId: targetEntry.id,
+      parentId: null,
+      text: sourceItem.text,
+      checked: sourceItem.checked,
+      priority: sourceItem.priority,
+      collapsed: sourceItem.collapsed,
+      categoryTagId: sourceItem.categoryTagId,
+      sortRank: targetInsertionRank,
+      createdAt: now,
+      updatedAt: now,
+      deletedAt: null,
+      ...createSyncMetadata(scope, now),
+    };
+
+    await db.checklistItems.add(clonedRoot);
+    await persistAccountEntityChange({
+      scope,
+      entityType: 'checklistItem',
+      entityId: clonedRoot.id,
+      operation: 'upsert',
+      payload: clonedRoot as unknown as Record<string, unknown>,
+      changedFields: ['created'],
+      baseRevision: null,
+    });
+
+    targetItems.push(clonedRoot);
+
+    await cloneChecklistItemDescendants({
+      scope,
+      sourceItems: sourceSubtreeItems,
+      targetDailyEntryId: targetEntry.id,
+      targetItems,
+      sourceParentId: sourceItem.id,
+      targetParentId: clonedRoot.id,
+      previousSortRank: targetInsertionRank,
+    });
+
+    await recalculateDailyEntrySummary({
+      scope,
+      dailyEntryId: targetEntry.id,
+    });
+  });
+}
+
+export async function moveChecklistItemToDate({
+  scope,
+  itemId,
+  targetDate,
+  timezone,
+}: {
+  scope: AppScope;
+  itemId: string;
+  targetDate: LocalDateString;
+  timezone: string;
+}): Promise<void> {
+  const sourceItem = await getScopedChecklistItem(scope, itemId);
+
+  if (!sourceItem || sourceItem.parentId !== null) {
+    return;
+  }
+
+  const sourceEntry = await db.dailyEntries.get(sourceItem.dailyEntryId);
+
+  if (!sourceEntry || sourceEntry.scopeId !== scope.id || sourceEntry.deletedAt) {
+    return;
+  }
+
+  if (sourceEntry.date === targetDate) {
+    return;
+  }
+
+  const targetEntry = await openOrCreateDailyEntry({
+    scope,
+    date: targetDate,
+    timezone,
+  });
+
+  await db.transaction('rw', db.dailyEntries, db.checklistItems, async () => {
+    const activeSourceItems = await getActiveChecklistItems(
+      scope,
+      sourceEntry.id,
+    );
+    const sourceSubtreeItems = getChecklistSubtreeItems(
+      activeSourceItems,
+      sourceItem.id,
+    );
+    const targetItems = await getActiveChecklistItems(scope, targetEntry.id);
+    const targetRootItems = sortChecklistItems(
+      targetItems.filter((item) => item.parentId === null),
+    );
+    const targetInsertionRank = createInsertRank({
+      siblings: targetRootItems,
+    });
+    let previousSortRank = targetInsertionRank;
+
+    for (const currentItem of sourceSubtreeItems) {
+      const nextSortRank =
+        currentItem.id === sourceItem.id
+          ? targetInsertionRank
+          : createSortRankBetween(previousSortRank, null);
+      const updatedItem = touchChecklistItem(scope, {
+        ...currentItem,
+        dailyEntryId: targetEntry.id,
+        sortRank: nextSortRank,
+      });
+
+      await persistChecklistItemUpdate(
+        scope,
+        updatedItem,
+        currentItem.id === sourceItem.id
+          ? ['dailyEntryId', 'sortRank']
+          : ['dailyEntryId'],
+      );
+
+      previousSortRank = nextSortRank;
+    }
+
+    await recalculateDailyEntrySummary({
+      scope,
+      dailyEntryId: sourceEntry.id,
+    });
+    await recalculateDailyEntrySummary({
+      scope,
+      dailyEntryId: targetEntry.id,
+    });
+  });
+}
+
+export async function duplicateChecklistItemsToDate({
+  scope,
+  sourceDailyEntryId,
+  targetDate,
+  timezone,
+}: {
+  scope: AppScope;
+  sourceDailyEntryId: string;
+  targetDate: LocalDateString;
+  timezone: string;
+}): Promise<void> {
+  const sourceEntry = await db.dailyEntries.get(sourceDailyEntryId);
+
+  if (!sourceEntry || sourceEntry.scopeId !== scope.id || sourceEntry.deletedAt) {
+    return;
+  }
+
+  if (sourceEntry.date === targetDate) {
+    return;
+  }
+
+  const sourceItems = await getActiveChecklistItems(scope, sourceEntry.id);
+  const targetEntry = await openOrCreateDailyEntry({
+    scope,
+    date: targetDate,
+    timezone,
+  });
+
+  await db.transaction('rw', db.dailyEntries, db.checklistItems, async () => {
+    const targetItems = await getActiveChecklistItems(scope, targetEntry.id);
+    const targetRootItems = sortChecklistItems(
+      targetItems.filter((item) => item.parentId === null),
+    );
+    const targetInsertionRank = createInsertRank({
+      siblings: targetRootItems,
+    });
+
+    await cloneChecklistChildrenToDailyEntry({
+      scope,
+      sourceItems,
+      targetDailyEntryId: targetEntry.id,
+      targetItems,
+      sourceParentId: null,
+      targetParentId: null,
+      previousSortRank: targetInsertionRank,
+    });
+
+    await recalculateDailyEntrySummary({
+      scope,
+      dailyEntryId: targetEntry.id,
+    });
+  });
+}
+
+export async function moveChecklistItemsToDate({
+  scope,
+  sourceDailyEntryId,
+  targetDate,
+  timezone,
+}: {
+  scope: AppScope;
+  sourceDailyEntryId: string;
+  targetDate: LocalDateString;
+  timezone: string;
+}): Promise<void> {
+  const sourceEntry = await db.dailyEntries.get(sourceDailyEntryId);
+
+  if (!sourceEntry || sourceEntry.scopeId !== scope.id || sourceEntry.deletedAt) {
+    return;
+  }
+
+  if (sourceEntry.date === targetDate) {
+    return;
+  }
+
+  const sourceItems = await getActiveChecklistItems(scope, sourceEntry.id);
+  const targetEntry = await openOrCreateDailyEntry({
+    scope,
+    date: targetDate,
+    timezone,
+  });
+
+  await db.transaction('rw', db.dailyEntries, db.checklistItems, async () => {
+    const targetItems = await getActiveChecklistItems(scope, targetEntry.id);
+    const targetRootItems = sortChecklistItems(
+      targetItems.filter((item) => item.parentId === null),
+    );
+    const targetInsertionRank = createInsertRank({
+      siblings: targetRootItems,
+    });
+
+    await moveChecklistChildrenToDailyEntry({
+      scope,
+      sourceItems,
+      targetDailyEntryId: targetEntry.id,
+      sourceParentId: null,
+      previousSortRank: targetInsertionRank,
+    });
+
+    await recalculateDailyEntrySummary({
+      scope,
+      dailyEntryId: sourceEntry.id,
+    });
+    await recalculateDailyEntrySummary({
+      scope,
+      dailyEntryId: targetEntry.id,
     });
   });
 }

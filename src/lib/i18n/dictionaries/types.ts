@@ -72,6 +72,14 @@ export interface Dictionary {
     bulkSelectWeekdays: string;
     bulkStartDate: string;
     bulkWeekdays: string;
+    transferDescription: string;
+    transferDialogTitle: string;
+    transferDuplicate: string;
+    transferInvalidDate: string;
+    transferItem: string;
+    transferMove: string;
+    transferSameDate: string;
+    transferTargetDate: string;
     today: string;
     previousMonth: string;
     nextMonth: string;

@@ -9,7 +9,11 @@ import {
   Star,
   Trash2,
 } from 'lucide-react';
-import { useCallback, useState, type KeyboardEvent } from 'react';
+import {
+  useCallback,
+  useState,
+  type KeyboardEvent,
+} from 'react';
 import {
   AutoResizeTextarea,
   Checkbox,
