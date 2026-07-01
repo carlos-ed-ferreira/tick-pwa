@@ -119,3 +119,14 @@ export function createMonthGrid(monthDateKey: LocalDateString): CalendarDay[] {
 
   return days;
 }
+
+export function getVisibleMonthGridRange(monthDateKey: LocalDateString): {
+  startDate: LocalDateString;
+  endDate: LocalDateString;
+} {
+  const monthGrid = createMonthGrid(monthDateKey);
+  const startDate = monthGrid[0]?.date ?? monthDateKey;
+  const endDate = monthGrid[monthGrid.length - 1]?.date ?? monthDateKey;
+
+  return { startDate, endDate };
+}

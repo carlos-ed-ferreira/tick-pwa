@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { createMonthGrid, getMonthRange, toLocalDateKey } from '@/lib/time';
+import {
+  createMonthGrid,
+  getMonthRange,
+  getVisibleMonthGridRange,
+  toLocalDateKey,
+} from '@/lib/time';
 
 describe('local day helpers', () => {
   it('formats a local date key in the app timezone instead of UTC', () => {
@@ -21,5 +26,12 @@ describe('local day helpers', () => {
     expect(grid).toHaveLength(42);
     expect(grid[0]).toEqual({ date: '2026-04-26', inCurrentMonth: false });
     expect(grid[5]).toEqual({ date: '2026-05-01', inCurrentMonth: true });
+  });
+
+  it('returns the full visible grid range for the month view', () => {
+    expect(getVisibleMonthGridRange('2026-05-13')).toEqual({
+      startDate: '2026-04-26',
+      endDate: '2026-06-06',
+    });
   });
 });

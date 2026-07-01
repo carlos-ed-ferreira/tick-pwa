@@ -3,7 +3,7 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import type { AppScope, DailyEntry, LocalDateString } from '@/lib/domain';
 import { db } from '@/lib/db';
-import { getMonthRange } from '@/lib/time';
+import { getVisibleMonthGridRange } from '@/lib/time';
 
 export function useMonthEntries(
   scope: AppScope | null,
@@ -16,7 +16,7 @@ export function useMonthEntries(
           return [];
         }
 
-        const { startDate, endDate } = getMonthRange(monthDate);
+        const { startDate, endDate } = getVisibleMonthGridRange(monthDate);
 
         return db.dailyEntries
           .where('[scopeId+date]')
