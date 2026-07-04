@@ -133,8 +133,6 @@ export const enDictionary = {
     bulkDeleteItems: 'Delete selected',
     confirmBulkDeleteItems: confirmDeleteItem,
     clearSelection: 'Clear selection',
-    saveFailed:
-      'The change could not be saved to your account and was reverted.',
   },
   goals: {
     title: 'Goals',

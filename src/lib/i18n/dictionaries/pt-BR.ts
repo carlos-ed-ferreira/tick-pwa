@@ -136,7 +136,6 @@ export const ptBRDictionary = {
     bulkDeleteItems: 'Excluir selecionados',
     confirmBulkDeleteItems: confirmDeleteItem,
     clearSelection: 'Limpar seleção',
-    saveFailed: 'A alteração não pôde ser salva na sua conta e foi desfeita.',
   },
   goals: {
     title: 'Metas',

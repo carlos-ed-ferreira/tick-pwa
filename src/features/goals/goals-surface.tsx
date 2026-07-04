@@ -2229,7 +2229,6 @@ function GoalDetailCard({
         isSelectionMode={isSelectionMode}
         onAddRoot={createRootGoalStep}
         onClearSelection={clearSelection}
-        persistenceErrorLabel={dictionary.dayEditor.saveFailed}
         surface="none"
       >
         {displayGoalStepRows.map((row) => (

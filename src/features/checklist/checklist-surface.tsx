@@ -269,7 +269,6 @@ export function ChecklistSurface({
         isSelectionMode={isSelectionMode}
         onAddRoot={createRootItem}
         onClearSelection={clearSelection}
-        persistenceErrorLabel={dictionary.dayEditor.saveFailed}
       >
         {displayRows.map((row) => (
           <ChecklistRow

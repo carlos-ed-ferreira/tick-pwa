@@ -109,7 +109,6 @@ vi.mock('@/providers', () => ({
         bulkDeleteItems: 'Delete selected',
         confirmBulkDeleteItems: 'Are you sure?',
         clearSelection: 'Clear selection',
-        saveFailed: 'Save failed',
       },
       goals: {
         activeGoals: 'Active',

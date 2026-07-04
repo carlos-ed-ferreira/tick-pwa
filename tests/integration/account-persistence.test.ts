@@ -231,7 +231,78 @@ describe('account persistence boundaries', () => {
     });
   });
 
-  it('rolls back account cache writes when Supabase persistence fails', async () => {
+  it('preserves pending authenticated goals during account cache refresh', async () => {
+    const scope = createUserScope('refresh-pending-goal-user');
+    let resolveWrite!: (value: {
+      data: { revision: number };
+      error: null;
+    }) => void;
+    const delayedWrite = new Promise<{
+      data: { revision: number };
+      error: null;
+    }>((resolve) => {
+      resolveWrite = resolve;
+    });
+    const from = vi.fn((table: string) => {
+      if (table === 'goals') {
+        return {
+          upsert: vi.fn(() => ({
+            select: vi.fn(() => ({
+              maybeSingle: vi.fn(() => delayedWrite),
+            })),
+          })),
+          select: vi.fn().mockResolvedValue({
+            data: [],
+            error: null,
+          }),
+        };
+      }
+
+      return {
+        upsert: vi.fn(() => ({
+          select: vi.fn(() => ({
+            maybeSingle: vi.fn().mockResolvedValue({
+              data: { revision: 1 },
+              error: null,
+            }),
+          })),
+        })),
+        select: vi.fn().mockResolvedValue({
+          data: [],
+          error: null,
+        }),
+      };
+    });
+    supabaseMocks.getSupabaseBrowserClient.mockReturnValue({ from });
+
+    const goal = await createGoal({
+      scope,
+      title: 'Pending goal',
+    });
+
+    await expect(db.goals.get(goal.id)).resolves.toMatchObject({
+      title: 'PENDING GOAL',
+      syncStatus: 'pending',
+    });
+
+    await refreshAccountCache(scope);
+
+    await expect(db.goals.get(goal.id)).resolves.toMatchObject({
+      title: 'PENDING GOAL',
+      syncStatus: 'pending',
+    });
+
+    resolveWrite({ data: { revision: 1 }, error: null });
+    await waitForAccountPersistence(scope.id);
+
+    await expect(db.goals.get(goal.id)).resolves.toMatchObject({
+      title: 'PENDING GOAL',
+      syncStatus: 'synced',
+      remoteRevision: 1,
+    });
+  });
+
+  it('keeps newly created authenticated entities locally when Supabase persistence fails', async () => {
     const scope = createUserScope('cloud-failure-user');
     const from = vi.fn(() => ({
       upsert: vi.fn(() => ({
@@ -253,14 +324,66 @@ describe('account persistence boundaries', () => {
     }));
     supabaseMocks.getSupabaseBrowserClient.mockReturnValue({ from });
 
-    await createCategoryTag({
+    const categoryTag = await createCategoryTag({
       scope,
       surface: 'calendar',
       name: 'Focus',
       colorHex: '#2563eb',
     });
     await waitForAccountPersistence(scope.id);
-    await expect(db.categoryTags.count()).resolves.toBe(0);
+    await expect(db.categoryTags.get(categoryTag.id)).resolves.toMatchObject({
+      name: 'FOCUS',
+      syncStatus: 'failed',
+    });
+  });
+
+  it('ignores a missing goal_groups table during account cache refresh', async () => {
+    const scope = createUserScope('goal-groups-missing-user');
+    const now = '2026-05-21T10:00:00.000Z';
+    const from = vi.fn((table: string) => ({
+      select: vi.fn().mockResolvedValue(
+        table === 'goal_groups'
+          ? {
+              data: null,
+              error: {
+                code: 'PGRST205',
+                details: null,
+                hint: null,
+                message:
+                  "Could not find the table 'public.goal_groups' in the schema cache",
+              },
+            }
+          : {
+              data:
+                table === 'goals'
+                  ? [
+                      {
+                        id: 'goal-1',
+                        user_id: scope.ownerId,
+                        group_id: null,
+                        title: 'Pulled goal',
+                        category_tag_id: null,
+                        sort_rank: 'n',
+                        completed_at: null,
+                        created_at: now,
+                        updated_at: now,
+                        deleted_at: null,
+                        client_updated_at: now,
+                        revision: 1,
+                      },
+                    ]
+                  : [],
+              error: null,
+            },
+      ),
+    }));
+    supabaseMocks.getSupabaseBrowserClient.mockReturnValue({ from });
+
+    await expect(refreshAccountCache(scope)).resolves.toBeUndefined();
+    await expect(db.goals.get('goal-1')).resolves.toMatchObject({
+      title: 'Pulled goal',
+      syncStatus: 'synced',
+    });
   });
 
   it('refreshes authenticated cache from Supabase without using a local outbox', async () => {

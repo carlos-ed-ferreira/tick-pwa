@@ -141,9 +141,7 @@ export function CalendarTaskTransferAction({
           </label>
 
           {validationMessage ? (
-            <p role="alert" className="text-sm text-rose-200">
-              {validationMessage}
-            </p>
+            <p className="text-sm text-rose-200">{validationMessage}</p>
           ) : null}
 
           <div className="mt-auto flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">

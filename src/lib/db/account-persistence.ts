@@ -6,8 +6,6 @@ import {
 } from '@/lib/supabase/account-data';
 import { db } from './database';
 
-export const accountPersistenceErrorEvent = 'tick:account-persistence-error';
-
 const persistenceQueues = new Map<string, Promise<void>>();
 
 async function markAccountEntityPersisted({
@@ -52,22 +50,43 @@ async function markAccountEntityPersisted({
   await db.goalSteps.update(entityId, update);
 }
 
-function dispatchPersistenceError({
+async function markAccountEntityFailed({
   entityId,
   entityType,
 }: {
   entityType: SyncEntityType;
   entityId: string;
-}) {
-  if (typeof window === 'undefined') {
+}): Promise<void> {
+  const update = {
+    syncStatus: 'failed' as const,
+  };
+
+  if (entityType === 'categoryTag') {
+    await db.categoryTags.update(entityId, update);
     return;
   }
 
-  window.dispatchEvent(
-    new CustomEvent(accountPersistenceErrorEvent, {
-      detail: { entityId, entityType },
-    }),
-  );
+  if (entityType === 'dailyEntry') {
+    await db.dailyEntries.update(entityId, update);
+    return;
+  }
+
+  if (entityType === 'checklistItem') {
+    await db.checklistItems.update(entityId, update);
+    return;
+  }
+
+  if (entityType === 'goalGroup') {
+    await db.goalGroups.update(entityId, update);
+    return;
+  }
+
+  if (entityType === 'goal') {
+    await db.goals.update(entityId, update);
+    return;
+  }
+
+  await db.goalSteps.update(entityId, update);
 }
 
 function enqueuePersistence(scopeId: string, task: () => Promise<void>) {
@@ -100,8 +119,10 @@ export async function waitForAccountPersistence(scopeId?: string) {
 export function persistAccountEntityChange({
   entityId,
   entityType,
+  operation,
   payload,
   scope,
+  baseRevision,
 }: {
   scope: AppScope;
   entityType: SyncEntityType;
@@ -132,16 +153,18 @@ export function persistAccountEntityChange({
       } catch (error) {
         console.error('Failed to persist Tick account entity.', error);
 
-        try {
-          await restoreAccountEntity({ scope, entityType, entityId });
-        } catch (restoreError) {
-          console.error(
-            'Failed to restore Tick account entity after persistence error.',
-            restoreError,
-          );
+        if (baseRevision === null && operation === 'upsert') {
+          await markAccountEntityFailed({ entityId, entityType });
+        } else {
+          try {
+            await restoreAccountEntity({ scope, entityType, entityId });
+          } catch (restoreError) {
+            console.error(
+              'Failed to restore Tick account entity after persistence error.',
+              restoreError,
+            );
+          }
         }
-
-        dispatchPersistenceError({ entityId, entityType });
       }
     });
   };
