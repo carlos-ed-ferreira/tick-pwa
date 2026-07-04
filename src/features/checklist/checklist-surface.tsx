@@ -1,15 +1,22 @@
 'use client';
 
-import { useCallback, useMemo } from 'react';
+import {
+  useCallback,
+  useMemo,
+  useState,
+  type Dispatch,
+  type SetStateAction,
+} from 'react';
 import { TaskTreeEditableRow, TreeListPanel } from '@/components/app';
 import { useCategoryTags } from '@/features/categories';
 import { useTreeBulkActions } from '@/hooks/use-tree-bulk-actions';
 import { useTreeSelection } from '@/hooks/use-tree-selection';
+import type { AppScopeId, ChecklistItem } from '@/lib/domain';
 import {
   assignChecklistItemCategory,
-  createChecklistChild,
   createChecklistItem,
   indentChecklistItem,
+  setChecklistItemsChecked,
   outdentChecklistItem,
   reorderChecklistItem,
   softDeleteChecklistItem,
@@ -25,6 +32,152 @@ import { useChecklistTree } from './use-checklist-tree';
 
 const checklistInputSelector = '[data-checklist-input="true"]';
 
+interface ChecklistDraftItem extends ChecklistItem {
+  isDraft: true;
+  afterItemId: string | null;
+  isPersisting?: boolean;
+}
+
+type ChecklistSurfaceRow = VisibleChecklistRow & {
+  item: VisibleChecklistRow['item'] | ChecklistDraftItem;
+};
+
+function createChecklistDraftItem({
+  dailyEntryId,
+  parentId,
+  scopeId,
+  afterItemId = null,
+}: {
+  dailyEntryId: string;
+  parentId: string | null;
+  scopeId: AppScopeId;
+  afterItemId?: string | null;
+}): ChecklistDraftItem {
+  const now = new Date().toISOString();
+
+  return {
+    id: createId(),
+    scopeId,
+    dailyEntryId,
+    parentId,
+    text: '',
+    checked: false,
+    priority: false,
+    collapsed: false,
+    categoryTagId: null,
+    sortRank: 'draft',
+    createdAt: now,
+    updatedAt: now,
+    deletedAt: null,
+    syncStatus: 'local',
+    remoteRevision: null,
+    clientUpdatedAt: now,
+    isDraft: true,
+    afterItemId,
+  };
+}
+
+function findRowSubtreeEndIndex(
+  rows: ChecklistSurfaceRow[],
+  startIndex: number,
+): number {
+  const startDepth = rows[startIndex]?.depth ?? 0;
+  let index = startIndex + 1;
+
+  while (index < rows.length && rows[index].depth > startDepth) {
+    index += 1;
+  }
+
+  return index;
+}
+
+function insertChecklistDraftRow(
+  currentRows: ChecklistSurfaceRow[],
+  draft: ChecklistDraftItem,
+): ChecklistSurfaceRow[] {
+  const nextRows = [...currentRows];
+
+  if (nextRows.some((row) => row.item.id === draft.id)) {
+    return nextRows;
+  }
+
+  if (draft.parentId === null && draft.afterItemId === null) {
+    return nextRows.concat({
+      item: draft,
+      depth: 0,
+      childCount: 0,
+      hasChildren: false,
+      isFirstSibling: nextRows.filter((row) => row.depth === 0).length === 0,
+      isLastSibling: true,
+    });
+  }
+
+  if (draft.afterItemId) {
+    let previousSiblingIndex = -1;
+
+    for (const [index, row] of nextRows.entries()) {
+      const rowItem = row.item;
+
+      if (
+        rowItem.id === draft.afterItemId ||
+        ('isDraft' in rowItem &&
+          rowItem.afterItemId === draft.afterItemId &&
+          rowItem.parentId === draft.parentId)
+      ) {
+        previousSiblingIndex = index;
+      }
+    }
+
+    if (previousSiblingIndex !== -1) {
+      const previousSibling = nextRows[previousSiblingIndex];
+
+      nextRows.splice(findRowSubtreeEndIndex(nextRows, previousSiblingIndex), 0, {
+        item: draft,
+        depth: previousSibling.depth,
+        childCount: 0,
+        hasChildren: false,
+        isFirstSibling: false,
+        isLastSibling: previousSibling.isLastSibling,
+      });
+
+      return nextRows;
+    }
+  }
+
+  if (draft.parentId) {
+    const parentIndex = nextRows.findIndex((row) => row.item.id === draft.parentId);
+
+    if (parentIndex !== -1) {
+      const parentRow = nextRows[parentIndex];
+      const insertIndex = findRowSubtreeEndIndex(nextRows, parentIndex);
+
+      nextRows.splice(insertIndex, 0, {
+        item: draft,
+        depth: parentRow.depth + 1,
+        childCount: 0,
+        hasChildren: false,
+        isFirstSibling: !parentRow.hasChildren,
+        isLastSibling: true,
+      });
+    }
+  }
+
+  return nextRows;
+}
+
+function insertChecklistDraftRows(
+  rows: VisibleChecklistRow[],
+  drafts: ChecklistDraftItem[],
+): ChecklistSurfaceRow[] {
+  const persistedIds = new Set(rows.map((row) => row.item.id));
+  const pendingDrafts = drafts.filter((draft) => !persistedIds.has(draft.id));
+
+  return pendingDrafts.reduce<ChecklistSurfaceRow[]>(
+    (currentRows, draft) => insertChecklistDraftRow(currentRows, draft),
+    rows.map((row) => ({ ...row })) as ChecklistSurfaceRow[],
+  );
+}
+
 export function ChecklistSurface({
   dailyEntryId,
 }: {
@@ -32,8 +185,13 @@ export function ChecklistSurface({
 }) {
   const { dictionary, scope } = useAppContext();
   const rows = useChecklistTree(scope, dailyEntryId);
+  const [draftItems, setDraftItems] = useState<ChecklistDraftItem[]>([]);
   const categoryTags = useCategoryTags(scope, 'checklist_item');
   const categoryTagMap = new Map(categoryTags.map((tag) => [tag.id, tag]));
+  const displayRows = useMemo(
+    () => insertChecklistDraftRows(rows, draftItems),
+    [draftItems, rows],
+  );
   const visibleItemIds = useMemo(() => rows.map((row) => row.item.id), [rows]);
   const {
     clearSelection,
@@ -73,10 +231,16 @@ export function ChecklistSurface({
 
   const createRootItem = useCallback(async () => {
     if (!scope) {
-      return;
+      return null;
     }
 
-    await createChecklistItem({ scope, dailyEntryId });
+    const nextDraft = createChecklistDraftItem({
+      dailyEntryId,
+      parentId: null,
+      scopeId: scope.id,
+    });
+    setDraftItems((currentDrafts) => [...currentDrafts, nextDraft]);
+    return nextDraft.id;
   }, [dailyEntryId, scope]);
 
   if (!scope) {
@@ -101,13 +265,13 @@ export function ChecklistSurface({
         }}
         clearSelectionLabel={dictionary.dayEditor.clearSelection}
         emptyLabel={dictionary.dayEditor.emptyChecklist}
-        hasRows={rows.length > 0}
+        hasRows={displayRows.length > 0}
         isSelectionMode={isSelectionMode}
         onAddRoot={createRootItem}
         onClearSelection={clearSelection}
         persistenceErrorLabel={dictionary.dayEditor.saveFailed}
       >
-        {rows.map((row) => (
+        {displayRows.map((row) => (
           <ChecklistRow
             key={row.item.id}
             categoryTagMap={categoryTagMap}
@@ -117,7 +281,19 @@ export function ChecklistSurface({
             row={row}
             onBulkAssignCategory={assignBulkCategory}
             onBulkDelete={openBulkDeleteDialog}
+            onBulkToggleChecked={async (nextChecked) => {
+              if (!scope) {
+                return;
+              }
+
+              await setChecklistItemsChecked({
+                scope,
+                itemIds: [...selectedIds],
+                checked: nextChecked,
+              });
+            }}
             onToggleSelect={toggleSelect}
+            setDraftItems={setDraftItems}
           />
         ))}
       </TreeListPanel>
@@ -133,21 +309,63 @@ function ChecklistRow({
   row,
   onBulkAssignCategory,
   onBulkDelete,
+  onBulkToggleChecked,
   onToggleSelect,
+  setDraftItems,
 }: {
   categoryTagMap: Map<string, { colorHex: string; name: string }>;
   dailyEntryId: string;
   isSelected: boolean;
   isSelectionMode: boolean;
-  row: VisibleChecklistRow;
+  row: ChecklistSurfaceRow;
   onBulkAssignCategory: (categoryTagId: string | null) => Promise<void>;
   onBulkDelete: () => void;
+  onBulkToggleChecked: (nextChecked: boolean) => Promise<void>;
   onToggleSelect: (id: string, shiftKey: boolean) => void;
+  setDraftItems: Dispatch<SetStateAction<ChecklistDraftItem[]>>;
 }) {
   const { dictionary, scope } = useAppContext();
   const { item, depth, hasChildren, isFirstSibling, isLastSibling } = row;
   if (!scope) {
     return null;
+  }
+
+  const isDraft = 'isDraft' in item && item.isDraft;
+
+  async function persistDraftItem(text: string) {
+    if (!isDraft || !scope) {
+      return;
+    }
+
+    if (item.isPersisting) {
+      return;
+    }
+
+    setDraftItems((currentDrafts) =>
+      currentDrafts.map((draft) =>
+        draft.id === item.id
+          ? { ...draft, text, isPersisting: true }
+          : draft,
+      ),
+    );
+
+    try {
+      await createChecklistItem({
+        scope,
+        dailyEntryId,
+        id: item.id,
+        parentId: item.parentId,
+        afterItemId: item.afterItemId,
+        text,
+      });
+    } catch (error) {
+      setDraftItems((currentDrafts) =>
+        currentDrafts.map((draft) =>
+          draft.id === item.id ? { ...draft, isPersisting: false } : draft,
+        ),
+      );
+      throw error;
+    }
   }
 
   return (
@@ -174,10 +392,12 @@ function ChecklistRow({
         isSelectionMode,
         onBulkAssignCategory,
         onBulkDelete,
+        onBulkToggleChecked,
         onToggle: (shiftKey) => onToggleSelect(item.id, shiftKey),
       }}
       surface="checklist_item"
       text={item.text}
+      isDraft={isDraft}
       onAssignCategory={(categoryTagId) =>
         assignChecklistItemCategory({
           scope,
@@ -186,26 +406,31 @@ function ChecklistRow({
         })
       }
       onCreateChild={async () => {
-        const newItem = await createChecklistChild({
-          scope,
+        const newDraft = createChecklistDraftItem({
           dailyEntryId,
-          parentItemId: item.id,
+          parentId: item.id,
+          scopeId: scope.id,
         });
-
-        return newItem.id;
+        setDraftItems((currentDrafts) => [...currentDrafts, newDraft]);
+        return newDraft.id;
       }}
       onCreateSibling={async () => {
-        const newItemId = createId();
-        const newItem = await createChecklistItem({
-          scope,
+        const newDraft = createChecklistDraftItem({
           dailyEntryId,
-          id: newItemId,
           parentId: item.parentId,
+          scopeId: scope.id,
           afterItemId: item.id,
         });
-        return newItem.id;
+        setDraftItems((currentDrafts) => [...currentDrafts, newDraft]);
+        return newDraft.id;
       }}
-      onDelete={() => softDeleteChecklistItem({ scope, itemId: item.id })}
+      onDelete={() =>
+        isDraft
+          ? setDraftItems((currentDrafts) =>
+              currentDrafts.filter((draft) => draft.id !== item.id),
+            )
+          : softDeleteChecklistItem({ scope, itemId: item.id })
+      }
       onIndent={() => indentChecklistItem({ scope, itemId: item.id })}
       onMoveDown={() =>
         reorderChecklistItem({
@@ -223,10 +448,14 @@ function ChecklistRow({
       }
       onOutdent={() => outdentChecklistItem({ scope, itemId: item.id })}
       onSaveText={(text) =>
-        updateChecklistItemText({ scope, itemId: item.id, text })
+        isDraft
+          ? persistDraftItem(text)
+          : updateChecklistItemText({ scope, itemId: item.id, text })
       }
       onToggleChecked={() =>
-        toggleChecklistItemChecked({ scope, itemId: item.id })
+        isDraft
+          ? Promise.resolve()
+          : toggleChecklistItemChecked({ scope, itemId: item.id })
       }
       onToggleCollapsed={() =>
         toggleChecklistItemCollapsed({ scope, itemId: item.id })

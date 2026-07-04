@@ -58,6 +58,7 @@ interface TaskTreeSelection {
   isSelectionMode: boolean;
   onBulkAssignCategory: (categoryTagId: string | null) => Promise<void>;
   onBulkDelete: () => void;
+  onBulkToggleChecked: (nextChecked: boolean) => Promise<void> | void;
   onToggle: (shiftKey: boolean) => void;
 }
 
@@ -89,6 +90,7 @@ export function TaskTreeEditableRow({
   selection,
   surface,
   text: sourceText,
+  isDraft = false,
   onAssignCategory,
   onCreateChild,
   onCreateSibling,
@@ -122,6 +124,7 @@ export function TaskTreeEditableRow({
   selection?: TaskTreeSelection;
   surface: CategoryTagSurface;
   text: string;
+  isDraft?: boolean;
   onAssignCategory: (categoryTagId: string | null) => Promise<void> | void;
   onCreateChild: () => Promise<string | null> | string | null;
   onCreateSibling: () => Promise<string | null> | string | null;
@@ -162,6 +165,7 @@ export function TaskTreeEditableRow({
       : normalizedPriority;
   const {
     flush: flushText,
+    reset: resetText,
     setText,
     text,
   } = useDebouncedInlineEdit({
@@ -169,7 +173,30 @@ export function TaskTreeEditableRow({
     value: sourceText,
   });
 
+  const flushEditableText = useCallback(async () => {
+    if (text.trim().length > 0) {
+      await flushText();
+      return true;
+    }
+
+    if (isDraft) {
+      return true;
+    }
+
+    resetText();
+    return false;
+  }, [flushText, isDraft, resetText, text]);
+
   const toggleChecked = useCallback(async () => {
+    if (selection?.isSelectionMode) {
+      if (!selection.isSelected) {
+        return;
+      }
+
+      await selection.onBulkToggleChecked(!displayedChecked);
+      return;
+    }
+
     setOptimisticChecked({
       base: normalizedChecked,
       value: !displayedChecked,
@@ -181,7 +208,12 @@ export function TaskTreeEditableRow({
       setOptimisticChecked(null);
       throw error;
     }
-  }, [displayedChecked, normalizedChecked, onToggleChecked]);
+  }, [
+    displayedChecked,
+    normalizedChecked,
+    onToggleChecked,
+    selection,
+  ]);
 
   const togglePriority = useCallback(async () => {
     setOptimisticPriority({
@@ -215,7 +247,12 @@ export function TaskTreeEditableRow({
 
     if (event.key === 'Enter') {
       event.preventDefault();
-      await flushText();
+      const didSave = await flushEditableText();
+
+      if (!didSave) {
+        return;
+      }
+
       const newItemId = await onCreateSibling();
 
       if (newItemId) {
@@ -226,7 +263,12 @@ export function TaskTreeEditableRow({
 
     if (event.key === 'ArrowDown') {
       event.preventDefault();
-      await flushText();
+      const didSave = await flushEditableText();
+
+      if (!didSave) {
+        return;
+      }
+
       await createAndFocusNewItem(onCreateChild, focusAfterCreate);
       return;
     }
@@ -243,16 +285,11 @@ export function TaskTreeEditableRow({
       }
 
       event.preventDefault();
-      await flushText();
+      await flushEditableText();
       targetInput.focus();
       const caretPosition = targetInput.value.length;
       targetInput.setSelectionRange(caretPosition, caretPosition);
       return;
-    }
-
-    if (event.key === 'Backspace' && text.length === 0) {
-      event.preventDefault();
-      await onDelete();
     }
   }
 
@@ -275,6 +312,7 @@ export function TaskTreeEditableRow({
         <Checkbox
           aria-label={labels.toggleItem}
           checked={displayedChecked}
+          disabled={selection?.isSelectionMode === true && !selection.isSelected}
           onChange={() => void toggleChecked()}
         />
 
@@ -287,7 +325,7 @@ export function TaskTreeEditableRow({
           className={`min-w-0 flex-1 rounded-xl border border-transparent bg-transparent px-2 py-2 text-sm leading-5 outline-none transition placeholder:text-[#8f85aa] focus:border-[#f0c38e]/28 focus:bg-white/[0.055] focus:shadow-sm ${
             displayedChecked ? 'text-[#8f85aa] opacity-75' : 'text-[#fff9f2]'
           }`}
-          onBlur={() => void flushText()}
+          onBlur={() => void flushEditableText()}
           onChange={(event) => {
             setText(event.target.value);
             onTextChange?.(event.target.value);

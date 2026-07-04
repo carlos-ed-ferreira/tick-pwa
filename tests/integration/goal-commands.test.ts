@@ -18,6 +18,7 @@ import {
   reopenGoal,
   softDeleteGoal,
   softDeleteGoalStep,
+  setGoalStepsCompleted,
   toggleGoalStepChecked,
   toggleGoalStepCollapsed,
   toggleGoalStepPriority,
@@ -90,11 +91,6 @@ describe('goal commands', () => {
       scope,
       goalId: insertedGoal.id,
       parentGoalStepId: rootGoalStep.id,
-    });
-
-    await updateGoalStepText({
-      scope,
-      goalStepId: nestedGoalStep.id,
       text: 'Nested step',
     });
     await assignGoalStepCategory({
@@ -158,6 +154,62 @@ describe('goal commands', () => {
       'SECOND GOAL',
     ]);
     expect(deletedGoal?.deletedAt).not.toBeNull();
+  });
+
+  it('does not persist empty goal steps or empty text updates', async () => {
+    const scope = createGuestScope('goal-steps-empty-guard');
+    const goal = await createGoal({ scope, title: 'Ship feature' });
+
+    await expect(
+      createGoalStep({
+        scope,
+        goalId: goal.id,
+        text: '   ',
+      }),
+    ).rejects.toThrow(/require text/i);
+
+    const step = await createGoalStep({
+      scope,
+      goalId: goal.id,
+      text: 'Keep me',
+    });
+    await updateGoalStepText({
+      scope,
+      goalStepId: step.id,
+      text: '   ',
+    });
+
+    await expect(db.goalSteps.get(step.id)).resolves.toMatchObject({
+      text: 'Keep me',
+    });
+  });
+
+  it('bulk toggles selected goal steps within the same scope', async () => {
+    const scope = createGuestScope('goal-steps-bulk-toggle');
+    const goal = await createGoal({ scope, title: 'Ship feature' });
+    const first = await createGoalStep({
+      scope,
+      goalId: goal.id,
+      text: 'First',
+    });
+    const second = await createGoalStep({
+      scope,
+      goalId: goal.id,
+      text: 'Second',
+    });
+
+    await setGoalStepsCompleted({
+      scope,
+      goalStepIds: [first.id, second.id],
+      completed: true,
+    });
+
+    await expect(db.goalSteps.get(first.id)).resolves.toMatchObject({
+      completed: true,
+    });
+    await expect(db.goalSteps.get(second.id)).resolves.toMatchObject({
+      completed: true,
+    });
   });
 
   it('groups goals together and deletes a source group when it becomes empty', async () => {
@@ -319,6 +371,7 @@ describe('goal commands', () => {
       scope,
       goalId: goal.id,
       parentGoalStepId: rootGoalStep.id,
+      text: 'Child step',
     });
 
     await softDeleteGoalStep({

@@ -178,6 +178,32 @@ describe('BulkCalendarEditor', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  it('ignores whitespace-only draft rows when validating bulk creation', async () => {
+    render(<BulkCalendarEditor open onClose={vi.fn()} />);
+
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: 'Start by adding items for this range',
+      }),
+    );
+    fireEvent.change(screen.getByPlaceholderText('Write a task'), {
+      target: { value: '   ' },
+    });
+    fireEvent.change(screen.getByLabelText('Start date'), {
+      target: { value: '01012026' },
+    });
+    fireEvent.change(screen.getByLabelText('End date'), {
+      target: { value: '10012026' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Mon' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Create' }));
+
+    expect(
+      await screen.findByText('Add at least one item before creating in bulk.'),
+    ).toBeInTheDocument();
+    expect(applyChecklistTemplateToDateRangeMock).not.toHaveBeenCalled();
+  });
+
   it('clears the selected weekdays in clear mode', async () => {
     const onClose = vi.fn();
 
@@ -251,6 +277,9 @@ describe('BulkCalendarEditor', () => {
           name: 'Start by adding items for this range',
         }),
       );
+      fireEvent.change(screen.getByPlaceholderText('Write a task'), {
+        target: { value: 'Recurring task' },
+      });
       fireEvent.keyDown(screen.getByPlaceholderText('Write a task'), {
         key: 'Enter',
       });

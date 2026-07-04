@@ -5,6 +5,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { TaskTreeEditableRow } from '@/components/app';
 import { Button, Dialog, Input } from '@/components/ui';
 import { useCategoryTags } from '@/features/categories';
+import { useFocusAfterCreate } from '@/hooks/use-focus-after-create';
 import {
   applyChecklistTemplateToDateRange,
   clearChecklistItemsFromDateRange,
@@ -23,6 +24,7 @@ import {
   createBulkChecklistDraftChild,
   createBulkChecklistDraftItem,
   deleteBulkChecklistDraftItem,
+  filterBulkChecklistDraftItems,
   indentBulkChecklistDraftItem,
   outdentBulkChecklistDraftItem,
   reorderBulkChecklistDraftItem,
@@ -57,6 +59,10 @@ export function BulkCalendarEditor({
     null,
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const sanitizedDraftItems = useMemo(
+    () => filterBulkChecklistDraftItems(draftItems),
+    [draftItems],
+  );
 
   const resetEditor = useCallback(() => {
     setDraftItems([]);
@@ -144,7 +150,7 @@ export function BulkCalendarEditor({
       return;
     }
 
-    if (draftItems.length === 0) {
+    if (sanitizedDraftItems.length === 0) {
       setValidationMessage(dictionary.calendar.bulkRequireItems);
       return;
     }
@@ -158,7 +164,7 @@ export function BulkCalendarEditor({
         startDate: rangeSelection.startDate,
         endDate: rangeSelection.endDate,
         selectedWeekdays: rangeSelection.selectedWeekdays,
-        templateItems: draftItems,
+        templateItems: sanitizedDraftItems,
         timezone: timezonePreference.timezone,
       });
       handleClose();
@@ -167,8 +173,8 @@ export function BulkCalendarEditor({
     }
   }, [
     dictionary.calendar.bulkRequireItems,
-    draftItems,
     handleClose,
+    sanitizedDraftItems,
     scope,
     timezonePreference.timezone,
     validateBulkDateRange,
@@ -330,6 +336,7 @@ function BulkChecklistSurface({
   setDraftItems: React.Dispatch<React.SetStateAction<BulkChecklistDraftItem[]>>;
 }) {
   const { dictionary, scope } = useAppContext();
+  const focusAfterCreate = useFocusAfterCreate();
   const categoryTags = useCategoryTags(scope, 'checklist_item');
   const categoryTagMap = new Map(categoryTags.map((tag) => [tag.id, tag]));
   const rows = useMemo(
@@ -338,8 +345,12 @@ function BulkChecklistSurface({
   );
 
   const createRootItem = useCallback(() => {
-    setDraftItems((currentItems) => createBulkChecklistDraftItem(currentItems));
-  }, [setDraftItems]);
+    const newId = createId();
+    setDraftItems((currentItems) =>
+      createBulkChecklistDraftItem(currentItems, { id: newId }),
+    );
+    focusAfterCreate(newId);
+  }, [focusAfterCreate, setDraftItems]);
 
   return (
     <section className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
@@ -415,6 +426,7 @@ function BulkChecklistRow({
       priority={item.priority}
       surface="checklist_item"
       text={item.text}
+      isDraft
       onAssignCategory={(categoryTagId) =>
         setDraftItems((currentItems) =>
           assignBulkChecklistDraftItemCategory(

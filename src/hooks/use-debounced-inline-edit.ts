@@ -36,6 +36,11 @@ export function useDebouncedInlineEdit({
     [value],
   );
 
+  const reset = useCallback(() => {
+    clearPendingSave();
+    setDraftState({ sourceValue: value, text: value });
+  }, [clearPendingSave, value]);
+
   const flush = useCallback(async () => {
     clearPendingSave();
 
@@ -61,5 +66,5 @@ export function useDebouncedInlineEdit({
     return clearPendingSave;
   }, [clearPendingSave, delayMs, enabled, onSave, text, value]);
 
-  return { flush, setText, text };
+  return { flush, reset, setText, text };
 }

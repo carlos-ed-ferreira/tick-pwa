@@ -136,6 +136,29 @@ export function createBulkChecklistDraftChild(
   });
 }
 
+export function filterBulkChecklistDraftItems(
+  items: BulkChecklistDraftItem[],
+): BulkChecklistDraftItem[] {
+  const filteredItems: BulkChecklistDraftItem[] = [];
+
+  function visit(parentId: string | null) {
+    for (const item of sortDraftItems(
+      items.filter((currentItem) => currentItem.parentId === parentId),
+    )) {
+      if (item.text.trim().length === 0) {
+        continue;
+      }
+
+      filteredItems.push(item);
+      visit(item.id);
+    }
+  }
+
+  visit(null);
+
+  return filteredItems;
+}
+
 export function updateBulkChecklistDraftItemText(
   items: BulkChecklistDraftItem[],
   itemId: string,

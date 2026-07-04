@@ -21,6 +21,7 @@ import {
   softDeleteCategoryTag,
   toggleChecklistItemChecked,
   toggleChecklistItemPriority,
+  setChecklistItemsChecked,
   updateCategoryTag,
   updateChecklistItemText,
 } from '@/lib/db';
@@ -64,6 +65,73 @@ describe('checklist commands', () => {
     });
   });
 
+  it('does not persist empty checklist items or empty text updates', async () => {
+    const scope = createGuestScope('checklist-empty-guard');
+    const entry = await openOrCreateDailyEntry({
+      scope,
+      date: '2026-05-13',
+      timezone: 'America/Sao_Paulo',
+    });
+
+    await expect(
+      createChecklistItem({
+        scope,
+        dailyEntryId: entry.id,
+        text: '   ',
+      }),
+    ).rejects.toThrow(/require text/i);
+
+    const item = await createChecklistItem({
+      scope,
+      dailyEntryId: entry.id,
+      text: 'Keep me',
+    });
+    await updateChecklistItemText({
+      scope,
+      itemId: item.id,
+      text: '   ',
+    });
+
+    await expect(db.checklistItems.get(item.id)).resolves.toMatchObject({
+      text: 'Keep me',
+    });
+  });
+
+  it('bulk toggles selected checklist items within the same scope', async () => {
+    const scope = createGuestScope('checklist-bulk-toggle');
+    const entry = await openOrCreateDailyEntry({
+      scope,
+      date: '2026-05-13',
+      timezone: 'America/Sao_Paulo',
+    });
+    const first = await createChecklistItem({
+      scope,
+      dailyEntryId: entry.id,
+      text: 'First',
+    });
+    const second = await createChecklistItem({
+      scope,
+      dailyEntryId: entry.id,
+      text: 'Second',
+    });
+
+    await setChecklistItemsChecked({
+      scope,
+      itemIds: [first.id, second.id],
+      checked: true,
+    });
+
+    await expect(db.checklistItems.get(first.id)).resolves.toMatchObject({
+      checked: true,
+    });
+    await expect(db.checklistItems.get(second.id)).resolves.toMatchObject({
+      checked: true,
+    });
+    await expect(db.dailyEntries.get(entry.id)).resolves.toMatchObject({
+      completedCount: 2,
+    });
+  });
+
   it('supports nesting changes and cascaded soft delete', async () => {
     const scope = createGuestScope('local-test');
     const entry = await openOrCreateDailyEntry({
@@ -93,12 +161,12 @@ describe('checklist commands', () => {
     const outdentedSecond = await db.checklistItems.get(second.id);
     expect(outdentedSecond?.parentId).toBeNull();
 
-    const child = await createChecklistChild({
+    await createChecklistChild({
       scope,
       dailyEntryId: entry.id,
       parentItemId: first.id,
+      text: 'Child',
     });
-    await updateChecklistItemText({ scope, itemId: child.id, text: 'Child' });
     await softDeleteChecklistItem({ scope, itemId: first.id });
 
     const remainingItems = await db.checklistItems
@@ -136,10 +204,6 @@ describe('checklist commands', () => {
       scope,
       dailyEntryId: sourceEntry.id,
       parentItemId: sourceRoot.id,
-    });
-    await updateChecklistItemText({
-      scope,
-      itemId: sourceChild.id,
       text: 'Source child',
     });
     await createChecklistItem({
@@ -211,10 +275,6 @@ describe('checklist commands', () => {
       scope,
       dailyEntryId: sourceEntry.id,
       parentItemId: sourceRoot.id,
-    });
-    await updateChecklistItemText({
-      scope,
-      itemId: sourceChild.id,
       text: 'Source child',
     });
 
@@ -280,14 +340,10 @@ describe('checklist commands', () => {
       dailyEntryId: sourceEntry.id,
       text: 'Source root',
     });
-    const sourceChild = await createChecklistChild({
+    await createChecklistChild({
       scope,
       dailyEntryId: sourceEntry.id,
       parentItemId: sourceRoot.id,
-    });
-    await updateChecklistItemText({
-      scope,
-      itemId: sourceChild.id,
       text: 'Source child',
     });
     await createChecklistItem({
@@ -357,10 +413,6 @@ describe('checklist commands', () => {
       scope,
       dailyEntryId: sourceEntry.id,
       parentItemId: sourceRoot.id,
-    });
-    await updateChecklistItemText({
-      scope,
-      itemId: sourceChild.id,
       text: 'Source child',
     });
 
@@ -616,24 +668,16 @@ describe('checklist commands', () => {
 
     expect(updatedEntry?.previewText).toBe('Second');
 
-    const nestedSecond = await createChecklistChild({
+    await createChecklistChild({
       scope,
       dailyEntryId: entry.id,
       parentItemId: first.id,
-    });
-    await updateChecklistItemText({
-      scope,
-      itemId: nestedSecond.id,
       text: 'Nested second',
     });
     const nestedThird = await createChecklistChild({
       scope,
       dailyEntryId: entry.id,
       parentItemId: first.id,
-    });
-    await updateChecklistItemText({
-      scope,
-      itemId: nestedThird.id,
       text: 'Nested third',
     });
 

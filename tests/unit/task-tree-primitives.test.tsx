@@ -34,7 +34,7 @@ describe('task tree primitives', () => {
       'hover:bg-white/[0.055]',
     );
     expect(row).toHaveStyle({
-      paddingLeft: 'min(32px, 56px)',
+      paddingLeft: '28px',
       backgroundColor: 'rgba(34, 197, 94, 0.12)',
       boxShadow: 'inset 4px 0 0 0 rgba(240, 195, 142, 1)',
     });

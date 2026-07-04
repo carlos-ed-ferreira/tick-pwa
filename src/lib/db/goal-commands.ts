@@ -59,6 +59,10 @@ function createGoalStepInsertRank({
   return createRankAfter({ items: siblings, afterItemId: afterGoalStepId });
 }
 
+function hasMeaningfulGoalStepText(text: string): boolean {
+  return text.trim().length > 0;
+}
+
 async function persistGoalUpdate(
   scope: AppScope,
   goal: Goal,
@@ -990,6 +994,10 @@ export async function createGoalStep({
   afterGoalStepId?: string | null;
   text?: string;
 }): Promise<GoalStep> {
+  if (!hasMeaningfulGoalStepText(text)) {
+    throw new Error('Goal steps require text before they can be saved.');
+  }
+
   return db.transaction('rw', db.goals, db.goalSteps, async () => {
     const goal = await getScopedGoal(scope, goalId);
 
@@ -1050,15 +1058,18 @@ export async function createGoalStepChild({
   scope,
   goalId,
   parentGoalStepId,
+  text,
 }: {
   scope: AppScope;
   goalId: string;
   parentGoalStepId: string;
+  text: string;
 }): Promise<GoalStep> {
   return createGoalStep({
     scope,
     goalId,
     parentId: parentGoalStepId,
+    text,
   });
 }
 
@@ -1071,6 +1082,10 @@ export async function updateGoalStepText({
   goalStepId: string;
   text: string;
 }): Promise<void> {
+  if (!hasMeaningfulGoalStepText(text)) {
+    return;
+  }
+
   await db.transaction('rw', db.goalSteps, async () => {
     const goalStep = await getScopedGoalStep(scope, goalStepId);
 
@@ -1102,6 +1117,36 @@ export async function toggleGoalStepChecked({
       completed: !goalStep.completed,
     });
     await persistGoalStepUpdate(scope, updatedGoalStep, ['completed']);
+  });
+}
+
+export async function setGoalStepsCompleted({
+  scope,
+  goalStepIds,
+  completed,
+}: {
+  scope: AppScope;
+  goalStepIds: string[];
+  completed: boolean;
+}): Promise<void> {
+  if (goalStepIds.length === 0) {
+    return;
+  }
+
+  await db.transaction('rw', db.goals, db.goalSteps, async () => {
+    for (const goalStepId of goalStepIds) {
+      const goalStep = await getScopedGoalStep(scope, goalStepId);
+
+      if (!goalStep || goalStep.completed === completed) {
+        continue;
+      }
+
+      const updatedGoalStep = touchGoalStep(scope, {
+        ...goalStep,
+        completed,
+      });
+      await persistGoalStepUpdate(scope, updatedGoalStep, ['completed']);
+    }
   });
 }
 

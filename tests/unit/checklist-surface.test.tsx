@@ -11,6 +11,7 @@ import { ChecklistSurface } from '@/features/checklist/checklist-surface';
 const {
   createChecklistItemMock,
   reorderChecklistItemMock,
+  setChecklistItemsCheckedMock,
   softDeleteChecklistItemMock,
   toggleChecklistItemPriorityMock,
   updateChecklistItemTextMock,
@@ -18,6 +19,7 @@ const {
 } = vi.hoisted(() => ({
   createChecklistItemMock: vi.fn().mockResolvedValue({ id: 'new-item' }),
   reorderChecklistItemMock: vi.fn().mockResolvedValue(undefined),
+  setChecklistItemsCheckedMock: vi.fn().mockResolvedValue(undefined),
   softDeleteChecklistItemMock: vi.fn().mockResolvedValue(undefined),
   toggleChecklistItemPriorityMock: vi.fn().mockResolvedValue(undefined),
   updateChecklistItemTextMock: vi.fn().mockResolvedValue(undefined),
@@ -31,6 +33,7 @@ vi.mock('@/lib/db', () => ({
   indentChecklistItem: vi.fn().mockResolvedValue(undefined),
   outdentChecklistItem: vi.fn().mockResolvedValue(undefined),
   reorderChecklistItem: reorderChecklistItemMock,
+  setChecklistItemsChecked: setChecklistItemsCheckedMock,
   softDeleteChecklistItem: softDeleteChecklistItemMock,
   toggleChecklistItemChecked: vi.fn().mockResolvedValue(undefined),
   toggleChecklistItemCollapsed: vi.fn().mockResolvedValue(undefined),
@@ -69,6 +72,7 @@ vi.mock('@/providers', () => ({
         bulkDeleteItems: 'Delete selected',
         confirmBulkDeleteItems: 'Are you sure you want to delete this item?',
         clearSelection: 'Clear selection',
+        saveFailed: 'Save failed',
       },
     },
     scope: {
@@ -131,6 +135,7 @@ describe('ChecklistSurface delete confirmation', () => {
     createChecklistItemMock.mockClear();
     createChecklistItemMock.mockResolvedValue({ id: 'new-item' });
     reorderChecklistItemMock.mockClear();
+    setChecklistItemsCheckedMock.mockClear();
     softDeleteChecklistItemMock.mockClear();
     toggleChecklistItemPriorityMock.mockClear();
     updateChecklistItemTextMock.mockClear();
@@ -228,7 +233,7 @@ describe('ChecklistSurface delete confirmation', () => {
     });
   });
 
-  it('flushes edited text before creating a sibling with Enter', async () => {
+  it('creates a local sibling draft after flushing the edited row', async () => {
     useChecklistTreeMock.mockReturnValue([createRow('Original task')]);
 
     render(<ChecklistSurface dailyEntryId="entry-1" />);
@@ -236,6 +241,38 @@ describe('ChecklistSurface delete confirmation', () => {
     const input = screen.getByDisplayValue('Original task');
     fireEvent.change(input, { target: { value: 'Edited task' } });
     fireEvent.keyDown(input, { key: 'Enter' });
+
+    await waitFor(() => {
+      expect(updateChecklistItemTextMock).toHaveBeenCalledWith({
+        scope: {
+          id: 'guest:test',
+          kind: 'guest',
+          ownerId: 'test',
+        },
+        itemId: 'item-Original task',
+        text: 'Edited task',
+      });
+    });
+    expect(createChecklistItemMock).not.toHaveBeenCalled();
+    await waitFor(() => {
+      expect(screen.getAllByPlaceholderText('Write a task')).toHaveLength(2);
+    });
+  });
+
+  it('persists a sibling draft without removing it from the screen', async () => {
+    useChecklistTreeMock.mockReturnValue([createRow('Original task')]);
+
+    render(<ChecklistSurface dailyEntryId="entry-1" />);
+
+    const input = screen.getByDisplayValue('Original task');
+    fireEvent.keyDown(input, { key: 'Enter' });
+
+    await waitFor(() => {
+      expect(screen.getAllByPlaceholderText('Write a task')).toHaveLength(2);
+    });
+    const draftInput = screen.getAllByPlaceholderText('Write a task')[1];
+    fireEvent.change(draftInput, { target: { value: 'Draft task' } });
+    fireEvent.blur(draftInput);
 
     await waitFor(() => {
       expect(createChecklistItemMock).toHaveBeenCalledWith({
@@ -248,20 +285,80 @@ describe('ChecklistSurface delete confirmation', () => {
         id: expect.any(String),
         parentId: null,
         afterItemId: 'item-Original task',
+        text: 'Draft task',
       });
     });
-    expect(updateChecklistItemTextMock).toHaveBeenCalledWith({
-      scope: {
-        id: 'guest:test',
-        kind: 'guest',
-        ownerId: 'test',
-      },
-      itemId: 'item-Original task',
-      text: 'Edited task',
+    expect(screen.getAllByPlaceholderText('Write a task')).toHaveLength(2);
+    expect(draftInput).toBeInTheDocument();
+  });
+
+  it('keeps empty drafts on blur without saving them', async () => {
+    useChecklistTreeMock.mockReturnValue([createRow('Original task')]);
+
+    render(<ChecklistSurface dailyEntryId="entry-1" />);
+
+    fireEvent.keyDown(screen.getByDisplayValue('Original task'), {
+      key: 'Enter',
     });
-    expect(
-      updateChecklistItemTextMock.mock.invocationCallOrder[0],
-    ).toBeLessThan(createChecklistItemMock.mock.invocationCallOrder[0]);
+
+    await waitFor(() => {
+      expect(screen.getAllByPlaceholderText('Write a task')).toHaveLength(2);
+    });
+    const draftInput = screen.getAllByPlaceholderText('Write a task')[1];
+    fireEvent.blur(draftInput);
+
+    await waitFor(() => {
+      expect(createChecklistItemMock).not.toHaveBeenCalled();
+    });
+    expect(screen.getAllByPlaceholderText('Write a task')).toHaveLength(2);
+    expect(draftInput).toBeInTheDocument();
+  });
+
+  it('allows creating multiple empty root drafts without saving them', async () => {
+    useChecklistTreeMock.mockReturnValue([]);
+
+    render(<ChecklistSurface dailyEntryId="entry-1" />);
+
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: 'Start this day with a checklist item',
+      }),
+    );
+
+    await waitFor(() => {
+      expect(screen.getAllByPlaceholderText('Write a task')).toHaveLength(1);
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add item' }));
+
+    await waitFor(() => {
+      expect(screen.getAllByPlaceholderText('Write a task')).toHaveLength(2);
+    });
+    expect(createChecklistItemMock).not.toHaveBeenCalled();
+  });
+
+  it('bulk toggles selected checklist items from the checkbox', async () => {
+    useChecklistTreeMock.mockReturnValue([
+      createRow('First task'),
+      createRow('Second task'),
+    ]);
+
+    render(<ChecklistSurface dailyEntryId="entry-1" />);
+
+    fireEvent.click(screen.getAllByLabelText('Select item')[0]);
+    fireEvent.click(screen.getAllByRole('checkbox')[0]);
+
+    await waitFor(() => {
+      expect(setChecklistItemsCheckedMock).toHaveBeenCalledWith({
+        scope: {
+          id: 'guest:test',
+          kind: 'guest',
+          ownerId: 'test',
+        },
+        itemIds: ['item-First task'],
+        checked: true,
+      });
+    });
   });
 
   it('bulk deletes a selected row from selection mode', async () => {

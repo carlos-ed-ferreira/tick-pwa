@@ -3,6 +3,7 @@
 import { Plus, X } from 'lucide-react';
 import { useEffect, useState, type ReactNode } from 'react';
 import { ConfirmationDialog } from '@/components/ui';
+import { useFocusAfterCreate } from '@/hooks/use-focus-after-create';
 import { accountPersistenceErrorEvent } from '@/lib/db/account-persistence';
 
 interface BulkDeleteDialog {
@@ -35,12 +36,21 @@ export function TreeListPanel({
   emptyLabel: string;
   hasRows: boolean;
   isSelectionMode: boolean;
-  onAddRoot: () => Promise<void> | void;
+  onAddRoot: () => Promise<string | null> | string | null;
   onClearSelection: () => void;
   persistenceErrorLabel: string;
   surface?: 'panel' | 'none';
 }) {
   const [hasPersistenceError, setHasPersistenceError] = useState(false);
+  const focusAfterCreate = useFocusAfterCreate();
+
+  async function handleAddRoot() {
+    const itemId = await onAddRoot();
+
+    if (itemId) {
+      focusAfterCreate(itemId);
+    }
+  }
 
   useEffect(() => {
     function handlePersistenceError() {
@@ -92,7 +102,7 @@ export function TreeListPanel({
           <button
             type="button"
             className="flex min-h-36 w-full items-center justify-center rounded-[1.15rem] border border-dashed border-[#f0c38e]/24 bg-[#f0c38e]/[0.045] px-4 text-sm font-medium text-[#bdb4d4] shadow-inner transition hover:border-[#f0c38e]/38 hover:bg-[#f0c38e]/[0.075] hover:text-[#fff9f2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e]"
-            onClick={() => void onAddRoot()}
+            onClick={() => void handleAddRoot()}
           >
             {emptyLabel}
           </button>
@@ -103,7 +113,7 @@ export function TreeListPanel({
             <button
               type="button"
               className="flex items-center gap-1.5 rounded-full border border-[#f0c38e]/22 bg-[#f0c38e]/10 px-3 py-1.5 text-sm font-medium text-[#f7d7ad] shadow-sm transition hover:border-[#f0c38e]/36 hover:bg-[#f0c38e]/16 hover:text-[#fff9f2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e]"
-              onClick={() => void onAddRoot()}
+              onClick={() => void handleAddRoot()}
             >
               <Plus aria-hidden="true" className="size-3.5" />
               {addLabel}

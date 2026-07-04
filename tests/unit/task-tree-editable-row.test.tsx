@@ -181,4 +181,36 @@ describe('TaskTreeEditableRow', () => {
 
     expect(callbacks.onAssignCategory).toHaveBeenCalledWith('category-1');
   });
+
+  it('does not delete an empty row when Backspace is pressed', async () => {
+    const callbacks = renderRow({ text: '' });
+    const input = screen.getByPlaceholderText('Write a task');
+
+    fireEvent.keyDown(input, { key: 'Backspace' });
+
+    await waitFor(() => {
+      expect(callbacks.onDelete).not.toHaveBeenCalled();
+    });
+  });
+
+  it('applies checkbox bulk toggle when selection mode is active', async () => {
+    const onBulkToggleChecked = vi.fn().mockResolvedValue(undefined);
+    const callbacks = renderRow({
+      selection: {
+        isSelected: true,
+        isSelectionMode: true,
+        onBulkAssignCategory: vi.fn(),
+        onBulkDelete: vi.fn(),
+        onBulkToggleChecked,
+        onToggle: vi.fn(),
+      },
+    });
+
+    fireEvent.click(screen.getByRole('checkbox'));
+
+    await waitFor(() => {
+      expect(onBulkToggleChecked).toHaveBeenCalledWith(true);
+      expect(callbacks.onToggleChecked).not.toHaveBeenCalled();
+    });
+  });
 });

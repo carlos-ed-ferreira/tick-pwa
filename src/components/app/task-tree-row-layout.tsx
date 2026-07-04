@@ -15,7 +15,7 @@ export function TaskTreeRowLayout({
   isSelected?: boolean;
 }) {
   const style: CSSProperties = {
-    paddingLeft: `min(${depth * 16}px, 56px)`,
+    paddingLeft: `${depth * 14}px`,
     backgroundColor: isSelected
       ? 'rgba(240, 195, 142, 0.12)'
       : categoryColorHex

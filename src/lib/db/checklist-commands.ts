@@ -61,6 +61,10 @@ async function persistChecklistItemUpdate(
   });
 }
 
+function hasMeaningfulText(text: string): boolean {
+  return text.trim().length > 0;
+}
+
 function getSortedTemplateChildren(
   templateItems: ChecklistTemplateItem[],
   parentId: string | null,
@@ -264,6 +268,27 @@ export interface ChecklistTemplateItem {
   sortRank: string;
 }
 
+export function filterChecklistTemplateItems(
+  templateItems: ChecklistTemplateItem[],
+): ChecklistTemplateItem[] {
+  const filteredItems: ChecklistTemplateItem[] = [];
+
+  function visit(parentId: string | null) {
+    for (const item of getSortedTemplateChildren(templateItems, parentId)) {
+      if (!hasMeaningfulText(item.text)) {
+        continue;
+      }
+
+      filteredItems.push(item);
+      visit(item.id);
+    }
+  }
+
+  visit(null);
+
+  return filteredItems;
+}
+
 export async function createChecklistItem({
   scope,
   dailyEntryId,
@@ -279,6 +304,10 @@ export async function createChecklistItem({
   afterItemId?: string | null;
   text?: string;
 }): Promise<ChecklistItem> {
+  if (!hasMeaningfulText(text)) {
+    throw new Error('Checklist items require text before they can be saved.');
+  }
+
   return db.transaction('rw', db.dailyEntries, db.checklistItems, async () => {
     const dailyEntry = await db.dailyEntries.get(dailyEntryId);
 
@@ -347,12 +376,19 @@ export async function createChecklistChild({
   scope,
   dailyEntryId,
   parentItemId,
+  text,
 }: {
   scope: AppScope;
   dailyEntryId: string;
   parentItemId: string;
+  text: string;
 }): Promise<ChecklistItem> {
-  return createChecklistItem({ scope, dailyEntryId, parentId: parentItemId });
+  return createChecklistItem({
+    scope,
+    dailyEntryId,
+    parentId: parentItemId,
+    text,
+  });
 }
 
 function touchChecklistItem(
@@ -391,6 +427,10 @@ export async function updateChecklistItemText({
   itemId: string;
   text: string;
 }): Promise<void> {
+  if (!hasMeaningfulText(text)) {
+    return;
+  }
+
   await db.transaction('rw', db.dailyEntries, db.checklistItems, async () => {
     const item = await getScopedChecklistItem(scope, itemId);
 
@@ -430,6 +470,43 @@ export async function toggleChecklistItemChecked({
       scope,
       dailyEntryId: item.dailyEntryId,
     });
+  });
+}
+
+export async function setChecklistItemsChecked({
+  scope,
+  itemIds,
+  checked,
+}: {
+  scope: AppScope;
+  itemIds: string[];
+  checked: boolean;
+}): Promise<void> {
+  if (itemIds.length === 0) {
+    return;
+  }
+
+  await db.transaction('rw', db.dailyEntries, db.checklistItems, async () => {
+    const dailyEntryIds = new Set<string>();
+
+    for (const itemId of itemIds) {
+      const item = await getScopedChecklistItem(scope, itemId);
+
+      if (!item || item.checked === checked) {
+        continue;
+      }
+
+      const updatedItem = touchChecklistItem(scope, {
+        ...item,
+        checked,
+      });
+      await persistChecklistItemUpdate(scope, updatedItem, ['checked']);
+      dailyEntryIds.add(item.dailyEntryId);
+    }
+
+    for (const dailyEntryId of dailyEntryIds) {
+      await recalculateDailyEntrySummary({ scope, dailyEntryId });
+    }
   });
 }
 
@@ -1089,7 +1166,9 @@ export async function applyChecklistTemplateToDateRange({
   templateItems: ChecklistTemplateItem[];
   timezone: string;
 }): Promise<LocalDateString[]> {
-  if (templateItems.length === 0) {
+  const filteredTemplateItems = filterChecklistTemplateItems(templateItems);
+
+  if (filteredTemplateItems.length === 0) {
     return [];
   }
 
@@ -1122,7 +1201,7 @@ export async function applyChecklistTemplateToDateRange({
           ).at(-1)?.sortRank ?? null;
 
         for (const templateItem of getSortedTemplateChildren(
-          templateItems,
+          filteredTemplateItems,
           sourceParentId,
         )) {
           const now = createTimestamp();
