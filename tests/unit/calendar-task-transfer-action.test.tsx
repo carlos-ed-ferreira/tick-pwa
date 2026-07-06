@@ -10,24 +10,24 @@ import { CalendarTaskTransferAction } from '@/features/calendar/calendar-task-tr
 
 vi.mock('@/providers', () => ({
   useAppContext: () => ({
-      dictionary: {
-        actions: {
-          cancel: 'Cancel',
-        },
-        calendar: {
-          bulkDatePlaceholder: 'DD-MM-YYYY',
-          title: 'Daily Calendar',
-          transferDescription:
-            'Choose the destination date to move or duplicate all tasks from this day.',
-          transferDialogTitle: 'Move or duplicate day tasks',
-          transferDuplicate: 'Duplicate tasks',
-          transferInvalidDate: 'Enter a valid date in DD-MM-YYYY.',
-          transferItem: 'Move or duplicate day',
-          transferMove: 'Move tasks',
-          transferSameDate: 'Choose a different date for this day.',
-          transferTargetDate: 'Destination date',
-        },
+    dictionary: {
+      actions: {
+        cancel: 'Cancel',
       },
+      calendar: {
+        bulkDatePlaceholder: 'DD-MM-YYYY',
+        title: 'Daily Calendar',
+        transferDescription:
+          'Choose the destination date to move or duplicate all tasks from this day.',
+        transferDialogTitle: 'Move or duplicate day tasks',
+        transferDuplicate: 'Duplicate tasks',
+        transferInvalidDate: 'Enter a valid date in DD-MM-YYYY.',
+        transferItem: 'Move or duplicate day',
+        transferMove: 'Move tasks',
+        transferSameDate: 'Choose a different date for this day.',
+        transferTargetDate: 'Destination date',
+      },
+    },
     locale: 'en',
     timezonePreference: {
       timezone: 'America/Sao_Paulo',
@@ -76,7 +76,9 @@ describe('CalendarTaskTransferAction', () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Move or duplicate day' }));
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Move or duplicate day' }),
+    );
     fireEvent.change(screen.getByLabelText('Destination date'), {
       target: { value: '22052026' },
     });
@@ -87,7 +89,9 @@ describe('CalendarTaskTransferAction', () => {
     });
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Move or duplicate day' }));
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Move or duplicate day' }),
+    );
     fireEvent.change(screen.getByLabelText('Destination date'), {
       target: { value: '22052026' },
     });

@@ -62,9 +62,7 @@ export function CalendarTaskTransferAction({
     setIsSubmitting(false);
   }, []);
 
-  async function handleTransfer(
-    transfer: 'move' | 'duplicate',
-  ): Promise<void> {
+  async function handleTransfer(transfer: 'move' | 'duplicate'): Promise<void> {
     const targetDate = parseDateInputValue(targetDateInput);
 
     if (!targetDate) {
@@ -121,7 +119,9 @@ export function CalendarTaskTransferAction({
             <span className="text-xs font-semibold uppercase tracking-[0.14em] text-[#9f96b8]">
               {dictionary.calendar.title}
             </span>
-            <span className="font-medium text-[#fff9f2]">{sourceDateLabel}</span>
+            <span className="font-medium text-[#fff9f2]">
+              {sourceDateLabel}
+            </span>
           </div>
 
           <label className="grid gap-2">

@@ -2321,9 +2321,7 @@ function GoalStepRow({
     } catch (error) {
       setDraftGoalSteps((currentDrafts) =>
         currentDrafts.map((draft) =>
-          draft.id === goalStep.id
-            ? { ...draft, isPersisting: false }
-            : draft,
+          draft.id === goalStep.id ? { ...draft, isPersisting: false } : draft,
         ),
       );
       throw error;

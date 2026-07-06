@@ -9,11 +9,7 @@ import {
   Star,
   Trash2,
 } from 'lucide-react';
-import {
-  useCallback,
-  useState,
-  type KeyboardEvent,
-} from 'react';
+import { useCallback, useState, type KeyboardEvent } from 'react';
 import {
   AutoResizeTextarea,
   Checkbox,
@@ -208,12 +204,7 @@ export function TaskTreeEditableRow({
       setOptimisticChecked(null);
       throw error;
     }
-  }, [
-    displayedChecked,
-    normalizedChecked,
-    onToggleChecked,
-    selection,
-  ]);
+  }, [displayedChecked, normalizedChecked, onToggleChecked, selection]);
 
   const togglePriority = useCallback(async () => {
     setOptimisticPriority({
@@ -312,7 +303,9 @@ export function TaskTreeEditableRow({
         <Checkbox
           aria-label={labels.toggleItem}
           checked={displayedChecked}
-          disabled={selection?.isSelectionMode === true && !selection.isSelected}
+          disabled={
+            selection?.isSelectionMode === true && !selection.isSelected
+          }
           onChange={() => void toggleChecked()}
         />
 

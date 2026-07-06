@@ -236,10 +236,14 @@ describe('checklist commands', () => {
       dailyEntryId: targetEntry.id,
     });
     expect(
-      targetItems.filter((item) => item.parentId === null).map((item) => item.text),
+      targetItems
+        .filter((item) => item.parentId === null)
+        .map((item) => item.text),
     ).toEqual(['Target root', 'Source root']);
     expect(
-      targetItems.filter((item) => item.parentId === sourceRoot.id).map((item) => item.text),
+      targetItems
+        .filter((item) => item.parentId === sourceRoot.id)
+        .map((item) => item.text),
     ).toEqual(['Source child']);
     expect(updatedSourceEntry).toMatchObject({
       previewText: '',
@@ -301,17 +305,25 @@ describe('checklist commands', () => {
     );
     const updatedTargetEntry = await db.dailyEntries.get(targetEntry.id);
 
-    expect(sourceItems.filter((item) => item.parentId === null).map((item) => item.text)).toEqual([
-      'Source root',
-    ]);
-    expect(sourceItems.filter((item) => item.parentId === sourceRoot.id).map((item) => item.text)).toEqual([
-      'Source child',
-    ]);
     expect(
-      targetItems.filter((item) => item.parentId === null).map((item) => item.text),
+      sourceItems
+        .filter((item) => item.parentId === null)
+        .map((item) => item.text),
     ).toEqual(['Source root']);
     expect(
-      targetItems.filter((item) => item.parentId === duplicatedRoot?.id).map((item) => item.text),
+      sourceItems
+        .filter((item) => item.parentId === sourceRoot.id)
+        .map((item) => item.text),
+    ).toEqual(['Source child']);
+    expect(
+      targetItems
+        .filter((item) => item.parentId === null)
+        .map((item) => item.text),
+    ).toEqual(['Source root']);
+    expect(
+      targetItems
+        .filter((item) => item.parentId === duplicatedRoot?.id)
+        .map((item) => item.text),
     ).toEqual(['Source child']);
     expect(duplicatedRoot?.id).not.toBe(sourceRoot.id);
     expect(duplicatedChild?.id).not.toBe(sourceChild.id);
@@ -374,10 +386,14 @@ describe('checklist commands', () => {
 
     expect(movedSourceItems).toHaveLength(0);
     expect(
-      targetItems.filter((item) => item.parentId === null).map((item) => item.text),
+      targetItems
+        .filter((item) => item.parentId === null)
+        .map((item) => item.text),
     ).toEqual(['Target root', 'Source root']);
     expect(
-      targetItems.filter((item) => item.parentId === sourceRoot.id).map((item) => item.text),
+      targetItems
+        .filter((item) => item.parentId === sourceRoot.id)
+        .map((item) => item.text),
     ).toEqual(['Source child']);
     expect(updatedSourceEntry).toMatchObject({
       previewText: '',
@@ -440,16 +456,24 @@ describe('checklist commands', () => {
     const updatedTargetEntry = await db.dailyEntries.get(targetEntry.id);
 
     expect(
-      sourceItems.filter((item) => item.parentId === null).map((item) => item.text),
+      sourceItems
+        .filter((item) => item.parentId === null)
+        .map((item) => item.text),
     ).toEqual(['Source root']);
     expect(
-      sourceItems.filter((item) => item.parentId === sourceRoot.id).map((item) => item.text),
+      sourceItems
+        .filter((item) => item.parentId === sourceRoot.id)
+        .map((item) => item.text),
     ).toEqual(['Source child']);
     expect(
-      targetItems.filter((item) => item.parentId === null).map((item) => item.text),
+      targetItems
+        .filter((item) => item.parentId === null)
+        .map((item) => item.text),
     ).toEqual(['Source root']);
     expect(
-      targetItems.filter((item) => item.parentId === duplicatedRoot?.id).map((item) => item.text),
+      targetItems
+        .filter((item) => item.parentId === duplicatedRoot?.id)
+        .map((item) => item.text),
     ).toEqual(['Source child']);
     expect(duplicatedRoot?.id).not.toBe(sourceRoot.id);
     expect(duplicatedChild?.id).not.toBe(sourceChild.id);

@@ -131,21 +131,27 @@ function insertChecklistDraftRow(
     if (previousSiblingIndex !== -1) {
       const previousSibling = nextRows[previousSiblingIndex];
 
-      nextRows.splice(findRowSubtreeEndIndex(nextRows, previousSiblingIndex), 0, {
-        item: draft,
-        depth: previousSibling.depth,
-        childCount: 0,
-        hasChildren: false,
-        isFirstSibling: false,
-        isLastSibling: previousSibling.isLastSibling,
-      });
+      nextRows.splice(
+        findRowSubtreeEndIndex(nextRows, previousSiblingIndex),
+        0,
+        {
+          item: draft,
+          depth: previousSibling.depth,
+          childCount: 0,
+          hasChildren: false,
+          isFirstSibling: false,
+          isLastSibling: previousSibling.isLastSibling,
+        },
+      );
 
       return nextRows;
     }
   }
 
   if (draft.parentId) {
-    const parentIndex = nextRows.findIndex((row) => row.item.id === draft.parentId);
+    const parentIndex = nextRows.findIndex(
+      (row) => row.item.id === draft.parentId,
+    );
 
     if (parentIndex !== -1) {
       const parentRow = nextRows[parentIndex];
@@ -178,11 +184,7 @@ function insertChecklistDraftRows(
   );
 }
 
-export function ChecklistSurface({
-  dailyEntryId,
-}: {
-  dailyEntryId: string;
-}) {
+export function ChecklistSurface({ dailyEntryId }: { dailyEntryId: string }) {
   const { dictionary, scope } = useAppContext();
   const rows = useChecklistTree(scope, dailyEntryId);
   const [draftItems, setDraftItems] = useState<ChecklistDraftItem[]>([]);
@@ -342,9 +344,7 @@ function ChecklistRow({
 
     setDraftItems((currentDrafts) =>
       currentDrafts.map((draft) =>
-        draft.id === item.id
-          ? { ...draft, text, isPersisting: true }
-          : draft,
+        draft.id === item.id ? { ...draft, text, isPersisting: true } : draft,
       ),
     );
 

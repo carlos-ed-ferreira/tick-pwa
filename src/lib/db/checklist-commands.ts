@@ -883,7 +883,11 @@ export async function duplicateChecklistItemToDate({
 
   const sourceEntry = await db.dailyEntries.get(sourceItem.dailyEntryId);
 
-  if (!sourceEntry || sourceEntry.scopeId !== scope.id || sourceEntry.deletedAt) {
+  if (
+    !sourceEntry ||
+    sourceEntry.scopeId !== scope.id ||
+    sourceEntry.deletedAt
+  ) {
     return;
   }
 
@@ -976,7 +980,11 @@ export async function moveChecklistItemToDate({
 
   const sourceEntry = await db.dailyEntries.get(sourceItem.dailyEntryId);
 
-  if (!sourceEntry || sourceEntry.scopeId !== scope.id || sourceEntry.deletedAt) {
+  if (
+    !sourceEntry ||
+    sourceEntry.scopeId !== scope.id ||
+    sourceEntry.deletedAt
+  ) {
     return;
   }
 
@@ -1054,7 +1062,11 @@ export async function duplicateChecklistItemsToDate({
 }): Promise<void> {
   const sourceEntry = await db.dailyEntries.get(sourceDailyEntryId);
 
-  if (!sourceEntry || sourceEntry.scopeId !== scope.id || sourceEntry.deletedAt) {
+  if (
+    !sourceEntry ||
+    sourceEntry.scopeId !== scope.id ||
+    sourceEntry.deletedAt
+  ) {
     return;
   }
 
@@ -1108,7 +1120,11 @@ export async function moveChecklistItemsToDate({
 }): Promise<void> {
   const sourceEntry = await db.dailyEntries.get(sourceDailyEntryId);
 
-  if (!sourceEntry || sourceEntry.scopeId !== scope.id || sourceEntry.deletedAt) {
+  if (
+    !sourceEntry ||
+    sourceEntry.scopeId !== scope.id ||
+    sourceEntry.deletedAt
+  ) {
     return;
   }
 

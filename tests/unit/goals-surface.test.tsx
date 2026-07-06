@@ -679,7 +679,9 @@ describe('GoalsSurface', () => {
 
     render(<GoalsSurface />);
     fireEvent.click(screen.getByRole('button', { name: 'Focus' }));
-    fireEvent.keyDown(screen.getByDisplayValue('Existing step'), { key: 'Enter' });
+    fireEvent.keyDown(screen.getByDisplayValue('Existing step'), {
+      key: 'Enter',
+    });
 
     await waitFor(() => {
       expect(screen.getAllByPlaceholderText('Write a task')).toHaveLength(2);
