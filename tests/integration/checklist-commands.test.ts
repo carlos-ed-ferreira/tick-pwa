@@ -363,12 +363,12 @@ describe('checklist commands', () => {
       .where('[scopeId+dailyEntryId]')
       .equals([scope.id, sourceEntry.id])
       .filter((item) => item.deletedAt === null)
-      .toArray();
+      .sortBy('sortRank');
     const targetItems = await db.checklistItems
       .where('[scopeId+dailyEntryId]')
       .equals([scope.id, targetEntry.id])
       .filter((item) => item.deletedAt === null)
-      .toArray();
+      .sortBy('sortRank');
     const updatedSourceEntry = await db.dailyEntries.get(sourceEntry.id);
     const updatedTargetEntry = await db.dailyEntries.get(targetEntry.id);
 
