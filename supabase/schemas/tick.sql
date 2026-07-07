@@ -101,6 +101,7 @@ create table public.checklist_items (
   parent_id text,
   category_tag_id text,
   text text not null default '',
+  scheduled_time text,
   checked boolean not null default false,
   priority boolean not null default false,
   collapsed boolean not null default false,
@@ -110,6 +111,10 @@ create table public.checklist_items (
   deleted_at timestamptz,
   client_updated_at timestamptz not null default timezone('utc', now()),
   revision bigint not null default 1,
+  constraint checklist_items_scheduled_time_check check (
+    scheduled_time is null
+    or scheduled_time ~ '^([01][0-9]|2[0-3]):[0-5][0-9]$'
+  ),
   constraint checklist_items_id_user_id_key unique (id, user_id),
   constraint checklist_items_daily_entry_fkey foreign key (daily_entry_id, user_id)
     references public.daily_entries (id, user_id) on delete cascade,

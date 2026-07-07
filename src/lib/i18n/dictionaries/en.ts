@@ -81,6 +81,7 @@ export const enDictionary = {
     bulkSelectWeekdays: 'Select at least one weekday.',
     bulkStartDate: 'Start date',
     bulkWeekdays: 'Weekdays',
+    sortByTime: 'Sort by time',
     transferDescription:
       'Choose the destination date to move or duplicate all tasks from this day.',
     transferDialogTitle: 'Move or duplicate day tasks',
@@ -114,6 +115,8 @@ export const enDictionary = {
     itemPlaceholder: 'Write a task',
     newCategory: 'New category',
     indentItem: 'Indent item',
+    dragItem: 'Drag item',
+    itemTime: 'Task time',
     markPriority: 'Mark as priority',
     moveItemDown: 'Move item down',
     moveItemUp: 'Move item up',

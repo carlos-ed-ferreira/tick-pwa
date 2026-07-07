@@ -1,15 +1,19 @@
 'use client';
 
 import {
-  ArrowDown,
-  ArrowUp,
+  GripVertical,
   IndentDecrease,
   IndentIncrease,
   Plus,
   Star,
   Trash2,
 } from 'lucide-react';
-import { useCallback, useState, type KeyboardEvent } from 'react';
+import {
+  useCallback,
+  useState,
+  type DragEvent,
+  type KeyboardEvent,
+} from 'react';
 import {
   AutoResizeTextarea,
   Checkbox,
@@ -41,6 +45,8 @@ interface TaskTreeRowLabels {
   indentItem: string;
   itemPlaceholder: string;
   markPriority: string;
+  dragItem: string;
+  itemTime: string;
   moveItemDown: string;
   moveItemUp: string;
   outdentItem: string;
@@ -79,7 +85,6 @@ export function TaskTreeEditableRow({
   inputDataAttribute,
   inputSelector,
   isFirstSibling,
-  isLastSibling,
   itemId,
   labels,
   priority,
@@ -92,14 +97,16 @@ export function TaskTreeEditableRow({
   onCreateSibling,
   onDelete,
   onIndent,
-  onMoveDown,
-  onMoveUp,
+  onMoveTo,
   onOutdent,
+  onSaveTime,
   onSaveText,
   onTextChange,
   onToggleChecked,
   onToggleCollapsed,
   onTogglePriority,
+  scheduledTime = null,
+  showScheduledTime = false,
 }: {
   categoryTagId: string | null;
   categoryTagMap: Map<string, { colorHex: string; name: string }>;
@@ -127,13 +134,21 @@ export function TaskTreeEditableRow({
   onDelete: () => Promise<void> | void;
   onIndent: () => Promise<void> | void;
   onMoveDown: () => Promise<void> | void;
+  onMoveTo?: (move: {
+    itemId: string;
+    targetItemId: string;
+    placement: 'before' | 'after';
+  }) => Promise<void> | void;
   onMoveUp: () => Promise<void> | void;
   onOutdent: () => Promise<void> | void;
+  onSaveTime?: (scheduledTime: string | null) => Promise<void> | void;
   onSaveText: (text: string) => Promise<void> | void;
   onTextChange?: (text: string) => void;
   onToggleChecked: () => Promise<void> | void;
   onToggleCollapsed: () => Promise<void> | void;
   onTogglePriority: () => Promise<void> | void;
+  scheduledTime?: string | null;
+  showScheduledTime?: boolean;
 }) {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [optimisticChecked, setOptimisticChecked] = useState<{
@@ -144,6 +159,11 @@ export function TaskTreeEditableRow({
     base: boolean;
     value: boolean;
   } | null>(null);
+  const normalizedScheduledTime = scheduledTime ?? '';
+  const [timeState, setTimeState] = useState({
+    source: normalizedScheduledTime,
+    value: normalizedScheduledTime,
+  });
   const focusAfterCreate = useFocusAfterCreate();
   const selectedCategory = categoryTagId
     ? (categoryTagMap.get(categoryTagId) ?? null)
@@ -168,6 +188,11 @@ export function TaskTreeEditableRow({
     onSave: onSaveText,
     value: sourceText,
   });
+
+  const timeText =
+    timeState.source === normalizedScheduledTime
+      ? timeState.value
+      : normalizedScheduledTime;
 
   const flushEditableText = useCallback(async () => {
     if (text.trim().length > 0) {
@@ -284,6 +309,75 @@ export function TaskTreeEditableRow({
     }
   }
 
+  function maskScheduledTimeInput(value: string): string {
+    const digits = value.replace(/\D/g, '').slice(0, 4);
+
+    if (digits.length < 2) {
+      return digits;
+    }
+
+    const hour = Math.min(Number(digits.slice(0, 2)), 23)
+      .toString()
+      .padStart(2, '0');
+
+    if (digits.length === 2) {
+      return hour;
+    }
+
+    const minuteDigits = digits.slice(2, 4);
+    const minute =
+      minuteDigits.length === 2
+        ? Math.min(Number(minuteDigits), 59).toString().padStart(2, '0')
+        : minuteDigits;
+
+    return `${hour}:${minute}`;
+  }
+
+  async function saveScheduledTime() {
+    if (!showScheduledTime || !onSaveTime) {
+      return;
+    }
+
+    const nextTime = timeText.length === 5 ? timeText : null;
+
+    if ((scheduledTime ?? null) === nextTime) {
+      return;
+    }
+
+    await onSaveTime(nextTime);
+  }
+
+  function handleDragStart(event: DragEvent<HTMLButtonElement>) {
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('application/x-tick-task-id', itemId);
+    event.dataTransfer.setData('text/plain', itemId);
+  }
+
+  function handleDrop(event: DragEvent<HTMLDivElement>) {
+    if (!onMoveTo) {
+      return;
+    }
+
+    const draggedItemId =
+      event.dataTransfer.getData('application/x-tick-task-id') ||
+      event.dataTransfer.getData('text/plain');
+
+    if (!draggedItemId || draggedItemId === itemId) {
+      return;
+    }
+
+    event.preventDefault();
+    const rect = event.currentTarget.getBoundingClientRect();
+    const placement =
+      event.clientY < rect.top + rect.height / 2 ? 'before' : 'after';
+
+    void onMoveTo({
+      itemId: draggedItemId,
+      targetItemId: itemId,
+      placement,
+    });
+  }
+
   return (
     <>
       <TaskTreeRowLayout
@@ -291,6 +385,12 @@ export function TaskTreeEditableRow({
         depth={depth}
         isPriority={displayedPriority}
         isSelected={selection?.isSelected}
+        onDragOver={(event) => {
+          if (onMoveTo) {
+            event.preventDefault();
+          }
+        }}
+        onDrop={handleDrop}
       >
         <TaskTreeCollapseButton
           collapseLabel={labels.collapseItem}
@@ -300,6 +400,15 @@ export function TaskTreeEditableRow({
           onClick={() => void onToggleCollapsed()}
         />
 
+        <IconButton
+          aria-label={labels.dragItem}
+          className="cursor-grab rounded-full hover:bg-white/[0.08] hover:text-[#fff9f2] active:cursor-grabbing focus-visible:outline-[#f0c38e]"
+          draggable
+          onDragStart={handleDragStart}
+        >
+          <GripVertical aria-hidden="true" className="size-4 opacity-70" />
+        </IconButton>
+
         <Checkbox
           aria-label={labels.toggleItem}
           checked={displayedChecked}
@@ -308,6 +417,27 @@ export function TaskTreeEditableRow({
           }
           onChange={() => void toggleChecked()}
         />
+
+        {showScheduledTime ? (
+          <input
+            aria-label={labels.itemTime}
+            inputMode="numeric"
+            maxLength={5}
+            placeholder="00:00"
+            value={timeText}
+            className="h-9 w-[4.75rem] shrink-0 rounded-lg border border-white/10 bg-white/[0.045] px-2 text-center text-xs font-medium tabular-nums text-[#fff9f2] outline-none transition placeholder:text-[#8f85aa] focus:border-[#f0c38e]/40 focus:bg-white/[0.065] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e]"
+            spellCheck={false}
+            autoCorrect="off"
+            autoCapitalize="none"
+            onBlur={() => void saveScheduledTime()}
+            onChange={(event) =>
+              setTimeState({
+                source: normalizedScheduledTime,
+                value: maskScheduledTimeInput(event.target.value),
+              })
+            }
+          />
+        ) : null}
 
         <AutoResizeTextarea
           {...{ [inputDataAttribute]: 'true' }}
@@ -359,22 +489,6 @@ export function TaskTreeEditableRow({
             }
           >
             <Plus aria-hidden="true" className="size-4" />
-          </IconButton>
-          <IconButton
-            aria-label={labels.moveItemUp}
-            className="rounded-full hover:bg-white/[0.08] hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
-            disabled={isFirstSibling}
-            onClick={() => void onMoveUp()}
-          >
-            <ArrowUp aria-hidden="true" className="size-4" />
-          </IconButton>
-          <IconButton
-            aria-label={labels.moveItemDown}
-            className="rounded-full hover:bg-white/[0.08] hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
-            disabled={isLastSibling}
-            onClick={() => void onMoveDown()}
-          >
-            <ArrowDown aria-hidden="true" className="size-4" />
           </IconButton>
           <IconButton
             aria-label={labels.indentItem}

@@ -84,6 +84,7 @@ export const ptBRDictionary = {
     bulkSelectWeekdays: 'Selecione pelo menos um dia da semana.',
     bulkStartDate: 'Data inicial',
     bulkWeekdays: 'Dias da semana',
+    sortByTime: 'Ordenar por horário',
     transferDescription:
       'Escolha a data de destino para mover ou duplicar todas as tarefas deste dia.',
     transferDialogTitle: 'Mover ou duplicar tarefas do dia',
@@ -117,6 +118,8 @@ export const ptBRDictionary = {
     itemPlaceholder: 'Escreva uma tarefa',
     newCategory: 'Nova categoria',
     indentItem: 'Indentar item',
+    dragItem: 'Arrastar item',
+    itemTime: 'Horário da tarefa',
     markPriority: 'Marcar como prioridade',
     moveItemDown: 'Mover item para baixo',
     moveItemUp: 'Mover item para cima',

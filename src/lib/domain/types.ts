@@ -97,6 +97,7 @@ export interface ChecklistItem extends BaseEntity {
   dailyEntryId: string;
   parentId: string | null;
   text: string;
+  scheduledTime: string | null;
   checked: boolean;
   priority: boolean;
   collapsed: boolean;

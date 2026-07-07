@@ -74,6 +74,8 @@ vi.mock('@/providers', () => ({
         emptyChecklist: 'Start this day with a checklist item',
         expandItem: 'Expand item',
         indentItem: 'Indent item',
+        dragItem: 'Drag item',
+        itemTime: 'Task time',
         itemPlaceholder: 'Write a task',
         markPriority: 'Mark as priority',
         moveCategoryDown: 'Move category down',
@@ -84,6 +86,12 @@ vi.mock('@/providers', () => ({
         outdentItem: 'Outdent item',
         title: 'Day editor',
         toggleItem: 'Toggle item',
+        selectItem: 'Select item',
+        deselectItem: 'Deselect item',
+        itemsSelected: '{count} selected',
+        bulkDeleteItems: 'Delete selected',
+        confirmBulkDeleteItems: 'Are you sure you want to delete this item?',
+        clearSelection: 'Clear selection',
         unmarkPriority: 'Remove priority',
         untitledItem: 'New item',
         categories: 'Categories',
@@ -202,6 +210,18 @@ describe('BulkCalendarEditor', () => {
       await screen.findByText('Add at least one item before creating in bulk.'),
     ).toBeInTheDocument();
     expect(applyChecklistTemplateToDateRangeMock).not.toHaveBeenCalled();
+  });
+
+  it('shows the row selector in create mode drafts', () => {
+    render(<BulkCalendarEditor open onClose={vi.fn()} />);
+
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: 'Start by adding items for this range',
+      }),
+    );
+
+    expect(screen.getByLabelText('Select item')).toBeInTheDocument();
   });
 
   it('clears the selected weekdays in clear mode', async () => {

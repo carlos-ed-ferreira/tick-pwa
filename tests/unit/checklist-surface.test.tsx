@@ -14,6 +14,7 @@ const {
   setChecklistItemsCheckedMock,
   softDeleteChecklistItemMock,
   toggleChecklistItemPriorityMock,
+  updateChecklistItemScheduledTimeMock,
   updateChecklistItemTextMock,
   useChecklistTreeMock,
 } = vi.hoisted(() => ({
@@ -22,6 +23,7 @@ const {
   setChecklistItemsCheckedMock: vi.fn().mockResolvedValue(undefined),
   softDeleteChecklistItemMock: vi.fn().mockResolvedValue(undefined),
   toggleChecklistItemPriorityMock: vi.fn().mockResolvedValue(undefined),
+  updateChecklistItemScheduledTimeMock: vi.fn().mockResolvedValue(undefined),
   updateChecklistItemTextMock: vi.fn().mockResolvedValue(undefined),
   useChecklistTreeMock: vi.fn(),
 }));
@@ -38,6 +40,7 @@ vi.mock('@/lib/db', () => ({
   toggleChecklistItemChecked: vi.fn().mockResolvedValue(undefined),
   toggleChecklistItemCollapsed: vi.fn().mockResolvedValue(undefined),
   toggleChecklistItemPriority: toggleChecklistItemPriorityMock,
+  updateChecklistItemScheduledTime: updateChecklistItemScheduledTimeMock,
   updateChecklistItemText: updateChecklistItemTextMock,
 }));
 
@@ -57,6 +60,8 @@ vi.mock('@/providers', () => ({
         itemPlaceholder: 'Write a task',
         addChild: 'Add child',
         indentItem: 'Indent item',
+        dragItem: 'Drag item',
+        itemTime: 'Task time',
         markPriority: 'Mark as priority',
         moveItemDown: 'Move item down',
         moveItemUp: 'Move item up',
@@ -108,6 +113,7 @@ function createRow(
       dailyEntryId: 'entry-1',
       parentId: null,
       text,
+      scheduledTime: null,
       checked: false,
       priority: overrides.priority ?? false,
       collapsed: false,
@@ -193,12 +199,30 @@ describe('ChecklistSurface delete confirmation', () => {
     ).not.toBeInTheDocument();
   });
 
-  it('reorders a row when clicking the move controls', async () => {
-    useChecklistTreeMock.mockReturnValue([createRow('Important task')]);
+  it('reorders a row with drag and drop', async () => {
+    useChecklistTreeMock.mockReturnValue([
+      createRow('First task'),
+      createRow('Second task'),
+    ]);
 
     render(<ChecklistSurface dailyEntryId="entry-1" />);
 
-    fireEvent.click(screen.getByLabelText('Move item up'));
+    const data = new Map<string, string>();
+    const dataTransfer = {
+      effectAllowed: '',
+      getData: (type: string) => data.get(type) ?? '',
+      setData: (type: string, value: string) => data.set(type, value),
+    };
+    const firstHandle = screen.getAllByLabelText('Drag item')[0];
+    const secondRow = screen.getByDisplayValue('Second task').closest('.group');
+
+    expect(secondRow).not.toBeNull();
+
+    fireEvent.dragStart(firstHandle, { dataTransfer });
+    fireEvent.drop(secondRow as Element, {
+      clientY: 999,
+      dataTransfer,
+    });
 
     await waitFor(() => {
       expect(reorderChecklistItemMock).toHaveBeenCalledWith({
@@ -207,8 +231,8 @@ describe('ChecklistSurface delete confirmation', () => {
           kind: 'guest',
           ownerId: 'test',
         },
-        itemId: 'item-Important task',
-        direction: 'up',
+        itemId: 'item-First task',
+        direction: 'down',
       });
     });
   });
@@ -284,6 +308,7 @@ describe('ChecklistSurface delete confirmation', () => {
         id: expect.any(String),
         parentId: null,
         afterItemId: 'item-Original task',
+        scheduledTime: null,
         text: 'Draft task',
       });
     });

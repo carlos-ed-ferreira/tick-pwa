@@ -23,6 +23,7 @@ import {
   toggleChecklistItemChecked,
   toggleChecklistItemCollapsed,
   toggleChecklistItemPriority,
+  updateChecklistItemScheduledTime,
   updateChecklistItemText,
 } from '@/lib/db';
 import { createId } from '@/lib/domain';
@@ -61,6 +62,7 @@ function createChecklistDraftItem({
     dailyEntryId,
     parentId,
     text: '',
+    scheduledTime: null,
     checked: false,
     priority: false,
     collapsed: false,
@@ -280,6 +282,7 @@ export function ChecklistSurface({ dailyEntryId }: { dailyEntryId: string }) {
             isSelected={isSelected(row.item.id)}
             isSelectionMode={isSelectionMode}
             row={row}
+            rows={displayRows}
             onBulkAssignCategory={assignBulkCategory}
             onBulkDelete={openBulkDeleteDialog}
             onBulkToggleChecked={async (nextChecked) => {
@@ -308,6 +311,7 @@ function ChecklistRow({
   isSelected,
   isSelectionMode,
   row,
+  rows,
   onBulkAssignCategory,
   onBulkDelete,
   onBulkToggleChecked,
@@ -319,6 +323,7 @@ function ChecklistRow({
   isSelected: boolean;
   isSelectionMode: boolean;
   row: ChecklistSurfaceRow;
+  rows: ChecklistSurfaceRow[];
   onBulkAssignCategory: (categoryTagId: string | null) => Promise<void>;
   onBulkDelete: () => void;
   onBulkToggleChecked: (nextChecked: boolean) => Promise<void>;
@@ -332,6 +337,64 @@ function ChecklistRow({
   }
 
   const isDraft = 'isDraft' in item && item.isDraft;
+
+  async function moveItemToTarget({
+    itemId,
+    targetItemId,
+    placement,
+  }: {
+    itemId: string;
+    targetItemId: string;
+    placement: 'before' | 'after';
+  }) {
+    if (!scope || itemId === targetItemId) {
+      return;
+    }
+
+    const draggedRow = rows.find((currentRow) => currentRow.item.id === itemId);
+    const targetRow = rows.find(
+      (currentRow) => currentRow.item.id === targetItemId,
+    );
+
+    if (!draggedRow || !targetRow) {
+      return;
+    }
+
+    if (draggedRow.item.parentId !== targetRow.item.parentId) {
+      return;
+    }
+
+    const siblings = rows.filter(
+      (currentRow) => currentRow.item.parentId === targetRow.item.parentId,
+    );
+    const currentIndex = siblings.findIndex(
+      (currentRow) => currentRow.item.id === itemId,
+    );
+    const targetIndex = siblings.findIndex(
+      (currentRow) => currentRow.item.id === targetItemId,
+    );
+
+    if (currentIndex === -1 || targetIndex === -1) {
+      return;
+    }
+
+    let nextIndex = placement === 'before' ? targetIndex : targetIndex + 1;
+
+    if (currentIndex < nextIndex) {
+      nextIndex -= 1;
+    }
+
+    if (nextIndex === currentIndex) {
+      return;
+    }
+
+    const direction = nextIndex > currentIndex ? 'down' : 'up';
+    const steps = Math.abs(nextIndex - currentIndex);
+
+    for (let index = 0; index < steps; index += 1) {
+      await reorderChecklistItem({ scope, itemId, direction });
+    }
+  }
 
   async function persistDraftItem(text: string) {
     if (!isDraft || !scope) {
@@ -355,6 +418,7 @@ function ChecklistRow({
         id: item.id,
         parentId: item.parentId,
         afterItemId: item.afterItemId,
+        scheduledTime: item.scheduledTime,
         text,
       });
     } catch (error) {
@@ -386,6 +450,7 @@ function ChecklistRow({
         delete: dictionary.actions.delete,
       }}
       priority={item.priority}
+      scheduledTime={item.scheduledTime}
       selection={{
         isSelected,
         isSelectionMode,
@@ -396,6 +461,7 @@ function ChecklistRow({
       }}
       surface="checklist_item"
       text={item.text}
+      showScheduledTime={true}
       isDraft={isDraft}
       onAssignCategory={(categoryTagId) =>
         assignChecklistItemCategory({
@@ -438,6 +504,7 @@ function ChecklistRow({
           direction: 'down',
         })
       }
+      onMoveTo={moveItemToTarget}
       onMoveUp={() =>
         reorderChecklistItem({
           scope,
@@ -450,6 +517,19 @@ function ChecklistRow({
         isDraft
           ? persistDraftItem(text)
           : updateChecklistItemText({ scope, itemId: item.id, text })
+      }
+      onSaveTime={(scheduledTime) =>
+        isDraft
+          ? setDraftItems((currentDrafts) =>
+              currentDrafts.map((draft) =>
+                draft.id === item.id ? { ...draft, scheduledTime } : draft,
+              ),
+            )
+          : updateChecklistItemScheduledTime({
+              scope,
+              itemId: item.id,
+              scheduledTime,
+            })
       }
       onToggleChecked={() =>
         isDraft

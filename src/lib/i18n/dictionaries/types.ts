@@ -72,6 +72,7 @@ export interface Dictionary {
     bulkSelectWeekdays: string;
     bulkStartDate: string;
     bulkWeekdays: string;
+    sortByTime: string;
     transferDescription: string;
     transferDialogTitle: string;
     transferDuplicate: string;
@@ -104,6 +105,8 @@ export interface Dictionary {
     itemPlaceholder: string;
     newCategory: string;
     indentItem: string;
+    dragItem: string;
+    itemTime: string;
     markPriority: string;
     moveItemDown: string;
     moveItemUp: string;

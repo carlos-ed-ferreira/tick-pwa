@@ -6,6 +6,7 @@ import { TaskTreeEditableRow } from '@/components/app';
 import { Button, Dialog, Input } from '@/components/ui';
 import { useCategoryTags } from '@/features/categories';
 import { useFocusAfterCreate } from '@/hooks/use-focus-after-create';
+import { useTreeSelection } from '@/hooks/use-tree-selection';
 import {
   applyChecklistTemplateToDateRange,
   clearChecklistItemsFromDateRange,
@@ -26,11 +27,13 @@ import {
   deleteBulkChecklistDraftItem,
   filterBulkChecklistDraftItems,
   indentBulkChecklistDraftItem,
+  moveBulkChecklistDraftItemToTarget,
   outdentBulkChecklistDraftItem,
   reorderBulkChecklistDraftItem,
   toggleBulkChecklistDraftItemChecked,
   toggleBulkChecklistDraftItemCollapsed,
   toggleBulkChecklistDraftItemPriority,
+  updateBulkChecklistDraftItemScheduledTime,
   updateBulkChecklistDraftItemText,
   type BulkChecklistDraftItem,
   type VisibleBulkChecklistDraftRow,
@@ -343,6 +346,15 @@ function BulkChecklistSurface({
     () => buildVisibleBulkChecklistDraftRows(draftItems),
     [draftItems],
   );
+  const visibleItemIds = useMemo(() => rows.map((row) => row.item.id), [rows]);
+  const {
+    clearSelection,
+    isSelected,
+    isSelectionMode,
+    selectedCount,
+    selectedIds,
+    toggleSelect,
+  } = useTreeSelection(visibleItemIds);
 
   const createRootItem = useCallback(() => {
     const newId = createId();
@@ -369,7 +381,12 @@ function BulkChecklistSurface({
               <BulkChecklistRow
                 key={row.item.id}
                 categoryTagMap={categoryTagMap}
+                isSelected={isSelected(row.item.id)}
+                isSelectionMode={isSelectionMode}
                 row={row}
+                selectedIds={selectedIds}
+                onClearSelection={clearSelection}
+                onToggleSelect={toggleSelect}
                 setDraftItems={setDraftItems}
               />
             ))}
@@ -377,7 +394,7 @@ function BulkChecklistSurface({
         )}
 
         {rows.length > 0 ? (
-          <div className="flex items-center justify-between px-1 pt-2">
+          <div className="flex flex-wrap items-center justify-between gap-2 px-1 pt-2">
             <button
               type="button"
               className="flex items-center gap-1.5 rounded-full border border-[#f0c38e]/[0.22] bg-[#f0c38e]/10 px-3 py-1.5 text-sm font-medium text-[#f7d7ad] shadow-sm transition hover:border-[#f0c38e]/[0.36] hover:bg-[#f0c38e]/[0.16] hover:text-[#fff9f2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e]"
@@ -386,6 +403,18 @@ function BulkChecklistSurface({
               <Plus aria-hidden="true" className="size-3.5" />
               {dictionary.dayEditor.addItem}
             </button>
+            {isSelectionMode ? (
+              <button
+                type="button"
+                className="rounded-full border border-white/10 bg-white/[0.055] px-3 py-1.5 text-sm font-medium text-[#bdb4d4] transition hover:border-white/[0.16] hover:bg-white/[0.09] hover:text-[#fff9f2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e]"
+                onClick={clearSelection}
+              >
+                {dictionary.dayEditor.itemsSelected.replace(
+                  '{count}',
+                  String(selectedCount),
+                )}
+              </button>
+            ) : null}
           </div>
         ) : null}
       </div>
@@ -395,11 +424,21 @@ function BulkChecklistSurface({
 
 function BulkChecklistRow({
   categoryTagMap,
+  isSelected,
+  isSelectionMode,
   row,
+  selectedIds,
+  onClearSelection,
+  onToggleSelect,
   setDraftItems,
 }: {
   categoryTagMap: Map<string, { colorHex: string; name: string }>;
+  isSelected: boolean;
+  isSelectionMode: boolean;
   row: VisibleBulkChecklistDraftRow;
+  selectedIds: Set<string>;
+  onClearSelection: () => void;
+  onToggleSelect: (id: string, shiftKey: boolean) => void;
   setDraftItems: React.Dispatch<React.SetStateAction<BulkChecklistDraftItem[]>>;
 }) {
   const { dictionary } = useAppContext();
@@ -424,8 +463,43 @@ function BulkChecklistRow({
         delete: dictionary.actions.delete,
       }}
       priority={item.priority}
+      scheduledTime={item.scheduledTime}
+      selection={{
+        isSelected,
+        isSelectionMode,
+        onBulkAssignCategory: async (categoryTagId) => {
+          setDraftItems((currentItems) =>
+            currentItems.map((currentItem) =>
+              selectedIds.has(currentItem.id)
+                ? { ...currentItem, categoryTagId }
+                : currentItem,
+            ),
+          );
+        },
+        onBulkDelete: () => {
+          setDraftItems((currentItems) =>
+            [...selectedIds].reduce(
+              (nextItems, selectedId) =>
+                deleteBulkChecklistDraftItem(nextItems, selectedId),
+              currentItems,
+            ),
+          );
+          onClearSelection();
+        },
+        onBulkToggleChecked: async (nextChecked) => {
+          setDraftItems((currentItems) =>
+            currentItems.map((currentItem) =>
+              selectedIds.has(currentItem.id)
+                ? { ...currentItem, checked: nextChecked }
+                : currentItem,
+            ),
+          );
+        },
+        onToggle: (shiftKey) => onToggleSelect(item.id, shiftKey),
+      }}
       surface="checklist_item"
       text={item.text}
+      showScheduledTime={true}
       isDraft
       onAssignCategory={(categoryTagId) =>
         setDraftItems((currentItems) =>
@@ -475,6 +549,16 @@ function BulkChecklistRow({
           reorderBulkChecklistDraftItem(currentItems, item.id, 'up'),
         )
       }
+      onMoveTo={({ itemId, targetItemId, placement }) =>
+        setDraftItems((currentItems) =>
+          moveBulkChecklistDraftItemToTarget(
+            currentItems,
+            itemId,
+            targetItemId,
+            placement,
+          ),
+        )
+      }
       onOutdent={() =>
         setDraftItems((currentItems) =>
           outdentBulkChecklistDraftItem(currentItems, item.id),
@@ -488,6 +572,15 @@ function BulkChecklistRow({
       onTextChange={(text) =>
         setDraftItems((currentItems) =>
           updateBulkChecklistDraftItemText(currentItems, item.id, text),
+        )
+      }
+      onSaveTime={(scheduledTime) =>
+        setDraftItems((currentItems) =>
+          updateBulkChecklistDraftItemScheduledTime(
+            currentItems,
+            item.id,
+            scheduledTime,
+          ),
         )
       }
       onToggleChecked={() =>

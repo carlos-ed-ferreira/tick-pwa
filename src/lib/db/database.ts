@@ -26,10 +26,14 @@ type LegacyDailyEntry = Omit<
   }>;
 };
 
-type LegacyChecklistItem = Omit<ChecklistItem, 'categoryTagId' | 'priority'> & {
+type LegacyChecklistItem = Omit<
+  ChecklistItem,
+  'categoryTagId' | 'priority' | 'scheduledTime'
+> & {
   categoryTagId?: string | null;
   colorTagId?: string | null;
   priority?: boolean;
+  scheduledTime?: string | null;
 };
 
 type LegacyGoal = Omit<Goal, 'categoryTagId'> & {
@@ -86,12 +90,13 @@ function migrateDailyEntry(entry: LegacyDailyEntry): DailyEntry {
 }
 
 function migrateChecklistItem(item: LegacyChecklistItem): ChecklistItem {
-  const { categoryTagId, colorTagId, priority, ...rest } = item;
+  const { categoryTagId, colorTagId, priority, scheduledTime, ...rest } = item;
 
   return {
     ...rest,
     categoryTagId: categoryTagId ?? colorTagId ?? null,
     priority: priority ?? false,
+    scheduledTime: scheduledTime ?? null,
   };
 }
 
@@ -884,6 +889,33 @@ export class TickDatabase extends Dexie {
           }
 
           await goals.delete(legacyGoal.id);
+        }
+      });
+
+    this.version(10)
+      .stores({
+        dailyEntries:
+          'id, scopeId, date, updatedAt, deletedAt, [scopeId+date], [scopeId+updatedAt]',
+        checklistItems:
+          'id, scopeId, dailyEntryId, parentId, updatedAt, deletedAt, [scopeId+dailyEntryId], [scopeId+parentId], [scopeId+updatedAt]',
+        colorTags:
+          'id, scopeId, surface, position, updatedAt, deletedAt, [scopeId+surface], [scopeId+surface+position], [scopeId+updatedAt]',
+        goalGroups: 'id, scopeId, updatedAt, deletedAt, [scopeId+updatedAt]',
+        goals:
+          'id, scopeId, groupId, category, completedAt, updatedAt, deletedAt, [scopeId+groupId], [scopeId+category], [scopeId+completedAt], [scopeId+updatedAt]',
+        goalSteps:
+          'id, scopeId, goalId, parentId, updatedAt, deletedAt, [scopeId+goalId], [scopeId+parentId], [scopeId+updatedAt]',
+        localPreferences: 'key, scopeId, updatedAt',
+      })
+      .upgrade(async (transaction) => {
+        const checklistItemsTable = transaction.table(
+          'checklistItems',
+        ) as Table<LegacyChecklistItem, string>;
+
+        for (const item of await checklistItemsTable.toArray()) {
+          await checklistItemsTable.put(
+            migrateChecklistItem(item) as LegacyChecklistItem,
+          );
         }
       });
 

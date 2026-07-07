@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { createGuestScope } from '@/lib/domain';
+import { compareSortRanks, createGuestScope } from '@/lib/domain';
 import {
   applyChecklistTemplateToDateRange,
   assignChecklistItemCategory,
@@ -16,6 +16,7 @@ import {
   moveChecklistItemsToDate,
   outdentChecklistItem,
   reorderChecklistItem,
+  reorderChecklistItemsByScheduledTime,
   reorderCategoryTag,
   softDeleteChecklistItem,
   softDeleteCategoryTag,
@@ -24,6 +25,7 @@ import {
   setChecklistItemsChecked,
   updateCategoryTag,
   updateChecklistItemText,
+  updateChecklistItemScheduledTime,
 } from '@/lib/db';
 
 describe('checklist commands', () => {
@@ -388,6 +390,9 @@ describe('checklist commands', () => {
     expect(
       targetItems
         .filter((item) => item.parentId === null)
+        .sort((firstItem, secondItem) =>
+          compareSortRanks(firstItem.sortRank, secondItem.sortRank),
+        )
         .map((item) => item.text),
     ).toEqual(['Target root', 'Source root']);
     expect(
@@ -725,6 +730,97 @@ describe('checklist commands', () => {
     updatedEntry = await db.dailyEntries.get(entry.id);
 
     expect(updatedEntry?.itemCount).toBe(5);
+  });
+
+  it('updates checklist item time and sorts timed siblings on demand', async () => {
+    const scope = createGuestScope('checklist-time-sort-test');
+    const entry = await openOrCreateDailyEntry({
+      scope,
+      date: '2026-05-13',
+      timezone: 'America/Sao_Paulo',
+    });
+    const first = await createChecklistItem({
+      scope,
+      dailyEntryId: entry.id,
+      text: 'No time first',
+    });
+    const second = await createChecklistItem({
+      scope,
+      dailyEntryId: entry.id,
+      afterItemId: first.id,
+      text: 'Late',
+    });
+    const third = await createChecklistItem({
+      scope,
+      dailyEntryId: entry.id,
+      afterItemId: second.id,
+      text: 'Early',
+    });
+    const fourth = await createChecklistItem({
+      scope,
+      dailyEntryId: entry.id,
+      afterItemId: third.id,
+      text: 'No time second',
+    });
+    await createChecklistChild({
+      scope,
+      dailyEntryId: entry.id,
+      parentItemId: second.id,
+      text: 'Nested no time',
+    });
+
+    await updateChecklistItemScheduledTime({
+      scope,
+      itemId: second.id,
+      scheduledTime: '18:30',
+    });
+    await updateChecklistItemScheduledTime({
+      scope,
+      itemId: third.id,
+      scheduledTime: '08:15',
+    });
+    await reorderChecklistItemsByScheduledTime({
+      scope,
+      dailyEntryId: entry.id,
+    });
+
+    const reorderedItems = await db.checklistItems
+      .where('[scopeId+dailyEntryId]')
+      .equals([scope.id, entry.id])
+      .filter((item) => item.deletedAt === null && item.parentId === null)
+      .toArray();
+    reorderedItems.sort((firstItem, secondItem) =>
+      compareSortRanks(firstItem.sortRank, secondItem.sortRank),
+    );
+
+    expect(
+      reorderedItems.map((item) => ({
+        scheduledTime: item.scheduledTime,
+        text: item.text,
+      })),
+    ).toEqual([
+      { scheduledTime: '08:15', text: 'Early' },
+      { scheduledTime: '18:30', text: 'Late' },
+      { scheduledTime: null, text: 'No time first' },
+      { scheduledTime: null, text: 'Nested no time' },
+      { scheduledTime: null, text: 'No time second' },
+    ]);
+
+    await updateChecklistItemScheduledTime({
+      scope,
+      itemId: second.id,
+      scheduledTime: '',
+    });
+
+    await expect(db.checklistItems.get(second.id)).resolves.toMatchObject({
+      scheduledTime: null,
+    });
+
+    await expect(db.dailyEntries.get(entry.id)).resolves.toMatchObject({
+      previewText: 'Early',
+    });
+
+    expect(fourth.id).toBeTruthy();
   });
 
   it('applies a checklist template across a weekday-filtered range', async () => {

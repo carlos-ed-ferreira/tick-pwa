@@ -85,6 +85,7 @@ export type Database = {
           parent_id: string | null;
           priority: boolean;
           revision: number;
+          scheduled_time: string | null;
           sort_rank: string;
           text: string;
           updated_at: string;
@@ -102,6 +103,7 @@ export type Database = {
           parent_id?: string | null;
           priority?: boolean;
           revision?: number;
+          scheduled_time?: string | null;
           sort_rank: string;
           text?: string;
           updated_at?: string;
@@ -119,6 +121,7 @@ export type Database = {
           parent_id?: string | null;
           priority?: boolean;
           revision?: number;
+          scheduled_time?: string | null;
           sort_rank?: string;
           text?: string;
           updated_at?: string;

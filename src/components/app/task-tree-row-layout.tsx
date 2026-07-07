@@ -1,4 +1,4 @@
-import type { CSSProperties, ReactNode } from 'react';
+import type { CSSProperties, DragEventHandler, ReactNode } from 'react';
 import { toAlphaColor } from '@/lib/color';
 
 export function TaskTreeRowLayout({
@@ -7,12 +7,16 @@ export function TaskTreeRowLayout({
   depth,
   isPriority = false,
   isSelected = false,
+  onDragOver,
+  onDrop,
 }: {
   categoryColorHex?: string;
   children: ReactNode;
   depth: number;
   isPriority?: boolean;
   isSelected?: boolean;
+  onDragOver?: DragEventHandler<HTMLDivElement>;
+  onDrop?: DragEventHandler<HTMLDivElement>;
 }) {
   const style: CSSProperties = {
     paddingLeft: `${depth * 14}px`,
@@ -30,6 +34,8 @@ export function TaskTreeRowLayout({
     <div
       className="group flex min-w-0 items-center gap-1 rounded-xl border border-transparent px-1 py-1 transition hover:border-white/[0.08] hover:bg-white/[0.055]"
       style={style}
+      onDragOver={onDragOver}
+      onDrop={onDrop}
     >
       {children}
     </div>

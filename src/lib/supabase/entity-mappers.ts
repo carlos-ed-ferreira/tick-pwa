@@ -49,6 +49,7 @@ export interface RemoteChecklistItem extends RemoteBaseRow {
   daily_entry_id: string;
   parent_id: string | null;
   text: string;
+  scheduled_time: string | null;
   checked: boolean;
   priority: boolean;
   collapsed: boolean;
@@ -206,6 +207,7 @@ export function toRemotePayload(
       daily_entry_id: item.dailyEntryId,
       parent_id: item.parentId,
       text: item.text,
+      scheduled_time: item.scheduledTime,
       checked: item.checked,
       priority: item.priority,
       collapsed: item.collapsed,
@@ -318,6 +320,7 @@ export function checklistItemFromRemote(
     dailyEntryId: row.daily_entry_id,
     parentId: row.parent_id,
     text: row.text,
+    scheduledTime: row.scheduled_time ?? null,
     checked: row.checked,
     priority: row.priority ?? false,
     collapsed: row.collapsed,

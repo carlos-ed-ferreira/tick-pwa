@@ -12,6 +12,7 @@ export interface BulkChecklistDraftItem {
   id: string;
   parentId: string | null;
   text: string;
+  scheduledTime: string | null;
   checked: boolean;
   priority: boolean;
   collapsed: boolean;
@@ -111,6 +112,7 @@ export function createBulkChecklistDraftItem(
     id: id ?? createId(),
     parentId: safeParentId,
     text,
+    scheduledTime: null,
     checked: false,
     priority: false,
     collapsed: false,
@@ -165,6 +167,17 @@ export function updateBulkChecklistDraftItemText(
   text: string,
 ): BulkChecklistDraftItem[] {
   return updateDraftItem(items, itemId, (item) => ({ ...item, text }));
+}
+
+export function updateBulkChecklistDraftItemScheduledTime(
+  items: BulkChecklistDraftItem[],
+  itemId: string,
+  scheduledTime: string | null,
+): BulkChecklistDraftItem[] {
+  return updateDraftItem(items, itemId, (item) => ({
+    ...item,
+    scheduledTime,
+  }));
 }
 
 export function toggleBulkChecklistDraftItemChecked(
@@ -321,4 +334,51 @@ export function reorderBulkChecklistDraftItem(
     ...currentItem,
     sortRank,
   }));
+}
+
+export function moveBulkChecklistDraftItemToTarget(
+  items: BulkChecklistDraftItem[],
+  itemId: string,
+  targetItemId: string,
+  placement: 'before' | 'after',
+): BulkChecklistDraftItem[] {
+  const item = items.find((currentItem) => currentItem.id === itemId);
+  const targetItem = items.find(
+    (currentItem) => currentItem.id === targetItemId,
+  );
+
+  if (!item || !targetItem || item.parentId !== targetItem.parentId) {
+    return items;
+  }
+
+  const siblings = sortDraftItems(
+    items.filter((currentItem) => currentItem.parentId === item.parentId),
+  );
+  const currentIndex = siblings.findIndex((sibling) => sibling.id === itemId);
+  const targetIndex = siblings.findIndex(
+    (sibling) => sibling.id === targetItemId,
+  );
+
+  if (currentIndex === -1 || targetIndex === -1) {
+    return items;
+  }
+
+  let nextIndex = placement === 'before' ? targetIndex : targetIndex + 1;
+
+  if (currentIndex < nextIndex) {
+    nextIndex -= 1;
+  }
+
+  if (nextIndex === currentIndex) {
+    return items;
+  }
+
+  const direction = nextIndex > currentIndex ? 'down' : 'up';
+  let nextItems = items;
+
+  for (let index = 0; index < Math.abs(nextIndex - currentIndex); index += 1) {
+    nextItems = reorderBulkChecklistDraftItem(nextItems, itemId, direction);
+  }
+
+  return nextItems;
 }

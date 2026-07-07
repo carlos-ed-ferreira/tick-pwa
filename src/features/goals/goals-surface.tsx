@@ -2239,6 +2239,7 @@ function GoalDetailCard({
             isSelected={isSelected(row.goalStep.id)}
             isSelectionMode={isSelectionMode}
             row={row}
+            rows={displayGoalStepRows}
             onBulkAssignCategory={assignBulkCategory}
             onBulkDelete={openBulkDeleteDialog}
             onBulkToggleChecked={async (nextChecked) => {
@@ -2267,6 +2268,7 @@ function GoalStepRow({
   isSelected,
   isSelectionMode,
   row,
+  rows,
   onBulkAssignCategory,
   onBulkDelete,
   onBulkToggleChecked,
@@ -2278,6 +2280,7 @@ function GoalStepRow({
   isSelected: boolean;
   isSelectionMode: boolean;
   row: GoalStepSurfaceRow;
+  rows: GoalStepSurfaceRow[];
   onBulkAssignCategory: (categoryTagId: string | null) => Promise<void>;
   onBulkDelete: () => void;
   onBulkToggleChecked: (nextChecked: boolean) => Promise<void>;
@@ -2291,6 +2294,71 @@ function GoalStepRow({
   }
 
   const isDraft = 'isDraft' in goalStep && goalStep.isDraft;
+
+  async function moveGoalStepToTarget({
+    itemId,
+    targetItemId,
+    placement,
+  }: {
+    itemId: string;
+    targetItemId: string;
+    placement: 'before' | 'after';
+  }) {
+    if (!scope || itemId === targetItemId) {
+      return;
+    }
+
+    const draggedRow = rows.find(
+      (currentRow) => currentRow.goalStep.id === itemId,
+    );
+    const targetRow = rows.find(
+      (currentRow) => currentRow.goalStep.id === targetItemId,
+    );
+
+    if (
+      !draggedRow ||
+      !targetRow ||
+      draggedRow.goalStep.parentId !== targetRow.goalStep.parentId ||
+      'isDraft' in draggedRow.goalStep
+    ) {
+      return;
+    }
+
+    const siblings = rows.filter(
+      (currentRow) =>
+        currentRow.goalStep.parentId === targetRow.goalStep.parentId,
+    );
+    const currentIndex = siblings.findIndex(
+      (currentRow) => currentRow.goalStep.id === itemId,
+    );
+    const targetIndex = siblings.findIndex(
+      (currentRow) => currentRow.goalStep.id === targetItemId,
+    );
+
+    if (currentIndex === -1 || targetIndex === -1) {
+      return;
+    }
+
+    let nextIndex = placement === 'before' ? targetIndex : targetIndex + 1;
+
+    if (currentIndex < nextIndex) {
+      nextIndex -= 1;
+    }
+
+    if (nextIndex === currentIndex) {
+      return;
+    }
+
+    const direction = nextIndex > currentIndex ? 'down' : 'up';
+
+    for (
+      let index = 0;
+      index < Math.abs(nextIndex - currentIndex);
+      index += 1
+    ) {
+      await reorderGoalStep({ scope, goalStepId: itemId, direction });
+    }
+  }
 
   async function persistDraftGoalStep(text: string) {
     if (!isDraft || !scope) {
@@ -2406,6 +2474,7 @@ function GoalStepRow({
           direction: 'up',
         })
       }
+      onMoveTo={moveGoalStepToTarget}
       onOutdent={() => outdentGoalStep({ scope, goalStepId: goalStep.id })}
       onSaveText={(text) =>
         isDraft

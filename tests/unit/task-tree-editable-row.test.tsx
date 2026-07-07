@@ -39,6 +39,8 @@ const labels = {
   markPriority: 'Mark as priority',
   moveItemDown: 'Move item down',
   moveItemUp: 'Move item up',
+  dragItem: 'Drag item',
+  itemTime: 'Task time',
   outdentItem: 'Outdent item',
   selectItem: 'Select item',
   toggleItem: 'Toggle item',
@@ -55,12 +57,14 @@ function renderRow(
     onDelete: vi.fn(),
     onIndent: vi.fn(),
     onMoveDown: vi.fn(),
+    onMoveTo: vi.fn(),
     onMoveUp: vi.fn(),
     onOutdent: vi.fn(),
     onSaveText: vi.fn(),
     onToggleChecked: vi.fn().mockResolvedValue(undefined),
     onToggleCollapsed: vi.fn(),
     onTogglePriority: vi.fn().mockResolvedValue(undefined),
+    onSaveTime: vi.fn(),
   };
 
   render(
@@ -180,6 +184,38 @@ describe('TaskTreeEditableRow', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Assign category' }));
 
     expect(callbacks.onAssignCategory).toHaveBeenCalledWith('category-1');
+  });
+
+  it('renders a drag handle instead of move up and down buttons', () => {
+    renderRow();
+
+    expect(screen.getByLabelText('Drag item')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Move item up')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Move item down')).not.toBeInTheDocument();
+  });
+
+  it('masks the optional calendar time input as 24-hour HH:mm', async () => {
+    const callbacks = renderRow({
+      scheduledTime: '',
+      showScheduledTime: true,
+    });
+
+    const timeInput = screen.getByLabelText('Task time');
+
+    fireEvent.change(timeInput, { target: { value: '2961abc' } });
+    expect(timeInput).toHaveValue('23:59');
+
+    fireEvent.blur(timeInput);
+
+    await waitFor(() => {
+      expect(callbacks.onSaveTime).toHaveBeenCalledWith('23:59');
+    });
+  });
+
+  it('does not render the calendar time input by default', () => {
+    renderRow();
+
+    expect(screen.queryByLabelText('Task time')).not.toBeInTheDocument();
   });
 
   it('does not delete an empty row when Backspace is pressed', async () => {

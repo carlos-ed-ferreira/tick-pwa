@@ -11,6 +11,7 @@ function item(overrides: Partial<ChecklistItem>): ChecklistItem {
     dailyEntryId: 'day-1',
     parentId: null,
     text: '',
+    scheduledTime: null,
     checked: false,
     priority: false,
     collapsed: false,

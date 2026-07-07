@@ -1,5 +1,6 @@
 import type { AppScope, ChecklistItem, LocalDateString } from '@/lib/domain';
 import {
+  compareSortRanks,
   createRankAfter,
   createId,
   createReorderedRank,
@@ -175,6 +176,7 @@ async function cloneChecklistChildrenToDailyEntry({
       dailyEntryId: targetDailyEntryId,
       parentId: targetParentId,
       text: sourceItem.text,
+      scheduledTime: sourceItem.scheduledTime,
       checked: sourceItem.checked,
       priority: sourceItem.priority,
       collapsed: sourceItem.collapsed,
@@ -261,6 +263,7 @@ export interface ChecklistTemplateItem {
   id: string;
   parentId: string | null;
   text: string;
+  scheduledTime?: string | null;
   checked: boolean;
   priority: boolean;
   collapsed: boolean;
@@ -295,6 +298,7 @@ export async function createChecklistItem({
   id = createId(),
   parentId = null,
   afterItemId = null,
+  scheduledTime = null,
   text = '',
 }: {
   scope: AppScope;
@@ -302,6 +306,7 @@ export async function createChecklistItem({
   id?: string;
   parentId?: string | null;
   afterItemId?: string | null;
+  scheduledTime?: string | null;
   text?: string;
 }): Promise<ChecklistItem> {
   if (!hasMeaningfulText(text)) {
@@ -336,6 +341,7 @@ export async function createChecklistItem({
       dailyEntryId,
       parentId: safeParentId,
       text,
+      scheduledTime: normalizeScheduledTime(scheduledTime),
       checked: false,
       priority: false,
       collapsed: false,
@@ -444,6 +450,51 @@ export async function updateChecklistItemText({
       scope,
       dailyEntryId: item.dailyEntryId,
     });
+  });
+}
+
+function normalizeScheduledTime(scheduledTime: string | null): string | null {
+  if (!scheduledTime) {
+    return null;
+  }
+
+  if (!/^\d{2}:\d{2}$/.test(scheduledTime)) {
+    return null;
+  }
+
+  const [hourText, minuteText] = scheduledTime.split(':');
+  const hour = Number(hourText);
+  const minute = Number(minuteText);
+
+  if (hour > 23 || minute > 59) {
+    return null;
+  }
+
+  return scheduledTime;
+}
+
+export async function updateChecklistItemScheduledTime({
+  scope,
+  itemId,
+  scheduledTime,
+}: {
+  scope: AppScope;
+  itemId: string;
+  scheduledTime: string | null;
+}): Promise<void> {
+  await db.transaction('rw', db.checklistItems, async () => {
+    const item = await getScopedChecklistItem(scope, itemId);
+    const normalizedTime = normalizeScheduledTime(scheduledTime);
+
+    if (!item || item.scheduledTime === normalizedTime) {
+      return;
+    }
+
+    const updatedItem = touchChecklistItem(scope, {
+      ...item,
+      scheduledTime: normalizedTime,
+    });
+    await persistChecklistItemUpdate(scope, updatedItem, ['scheduledTime']);
   });
 }
 
@@ -794,6 +845,107 @@ export async function reorderChecklistItem({
   });
 }
 
+function sortItemsByScheduledTime(items: ChecklistItem[]): ChecklistItem[] {
+  return sortChecklistItems(items).sort((firstItem, secondItem) => {
+    const firstTime = firstItem.scheduledTime;
+    const secondTime = secondItem.scheduledTime;
+
+    if (firstTime && secondTime) {
+      return firstTime.localeCompare(secondTime);
+    }
+
+    if (firstTime) {
+      return -1;
+    }
+
+    if (secondTime) {
+      return 1;
+    }
+
+    return 0;
+  });
+}
+
+function buildVisibleChecklistItemOrder(
+  items: ChecklistItem[],
+): ChecklistItem[] {
+  const childrenByParentId = new Map<string, ChecklistItem[]>();
+
+  for (const item of items) {
+    const parentKey = item.parentId ?? '';
+    const children = childrenByParentId.get(parentKey) ?? [];
+    children.push(item);
+    childrenByParentId.set(parentKey, children);
+  }
+
+  for (const children of childrenByParentId.values()) {
+    children.sort((firstItem, secondItem) =>
+      compareSortRanks(firstItem.sortRank, secondItem.sortRank),
+    );
+  }
+
+  const orderedItems: ChecklistItem[] = [];
+
+  function visit(parentId: string | null) {
+    for (const item of childrenByParentId.get(parentId ?? '') ?? []) {
+      orderedItems.push(item);
+      visit(item.id);
+    }
+  }
+
+  visit(null);
+
+  return orderedItems;
+}
+
+export async function reorderChecklistItemsByScheduledTime({
+  scope,
+  dailyEntryId,
+}: {
+  scope: AppScope;
+  dailyEntryId: string;
+}): Promise<void> {
+  await db.transaction('rw', db.dailyEntries, db.checklistItems, async () => {
+    const dailyEntry = await db.dailyEntries.get(dailyEntryId);
+
+    if (
+      !dailyEntry ||
+      dailyEntry.scopeId !== scope.id ||
+      dailyEntry.deletedAt
+    ) {
+      return;
+    }
+
+    const activeItems = await getActiveChecklistItems(scope, dailyEntryId);
+    const sortedItems = sortItemsByScheduledTime(
+      buildVisibleChecklistItemOrder(activeItems),
+    );
+    let previousSortRank: string | null = null;
+
+    for (const item of sortedItems) {
+      const nextSortRank = createSortRankBetween(previousSortRank, null);
+      previousSortRank = nextSortRank;
+
+      if (item.sortRank === nextSortRank && item.parentId === null) {
+        continue;
+      }
+
+      const updatedItem = touchChecklistItem(scope, {
+        ...item,
+        parentId: null,
+        sortRank: nextSortRank,
+      });
+      await persistChecklistItemUpdate(
+        scope,
+        updatedItem,
+        item.parentId === null ? ['sortRank'] : ['parentId', 'sortRank'],
+      );
+    }
+
+    await recalculateDailyEntrySummary({ scope, dailyEntryId });
+  });
+}
+
 async function cloneChecklistItemDescendants({
   scope,
   sourceItems,
@@ -824,6 +976,7 @@ async function cloneChecklistItemDescendants({
       dailyEntryId: targetDailyEntryId,
       parentId: targetParentId,
       text: sourceItem.text,
+      scheduledTime: sourceItem.scheduledTime,
       checked: sourceItem.checked,
       priority: sourceItem.priority,
       collapsed: sourceItem.collapsed,
@@ -920,6 +1073,7 @@ export async function duplicateChecklistItemToDate({
       dailyEntryId: targetEntry.id,
       parentId: null,
       text: sourceItem.text,
+      scheduledTime: sourceItem.scheduledTime,
       checked: sourceItem.checked,
       priority: sourceItem.priority,
       collapsed: sourceItem.collapsed,
@@ -1227,6 +1381,7 @@ export async function applyChecklistTemplateToDateRange({
             dailyEntryId: dailyEntry.id,
             parentId: targetParentId,
             text: templateItem.text,
+            scheduledTime: templateItem.scheduledTime ?? null,
             checked: templateItem.checked,
             priority: templateItem.priority,
             collapsed: templateItem.collapsed,
