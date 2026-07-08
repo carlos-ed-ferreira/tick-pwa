@@ -419,6 +419,54 @@ describe('ChecklistSurface delete confirmation', () => {
     });
   });
 
+  it('removes local sibling drafts anchored to a bulk-deleted row', async () => {
+    useChecklistTreeMock.mockReturnValue([
+      createRow('First task'),
+      createRow('Second task'),
+    ]);
+
+    render(<ChecklistSurface dailyEntryId="entry-1" />);
+
+    fireEvent.keyDown(screen.getByDisplayValue('First task'), {
+      key: 'Enter',
+    });
+
+    await waitFor(() => {
+      expect(screen.getAllByPlaceholderText('Write a task')).toHaveLength(3);
+    });
+
+    const draftInput = screen.getAllByPlaceholderText('Write a task')[1];
+    fireEvent.change(draftInput, { target: { value: 'Draft fragment' } });
+    fireEvent.click(screen.getAllByLabelText('Select item')[0]);
+    fireEvent.click(screen.getAllByLabelText('Delete item')[0]);
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete' }));
+
+    await waitFor(() => {
+      expect(softDeleteChecklistItemMock).toHaveBeenCalledWith({
+        scope: {
+          id: 'guest:test',
+          kind: 'guest',
+          ownerId: 'test',
+        },
+        itemId: 'item-First task',
+      });
+    });
+
+    expect(
+      screen.queryByDisplayValue('Draft fragment'),
+    ).not.toBeInTheDocument();
+    const createdDraftId = createChecklistItemMock.mock.calls[0]?.[0].id;
+    expect(createdDraftId).toEqual(expect.any(String));
+    expect(softDeleteChecklistItemMock).toHaveBeenCalledWith({
+      scope: {
+        id: 'guest:test',
+        kind: 'guest',
+        ownerId: 'test',
+      },
+      itemId: createdDraftId,
+    });
+  });
+
   it('bulk selects a visible range with shift click', async () => {
     useChecklistTreeMock.mockReturnValue([
       createRow('First task'),

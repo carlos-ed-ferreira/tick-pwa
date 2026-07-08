@@ -23,6 +23,7 @@ const {
   reopenGoalMock,
   routerPushMock,
   setGoalStepsCompletedMock,
+  softDeleteGoalStepMock,
   updateGoalStepTextMock,
   updateGoalTitleMock,
   useCategoryTagsMock,
@@ -39,6 +40,7 @@ const {
   reopenGoalMock: vi.fn().mockResolvedValue(undefined),
   routerPushMock: vi.fn(),
   setGoalStepsCompletedMock: vi.fn().mockResolvedValue(undefined),
+  softDeleteGoalStepMock: vi.fn().mockResolvedValue(undefined),
   updateGoalStepTextMock: vi.fn().mockResolvedValue(undefined),
   updateGoalTitleMock: vi.fn().mockResolvedValue(undefined),
   useCategoryTagsMock: vi.fn(),
@@ -77,7 +79,7 @@ vi.mock('@/lib/db', () => ({
   reorderGoalStep: vi.fn().mockResolvedValue(undefined),
   setGoalStepsCompleted: setGoalStepsCompletedMock,
   softDeleteGoal: vi.fn().mockResolvedValue(undefined),
-  softDeleteGoalStep: vi.fn().mockResolvedValue(undefined),
+  softDeleteGoalStep: softDeleteGoalStepMock,
   toggleGoalStepChecked: vi.fn().mockResolvedValue(undefined),
   toggleGoalStepCollapsed: vi.fn().mockResolvedValue(undefined),
   toggleGoalStepPriority: vi.fn().mockResolvedValue(undefined),
@@ -236,6 +238,7 @@ describe('GoalsSurface', () => {
     reopenGoalMock.mockClear();
     routerPushMock.mockClear();
     setGoalStepsCompletedMock.mockClear();
+    softDeleteGoalStepMock.mockClear();
     updateGoalStepTextMock.mockClear();
     updateGoalTitleMock.mockClear();
     useCategoryTagsMock.mockImplementation((_scope, surface) => {
@@ -748,6 +751,50 @@ describe('GoalsSurface', () => {
         goalStepIds: ['goal-step-1'],
         completed: true,
       });
+    });
+  });
+
+  it('removes local sibling drafts anchored to a bulk-deleted goal step', async () => {
+    useGoalStepTreeMock.mockReturnValue([
+      goalStep(),
+      goalStep({
+        id: 'goal-step-2',
+        text: 'Second step',
+        sortRank: 'j',
+      }),
+    ]);
+
+    render(<GoalsSurface />);
+    fireEvent.click(screen.getByRole('button', { name: 'Focus' }));
+    fireEvent.keyDown(screen.getByDisplayValue('Existing step'), {
+      key: 'Enter',
+    });
+
+    await waitFor(() => {
+      expect(screen.getAllByPlaceholderText('Write a task')).toHaveLength(3);
+    });
+
+    const draftInput = screen.getAllByPlaceholderText('Write a task')[1];
+    fireEvent.change(draftInput, { target: { value: 'Draft fragment' } });
+    fireEvent.click(screen.getAllByLabelText('Select item')[0]);
+    fireEvent.click(screen.getAllByLabelText('Delete item')[0]);
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete' }));
+
+    await waitFor(() => {
+      expect(softDeleteGoalStepMock).toHaveBeenCalledWith({
+        scope,
+        goalStepId: 'goal-step-1',
+      });
+    });
+
+    expect(
+      screen.queryByDisplayValue('Draft fragment'),
+    ).not.toBeInTheDocument();
+    const createdDraftId = createGoalStepMock.mock.calls[0]?.[0].id;
+    expect(createdDraftId).toEqual(expect.any(String));
+    expect(softDeleteGoalStepMock).toHaveBeenCalledWith({
+      scope,
+      goalStepId: createdDraftId,
     });
   });
 

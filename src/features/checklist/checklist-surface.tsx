@@ -3,8 +3,10 @@
 import {
   useCallback,
   useMemo,
+  useRef,
   useState,
   type Dispatch,
+  type MutableRefObject,
   type SetStateAction,
 } from 'react';
 import { TaskTreeEditableRow, TreeListPanel } from '@/components/app';
@@ -186,10 +188,74 @@ function insertChecklistDraftRows(
   );
 }
 
+function collectDeletedChecklistRowIds(
+  rows: ChecklistSurfaceRow[],
+  itemId: string,
+): Set<string> {
+  const deletedIds = new Set<string>();
+  const startIndex = rows.findIndex((row) => row.item.id === itemId);
+
+  if (startIndex === -1) {
+    deletedIds.add(itemId);
+    return deletedIds;
+  }
+
+  const rootDepth = rows[startIndex].depth;
+
+  for (let index = startIndex; index < rows.length; index += 1) {
+    const row = rows[index];
+
+    if (index > startIndex && row.depth <= rootDepth) {
+      break;
+    }
+
+    deletedIds.add(row.item.id);
+  }
+
+  return deletedIds;
+}
+
+function pruneChecklistDraftItems(
+  drafts: ChecklistDraftItem[],
+  deletedIds: ReadonlySet<string>,
+): ChecklistDraftItem[] {
+  const prunedIds = collectPrunedChecklistDraftIds(drafts, deletedIds);
+
+  return drafts.filter((draft) => !prunedIds.has(draft.id));
+}
+
+function collectPrunedChecklistDraftIds(
+  drafts: ChecklistDraftItem[],
+  deletedIds: ReadonlySet<string>,
+): Set<string> {
+  const prunedIds = new Set(deletedIds);
+  let didAddPrunedDraft = true;
+
+  while (didAddPrunedDraft) {
+    didAddPrunedDraft = false;
+
+    for (const draft of drafts) {
+      if (
+        !prunedIds.has(draft.id) &&
+        (prunedIds.has(draft.parentId ?? '') ||
+          prunedIds.has(draft.afterItemId ?? ''))
+      ) {
+        prunedIds.add(draft.id);
+        didAddPrunedDraft = true;
+      }
+    }
+  }
+
+  return new Set(
+    drafts.filter((draft) => prunedIds.has(draft.id)).map((draft) => draft.id),
+  );
+}
+
 export function ChecklistSurface({ dailyEntryId }: { dailyEntryId: string }) {
   const { dictionary, scope } = useAppContext();
   const rows = useChecklistTree(scope, dailyEntryId);
   const [draftItems, setDraftItems] = useState<ChecklistDraftItem[]>([]);
+  const deletedDraftItemIdsRef = useRef(new Set<string>());
   const categoryTags = useCategoryTags(scope, 'checklist_item');
   const categoryTagMap = new Map(categoryTags.map((tag) => [tag.id, tag]));
   const displayRows = useMemo(
@@ -209,9 +275,26 @@ export function ChecklistSurface({ dailyEntryId }: { dailyEntryId: string }) {
   const deleteSelectedItem = useCallback(
     async (itemId: string) => {
       if (!scope) return;
+      const deletedIds = collectDeletedChecklistRowIds(displayRows, itemId);
+      const prunedDraftIds = collectPrunedChecklistDraftIds(
+        draftItems,
+        deletedIds,
+      );
+      for (const draftId of prunedDraftIds) {
+        deletedDraftItemIdsRef.current.add(draftId);
+      }
+
       await softDeleteChecklistItem({ scope, itemId });
+      await Promise.all(
+        [...prunedDraftIds].map((draftId) =>
+          softDeleteChecklistItem({ scope, itemId: draftId }),
+        ),
+      );
+      setDraftItems((currentDrafts) =>
+        pruneChecklistDraftItems(currentDrafts, deletedIds),
+      );
     },
-    [scope],
+    [displayRows, draftItems, scope],
   );
   const assignSelectedItemCategory = useCallback(
     async (itemId: string, categoryTagId: string | null) => {
@@ -279,6 +362,7 @@ export function ChecklistSurface({ dailyEntryId }: { dailyEntryId: string }) {
             key={row.item.id}
             categoryTagMap={categoryTagMap}
             dailyEntryId={dailyEntryId}
+            deletedDraftItemIdsRef={deletedDraftItemIdsRef}
             isSelected={isSelected(row.item.id)}
             isSelectionMode={isSelectionMode}
             row={row}
@@ -308,6 +392,7 @@ export function ChecklistSurface({ dailyEntryId }: { dailyEntryId: string }) {
 function ChecklistRow({
   categoryTagMap,
   dailyEntryId,
+  deletedDraftItemIdsRef,
   isSelected,
   isSelectionMode,
   row,
@@ -320,6 +405,7 @@ function ChecklistRow({
 }: {
   categoryTagMap: Map<string, { colorHex: string; name: string }>;
   dailyEntryId: string;
+  deletedDraftItemIdsRef: MutableRefObject<Set<string>>;
   isSelected: boolean;
   isSelectionMode: boolean;
   row: ChecklistSurfaceRow;
@@ -421,6 +507,10 @@ function ChecklistRow({
         scheduledTime: item.scheduledTime,
         text,
       });
+
+      if (deletedDraftItemIdsRef.current.has(item.id)) {
+        await softDeleteChecklistItem({ scope, itemId: item.id });
+      }
     } catch (error) {
       setDraftItems((currentDrafts) =>
         currentDrafts.map((draft) =>
@@ -494,7 +584,31 @@ function ChecklistRow({
           ? setDraftItems((currentDrafts) =>
               currentDrafts.filter((draft) => draft.id !== item.id),
             )
-          : softDeleteChecklistItem({ scope, itemId: item.id })
+          : (async () => {
+              const deletedIds = collectDeletedChecklistRowIds(rows, item.id);
+              const prunedDraftIds = collectPrunedChecklistDraftIds(
+                rows
+                  .map((currentRow) => currentRow.item)
+                  .filter(
+                    (currentItem): currentItem is ChecklistDraftItem =>
+                      'isDraft' in currentItem && currentItem.isDraft,
+                  ),
+                deletedIds,
+              );
+              for (const draftId of prunedDraftIds) {
+                deletedDraftItemIdsRef.current.add(draftId);
+              }
+
+              await softDeleteChecklistItem({ scope, itemId: item.id });
+              await Promise.all(
+                [...prunedDraftIds].map((draftId) =>
+                  softDeleteChecklistItem({ scope, itemId: draftId }),
+                ),
+              );
+              setDraftItems((currentDrafts) =>
+                pruneChecklistDraftItems(currentDrafts, deletedIds),
+              );
+            })()
       }
       onIndent={() => indentChecklistItem({ scope, itemId: item.id })}
       onMoveDown={() =>

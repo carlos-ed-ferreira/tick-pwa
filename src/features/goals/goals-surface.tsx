@@ -20,6 +20,7 @@ import {
   useRef,
   useState,
   type Dispatch,
+  type MutableRefObject,
   type SetStateAction,
   type ReactNode,
   type PointerEvent as ReactPointerEvent,
@@ -234,6 +235,69 @@ function insertGoalStepDraftRows(
   return pendingDrafts.reduce<GoalStepSurfaceRow[]>(
     (currentRows, draft) => insertGoalStepDraftRow(currentRows, draft),
     rows.map((row) => ({ ...row })) as GoalStepSurfaceRow[],
+  );
+}
+
+function collectDeletedGoalStepRowIds(
+  rows: GoalStepSurfaceRow[],
+  goalStepId: string,
+): Set<string> {
+  const deletedIds = new Set<string>();
+  const startIndex = rows.findIndex((row) => row.goalStep.id === goalStepId);
+
+  if (startIndex === -1) {
+    deletedIds.add(goalStepId);
+    return deletedIds;
+  }
+
+  const rootDepth = rows[startIndex].depth;
+
+  for (let index = startIndex; index < rows.length; index += 1) {
+    const row = rows[index];
+
+    if (index > startIndex && row.depth <= rootDepth) {
+      break;
+    }
+
+    deletedIds.add(row.goalStep.id);
+  }
+
+  return deletedIds;
+}
+
+function pruneGoalStepDrafts(
+  drafts: GoalStepDraft[],
+  deletedIds: ReadonlySet<string>,
+): GoalStepDraft[] {
+  const prunedIds = collectPrunedGoalStepDraftIds(drafts, deletedIds);
+
+  return drafts.filter((draft) => !prunedIds.has(draft.id));
+}
+
+function collectPrunedGoalStepDraftIds(
+  drafts: GoalStepDraft[],
+  deletedIds: ReadonlySet<string>,
+): Set<string> {
+  const prunedIds = new Set(deletedIds);
+  let didAddPrunedDraft = true;
+
+  while (didAddPrunedDraft) {
+    didAddPrunedDraft = false;
+
+    for (const draft of drafts) {
+      if (
+        !prunedIds.has(draft.id) &&
+        (prunedIds.has(draft.parentId ?? '') ||
+          prunedIds.has(draft.afterGoalStepId ?? ''))
+      ) {
+        prunedIds.add(draft.id);
+        didAddPrunedDraft = true;
+      }
+    }
+  }
+
+  return new Set(
+    drafts.filter((draft) => prunedIds.has(draft.id)).map((draft) => draft.id),
   );
 }
 
@@ -2146,6 +2210,7 @@ function GoalDetailCard({
 }) {
   const { dictionary, scope } = useAppContext();
   const [draftGoalSteps, setDraftGoalSteps] = useState<GoalStepDraft[]>([]);
+  const deletedDraftGoalStepIdsRef = useRef(new Set<string>());
   const displayGoalStepRows = useMemo(
     () => insertGoalStepDraftRows(goalStepRows, draftGoalSteps),
     [draftGoalSteps, goalStepRows],
@@ -2166,9 +2231,29 @@ function GoalDetailCard({
   const deleteSelectedGoalStep = useCallback(
     async (goalStepId: string) => {
       if (!scope) return;
+      const deletedIds = collectDeletedGoalStepRowIds(
+        displayGoalStepRows,
+        goalStepId,
+      );
+      const prunedDraftIds = collectPrunedGoalStepDraftIds(
+        draftGoalSteps,
+        deletedIds,
+      );
+      for (const draftId of prunedDraftIds) {
+        deletedDraftGoalStepIdsRef.current.add(draftId);
+      }
+
       await softDeleteGoalStep({ scope, goalStepId });
+      await Promise.all(
+        [...prunedDraftIds].map((draftId) =>
+          softDeleteGoalStep({ scope, goalStepId: draftId }),
+        ),
+      );
+      setDraftGoalSteps((currentDrafts) =>
+        pruneGoalStepDrafts(currentDrafts, deletedIds),
+      );
     },
-    [scope],
+    [displayGoalStepRows, draftGoalSteps, scope],
   );
   const assignSelectedGoalStepCategory = useCallback(
     async (goalStepId: string, categoryTagId: string | null) => {
@@ -2235,6 +2320,7 @@ function GoalDetailCard({
           <GoalStepRow
             key={row.goalStep.id}
             categoryTagMap={categoryTagMap}
+            deletedDraftGoalStepIdsRef={deletedDraftGoalStepIdsRef}
             goalId={goal.id}
             isSelected={isSelected(row.goalStep.id)}
             isSelectionMode={isSelectionMode}
@@ -2264,6 +2350,7 @@ function GoalDetailCard({
 
 function GoalStepRow({
   categoryTagMap,
+  deletedDraftGoalStepIdsRef,
   goalId,
   isSelected,
   isSelectionMode,
@@ -2276,6 +2363,7 @@ function GoalStepRow({
   setDraftGoalSteps,
 }: {
   categoryTagMap: Map<string, { colorHex: string; name: string }>;
+  deletedDraftGoalStepIdsRef: MutableRefObject<Set<string>>;
   goalId: string;
   isSelected: boolean;
   isSelectionMode: boolean;
@@ -2386,6 +2474,10 @@ function GoalStepRow({
         afterGoalStepId: goalStep.afterGoalStepId,
         text,
       });
+
+      if (deletedDraftGoalStepIdsRef.current.has(goalStep.id)) {
+        await softDeleteGoalStep({ scope, goalStepId: goalStep.id });
+      }
     } catch (error) {
       setDraftGoalSteps((currentDrafts) =>
         currentDrafts.map((draft) =>
@@ -2457,7 +2549,34 @@ function GoalStepRow({
           ? setDraftGoalSteps((currentDrafts) =>
               currentDrafts.filter((draft) => draft.id !== goalStep.id),
             )
-          : softDeleteGoalStep({ scope, goalStepId: goalStep.id })
+          : (async () => {
+              const deletedIds = collectDeletedGoalStepRowIds(
+                rows,
+                goalStep.id,
+              );
+              const prunedDraftIds = collectPrunedGoalStepDraftIds(
+                rows
+                  .map((currentRow) => currentRow.goalStep)
+                  .filter(
+                    (currentGoalStep): currentGoalStep is GoalStepDraft =>
+                      'isDraft' in currentGoalStep && currentGoalStep.isDraft,
+                  ),
+                deletedIds,
+              );
+              for (const draftId of prunedDraftIds) {
+                deletedDraftGoalStepIdsRef.current.add(draftId);
+              }
+
+              await softDeleteGoalStep({ scope, goalStepId: goalStep.id });
+              await Promise.all(
+                [...prunedDraftIds].map((draftId) =>
+                  softDeleteGoalStep({ scope, goalStepId: draftId }),
+                ),
+              );
+              setDraftGoalSteps((currentDrafts) =>
+                pruneGoalStepDrafts(currentDrafts, deletedIds),
+              );
+            })()
       }
       onIndent={() => indentGoalStep({ scope, goalStepId: goalStep.id })}
       onMoveDown={() =>
