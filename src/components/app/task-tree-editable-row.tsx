@@ -166,6 +166,7 @@ export function TaskTreeEditableRow({
     null,
   );
   const [isDragging, setIsDragging] = useState(false);
+  const [isTextMultiline, setIsTextMultiline] = useState(false);
   const [optimisticChecked, setOptimisticChecked] = useState<{
     base: boolean;
     value: boolean;
@@ -208,6 +209,10 @@ export function TaskTreeEditableRow({
     timeState.source === normalizedScheduledTime
       ? timeState.value
       : normalizedScheduledTime;
+
+  const handleTextHeightChange = useCallback((height: number) => {
+    setIsTextMultiline(height > 24);
+  }, []);
 
   const flushEditableText = useCallback(async () => {
     if (text.trim().length > 0) {
@@ -270,6 +275,10 @@ export function TaskTreeEditableRow({
   }, [onDelete, text]);
 
   async function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
+    if (event.key === 'Enter' && event.shiftKey) {
+      return;
+    }
+
     if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
       event.preventDefault();
       await toggleChecked();
@@ -532,7 +541,7 @@ export function TaskTreeEditableRow({
             maxLength={5}
             placeholder="00:00"
             value={timeText}
-            className="h-9 w-[4.75rem] shrink-0 rounded-lg border border-white/10 bg-white/[0.045] px-2 text-center text-xs font-medium tabular-nums text-[#fff9f2] outline-none transition placeholder:text-[#8f85aa] focus:border-[#f0c38e]/40 focus:bg-white/[0.065] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e]"
+            className="ml-2 h-6 w-[4rem] shrink-0 rounded-lg border border-white/10 bg-white/[0.045] px-1.5 text-center text-xs font-medium tabular-nums text-[#fff9f2] outline-none transition placeholder:text-[#8f85aa] focus:border-[#f0c38e]/40 focus:bg-white/[0.065] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e]"
             spellCheck={false}
             autoCorrect="off"
             autoCapitalize="none"
@@ -546,22 +555,30 @@ export function TaskTreeEditableRow({
           />
         ) : null}
 
-        <AutoResizeTextarea
-          {...{ [inputDataAttribute]: 'true' }}
-          data-item-id={itemId}
-          rows={1}
-          value={text}
-          placeholder={labels.itemPlaceholder}
-          className={`min-w-0 flex-1 rounded-xl border border-transparent bg-transparent px-2 py-2 text-sm leading-5 outline-none transition placeholder:text-[#8f85aa] focus:border-[#f0c38e]/28 focus:bg-white/[0.055] focus:shadow-sm ${
-            displayedChecked ? 'text-[#8f85aa] opacity-75' : 'text-[#fff9f2]'
+        <div
+          data-task-text-field
+          className={`flex min-w-0 flex-1 rounded-xl border border-transparent bg-transparent transition focus-within:border-[#f0c38e]/28 focus-within:bg-white/[0.055] focus-within:shadow-sm ${
+            isTextMultiline ? 'items-start pt-0.5 pb-0' : 'min-h-9 items-center'
           }`}
-          onBlur={() => void flushEditableText()}
-          onChange={(event) => {
-            setText(event.target.value);
-            onTextChange?.(event.target.value);
-          }}
-          onKeyDown={(event) => void handleKeyDown(event)}
-        />
+        >
+          <AutoResizeTextarea
+            {...{ [inputDataAttribute]: 'true' }}
+            data-item-id={itemId}
+            rows={1}
+            value={text}
+            placeholder={labels.itemPlaceholder}
+            className={`min-w-0 w-full bg-transparent px-2 py-0 text-sm leading-5 outline-none placeholder:text-[#8f85aa] ${
+              displayedChecked ? 'text-[#8f85aa] opacity-75' : 'text-[#fff9f2]'
+            }`}
+            onBlur={() => void flushEditableText()}
+            onHeightChange={handleTextHeightChange}
+            onChange={(event) => {
+              setText(event.target.value);
+              onTextChange?.(event.target.value);
+            }}
+            onKeyDown={(event) => void handleKeyDown(event)}
+          />
+        </div>
 
         {selectedCategory ? (
           <TaskTreeCategoryChip
@@ -639,7 +656,7 @@ export function TaskTreeEditableRow({
           />
           <IconButton
             aria-label={labels.deleteItem}
-            className="rounded-full hover:bg-rose-400/[0.12] hover:text-rose-100 focus-visible:outline-[#f0c38e]"
+            className="mr-1 rounded-full hover:bg-rose-400/[0.12] hover:text-rose-100 focus-visible:outline-[#f0c38e]"
             disabled={
               selection?.isSelectionMode === true && !selection.isSelected
             }

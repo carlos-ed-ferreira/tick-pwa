@@ -25,11 +25,11 @@ describe('task tree primitives', () => {
       'min-w-0',
       'items-center',
       'gap-1',
-      'rounded-xl',
+      'min-h-11',
+      'rounded-lg',
       'border',
       'border-transparent',
-      'px-1',
-      'py-1',
+      'p-0',
       'transition',
       'hover:border-white/[0.08]',
       'hover:bg-white/[0.055]',
@@ -41,7 +41,7 @@ describe('task tree primitives', () => {
     });
   });
 
-  it('renders the collapse button disabled when a row has no children', () => {
+  it('dims and blocks the collapse button when a row has no children', () => {
     const onClick = vi.fn();
 
     render(
@@ -57,7 +57,14 @@ describe('task tree primitives', () => {
     const button = screen.getByRole('button', { name: 'Collapse item' });
 
     expect(button).toBeDisabled();
-    expect(button).toHaveClass('disabled:opacity-100');
+    expect(button).toHaveClass(
+      'disabled:cursor-not-allowed',
+      'disabled:opacity-40',
+    );
+
+    fireEvent.click(button);
+
+    expect(onClick).not.toHaveBeenCalled();
   });
 
   it('calls the collapse button callback for expandable rows', () => {
@@ -122,12 +129,16 @@ describe('task tree primitives', () => {
       'shrink-0',
       'items-center',
       'justify-center',
-      'rounded-full',
+      'rounded-md',
       'transition',
       'hover:bg-white/[0.08]',
+      'hover:text-[#fff9f2]',
       'focus-visible:outline-2',
       'focus-visible:outline-offset-2',
       'focus-visible:outline-[#f0c38e]',
+    );
+    expect(button.querySelector('span')).not.toHaveClass(
+      'group-hover:bg-[#f0c38e]/14',
     );
     expect(onToggle).toHaveBeenCalledWith(true);
   });

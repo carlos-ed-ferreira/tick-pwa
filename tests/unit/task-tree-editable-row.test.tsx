@@ -125,6 +125,47 @@ describe('TaskTreeEditableRow', () => {
     });
   });
 
+  it('keeps the single-line text aligned with the time input', () => {
+    renderRow({ showScheduledTime: true });
+    const textInput = screen.getByDisplayValue('Existing item');
+
+    expect(textInput).toHaveClass('py-0', 'leading-5');
+    expect(textInput.closest('[data-task-text-field]')).toHaveClass(
+      'min-h-9',
+      'items-center',
+    );
+    expect(screen.getByRole('checkbox').closest('[data-tree-row]')).toHaveClass(
+      'min-h-11',
+      'rounded-lg',
+    );
+    expect(screen.getByRole('button', { name: 'Collapse item' })).toHaveClass(
+      'ml-1',
+      '-mr-2',
+    );
+    expect(screen.getByRole('button', { name: 'Drag item' })).toHaveClass(
+      'cursor-grab',
+      'active:cursor-grabbing',
+    );
+    expect(screen.getByRole('button', { name: 'Delete item' })).toHaveClass(
+      'mr-1',
+    );
+  });
+
+  it('keeps Shift+Enter available for inserting a line break', () => {
+    const callbacks = renderRow();
+    const input = screen.getByDisplayValue('Existing item');
+    const preventDefault = vi.fn();
+
+    fireEvent.keyDown(input, {
+      key: 'Enter',
+      preventDefault,
+      shiftKey: true,
+    });
+
+    expect(preventDefault).not.toHaveBeenCalled();
+    expect(callbacks.onCreateSibling).not.toHaveBeenCalled();
+  });
+
   it('renders the item text as a one-row textarea that grows with its content', () => {
     renderRow();
     const textarea = screen.getByDisplayValue(
@@ -144,6 +185,12 @@ describe('TaskTreeEditableRow', () => {
     });
 
     expect(textarea.style.height).toBe('72px');
+    expect(textarea).toHaveClass('py-0', 'leading-5');
+    expect(textarea.closest('[data-task-text-field]')).toHaveClass(
+      'items-start',
+      'pt-0.5',
+      'pb-0',
+    );
   });
 
   it('creates and focuses a child row with ArrowDown', async () => {
@@ -190,8 +237,9 @@ describe('TaskTreeEditableRow', () => {
 
   it('renders a drag handle instead of move up and down buttons', () => {
     renderRow();
+    const dragHandle = screen.getByLabelText('Drag item');
 
-    expect(screen.getByLabelText('Drag item')).toBeInTheDocument();
+    expect(dragHandle).toBeInTheDocument();
     expect(screen.queryByLabelText('Move item up')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('Move item down')).not.toBeInTheDocument();
   });
@@ -360,6 +408,8 @@ describe('TaskTreeEditableRow', () => {
     });
 
     const timeInput = screen.getByLabelText('Task time');
+
+    expect(timeInput).toHaveClass('h-6', 'w-[4rem]', 'px-1.5', 'ml-2');
 
     fireEvent.change(timeInput, { target: { value: '2961abc' } });
     expect(timeInput).toHaveValue('23:59');

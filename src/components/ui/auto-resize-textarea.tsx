@@ -9,15 +9,20 @@ import {
   type TextareaHTMLAttributes,
 } from 'react';
 
+interface AutoResizeTextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {
+  onHeightChange?: (height: number) => void;
+}
+
 export const AutoResizeTextarea = forwardRef<
   HTMLTextAreaElement,
-  TextareaHTMLAttributes<HTMLTextAreaElement>
+  AutoResizeTextareaProps
 >(function AutoResizeTextarea(
   {
     autoCapitalize = 'none',
     autoCorrect = 'off',
     className = '',
     onChange,
+    onHeightChange,
     rows = 1,
     spellCheck = false,
     value,
@@ -38,7 +43,8 @@ export const AutoResizeTextarea = forwardRef<
 
     textarea.style.height = 'auto';
     textarea.style.height = `${textarea.scrollHeight}px`;
-  }, []);
+    onHeightChange?.(textarea.scrollHeight);
+  }, [onHeightChange]);
 
   useLayoutEffect(() => {
     resize();

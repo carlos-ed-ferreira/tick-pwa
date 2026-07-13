@@ -1,8 +1,25 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { Button, ConfirmationDialog, Input, Text } from '@/components/ui';
+import {
+  Button,
+  Checkbox,
+  ConfirmationDialog,
+  Input,
+  Text,
+} from '@/components/ui';
 
 describe('UI primitives', () => {
+  it('applies the Tick visual treatment to checkboxes', () => {
+    render(<Checkbox aria-label="Complete task" />);
+
+    const checkbox = screen.getByRole('checkbox', { name: 'Complete task' });
+
+    expect(checkbox).toHaveClass('tick-checkbox');
+    expect(checkbox).toHaveClass('appearance-none');
+    expect(checkbox).toHaveClass('focus-visible:outline-accent');
+    expect(checkbox).toHaveClass('shadow-none');
+  });
+
   it('applies structured input text assistance defaults', () => {
     render(<Input aria-label="Task title" />);
 
