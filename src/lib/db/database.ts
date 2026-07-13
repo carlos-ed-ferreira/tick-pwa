@@ -28,10 +28,12 @@ type LegacyDailyEntry = Omit<
 
 type LegacyChecklistItem = Omit<
   ChecklistItem,
-  'categoryTagId' | 'priority' | 'scheduledTime'
+  'categoryTagId' | 'parentId' | 'collapsed' | 'priority' | 'scheduledTime'
 > & {
   categoryTagId?: string | null;
   colorTagId?: string | null;
+  parentId?: string | null;
+  collapsed?: boolean;
   priority?: boolean;
   scheduledTime?: string | null;
 };
@@ -90,11 +92,21 @@ function migrateDailyEntry(entry: LegacyDailyEntry): DailyEntry {
 }
 
 function migrateChecklistItem(item: LegacyChecklistItem): ChecklistItem {
-  const { categoryTagId, colorTagId, priority, scheduledTime, ...rest } = item;
+  const {
+    categoryTagId,
+    colorTagId,
+    parentId,
+    collapsed,
+    priority,
+    scheduledTime,
+    ...rest
+  } = item;
 
   return {
     ...rest,
     categoryTagId: categoryTagId ?? colorTagId ?? null,
+    parentId: parentId ?? null,
+    collapsed: collapsed ?? false,
     priority: priority ?? false,
     scheduledTime: scheduledTime ?? null,
   };
@@ -918,6 +930,19 @@ export class TickDatabase extends Dexie {
           );
         }
       });
+
+    this.version(11).upgrade(async (transaction) => {
+      const checklistItemsTable = transaction.table('checklistItems') as Table<
+        LegacyChecklistItem,
+        string
+      >;
+
+      for (const item of await checklistItemsTable.toArray()) {
+        await checklistItemsTable.put(
+          migrateChecklistItem(item) as LegacyChecklistItem,
+        );
+      }
+    });
 
     this.categoryTags = this.table('colorTags');
   }
