@@ -1,7 +1,7 @@
 'use client';
 
 import { Plus, X } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { useState, type DragEvent, type ReactNode } from 'react';
 import { ConfirmationDialog } from '@/components/ui';
 import { useFocusAfterCreate } from '@/hooks/use-focus-after-create';
 
@@ -28,7 +28,7 @@ export function TreeListPanel({
   surface = 'panel',
 }: {
   addLabel: string;
-  bulkDeleteDialog: BulkDeleteDialog;
+  bulkDeleteDialog?: BulkDeleteDialog;
   children: ReactNode;
   clearSelectionLabel: string;
   emptyLabel: string;
@@ -39,6 +39,7 @@ export function TreeListPanel({
   surface?: 'panel' | 'none';
 }) {
   const focusAfterCreate = useFocusAfterCreate();
+  const [isMovingItem, setIsMovingItem] = useState(false);
 
   async function handleAddRoot() {
     const itemId = await onAddRoot();
@@ -48,14 +49,44 @@ export function TreeListPanel({
     }
   }
 
+  function isMovingToTop(event: DragEvent<HTMLDivElement>) {
+    if (!(event.target instanceof Element)) {
+      return false;
+    }
+
+    const row = event.target.closest<HTMLElement>('[data-tree-row]');
+    const firstRow =
+      event.currentTarget.querySelector<HTMLElement>('[data-tree-row]');
+
+    if (!row || row !== firstRow) {
+      return false;
+    }
+
+    const rect = row.getBoundingClientRect();
+    return rect.height > 0 && event.clientY - rect.top < rect.height * 0.25;
+  }
+
   return (
     <>
       <div
+        data-testid="tree-list-panel"
         className={
           surface === 'panel'
-            ? 'modal-panel min-h-0 flex-1 overflow-y-auto p-2'
-            : 'min-h-0 flex-1 overflow-y-auto'
+            ? `modal-panel min-h-0 flex-1 overflow-y-auto px-2 pb-2 transition-[padding] ${
+                isMovingItem ? 'pt-3' : 'pt-2'
+              }`
+            : `min-h-0 flex-1 overflow-y-auto transition-[padding] ${
+                isMovingItem ? 'pt-1' : ''
+              }`
         }
+        onDragEnd={() => setIsMovingItem(false)}
+        onDragLeave={(event) => {
+          if (!event.currentTarget.contains(event.relatedTarget as Node)) {
+            setIsMovingItem(false);
+          }
+        }}
+        onDragOver={(event) => setIsMovingItem(isMovingToTop(event))}
+        onDrop={() => setIsMovingItem(false)}
       >
         {hasRows ? (
           <div className="grid gap-1">{children}</div>
@@ -93,15 +124,17 @@ export function TreeListPanel({
         ) : null}
       </div>
 
-      <ConfirmationDialog
-        cancelLabel={bulkDeleteDialog.cancelLabel}
-        confirmLabel={bulkDeleteDialog.confirmLabel}
-        description={bulkDeleteDialog.description}
-        open={bulkDeleteDialog.open}
-        title={bulkDeleteDialog.title}
-        onClose={bulkDeleteDialog.onClose}
-        onConfirm={bulkDeleteDialog.onConfirm}
-      />
+      {bulkDeleteDialog ? (
+        <ConfirmationDialog
+          cancelLabel={bulkDeleteDialog.cancelLabel}
+          confirmLabel={bulkDeleteDialog.confirmLabel}
+          description={bulkDeleteDialog.description}
+          open={bulkDeleteDialog.open}
+          title={bulkDeleteDialog.title}
+          onClose={bulkDeleteDialog.onClose}
+          onConfirm={bulkDeleteDialog.onConfirm}
+        />
+      ) : null}
     </>
   );
 }

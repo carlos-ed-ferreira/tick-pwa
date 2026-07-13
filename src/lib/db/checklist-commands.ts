@@ -756,6 +756,134 @@ export async function indentChecklistItem({
   });
 }
 
+export async function moveChecklistItemToParent({
+  scope,
+  itemId,
+  parentItemId,
+}: {
+  scope: AppScope;
+  itemId: string;
+  parentItemId: string;
+}): Promise<void> {
+  await db.transaction('rw', db.checklistItems, async () => {
+    const item = await getScopedChecklistItem(scope, itemId);
+
+    if (!item || item.id === parentItemId) {
+      return;
+    }
+
+    const activeItems = await getActiveChecklistItems(scope, item.dailyEntryId);
+    const parentItem = activeItems.find(
+      (activeItem) => activeItem.id === parentItemId,
+    );
+
+    if (!parentItem) {
+      return;
+    }
+
+    let ancestor: ChecklistItem | undefined = parentItem;
+
+    while (ancestor) {
+      if (ancestor.id === item.id) {
+        return;
+      }
+
+      ancestor = ancestor.parentId
+        ? activeItems.find((activeItem) => activeItem.id === ancestor?.parentId)
+        : undefined;
+    }
+
+    const newSiblings = activeItems.filter(
+      (activeItem) => activeItem.parentId === parentItem.id,
+    );
+    const updatedItem = touchChecklistItem(scope, {
+      ...item,
+      parentId: parentItem.id,
+      sortRank: createInsertRank({ siblings: newSiblings }),
+    });
+    await persistChecklistItemUpdate(scope, updatedItem, [
+      'parentId',
+      'sortRank',
+    ]);
+
+    if (parentItem.collapsed) {
+      await persistChecklistItemUpdate(
+        scope,
+        touchChecklistItem(scope, { ...parentItem, collapsed: false }),
+        ['collapsed'],
+      );
+    }
+  });
+}
+
+export async function moveChecklistItemToTarget({
+  scope,
+  itemId,
+  targetItemId,
+  placement,
+}: {
+  scope: AppScope;
+  itemId: string;
+  targetItemId: string;
+  placement: 'before' | 'after';
+}): Promise<void> {
+  await db.transaction('rw', db.checklistItems, async () => {
+    const item = await getScopedChecklistItem(scope, itemId);
+
+    if (!item || item.id === targetItemId) return;
+
+    const activeItems = await getActiveChecklistItems(scope, item.dailyEntryId);
+    const targetItem = activeItems.find(
+      (activeItem) => activeItem.id === targetItemId,
+    );
+    const targetParentId = targetItem?.parentId ?? null;
+
+    if (!targetItem) return;
+
+    let ancestor = targetParentId
+      ? activeItems.find((activeItem) => activeItem.id === targetParentId)
+      : undefined;
+
+    while (ancestor) {
+      if (ancestor.id === item.id) return;
+      ancestor = ancestor.parentId
+        ? activeItems.find((activeItem) => activeItem.id === ancestor?.parentId)
+        : undefined;
+    }
+
+    const siblings = sortChecklistItems(
+      activeItems.filter(
+        (activeItem) =>
+          activeItem.parentId === targetParentId && activeItem.id !== item.id,
+      ),
+    );
+    const targetIndex = siblings.findIndex(
+      (sibling) => sibling.id === targetItem.id,
+    );
+
+    if (targetIndex === -1) return;
+
+    const updatedItem = touchChecklistItem(scope, {
+      ...item,
+      parentId: targetParentId,
+      sortRank:
+        placement === 'before'
+          ? createSortRankBetween(
+              siblings[targetIndex - 1]?.sortRank ?? null,
+              targetItem.sortRank,
+            )
+          : createSortRankBetween(
+              targetItem.sortRank,
+              siblings[targetIndex + 1]?.sortRank ?? null,
+            ),
+    });
+    await persistChecklistItemUpdate(scope, updatedItem, [
+      'parentId',
+      'sortRank',
+    ]);
+  });
+}
+
 export async function outdentChecklistItem({
   scope,
   itemId,

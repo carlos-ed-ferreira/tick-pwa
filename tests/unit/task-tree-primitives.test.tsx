@@ -6,6 +6,7 @@ import {
   TaskTreeCollapseButton,
   TaskTreeRowLayout,
   TaskTreeSelectionButton,
+  TreeListPanel,
 } from '@/components/app';
 
 describe('task tree primitives', () => {
@@ -162,5 +163,47 @@ describe('task tree primitives', () => {
     expect(
       screen.getByRole('button', { name: 'Action' }).parentElement,
     ).toHaveClass('flex', 'shrink-0', 'items-center', 'gap-0');
+  });
+
+  it('adds temporary top padding only for the top divider', () => {
+    render(
+      <TreeListPanel
+        addLabel="Add item"
+        clearSelectionLabel="Clear selection"
+        emptyLabel="Empty"
+        hasRows
+        isSelectionMode={false}
+        onAddRoot={vi.fn()}
+        onClearSelection={vi.fn()}
+      >
+        <div data-tree-row>Checklist row</div>
+      </TreeListPanel>,
+    );
+
+    const panel = screen.getByTestId('tree-list-panel');
+    const row = panel.querySelector('[data-tree-row]');
+
+    expect(row).not.toBeNull();
+
+    Object.defineProperty(row as Element, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({ height: 100, top: 0 }),
+    });
+
+    expect(panel).toHaveClass('pt-2');
+    fireEvent(
+      row as Element,
+      new MouseEvent('dragover', { bubbles: true, clientY: 10 }),
+    );
+    expect(panel).toHaveClass('pt-3');
+
+    fireEvent(
+      row as Element,
+      new MouseEvent('dragover', { bubbles: true, clientY: 50 }),
+    );
+    expect(panel).toHaveClass('pt-2');
+
+    fireEvent.dragEnd(panel);
+    expect(panel).toHaveClass('pt-2');
   });
 });

@@ -25,7 +25,11 @@ import {
   type ReactNode,
   type PointerEvent as ReactPointerEvent,
 } from 'react';
-import { TaskTreeEditableRow, TreeListPanel } from '@/components/app';
+import {
+  moveTreeItemToTarget,
+  TaskTreeEditableRow,
+  TreeListPanel,
+} from '@/components/app';
 import {
   Button,
   ConfirmationDialog,
@@ -47,6 +51,8 @@ import {
   createGoalStep,
   groupGoalsTogether,
   indentGoalStep,
+  moveGoalStepToParent,
+  moveGoalStepToTarget,
   moveGoalAfter,
   moveGoalBefore,
   moveGoalGroupAfter,
@@ -88,6 +94,7 @@ const goalStepInputSelector = '[data-goal-step-input="true"]';
 const visibleCategoryLimit = 4;
 
 interface GoalStepDraft extends GoalStep {
+  beforeGoalStepId: string | null;
   isDraft: true;
   afterGoalStepId: string | null;
   isPersisting?: boolean;
@@ -129,6 +136,7 @@ function createGoalStepDraft({
     clientUpdatedAt: now,
     isDraft: true,
     afterGoalStepId,
+    beforeGoalStepId: null,
   };
 }
 
@@ -154,6 +162,25 @@ function insertGoalStepDraftRow(
 
   if (nextRows.some((row) => row.goalStep.id === draft.id)) {
     return nextRows;
+  }
+
+  if (draft.beforeGoalStepId) {
+    const nextSiblingIndex = nextRows.findIndex(
+      (row) => row.goalStep.id === draft.beforeGoalStepId,
+    );
+
+    if (nextSiblingIndex !== -1) {
+      const nextSibling = nextRows[nextSiblingIndex];
+      nextRows.splice(nextSiblingIndex, 0, {
+        goalStep: draft,
+        depth: nextSibling.depth,
+        childCount: 0,
+        hasChildren: false,
+        isFirstSibling: nextSibling.isFirstSibling,
+        isLastSibling: false,
+      });
+      return nextRows;
+    }
   }
 
   if (draft.parentId === null && draft.afterGoalStepId === null) {
@@ -288,7 +315,8 @@ function collectPrunedGoalStepDraftIds(
       if (
         !prunedIds.has(draft.id) &&
         (prunedIds.has(draft.parentId ?? '') ||
-          prunedIds.has(draft.afterGoalStepId ?? ''))
+          prunedIds.has(draft.afterGoalStepId ?? '') ||
+          prunedIds.has(draft.beforeGoalStepId ?? ''))
       ) {
         prunedIds.add(draft.id);
         didAddPrunedDraft = true;
@@ -2382,70 +2410,95 @@ function GoalStepRow({
   }
 
   const isDraft = 'isDraft' in goalStep && goalStep.isDraft;
+  const siblingIds = rows
+    .filter((currentRow) => currentRow.goalStep.parentId === goalStep.parentId)
+    .map((currentRow) => currentRow.goalStep.id);
 
-  async function moveGoalStepToTarget({
+  async function handleMoveGoalStepToTarget({
     itemId,
     targetItemId,
     placement,
   }: {
     itemId: string;
     targetItemId: string;
-    placement: 'before' | 'after';
+    placement: 'before' | 'child' | 'after';
   }) {
-    if (!scope || itemId === targetItemId) {
+    if (!scope) {
       return;
     }
 
-    const draggedRow = rows.find(
-      (currentRow) => currentRow.goalStep.id === itemId,
-    );
-    const targetRow = rows.find(
-      (currentRow) => currentRow.goalStep.id === targetItemId,
-    );
+    const movingGoalStep = rows.find(
+      (row) => row.goalStep.id === itemId,
+    )?.goalStep;
+    const targetGoalStep = rows.find(
+      (row) => row.goalStep.id === targetItemId,
+    )?.goalStep;
 
     if (
-      !draggedRow ||
-      !targetRow ||
-      draggedRow.goalStep.parentId !== targetRow.goalStep.parentId ||
-      'isDraft' in draggedRow.goalStep
+      movingGoalStep &&
+      'isDraft' in movingGoalStep &&
+      movingGoalStep.isDraft &&
+      targetGoalStep
     ) {
+      const targetAncestors = new Set<string>();
+      let currentParentId = targetGoalStep.parentId;
+
+      while (currentParentId) {
+        targetAncestors.add(currentParentId);
+        currentParentId =
+          rows.find((row) => row.goalStep.id === currentParentId)?.goalStep
+            .parentId ?? null;
+      }
+
+      if (placement === 'child' && targetAncestors.has(itemId)) {
+        return;
+      }
+
+      setDraftGoalSteps((currentDrafts) =>
+        currentDrafts.map((draft) =>
+          draft.id !== itemId
+            ? draft
+            : placement === 'child'
+              ? {
+                  ...draft,
+                  afterGoalStepId: null,
+                  beforeGoalStepId: null,
+                  parentId: targetItemId,
+                }
+              : {
+                  ...draft,
+                  afterGoalStepId: placement === 'after' ? targetItemId : null,
+                  beforeGoalStepId:
+                    placement === 'before' ? targetItemId : null,
+                  parentId: targetGoalStep.parentId,
+                },
+        ),
+      );
       return;
     }
 
-    const siblings = rows.filter(
-      (currentRow) =>
-        currentRow.goalStep.parentId === targetRow.goalStep.parentId,
-    );
-    const currentIndex = siblings.findIndex(
-      (currentRow) => currentRow.goalStep.id === itemId,
-    );
-    const targetIndex = siblings.findIndex(
-      (currentRow) => currentRow.goalStep.id === targetItemId,
-    );
-
-    if (currentIndex === -1 || targetIndex === -1) {
-      return;
-    }
-
-    let nextIndex = placement === 'before' ? targetIndex : targetIndex + 1;
-
-    if (currentIndex < nextIndex) {
-      nextIndex -= 1;
-    }
-
-    if (nextIndex === currentIndex) {
-      return;
-    }
-
-    const direction = nextIndex > currentIndex ? 'down' : 'up';
-
-    for (
-      let index = 0;
-      index < Math.abs(nextIndex - currentIndex);
-      index += 1
-    ) {
-      await reorderGoalStep({ scope, goalStepId: itemId, direction });
-    }
+    await moveTreeItemToTarget({
+      canMove: (candidate) => !('isDraft' in candidate && candidate.isDraft),
+      itemId,
+      items: rows.map((currentRow) => currentRow.goalStep),
+      placement,
+      targetItemId,
+      onMoveAsChild: (movingItemId, parentGoalStepId) =>
+        moveGoalStepToParent({
+          scope,
+          goalStepId: movingItemId,
+          parentGoalStepId,
+        }),
+      onMoveAdjacent: (movingItemId, targetItemId, placement) =>
+        moveGoalStepToTarget({
+          scope,
+          goalStepId: movingItemId,
+          targetGoalStepId: targetItemId,
+          placement,
+        }),
+      onReorder: (movingItemId, direction) =>
+        reorderGoalStep({ scope, goalStepId: movingItemId, direction }),
+    });
   }
 
   async function persistDraftGoalStep(text: string) {
@@ -2474,6 +2527,15 @@ function GoalStepRow({
         afterGoalStepId: goalStep.afterGoalStepId,
         text,
       });
+
+      if (goalStep.beforeGoalStepId) {
+        await moveGoalStepToTarget({
+          scope,
+          goalStepId: goalStep.id,
+          targetGoalStepId: goalStep.beforeGoalStepId,
+          placement: 'before',
+        });
+      }
 
       if (deletedDraftGoalStepIdsRef.current.has(goalStep.id)) {
         await softDeleteGoalStep({ scope, goalStepId: goalStep.id });
@@ -2506,6 +2568,7 @@ function GoalStepRow({
         cancel: dictionary.actions.cancel,
         delete: dictionary.actions.delete,
       }}
+      parentId={goalStep.parentId}
       priority={goalStep.priority}
       selection={{
         isSelected,
@@ -2515,6 +2578,7 @@ function GoalStepRow({
         onBulkToggleChecked,
         onToggle: (shiftKey) => onToggleSelect(goalStep.id, shiftKey),
       }}
+      siblingIds={siblingIds}
       surface="goal_step"
       text={goalStep.text}
       isDraft={isDraft}
@@ -2579,21 +2643,7 @@ function GoalStepRow({
             })()
       }
       onIndent={() => indentGoalStep({ scope, goalStepId: goalStep.id })}
-      onMoveDown={() =>
-        reorderGoalStep({
-          scope,
-          goalStepId: goalStep.id,
-          direction: 'down',
-        })
-      }
-      onMoveUp={() =>
-        reorderGoalStep({
-          scope,
-          goalStepId: goalStep.id,
-          direction: 'up',
-        })
-      }
-      onMoveTo={moveGoalStepToTarget}
+      onMoveTo={handleMoveGoalStepToTarget}
       onOutdent={() => outdentGoalStep({ scope, goalStepId: goalStep.id })}
       onSaveText={(text) =>
         isDraft

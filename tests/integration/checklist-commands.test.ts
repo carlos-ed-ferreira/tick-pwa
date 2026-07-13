@@ -14,6 +14,7 @@ import {
   openOrCreateDailyEntry,
   moveChecklistItemToDate,
   moveChecklistItemsToDate,
+  moveChecklistItemToParent,
   outdentChecklistItem,
   reorderChecklistItem,
   reorderChecklistItemsByScheduledTime,
@@ -182,6 +183,44 @@ describe('checklist commands', () => {
     expect(updatedEntry).toMatchObject({
       previewText: 'Second',
       itemCount: 1,
+    });
+  });
+
+  it('moves an item under another item without creating a cycle', async () => {
+    const scope = createGuestScope('checklist-reparent');
+    const entry = await openOrCreateDailyEntry({
+      scope,
+      date: '2026-05-13',
+      timezone: 'America/Sao_Paulo',
+    });
+    const parent = await createChecklistItem({
+      scope,
+      dailyEntryId: entry.id,
+      text: 'Parent',
+    });
+    const child = await createChecklistItem({
+      scope,
+      dailyEntryId: entry.id,
+      afterItemId: parent.id,
+      text: 'Child',
+    });
+
+    await moveChecklistItemToParent({
+      scope,
+      itemId: child.id,
+      parentItemId: parent.id,
+    });
+    await moveChecklistItemToParent({
+      scope,
+      itemId: parent.id,
+      parentItemId: child.id,
+    });
+
+    await expect(db.checklistItems.get(child.id)).resolves.toMatchObject({
+      parentId: parent.id,
+    });
+    await expect(db.checklistItems.get(parent.id)).resolves.toMatchObject({
+      parentId: null,
     });
   });
 

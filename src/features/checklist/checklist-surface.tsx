@@ -9,7 +9,11 @@ import {
   type MutableRefObject,
   type SetStateAction,
 } from 'react';
-import { TaskTreeEditableRow, TreeListPanel } from '@/components/app';
+import {
+  moveTreeItemToTarget,
+  TaskTreeEditableRow,
+  TreeListPanel,
+} from '@/components/app';
 import { useCategoryTags } from '@/features/categories';
 import { useTreeBulkActions } from '@/hooks/use-tree-bulk-actions';
 import { useTreeSelection } from '@/hooks/use-tree-selection';
@@ -18,6 +22,8 @@ import {
   assignChecklistItemCategory,
   createChecklistItem,
   indentChecklistItem,
+  moveChecklistItemToParent,
+  moveChecklistItemToTarget,
   setChecklistItemsChecked,
   outdentChecklistItem,
   reorderChecklistItem,
@@ -36,6 +42,7 @@ import { useChecklistTree } from './use-checklist-tree';
 const checklistInputSelector = '[data-checklist-input="true"]';
 
 interface ChecklistDraftItem extends ChecklistItem {
+  beforeItemId: string | null;
   isDraft: true;
   afterItemId: string | null;
   isPersisting?: boolean;
@@ -78,6 +85,7 @@ function createChecklistDraftItem({
     clientUpdatedAt: now,
     isDraft: true,
     afterItemId,
+    beforeItemId: null,
   };
 }
 
@@ -103,6 +111,25 @@ function insertChecklistDraftRow(
 
   if (nextRows.some((row) => row.item.id === draft.id)) {
     return nextRows;
+  }
+
+  if (draft.beforeItemId) {
+    const nextSiblingIndex = nextRows.findIndex(
+      (row) => row.item.id === draft.beforeItemId,
+    );
+
+    if (nextSiblingIndex !== -1) {
+      const nextSibling = nextRows[nextSiblingIndex];
+      nextRows.splice(nextSiblingIndex, 0, {
+        item: draft,
+        depth: nextSibling.depth,
+        childCount: 0,
+        hasChildren: false,
+        isFirstSibling: nextSibling.isFirstSibling,
+        isLastSibling: false,
+      });
+      return nextRows;
+    }
   }
 
   if (draft.parentId === null && draft.afterItemId === null) {
@@ -238,7 +265,8 @@ function collectPrunedChecklistDraftIds(
       if (
         !prunedIds.has(draft.id) &&
         (prunedIds.has(draft.parentId ?? '') ||
-          prunedIds.has(draft.afterItemId ?? ''))
+          prunedIds.has(draft.afterItemId ?? '') ||
+          prunedIds.has(draft.beforeItemId ?? ''))
       ) {
         prunedIds.add(draft.id);
         didAddPrunedDraft = true;
@@ -423,6 +451,9 @@ function ChecklistRow({
   }
 
   const isDraft = 'isDraft' in item && item.isDraft;
+  const siblingIds = rows
+    .filter((currentRow) => currentRow.item.parentId === item.parentId)
+    .map((currentRow) => currentRow.item.id);
 
   async function moveItemToTarget({
     itemId,
@@ -431,55 +462,79 @@ function ChecklistRow({
   }: {
     itemId: string;
     targetItemId: string;
-    placement: 'before' | 'after';
+    placement: 'before' | 'child' | 'after';
   }) {
-    if (!scope || itemId === targetItemId) {
+    if (!scope) {
       return;
     }
 
-    const draggedRow = rows.find((currentRow) => currentRow.item.id === itemId);
-    const targetRow = rows.find(
-      (currentRow) => currentRow.item.id === targetItemId,
-    );
+    const movingItem = rows.find((row) => row.item.id === itemId)?.item;
+    const targetItem = rows.find((row) => row.item.id === targetItemId)?.item;
 
-    if (!draggedRow || !targetRow) {
+    if (
+      movingItem &&
+      'isDraft' in movingItem &&
+      movingItem.isDraft &&
+      targetItem
+    ) {
+      const targetAncestors = new Set<string>();
+      let currentParentId = targetItem.parentId;
+
+      while (currentParentId) {
+        targetAncestors.add(currentParentId);
+        currentParentId =
+          rows.find((row) => row.item.id === currentParentId)?.item.parentId ??
+          null;
+      }
+
+      if (placement === 'child' && targetAncestors.has(itemId)) {
+        return;
+      }
+
+      setDraftItems((currentDrafts) =>
+        currentDrafts.map((draft) =>
+          draft.id !== itemId
+            ? draft
+            : placement === 'child'
+              ? {
+                  ...draft,
+                  afterItemId: null,
+                  beforeItemId: null,
+                  parentId: targetItemId,
+                }
+              : {
+                  ...draft,
+                  afterItemId: placement === 'after' ? targetItemId : null,
+                  beforeItemId: placement === 'before' ? targetItemId : null,
+                  parentId: targetItem.parentId,
+                },
+        ),
+      );
       return;
     }
 
-    if (draggedRow.item.parentId !== targetRow.item.parentId) {
-      return;
-    }
-
-    const siblings = rows.filter(
-      (currentRow) => currentRow.item.parentId === targetRow.item.parentId,
-    );
-    const currentIndex = siblings.findIndex(
-      (currentRow) => currentRow.item.id === itemId,
-    );
-    const targetIndex = siblings.findIndex(
-      (currentRow) => currentRow.item.id === targetItemId,
-    );
-
-    if (currentIndex === -1 || targetIndex === -1) {
-      return;
-    }
-
-    let nextIndex = placement === 'before' ? targetIndex : targetIndex + 1;
-
-    if (currentIndex < nextIndex) {
-      nextIndex -= 1;
-    }
-
-    if (nextIndex === currentIndex) {
-      return;
-    }
-
-    const direction = nextIndex > currentIndex ? 'down' : 'up';
-    const steps = Math.abs(nextIndex - currentIndex);
-
-    for (let index = 0; index < steps; index += 1) {
-      await reorderChecklistItem({ scope, itemId, direction });
-    }
+    await moveTreeItemToTarget({
+      canMove: (candidate) => !('isDraft' in candidate && candidate.isDraft),
+      itemId,
+      items: rows.map((currentRow) => currentRow.item),
+      placement,
+      targetItemId,
+      onMoveAsChild: (movingItemId, parentItemId) =>
+        moveChecklistItemToParent({
+          scope,
+          itemId: movingItemId,
+          parentItemId,
+        }),
+      onMoveAdjacent: (movingItemId, targetItemId, placement) =>
+        moveChecklistItemToTarget({
+          scope,
+          itemId: movingItemId,
+          targetItemId,
+          placement,
+        }),
+      onReorder: (movingItemId, direction) =>
+        reorderChecklistItem({ scope, itemId: movingItemId, direction }),
+    });
   }
 
   async function persistDraftItem(text: string) {
@@ -507,6 +562,15 @@ function ChecklistRow({
         scheduledTime: item.scheduledTime,
         text,
       });
+
+      if (item.beforeItemId) {
+        await moveChecklistItemToTarget({
+          scope,
+          itemId: item.id,
+          targetItemId: item.beforeItemId,
+          placement: 'before',
+        });
+      }
 
       if (deletedDraftItemIdsRef.current.has(item.id)) {
         await softDeleteChecklistItem({ scope, itemId: item.id });
@@ -539,6 +603,7 @@ function ChecklistRow({
         cancel: dictionary.actions.cancel,
         delete: dictionary.actions.delete,
       }}
+      parentId={item.parentId}
       priority={item.priority}
       scheduledTime={item.scheduledTime}
       selection={{
@@ -549,6 +614,7 @@ function ChecklistRow({
         onBulkToggleChecked,
         onToggle: (shiftKey) => onToggleSelect(item.id, shiftKey),
       }}
+      siblingIds={siblingIds}
       surface="checklist_item"
       text={item.text}
       showScheduledTime={true}
@@ -611,21 +677,7 @@ function ChecklistRow({
             })()
       }
       onIndent={() => indentChecklistItem({ scope, itemId: item.id })}
-      onMoveDown={() =>
-        reorderChecklistItem({
-          scope,
-          itemId: item.id,
-          direction: 'down',
-        })
-      }
       onMoveTo={moveItemToTarget}
-      onMoveUp={() =>
-        reorderChecklistItem({
-          scope,
-          itemId: item.id,
-          direction: 'up',
-        })
-      }
       onOutdent={() => outdentChecklistItem({ scope, itemId: item.id })}
       onSaveText={(text) =>
         isDraft

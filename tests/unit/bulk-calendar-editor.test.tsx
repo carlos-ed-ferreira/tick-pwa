@@ -224,6 +224,21 @@ describe('BulkCalendarEditor', () => {
     expect(screen.getByLabelText('Select item')).toBeInTheDocument();
   });
 
+  it('shows the shared selection footer for draft rows', () => {
+    render(<BulkCalendarEditor open onClose={vi.fn()} />);
+
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: 'Start by adding items for this range',
+      }),
+    );
+    fireEvent.click(screen.getByLabelText('Select item'));
+
+    expect(
+      screen.getByRole('button', { name: '1 selected' }),
+    ).toBeInTheDocument();
+  });
+
   it('clears the selected weekdays in clear mode', async () => {
     const onClose = vi.fn();
 

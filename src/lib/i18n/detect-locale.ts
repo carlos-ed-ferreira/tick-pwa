@@ -25,15 +25,11 @@ export function writeStoredLocale(locale: SupportedLocale): void {
 
   try {
     window.localStorage.setItem(LOCALE_STORAGE_KEY, locale);
-  } catch {
-    // localStorage can be unavailable in private contexts; locale still works in memory.
-  }
+  } catch {}
 
   try {
     document.cookie = `${LOCALE_COOKIE_KEY}=${encodeURIComponent(locale)}; path=/; max-age=${localeCookieMaxAgeSeconds}; samesite=lax`;
-  } catch {
-    // Cookie writes can fail in restricted contexts; locale still works in memory.
-  }
+  } catch {}
 }
 
 export function detectLocaleFromAcceptLanguage(

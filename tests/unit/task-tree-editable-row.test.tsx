@@ -81,7 +81,9 @@ function renderRow(
       isLastSibling={false}
       itemId="item-1"
       labels={labels}
+      parentId={null}
       priority={false}
+      siblingIds={['item-1']}
       surface="calendar"
       text="Existing item"
       {...callbacks}
@@ -192,6 +194,163 @@ describe('TaskTreeEditableRow', () => {
     expect(screen.getByLabelText('Drag item')).toBeInTheDocument();
     expect(screen.queryByLabelText('Move item up')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('Move item down')).not.toBeInTheDocument();
+  });
+
+  it('shows a child drop target through the center of a row', async () => {
+    const callbacks = renderRow();
+    const row = screen.getByDisplayValue('Existing item').closest('.group');
+    const dataTransfer = {
+      effectAllowed: '',
+      getData: () => 'other-item',
+      setData: vi.fn(),
+    };
+
+    expect(row).not.toBeNull();
+    Object.defineProperty(row, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({ height: 100, top: 0 }),
+    });
+
+    fireEvent.dragOver(row as Element, { clientY: 50, dataTransfer });
+
+    expect(row).toHaveAttribute('data-drop-position', 'child');
+
+    fireEvent.drop(row as Element, { clientY: 50, dataTransfer });
+
+    await waitFor(() => {
+      expect(callbacks.onMoveTo).toHaveBeenCalledWith({
+        itemId: 'other-item',
+        placement: 'child',
+        targetItemId: 'item-1',
+      });
+    });
+  });
+
+  it('uses the next item as the only divider between siblings', () => {
+    renderRow({ isLastSibling: false });
+    const row = screen.getByDisplayValue('Existing item').closest('.group');
+
+    expect(row).not.toBeNull();
+    Object.defineProperty(row, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({ height: 100, top: 0 }),
+    });
+
+    fireEvent.dragOver(row as Element, {
+      clientY: 90,
+      dataTransfer: { getData: () => 'other-item' },
+    });
+
+    expect(row).toHaveAttribute('data-drop-position', 'child');
+  });
+
+  it('does not show a child drop target on the current parent', () => {
+    renderRow({ itemId: 'parent-item', parentId: null });
+    const row = screen.getByDisplayValue('Existing item').closest('.group');
+
+    expect(row).not.toBeNull();
+    Object.defineProperty(row, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({ height: 100, top: 0 }),
+    });
+
+    fireEvent.dragOver(row as Element, {
+      clientY: 50,
+      dataTransfer: {
+        getData: (type: string) =>
+          type === 'application/x-tick-task-parent-id'
+            ? 'parent-item'
+            : 'child-item',
+      },
+    });
+
+    expect(row).not.toHaveAttribute('data-drop-position');
+  });
+
+  it('does not show a drop target on the dragged item itself', () => {
+    renderRow();
+    const row = screen.getByDisplayValue('Existing item').closest('.group');
+
+    expect(row).not.toBeNull();
+
+    fireEvent.dragOver(row as Element, {
+      clientY: 50,
+      dataTransfer: { getData: () => 'item-1' },
+    });
+
+    expect(row).not.toHaveAttribute('data-drop-position');
+  });
+
+  it('clears a previous drop guide when that row starts being dragged', () => {
+    renderRow();
+    const row = screen.getByDisplayValue('Existing item').closest('.group');
+
+    expect(row).not.toBeNull();
+    Object.defineProperty(row, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({ height: 100, top: 0 }),
+    });
+
+    fireEvent.dragOver(row as Element, {
+      clientY: 50,
+      dataTransfer: { getData: () => 'other-item' },
+    });
+    expect(row).toHaveAttribute('data-drop-position', 'child');
+
+    fireEvent.dragStart(screen.getByLabelText('Drag item'), {
+      dataTransfer: { setData: vi.fn() },
+    });
+
+    expect(row).not.toHaveAttribute('data-drop-position');
+  });
+
+  it('does not offer an adjacent sibling position that changes nothing', () => {
+    const siblingIds = ['previous-item', 'source-item'];
+    renderRow({ itemId: 'source-item', siblingIds });
+    renderRow({ itemId: 'previous-item', siblingIds });
+    const dataTransfer = {
+      effectAllowed: '',
+      getData: () => '',
+      setData: vi.fn(),
+    };
+    const previousRow = screen
+      .getAllByDisplayValue('Existing item')[1]
+      .closest('.group');
+
+    expect(previousRow).not.toBeNull();
+
+    fireEvent.dragStart(screen.getAllByLabelText('Drag item')[0], {
+      dataTransfer,
+    });
+    fireEvent.dragOver(previousRow as Element, { dataTransfer });
+
+    expect(previousRow).not.toHaveAttribute('data-drop-position');
+  });
+
+  it('keeps valid guides visible when dragover cannot read DataTransfer', () => {
+    renderRow({ itemId: 'source-item' });
+    renderRow({ itemId: 'target-item' });
+    const dataTransfer = {
+      effectAllowed: '',
+      getData: () => '',
+      setData: vi.fn(),
+    };
+    const targetRow = screen
+      .getAllByDisplayValue('Existing item')[1]
+      .closest('.group');
+
+    expect(targetRow).not.toBeNull();
+    Object.defineProperty(targetRow, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({ height: 100, top: 0 }),
+    });
+
+    fireEvent.dragStart(screen.getAllByLabelText('Drag item')[0], {
+      dataTransfer,
+    });
+    fireEvent.dragOver(targetRow as Element, { clientY: 50, dataTransfer });
+
+    expect(targetRow).toHaveAttribute('data-drop-position', 'child');
   });
 
   it('masks the optional calendar time input as 24-hour HH:mm', async () => {

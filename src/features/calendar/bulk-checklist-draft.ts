@@ -347,8 +347,45 @@ export function moveBulkChecklistDraftItemToTarget(
     (currentItem) => currentItem.id === targetItemId,
   );
 
-  if (!item || !targetItem || item.parentId !== targetItem.parentId) {
+  if (
+    !item ||
+    !targetItem ||
+    item.id === targetItem.id ||
+    collectDraftDescendantIds(items, item.id).has(targetItem.parentId ?? '')
+  ) {
     return items;
+  }
+
+  if (item.parentId !== targetItem.parentId) {
+    const siblings = sortDraftItems(
+      items.filter(
+        (currentItem) =>
+          currentItem.parentId === targetItem.parentId &&
+          currentItem.id !== item.id,
+      ),
+    );
+    const targetIndex = siblings.findIndex(
+      (sibling) => sibling.id === targetItem.id,
+    );
+
+    if (targetIndex === -1) {
+      return items;
+    }
+
+    return updateDraftItem(items, item.id, (currentItem) => ({
+      ...currentItem,
+      parentId: targetItem.parentId,
+      sortRank:
+        placement === 'before'
+          ? createSortRankBetween(
+              siblings[targetIndex - 1]?.sortRank ?? null,
+              targetItem.sortRank,
+            )
+          : createSortRankBetween(
+              targetItem.sortRank,
+              siblings[targetIndex + 1]?.sortRank ?? null,
+            ),
+    }));
   }
 
   const siblings = sortDraftItems(
@@ -381,4 +418,44 @@ export function moveBulkChecklistDraftItemToTarget(
   }
 
   return nextItems;
+}
+
+export function moveBulkChecklistDraftItemToParent(
+  items: BulkChecklistDraftItem[],
+  itemId: string,
+  parentItemId: string,
+): BulkChecklistDraftItem[] {
+  const item = items.find((currentItem) => currentItem.id === itemId);
+  const parentItem = items.find(
+    (currentItem) => currentItem.id === parentItemId,
+  );
+
+  if (
+    !item ||
+    !parentItem ||
+    item.id === parentItem.id ||
+    collectDraftDescendantIds(items, item.id).has(parentItem.id)
+  ) {
+    return items;
+  }
+
+  const newSiblings = items.filter(
+    (currentItem) => currentItem.parentId === parentItem.id,
+  );
+
+  return items.map((currentItem) => {
+    if (currentItem.id === parentItem.id) {
+      return { ...currentItem, collapsed: false };
+    }
+
+    if (currentItem.id !== item.id) {
+      return currentItem;
+    }
+
+    return {
+      ...currentItem,
+      parentId: parentItem.id,
+      sortRank: createInsertRank({ siblings: newSiblings }),
+    };
+  });
 }

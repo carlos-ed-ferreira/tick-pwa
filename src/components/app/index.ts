@@ -1,4 +1,5 @@
 export * from './language-switcher';
+export * from './move-tree-item-to-target';
 export * from './task-tree-action-group';
 export * from './task-tree-category-chip';
 export * from './task-tree-collapse-button';

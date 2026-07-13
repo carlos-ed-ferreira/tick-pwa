@@ -115,10 +115,6 @@ export interface CategoryTag extends BaseEntity {
 export interface Goal extends BaseEntity {
   groupId: string | null;
   completedAt: string | null;
-  /**
-   * Temporary local compatibility fields for the current Goals UI.
-   * They are not persisted by the new Supabase schema.
-   */
   category: GoalCategory;
   title: string;
   description: string;

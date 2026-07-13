@@ -11,6 +11,7 @@ import {
   db,
   groupGoalsTogether,
   indentGoalStep,
+  moveGoalStepToParent,
   moveGoalToGroup,
   outdentGoalStep,
   reorderGoal,
@@ -154,6 +155,40 @@ describe('goal commands', () => {
       'SECOND GOAL',
     ]);
     expect(deletedGoal?.deletedAt).not.toBeNull();
+  });
+
+  it('moves a step under another step without creating a cycle', async () => {
+    const scope = createGuestScope('goal-step-reparent');
+    const goal = await createGoal({ scope, title: 'Ship feature' });
+    const parent = await createGoalStep({
+      scope,
+      goalId: goal.id,
+      text: 'Parent',
+    });
+    const child = await createGoalStep({
+      scope,
+      goalId: goal.id,
+      afterGoalStepId: parent.id,
+      text: 'Child',
+    });
+
+    await moveGoalStepToParent({
+      scope,
+      goalStepId: child.id,
+      parentGoalStepId: parent.id,
+    });
+    await moveGoalStepToParent({
+      scope,
+      goalStepId: parent.id,
+      parentGoalStepId: child.id,
+    });
+
+    await expect(db.goalSteps.get(child.id)).resolves.toMatchObject({
+      parentId: parent.id,
+    });
+    await expect(db.goalSteps.get(parent.id)).resolves.toMatchObject({
+      parentId: null,
+    });
   });
 
   it('does not persist empty goal steps or empty text updates', async () => {

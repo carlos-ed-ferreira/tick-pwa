@@ -1367,6 +1367,141 @@ export async function indentGoalStep({
   });
 }
 
+export async function moveGoalStepToParent({
+  scope,
+  goalStepId,
+  parentGoalStepId,
+}: {
+  scope: AppScope;
+  goalStepId: string;
+  parentGoalStepId: string;
+}): Promise<void> {
+  await db.transaction('rw', db.goalSteps, async () => {
+    const goalStep = await getScopedGoalStep(scope, goalStepId);
+
+    if (!goalStep || goalStep.id === parentGoalStepId) {
+      return;
+    }
+
+    const activeGoalSteps = await getActiveGoalSteps(scope, goalStep.goalId);
+    const parentGoalStep = activeGoalSteps.find(
+      (activeGoalStep) => activeGoalStep.id === parentGoalStepId,
+    );
+
+    if (!parentGoalStep) {
+      return;
+    }
+
+    let ancestor: GoalStep | undefined = parentGoalStep;
+
+    while (ancestor) {
+      if (ancestor.id === goalStep.id) {
+        return;
+      }
+
+      ancestor = ancestor.parentId
+        ? activeGoalSteps.find(
+            (activeGoalStep) => activeGoalStep.id === ancestor?.parentId,
+          )
+        : undefined;
+    }
+
+    const newSiblings = activeGoalSteps.filter(
+      (activeGoalStep) => activeGoalStep.parentId === parentGoalStep.id,
+    );
+    const updatedGoalStep = touchGoalStep(scope, {
+      ...goalStep,
+      parentId: parentGoalStep.id,
+      sortRank: createGoalStepInsertRank({ siblings: newSiblings }),
+    });
+    await persistGoalStepUpdate(scope, updatedGoalStep, [
+      'parentId',
+      'sortRank',
+    ]);
+
+    if (parentGoalStep.collapsed) {
+      await persistGoalStepUpdate(
+        scope,
+        touchGoalStep(scope, { ...parentGoalStep, collapsed: false }),
+        ['collapsed'],
+      );
+    }
+  });
+}
+
+export async function moveGoalStepToTarget({
+  scope,
+  goalStepId,
+  targetGoalStepId,
+  placement,
+}: {
+  scope: AppScope;
+  goalStepId: string;
+  targetGoalStepId: string;
+  placement: 'before' | 'after';
+}): Promise<void> {
+  await db.transaction('rw', db.goalSteps, async () => {
+    const goalStep = await getScopedGoalStep(scope, goalStepId);
+
+    if (!goalStep || goalStep.id === targetGoalStepId) return;
+
+    const activeGoalSteps = await getActiveGoalSteps(scope, goalStep.goalId);
+    const targetGoalStep = activeGoalSteps.find(
+      (activeGoalStep) => activeGoalStep.id === targetGoalStepId,
+    );
+    const targetParentId = targetGoalStep?.parentId ?? null;
+
+    if (!targetGoalStep) return;
+
+    let ancestor = targetParentId
+      ? activeGoalSteps.find(
+          (activeGoalStep) => activeGoalStep.id === targetParentId,
+        )
+      : undefined;
+
+    while (ancestor) {
+      if (ancestor.id === goalStep.id) return;
+      ancestor = ancestor.parentId
+        ? activeGoalSteps.find(
+            (activeGoalStep) => activeGoalStep.id === ancestor?.parentId,
+          )
+        : undefined;
+    }
+
+    const siblings = sortGoalSteps(
+      activeGoalSteps.filter(
+        (activeGoalStep) =>
+          activeGoalStep.parentId === targetParentId &&
+          activeGoalStep.id !== goalStep.id,
+      ),
+    );
+    const targetIndex = siblings.findIndex(
+      (sibling) => sibling.id === targetGoalStep.id,
+    );
+
+    if (targetIndex === -1) return;
+
+    const updatedGoalStep = touchGoalStep(scope, {
+      ...goalStep,
+      parentId: targetParentId,
+      sortRank:
+        placement === 'before'
+          ? createSortRankBetween(
+              siblings[targetIndex - 1]?.sortRank ?? null,
+              targetGoalStep.sortRank,
+            )
+          : createSortRankBetween(
+              targetGoalStep.sortRank,
+              siblings[targetIndex + 1]?.sortRank ?? null,
+            ),
+    });
+    await persistGoalStepUpdate(scope, updatedGoalStep, [
+      'parentId',
+      'sortRank',
+    ]);
+  });
+}
+
 export async function outdentGoalStep({
   scope,
   goalStepId,

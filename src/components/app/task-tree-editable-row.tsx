@@ -30,6 +30,14 @@ import { TaskTreeCategoryChip } from './task-tree-category-chip';
 import { TaskTreeCollapseButton } from './task-tree-collapse-button';
 import { TaskTreeRowLayout } from './task-tree-row-layout';
 import { TaskTreeSelectionButton } from './task-tree-selection-button';
+import type { TreeMovePlacement } from './move-tree-item-to-target';
+
+let activeTreeDrag: {
+  itemId: string;
+  nextSiblingId: string | null;
+  parentId: string | null;
+  previousSiblingId: string | null;
+} | null = null;
 
 interface TaskTreeRowLabels {
   addChild: string;
@@ -85,10 +93,13 @@ export function TaskTreeEditableRow({
   inputDataAttribute,
   inputSelector,
   isFirstSibling,
+  isLastSibling,
   itemId,
   labels,
+  parentId,
   priority,
   selection,
+  siblingIds,
   surface,
   text: sourceText,
   isDraft = false,
@@ -123,8 +134,10 @@ export function TaskTreeEditableRow({
   isLastSibling: boolean;
   itemId: string;
   labels: TaskTreeRowLabels;
+  parentId: string | null;
   priority: boolean;
   selection?: TaskTreeSelection;
+  siblingIds: string[];
   surface: CategoryTagSurface;
   text: string;
   isDraft?: boolean;
@@ -133,13 +146,11 @@ export function TaskTreeEditableRow({
   onCreateSibling: () => Promise<string | null> | string | null;
   onDelete: () => Promise<void> | void;
   onIndent: () => Promise<void> | void;
-  onMoveDown: () => Promise<void> | void;
   onMoveTo?: (move: {
     itemId: string;
     targetItemId: string;
-    placement: 'before' | 'after';
+    placement: TreeMovePlacement;
   }) => Promise<void> | void;
-  onMoveUp: () => Promise<void> | void;
   onOutdent: () => Promise<void> | void;
   onSaveTime?: (scheduledTime: string | null) => Promise<void> | void;
   onSaveText: (text: string) => Promise<void> | void;
@@ -151,6 +162,10 @@ export function TaskTreeEditableRow({
   showScheduledTime?: boolean;
 }) {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [dropPosition, setDropPosition] = useState<TreeMovePlacement | null>(
+    null,
+  );
+  const [isDragging, setIsDragging] = useState(false);
   const [optimisticChecked, setOptimisticChecked] = useState<{
     base: boolean;
     value: boolean;
@@ -347,10 +362,91 @@ export function TaskTreeEditableRow({
     await onSaveTime(nextTime);
   }
 
+  function getDropPosition(
+    event: DragEvent<HTMLDivElement>,
+  ): TreeMovePlacement {
+    const rect = event.currentTarget.getBoundingClientRect();
+
+    if (rect.height <= 0) {
+      return 'after';
+    }
+
+    const relativeY = event.clientY - rect.top;
+
+    if (relativeY < rect.height * 0.25) {
+      return 'before';
+    }
+
+    if (isLastSibling && relativeY > rect.height * 0.75) {
+      return 'after';
+    }
+
+    return 'child';
+  }
+
   function handleDragStart(event: DragEvent<HTMLButtonElement>) {
+    setIsDragging(true);
+    setDropPosition(null);
+    const siblingIndex = siblingIds.indexOf(itemId);
+    activeTreeDrag = {
+      itemId,
+      nextSiblingId: siblingIds[siblingIndex + 1] ?? null,
+      parentId,
+      previousSiblingId: siblingIds[siblingIndex - 1] ?? null,
+    };
     event.dataTransfer.effectAllowed = 'move';
     event.dataTransfer.setData('application/x-tick-task-id', itemId);
+    event.dataTransfer.setData(
+      'application/x-tick-task-parent-id',
+      parentId ?? '',
+    );
     event.dataTransfer.setData('text/plain', itemId);
+  }
+
+  function getDraggedItemId(event: DragEvent<HTMLDivElement>): string {
+    return (
+      event.dataTransfer.getData('application/x-tick-task-id') ||
+      event.dataTransfer.getData('text/plain') ||
+      activeTreeDrag?.itemId ||
+      ''
+    );
+  }
+
+  function getValidDropPosition(
+    event: DragEvent<HTMLDivElement>,
+  ): TreeMovePlacement | null {
+    const draggedItemId = getDraggedItemId(event);
+
+    if (!draggedItemId || draggedItemId === itemId) {
+      return null;
+    }
+
+    const placement = getDropPosition(event);
+    const serializedParentId = event.dataTransfer.getData(
+      'application/x-tick-task-parent-id',
+    );
+    const draggedParentId = serializedParentId
+      ? serializedParentId
+      : (activeTreeDrag?.parentId ?? null);
+
+    if (placement === 'child' && draggedParentId === itemId) {
+      return null;
+    }
+
+    if (draggedParentId === parentId) {
+      if (placement === 'before' && activeTreeDrag?.nextSiblingId === itemId) {
+        return null;
+      }
+
+      if (
+        placement === 'after' &&
+        activeTreeDrag?.previousSiblingId === itemId
+      ) {
+        return null;
+      }
+    }
+
+    return placement;
   }
 
   function handleDrop(event: DragEvent<HTMLDivElement>) {
@@ -358,18 +454,16 @@ export function TaskTreeEditableRow({
       return;
     }
 
-    const draggedItemId =
-      event.dataTransfer.getData('application/x-tick-task-id') ||
-      event.dataTransfer.getData('text/plain');
+    const draggedItemId = getDraggedItemId(event);
+    setDropPosition(null);
+    const placement = getValidDropPosition(event);
+    activeTreeDrag = null;
 
-    if (!draggedItemId || draggedItemId === itemId) {
+    if (!placement) {
       return;
     }
 
     event.preventDefault();
-    const rect = event.currentTarget.getBoundingClientRect();
-    const placement =
-      event.clientY < rect.top + rect.height / 2 ? 'before' : 'after';
 
     void onMoveTo({
       itemId: draggedItemId,
@@ -385,9 +479,17 @@ export function TaskTreeEditableRow({
         depth={depth}
         isPriority={displayedPriority}
         isSelected={selection?.isSelected}
+        dropPosition={isDragging ? null : dropPosition}
+        isDragging={isDragging}
         onDragOver={(event) => {
           if (onMoveTo) {
             event.preventDefault();
+            setDropPosition(getValidDropPosition(event));
+          }
+        }}
+        onDragLeave={(event) => {
+          if (!event.currentTarget.contains(event.relatedTarget as Node)) {
+            setDropPosition(null);
           }
         }}
         onDrop={handleDrop}
@@ -404,6 +506,11 @@ export function TaskTreeEditableRow({
           aria-label={labels.dragItem}
           className="cursor-grab rounded-full hover:bg-white/[0.08] hover:text-[#fff9f2] active:cursor-grabbing focus-visible:outline-[#f0c38e]"
           draggable
+          onDragEnd={() => {
+            setIsDragging(false);
+            setDropPosition(null);
+            activeTreeDrag = null;
+          }}
           onDragStart={handleDragStart}
         >
           <GripVertical aria-hidden="true" className="size-4 opacity-70" />

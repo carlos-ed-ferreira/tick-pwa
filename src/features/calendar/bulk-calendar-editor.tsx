@@ -1,11 +1,10 @@
 'use client';
 
-import { Plus, Trash2 } from 'lucide-react';
+import { Trash2 } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
-import { TaskTreeEditableRow } from '@/components/app';
+import { TaskTreeEditableRow, TreeListPanel } from '@/components/app';
 import { Button, Dialog, Input } from '@/components/ui';
 import { useCategoryTags } from '@/features/categories';
-import { useFocusAfterCreate } from '@/hooks/use-focus-after-create';
 import { useTreeSelection } from '@/hooks/use-tree-selection';
 import {
   applyChecklistTemplateToDateRange,
@@ -28,8 +27,8 @@ import {
   filterBulkChecklistDraftItems,
   indentBulkChecklistDraftItem,
   moveBulkChecklistDraftItemToTarget,
+  moveBulkChecklistDraftItemToParent,
   outdentBulkChecklistDraftItem,
-  reorderBulkChecklistDraftItem,
   toggleBulkChecklistDraftItemChecked,
   toggleBulkChecklistDraftItemCollapsed,
   toggleBulkChecklistDraftItemPriority,
@@ -339,7 +338,6 @@ function BulkChecklistSurface({
   setDraftItems: React.Dispatch<React.SetStateAction<BulkChecklistDraftItem[]>>;
 }) {
   const { dictionary, scope } = useAppContext();
-  const focusAfterCreate = useFocusAfterCreate();
   const categoryTags = useCategoryTags(scope, 'checklist_item');
   const categoryTagMap = new Map(categoryTags.map((tag) => [tag.id, tag]));
   const rows = useMemo(
@@ -361,63 +359,38 @@ function BulkChecklistSurface({
     setDraftItems((currentItems) =>
       createBulkChecklistDraftItem(currentItems, { id: newId }),
     );
-    focusAfterCreate(newId);
-  }, [focusAfterCreate, setDraftItems]);
+    return newId;
+  }, [setDraftItems]);
 
   return (
     <section className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
-      <div className="modal-panel min-h-0 flex-1 overflow-y-auto p-2">
-        {rows.length === 0 ? (
-          <button
-            type="button"
-            className="flex min-h-36 w-full items-center justify-center rounded-[1.15rem] border border-dashed border-[#f0c38e]/[0.24] bg-[#f0c38e]/[0.045] px-4 text-sm font-medium text-[#bdb4d4] shadow-inner transition hover:border-[#f0c38e]/[0.38] hover:bg-[#f0c38e]/[0.075] hover:text-[#fff9f2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e]"
-            onClick={createRootItem}
-          >
-            {dictionary.calendar.bulkEmptyChecklist}
-          </button>
-        ) : (
-          <div className="grid gap-1">
-            {rows.map((row) => (
-              <BulkChecklistRow
-                key={row.item.id}
-                categoryTagMap={categoryTagMap}
-                isSelected={isSelected(row.item.id)}
-                isSelectionMode={isSelectionMode}
-                row={row}
-                selectedIds={selectedIds}
-                onClearSelection={clearSelection}
-                onToggleSelect={toggleSelect}
-                setDraftItems={setDraftItems}
-              />
-            ))}
-          </div>
+      <TreeListPanel
+        addLabel={dictionary.dayEditor.addItem}
+        clearSelectionLabel={dictionary.dayEditor.itemsSelected.replace(
+          '{count}',
+          String(selectedCount),
         )}
-
-        {rows.length > 0 ? (
-          <div className="flex flex-wrap items-center justify-between gap-2 px-1 pt-2">
-            <button
-              type="button"
-              className="flex items-center gap-1.5 rounded-full border border-[#f0c38e]/[0.22] bg-[#f0c38e]/10 px-3 py-1.5 text-sm font-medium text-[#f7d7ad] shadow-sm transition hover:border-[#f0c38e]/[0.36] hover:bg-[#f0c38e]/[0.16] hover:text-[#fff9f2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e]"
-              onClick={createRootItem}
-            >
-              <Plus aria-hidden="true" className="size-3.5" />
-              {dictionary.dayEditor.addItem}
-            </button>
-            {isSelectionMode ? (
-              <button
-                type="button"
-                className="rounded-full border border-white/10 bg-white/[0.055] px-3 py-1.5 text-sm font-medium text-[#bdb4d4] transition hover:border-white/[0.16] hover:bg-white/[0.09] hover:text-[#fff9f2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e]"
-                onClick={clearSelection}
-              >
-                {dictionary.dayEditor.itemsSelected.replace(
-                  '{count}',
-                  String(selectedCount),
-                )}
-              </button>
-            ) : null}
-          </div>
-        ) : null}
-      </div>
+        emptyLabel={dictionary.calendar.bulkEmptyChecklist}
+        hasRows={rows.length > 0}
+        isSelectionMode={isSelectionMode}
+        onAddRoot={createRootItem}
+        onClearSelection={clearSelection}
+      >
+        {rows.map((row) => (
+          <BulkChecklistRow
+            key={row.item.id}
+            categoryTagMap={categoryTagMap}
+            isSelected={isSelected(row.item.id)}
+            isSelectionMode={isSelectionMode}
+            row={row}
+            rows={rows}
+            selectedIds={selectedIds}
+            onClearSelection={clearSelection}
+            onToggleSelect={toggleSelect}
+            setDraftItems={setDraftItems}
+          />
+        ))}
+      </TreeListPanel>
     </section>
   );
 }
@@ -427,6 +400,7 @@ function BulkChecklistRow({
   isSelected,
   isSelectionMode,
   row,
+  rows,
   selectedIds,
   onClearSelection,
   onToggleSelect,
@@ -436,6 +410,7 @@ function BulkChecklistRow({
   isSelected: boolean;
   isSelectionMode: boolean;
   row: VisibleBulkChecklistDraftRow;
+  rows: VisibleBulkChecklistDraftRow[];
   selectedIds: Set<string>;
   onClearSelection: () => void;
   onToggleSelect: (id: string, shiftKey: boolean) => void;
@@ -443,6 +418,30 @@ function BulkChecklistRow({
 }) {
   const { dictionary } = useAppContext();
   const { item, depth, hasChildren, isFirstSibling, isLastSibling } = row;
+  const siblingIds = rows
+    .filter((currentRow) => currentRow.item.parentId === item.parentId)
+    .map((currentRow) => currentRow.item.id);
+
+  function moveItemToTarget({
+    itemId,
+    targetItemId,
+    placement,
+  }: {
+    itemId: string;
+    targetItemId: string;
+    placement: 'before' | 'child' | 'after';
+  }) {
+    setDraftItems((currentItems) =>
+      placement === 'child'
+        ? moveBulkChecklistDraftItemToParent(currentItems, itemId, targetItemId)
+        : moveBulkChecklistDraftItemToTarget(
+            currentItems,
+            itemId,
+            targetItemId,
+            placement,
+          ),
+    );
+  }
 
   return (
     <TaskTreeEditableRow
@@ -462,6 +461,7 @@ function BulkChecklistRow({
         cancel: dictionary.actions.cancel,
         delete: dictionary.actions.delete,
       }}
+      parentId={item.parentId}
       priority={item.priority}
       scheduledTime={item.scheduledTime}
       selection={{
@@ -497,6 +497,7 @@ function BulkChecklistRow({
         },
         onToggle: (shiftKey) => onToggleSelect(item.id, shiftKey),
       }}
+      siblingIds={siblingIds}
       surface="checklist_item"
       text={item.text}
       showScheduledTime={true}
@@ -539,26 +540,7 @@ function BulkChecklistRow({
           indentBulkChecklistDraftItem(currentItems, item.id),
         )
       }
-      onMoveDown={() =>
-        setDraftItems((currentItems) =>
-          reorderBulkChecklistDraftItem(currentItems, item.id, 'down'),
-        )
-      }
-      onMoveUp={() =>
-        setDraftItems((currentItems) =>
-          reorderBulkChecklistDraftItem(currentItems, item.id, 'up'),
-        )
-      }
-      onMoveTo={({ itemId, targetItemId, placement }) =>
-        setDraftItems((currentItems) =>
-          moveBulkChecklistDraftItemToTarget(
-            currentItems,
-            itemId,
-            targetItemId,
-            placement,
-          ),
-        )
-      }
+      onMoveTo={moveItemToTarget}
       onOutdent={() =>
         setDraftItems((currentItems) =>
           outdentBulkChecklistDraftItem(currentItems, item.id),

@@ -10,6 +10,7 @@ import { ChecklistSurface } from '@/features/checklist/checklist-surface';
 
 const {
   createChecklistItemMock,
+  moveChecklistItemToParentMock,
   reorderChecklistItemMock,
   setChecklistItemsCheckedMock,
   softDeleteChecklistItemMock,
@@ -19,6 +20,7 @@ const {
   useChecklistTreeMock,
 } = vi.hoisted(() => ({
   createChecklistItemMock: vi.fn().mockResolvedValue({ id: 'new-item' }),
+  moveChecklistItemToParentMock: vi.fn().mockResolvedValue(undefined),
   reorderChecklistItemMock: vi.fn().mockResolvedValue(undefined),
   setChecklistItemsCheckedMock: vi.fn().mockResolvedValue(undefined),
   softDeleteChecklistItemMock: vi.fn().mockResolvedValue(undefined),
@@ -33,6 +35,7 @@ vi.mock('@/lib/db', () => ({
   createChecklistChild: vi.fn().mockResolvedValue(undefined),
   createChecklistItem: createChecklistItemMock,
   indentChecklistItem: vi.fn().mockResolvedValue(undefined),
+  moveChecklistItemToParent: moveChecklistItemToParentMock,
   outdentChecklistItem: vi.fn().mockResolvedValue(undefined),
   reorderChecklistItem: reorderChecklistItemMock,
   setChecklistItemsChecked: setChecklistItemsCheckedMock,
@@ -139,6 +142,7 @@ describe('ChecklistSurface delete confirmation', () => {
     useChecklistTreeMock.mockReset();
     createChecklistItemMock.mockClear();
     createChecklistItemMock.mockResolvedValue({ id: 'new-item' });
+    moveChecklistItemToParentMock.mockClear();
     reorderChecklistItemMock.mockClear();
     setChecklistItemsCheckedMock.mockClear();
     softDeleteChecklistItemMock.mockClear();
@@ -234,6 +238,85 @@ describe('ChecklistSurface delete confirmation', () => {
         itemId: 'item-First task',
         direction: 'down',
       });
+    });
+  });
+
+  it('moves a row into another row through its child drop zone', async () => {
+    useChecklistTreeMock.mockReturnValue([
+      createRow('Parent task'),
+      createRow('Child task'),
+    ]);
+
+    render(<ChecklistSurface dailyEntryId="entry-1" />);
+
+    const data = new Map<string, string>();
+    const dataTransfer = {
+      effectAllowed: '',
+      getData: (type: string) => data.get(type) ?? '',
+      setData: (type: string, value: string) => data.set(type, value),
+    };
+    const childHandle = screen.getAllByLabelText('Drag item')[1];
+    const parentRow = screen.getByDisplayValue('Parent task').closest('.group');
+
+    expect(parentRow).not.toBeNull();
+    Object.defineProperty(parentRow, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({ height: 100, top: 0 }),
+    });
+
+    fireEvent.dragStart(childHandle, { dataTransfer });
+    fireEvent.drop(parentRow as Element, {
+      clientY: 50,
+      dataTransfer,
+    });
+
+    await waitFor(() => {
+      expect(moveChecklistItemToParentMock).toHaveBeenCalledWith({
+        scope: {
+          id: 'guest:test',
+          kind: 'guest',
+          ownerId: 'test',
+        },
+        itemId: 'item-Child task',
+        parentItemId: 'item-Parent task',
+      });
+    });
+  });
+
+  it('does not send an unpersisted draft to checklist reordering', async () => {
+    useChecklistTreeMock.mockReturnValue([createRow('Original task')]);
+
+    render(<ChecklistSurface dailyEntryId="entry-1" />);
+
+    fireEvent.keyDown(screen.getByDisplayValue('Original task'), {
+      key: 'Enter',
+    });
+
+    await waitFor(() => {
+      expect(screen.getAllByPlaceholderText('Write a task')).toHaveLength(2);
+    });
+
+    const data = new Map<string, string>();
+    const dataTransfer = {
+      effectAllowed: '',
+      getData: (type: string) => data.get(type) ?? '',
+      setData: (type: string, value: string) => data.set(type, value),
+    };
+    const draftHandle = screen.getAllByLabelText('Drag item')[1];
+    const persistedRow = screen
+      .getByDisplayValue('Original task')
+      .closest('.group');
+
+    expect(persistedRow).not.toBeNull();
+
+    fireEvent.dragStart(draftHandle, { dataTransfer });
+    fireEvent.drop(persistedRow as Element, {
+      clientY: 0,
+      dataTransfer,
+    });
+
+    await waitFor(() => {
+      expect(reorderChecklistItemMock).not.toHaveBeenCalled();
     });
   });
 
