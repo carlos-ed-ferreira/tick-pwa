@@ -97,7 +97,7 @@ export interface Dictionary {
     assignCategory: string;
     clearCategory: string;
     checklist: string;
-    close: string;
+    backToCalendar: string;
     collapseItem: string;
     untitledItem: string;
     emptyChecklist: string;

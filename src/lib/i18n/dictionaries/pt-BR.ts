@@ -110,7 +110,7 @@ export const ptBRDictionary = {
     assignCategory: 'Atribuir categoria',
     clearCategory: 'Limpar categoria',
     checklist: 'Checklist',
-    close: 'Fechar editor do dia',
+    backToCalendar: 'Voltar para o calendário',
     collapseItem: 'Recolher item',
     untitledItem: 'Novo item',
     emptyChecklist: 'Comece este dia com um item de checklist',

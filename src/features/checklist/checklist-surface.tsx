@@ -363,9 +363,10 @@ export function ChecklistSurface({ dailyEntryId }: { dailyEntryId: string }) {
   }
 
   return (
-    <section className="flex min-h-0 flex-1 flex-col gap-3">
+    <section className="flex min-h-0 flex-col gap-3">
       <TreeListPanel
         addLabel={dictionary.dayEditor.addItem}
+        surface="none"
         bulkDeleteDialog={{
           cancelLabel: dictionary.actions.cancel,
           confirmLabel: dictionary.actions.delete,

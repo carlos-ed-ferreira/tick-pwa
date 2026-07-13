@@ -12,6 +12,7 @@ export const labels = {
     /continue without syncing|continuar sem sincronizar|use local mode|usar em modo local/i,
   checklistEmpty:
     /start this day with a checklist item|comece este dia com um item de checklist/i,
+  backToCalendar: /back to calendar|voltar para o calendário/i,
 };
 
 export async function enterLocalMode(page: Page) {

@@ -107,7 +107,7 @@ export const enDictionary = {
     assignCategory: 'Assign category',
     clearCategory: 'Clear category',
     checklist: 'Checklist',
-    close: 'Close day editor',
+    backToCalendar: 'Back to calendar',
     collapseItem: 'Collapse item',
     untitledItem: 'New item',
     emptyChecklist: 'Start this day with a checklist item',

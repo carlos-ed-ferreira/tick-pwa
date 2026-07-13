@@ -76,22 +76,21 @@ test('keeps authenticated checklist interactions responsive while Supabase is de
   await page.waitForURL('**/calendar**');
   await page.goto('/calendar?day=2026-05-21');
 
-  const dayEditor = page.getByRole('dialog');
-  await expect(dayEditor).toBeVisible();
-  await dayEditor.getByRole('button', { name: labels.checklistEmpty }).click();
+  await expect(
+    page.getByRole('button', { name: labels.backToCalendar }),
+  ).toBeVisible();
+  await page.getByRole('button', { name: labels.checklistEmpty }).click();
 
-  const itemInput = firstChecklistInput(dayEditor);
+  const itemInput = firstChecklistInput(page);
   await itemInput.fill('Authenticated delayed item');
   await itemInput.press('Enter');
 
-  await expect(dayEditor.locator('[data-checklist-input="true"]')).toHaveCount(
-    2,
-  );
+  await expect(page.locator('[data-checklist-input="true"]')).toHaveCount(2);
   await expect(
-    dayEditor.locator('[data-checklist-input="true"]').nth(1),
+    page.locator('[data-checklist-input="true"]').nth(1),
   ).toBeFocused();
 
-  const firstCheckbox = dayEditor.getByRole('checkbox').first();
+  const firstCheckbox = page.getByRole('checkbox').first();
   await firstCheckbox.click();
   await expect(firstCheckbox).toBeChecked();
 });

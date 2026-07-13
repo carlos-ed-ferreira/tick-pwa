@@ -1,5 +1,6 @@
 import type {
   AppScope,
+  ChecklistItem,
   DailyEntry,
   DailyEntryCategorySummary,
   LocalDateString,
@@ -112,9 +113,31 @@ export async function recalculateDailyEntrySummary({
     return;
   }
 
-  const sortedItems = [...checklistItems].sort((firstItem, secondItem) =>
-    compareSortRanks(firstItem.sortRank, secondItem.sortRank),
-  );
+  const childrenByParentId = new Map<string, ChecklistItem[]>();
+
+  for (const item of checklistItems) {
+    const parentKey = item.parentId ?? '';
+    const children = childrenByParentId.get(parentKey) ?? [];
+    children.push(item);
+    childrenByParentId.set(parentKey, children);
+  }
+
+  for (const children of childrenByParentId.values()) {
+    children.sort((firstItem, secondItem) =>
+      compareSortRanks(firstItem.sortRank, secondItem.sortRank),
+    );
+  }
+
+  const sortedItems: ChecklistItem[] = [];
+
+  function visit(parentId: string | null) {
+    for (const item of childrenByParentId.get(parentId ?? '') ?? []) {
+      sortedItems.push(item);
+      visit(item.id);
+    }
+  }
+
+  visit(null);
   const previewText =
     sortedItems.find((item) => item.text.trim().length > 0)?.text.trim() ?? '';
   const categorySummaryMap = new Map<string, DailyEntryCategorySummary>();

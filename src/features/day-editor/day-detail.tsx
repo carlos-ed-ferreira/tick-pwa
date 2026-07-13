@@ -1,5 +1,6 @@
 'use client';
 
+import { ArrowLeft } from 'lucide-react';
 import { useCallback } from 'react';
 import { ChecklistSurface } from '@/features/checklist';
 import { CalendarTaskTransferAction } from '@/features/calendar/calendar-task-transfer-action';
@@ -9,7 +10,7 @@ import {
   reorderChecklistItemsByScheduledTime,
 } from '@/lib/db';
 import type { LocalDateString } from '@/lib/domain';
-import { Button, Dialog } from '@/components/ui';
+import { Button } from '@/components/ui';
 import { formatLocalDateLabel } from '@/lib/i18n';
 import { parseLocalDateKey } from '@/lib/time';
 import { useAppContext } from '@/providers';
@@ -28,12 +29,12 @@ function createDateLabelDate(date: LocalDateString): Date {
   );
 }
 
-export function DayEditor({
+export function DayDetail({
   date,
-  onClose,
+  onBack,
 }: {
-  date: LocalDateString | null;
-  onClose: () => void;
+  date: LocalDateString;
+  onBack: () => void;
 }) {
   const { dictionary, locale, scope, timezonePreference } = useAppContext();
   const entry = useDayEntry({
@@ -41,16 +42,14 @@ export function DayEditor({
     date,
     timezone: timezonePreference.timezone,
   });
-  const title = date
-    ? formatLocalDateLabel(
-        createDateLabelDate(date),
-        locale,
-        timezonePreference.timezone,
-      )
-    : dictionary.dayEditor.title;
+  const title = formatLocalDateLabel(
+    createDateLabelDate(date),
+    locale,
+    timezonePreference.timezone,
+  );
   const handleDuplicateDay = useCallback(
     async (targetDate: LocalDateString) => {
-      if (!entry || !date || !scope) {
+      if (!entry || !scope) {
         return;
       }
 
@@ -61,11 +60,11 @@ export function DayEditor({
         timezone: timezonePreference.timezone,
       });
     },
-    [date, entry, scope, timezonePreference.timezone],
+    [entry, scope, timezonePreference.timezone],
   );
   const handleMoveDay = useCallback(
     async (targetDate: LocalDateString) => {
-      if (!entry || !date || !scope) {
+      if (!entry || !scope) {
         return;
       }
 
@@ -76,27 +75,15 @@ export function DayEditor({
         timezone: timezonePreference.timezone,
       });
     },
-    [date, entry, scope, timezonePreference.timezone],
+    [entry, scope, timezonePreference.timezone],
   );
 
   return (
-    <Dialog
-      closeLabel={dictionary.dayEditor.close}
-      open={Boolean(date)}
-      title={title}
-      onClose={onClose}
-    >
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-4 sm:p-5">
-        {entry && date ? (
-          <div className="modal-panel mb-3 flex flex-wrap items-center justify-between gap-3 px-4 py-3">
-            <div className="min-w-0">
-              <div className="text-sm font-medium text-[#fff9f2]">
-                {dictionary.calendar.transferDialogTitle}
-              </div>
-              <div className="text-xs text-[#bdb4d4]">
-                {dictionary.calendar.transferDescription}
-              </div>
-            </div>
+    <section className="grid gap-5 pt-4 sm:pt-5 lg:pt-6">
+      <header className="flex flex-col gap-3 px-1 sm:grid sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-2 sm:px-0">
+        <div className="flex min-w-0 flex-wrap items-center gap-2 sm:flex-nowrap">
+          <h2 className="min-w-0 truncate text-2xl font-semibold">{title}</h2>
+          {entry ? (
             <div className="flex shrink-0 flex-wrap items-center gap-2">
               <CalendarTaskTransferAction
                 sourceDate={date}
@@ -104,7 +91,7 @@ export function DayEditor({
                 onMoveToDate={handleMoveDay}
               />
               <Button
-                className="h-11 shrink-0 rounded-[1rem] border border-[#f0c38e]/[0.22] bg-[#f0c38e]/10 px-3 text-[#f7d7ad] hover:border-[#f0c38e]/[0.36] hover:bg-[#f0c38e]/[0.16] hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
+                className="min-h-10 shrink-0 rounded-[1rem] border border-[#f0c38e]/[0.22] bg-[#f0c38e]/10 px-3 text-[#f7d7ad] hover:border-[#f0c38e]/[0.36] hover:bg-[#f0c38e]/[0.16] hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
                 tone="subtle"
                 onClick={() =>
                   void (scope
@@ -118,16 +105,30 @@ export function DayEditor({
                 {dictionary.calendar.sortByTime}
               </Button>
             </div>
-          </div>
-        ) : null}
+          ) : null}
+        </div>
+        <button
+          type="button"
+          className="inline-flex min-h-10 w-fit shrink-0 items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-[#f8f3ea] shadow-sm shadow-[#312c51]/10 transition hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/10 active:translate-y-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0]"
+          onClick={onBack}
+        >
+          <ArrowLeft aria-hidden="true" className="size-4" />
+          {dictionary.dayEditor.backToCalendar}
+        </button>
+      </header>
+
+      <section
+        aria-label={title}
+        className="flex min-h-0 flex-col rounded-[1.25rem] bg-white/[0.035] p-3 shadow-[0_18px_44px_rgba(8,6,20,0.16)] ring-1 ring-white/[0.07] sm:p-4"
+      >
         {entry ? (
           <ChecklistSurface dailyEntryId={entry.id} />
         ) : (
-          <div className="modal-panel flex min-h-0 flex-1 items-center justify-center text-sm text-[#bdb4d4]">
+          <div className="flex min-h-36 items-center justify-center text-sm text-[#bdb4d4]">
             {dictionary.dayEditor.title}
           </div>
         )}
-      </div>
-    </Dialog>
+      </section>
+    </section>
   );
 }

@@ -1,6 +1,5 @@
 import type { AppScope, ChecklistItem, LocalDateString } from '@/lib/domain';
 import {
-  compareSortRanks,
   createRankAfter,
   createId,
   createReorderedRank,
@@ -973,57 +972,26 @@ export async function reorderChecklistItem({
   });
 }
 
-function sortItemsByScheduledTime(items: ChecklistItem[]): ChecklistItem[] {
-  return sortChecklistItems(items).sort((firstItem, secondItem) => {
-    const firstTime = firstItem.scheduledTime;
-    const secondTime = secondItem.scheduledTime;
+function compareByScheduledTime(
+  firstItem: ChecklistItem,
+  secondItem: ChecklistItem,
+): number {
+  const firstTime = firstItem.scheduledTime;
+  const secondTime = secondItem.scheduledTime;
 
-    if (firstTime && secondTime) {
-      return firstTime.localeCompare(secondTime);
-    }
-
-    if (firstTime) {
-      return -1;
-    }
-
-    if (secondTime) {
-      return 1;
-    }
-
-    return 0;
-  });
-}
-
-function buildVisibleChecklistItemOrder(
-  items: ChecklistItem[],
-): ChecklistItem[] {
-  const childrenByParentId = new Map<string, ChecklistItem[]>();
-
-  for (const item of items) {
-    const parentKey = item.parentId ?? '';
-    const children = childrenByParentId.get(parentKey) ?? [];
-    children.push(item);
-    childrenByParentId.set(parentKey, children);
+  if (firstTime && secondTime) {
+    return firstTime.localeCompare(secondTime);
   }
 
-  for (const children of childrenByParentId.values()) {
-    children.sort((firstItem, secondItem) =>
-      compareSortRanks(firstItem.sortRank, secondItem.sortRank),
-    );
+  if (firstTime) {
+    return -1;
   }
 
-  const orderedItems: ChecklistItem[] = [];
-
-  function visit(parentId: string | null) {
-    for (const item of childrenByParentId.get(parentId ?? '') ?? []) {
-      orderedItems.push(item);
-      visit(item.id);
-    }
+  if (secondTime) {
+    return 1;
   }
 
-  visit(null);
-
-  return orderedItems;
+  return 0;
 }
 
 export async function reorderChecklistItemsByScheduledTime({
@@ -1045,29 +1013,24 @@ export async function reorderChecklistItemsByScheduledTime({
     }
 
     const activeItems = await getActiveChecklistItems(scope, dailyEntryId);
-    const sortedItems = sortItemsByScheduledTime(
-      buildVisibleChecklistItemOrder(activeItems),
-    );
+    const sortedRootItems = sortChecklistItems(
+      activeItems.filter((item) => item.parentId === null),
+    ).sort(compareByScheduledTime);
     let previousSortRank: string | null = null;
 
-    for (const item of sortedItems) {
+    for (const item of sortedRootItems) {
       const nextSortRank = createSortRankBetween(previousSortRank, null);
       previousSortRank = nextSortRank;
 
-      if (item.sortRank === nextSortRank && item.parentId === null) {
+      if (item.sortRank === nextSortRank) {
         continue;
       }
 
       const updatedItem = touchChecklistItem(scope, {
         ...item,
-        parentId: null,
         sortRank: nextSortRank,
       });
-      await persistChecklistItemUpdate(
-        scope,
-        updatedItem,
-        item.parentId === null ? ['sortRank'] : ['parentId', 'sortRank'],
-      );
+      await persistChecklistItemUpdate(scope, updatedItem, ['sortRank']);
     }
 
     await recalculateDailyEntrySummary({ scope, dailyEntryId });

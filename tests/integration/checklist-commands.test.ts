@@ -771,7 +771,7 @@ describe('checklist commands', () => {
     expect(updatedEntry?.itemCount).toBe(5);
   });
 
-  it('updates checklist item time and sorts timed siblings on demand', async () => {
+  it('sorts timed roots on demand while preserving nesting and untimed order', async () => {
     const scope = createGuestScope('checklist-time-sort-test');
     const entry = await openOrCreateDailyEntry({
       scope,
@@ -801,11 +801,17 @@ describe('checklist commands', () => {
       afterItemId: third.id,
       text: 'No time second',
     });
-    await createChecklistChild({
+    const nestedFirst = await createChecklistChild({
       scope,
       dailyEntryId: entry.id,
       parentItemId: second.id,
-      text: 'Nested no time',
+      text: 'Nested first',
+    });
+    const nestedSecond = await createChecklistChild({
+      scope,
+      dailyEntryId: entry.id,
+      parentItemId: second.id,
+      text: 'Nested second',
     });
 
     await updateChecklistItemScheduledTime({
@@ -823,27 +829,55 @@ describe('checklist commands', () => {
       dailyEntryId: entry.id,
     });
 
-    const reorderedItems = await db.checklistItems
-      .where('[scopeId+dailyEntryId]')
-      .equals([scope.id, entry.id])
-      .filter((item) => item.deletedAt === null && item.parentId === null)
-      .toArray();
-    reorderedItems.sort((firstItem, secondItem) =>
-      compareSortRanks(firstItem.sortRank, secondItem.sortRank),
-    );
+    async function getRootTexts() {
+      const rootItems = await db.checklistItems
+        .where('[scopeId+dailyEntryId]')
+        .equals([scope.id, entry.id])
+        .filter((item) => item.deletedAt === null && item.parentId === null)
+        .toArray();
+      rootItems.sort((firstItem, secondItem) =>
+        compareSortRanks(firstItem.sortRank, secondItem.sortRank),
+      );
 
-    expect(
-      reorderedItems.map((item) => ({
+      return rootItems.map((item) => ({
         scheduledTime: item.scheduledTime,
         text: item.text,
-      })),
-    ).toEqual([
+      }));
+    }
+
+    const expectedRootOrder = [
       { scheduledTime: '08:15', text: 'Early' },
       { scheduledTime: '18:30', text: 'Late' },
       { scheduledTime: null, text: 'No time first' },
-      { scheduledTime: null, text: 'Nested no time' },
       { scheduledTime: null, text: 'No time second' },
+    ];
+
+    await expect(getRootTexts()).resolves.toEqual(expectedRootOrder);
+
+    const nestedItems = await db.checklistItems
+      .where('[scopeId+dailyEntryId]')
+      .equals([scope.id, entry.id])
+      .filter((item) => item.deletedAt === null && item.parentId === second.id)
+      .toArray();
+    nestedItems.sort((firstItem, secondItem) =>
+      compareSortRanks(firstItem.sortRank, secondItem.sortRank),
+    );
+
+    expect(nestedItems.map((item) => item.text)).toEqual([
+      'Nested first',
+      'Nested second',
     ]);
+    expect(nestedItems.map((item) => item.id)).toEqual([
+      nestedFirst.id,
+      nestedSecond.id,
+    ]);
+
+    await reorderChecklistItemsByScheduledTime({
+      scope,
+      dailyEntryId: entry.id,
+    });
+
+    await expect(getRootTexts()).resolves.toEqual(expectedRootOrder);
 
     await updateChecklistItemScheduledTime({
       scope,
@@ -860,6 +894,111 @@ describe('checklist commands', () => {
     });
 
     expect(fourth.id).toBeTruthy();
+  });
+
+  it('keeps tied scheduled times in their current relative order', async () => {
+    const scope = createGuestScope('checklist-time-tie-test');
+    const entry = await openOrCreateDailyEntry({
+      scope,
+      date: '2026-05-13',
+      timezone: 'America/Sao_Paulo',
+    });
+    const first = await createChecklistItem({
+      scope,
+      dailyEntryId: entry.id,
+      text: 'Tie first',
+    });
+    const second = await createChecklistItem({
+      scope,
+      dailyEntryId: entry.id,
+      afterItemId: first.id,
+      text: 'Tie second',
+    });
+
+    await updateChecklistItemScheduledTime({
+      scope,
+      itemId: first.id,
+      scheduledTime: '09:00',
+    });
+    await updateChecklistItemScheduledTime({
+      scope,
+      itemId: second.id,
+      scheduledTime: '09:00',
+    });
+    await reorderChecklistItemsByScheduledTime({
+      scope,
+      dailyEntryId: entry.id,
+    });
+
+    const rootItems = await db.checklistItems
+      .where('[scopeId+dailyEntryId]')
+      .equals([scope.id, entry.id])
+      .filter((item) => item.deletedAt === null && item.parentId === null)
+      .toArray();
+    rootItems.sort((firstItem, secondItem) =>
+      compareSortRanks(firstItem.sortRank, secondItem.sortRank),
+    );
+
+    expect(rootItems.map((item) => item.text)).toEqual([
+      'Tie first',
+      'Tie second',
+    ]);
+  });
+
+  it('does not reorder items when only a scheduled time is updated', async () => {
+    const scope = createGuestScope('checklist-time-no-auto-sort');
+    const entry = await openOrCreateDailyEntry({
+      scope,
+      date: '2026-05-13',
+      timezone: 'America/Sao_Paulo',
+    });
+    const first = await createChecklistItem({
+      scope,
+      dailyEntryId: entry.id,
+      text: 'First',
+    });
+    const second = await createChecklistItem({
+      scope,
+      dailyEntryId: entry.id,
+      afterItemId: first.id,
+      text: 'Second',
+    });
+    const nested = await createChecklistChild({
+      scope,
+      dailyEntryId: entry.id,
+      parentItemId: first.id,
+      text: 'Nested',
+    });
+
+    const itemsBefore = await db.checklistItems
+      .where('[scopeId+dailyEntryId]')
+      .equals([scope.id, entry.id])
+      .toArray();
+    const ranksBefore = new Map(
+      itemsBefore.map((item) => [
+        item.id,
+        { parentId: item.parentId, sortRank: item.sortRank },
+      ]),
+    );
+
+    await updateChecklistItemScheduledTime({
+      scope,
+      itemId: second.id,
+      scheduledTime: '07:45',
+    });
+
+    const itemsAfter = await db.checklistItems
+      .where('[scopeId+dailyEntryId]')
+      .equals([scope.id, entry.id])
+      .toArray();
+
+    for (const item of itemsAfter) {
+      expect({ parentId: item.parentId, sortRank: item.sortRank }).toEqual(
+        ranksBefore.get(item.id),
+      );
+    }
+
+    expect(nested.id).toBeTruthy();
   });
 
   it('applies a checklist template across a weekday-filtered range', async () => {
