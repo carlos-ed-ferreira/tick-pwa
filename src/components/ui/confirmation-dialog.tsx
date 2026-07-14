@@ -1,7 +1,6 @@
 'use client';
 
 import type { ButtonTone } from './button';
-import { Button } from './button';
 import { Dialog } from './dialog';
 import { Text } from './text';
 
@@ -28,7 +27,7 @@ export function ConfirmationDialog({
     <Dialog
       closeLabel={cancelLabel}
       open={open}
-      panelClassName="sm:h-auto sm:max-w-md"
+      panelClassName="border-transparent shadow-[0_30px_80px_rgba(8,6,20,0.5)] after:hidden sm:h-auto sm:max-w-md"
       title={title}
       onClose={onClose}
     >
@@ -39,24 +38,24 @@ export function ConfirmationDialog({
           </Text>
         </div>
         <div className="flex items-center justify-end gap-2">
-          <Button
-            className="h-12 rounded-[1.15rem] border border-white/10 bg-white/5 px-5 text-[#fff9f2] hover:bg-white/[0.09] focus-visible:outline-[#f0c38e]"
-            tone="subtle"
+          <button
+            type="button"
+            className="inline-flex h-10 items-center justify-center rounded-[0.75rem] bg-white/[0.06] px-4 text-sm font-semibold text-[#fff9f2] transition hover:bg-white/[0.12] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e]"
             onClick={onClose}
           >
             {cancelLabel}
-          </Button>
-          <Button
-            className={`h-12 rounded-[1.15rem] px-5 ${
+          </button>
+          <button
+            type="button"
+            className={`inline-flex h-10 items-center justify-center rounded-[0.75rem] px-4 text-sm font-semibold shadow-md transition focus-visible:outline-2 focus-visible:outline-offset-2 ${
               confirmTone === 'danger'
-                ? 'border border-rose-300/24 bg-rose-400/15 text-rose-50 shadow-[0_14px_28px_rgba(244,63,94,0.14)] hover:bg-rose-400/22 focus-visible:outline-rose-200'
-                : 'shadow-[0_14px_28px_rgba(59,130,246,0.18)]'
+                ? 'bg-rose-500/90 text-rose-50 shadow-rose-500/20 hover:bg-rose-500 focus-visible:outline-rose-200'
+                : 'border border-[#f8d7aa]/70 bg-[#f0c38e] text-[#312c51] shadow-[#f0c38e]/18 hover:border-[#ffe0b8] hover:bg-[#f5d09f] focus-visible:outline-[#f0c38e]'
             }`}
-            tone={confirmTone}
             onClick={onConfirm}
           >
             {confirmLabel}
-          </Button>
+          </button>
         </div>
       </div>
     </Dialog>

@@ -161,6 +161,7 @@ export const ptBRDictionary = {
     createGroupTitle: 'Criar grupo',
     createGroupDescription: 'Defina o nome inicial deste grupo.',
     createGroupConfirm: 'Criar grupo',
+    createGroup: 'Criar grupo',
     dragGoal: 'Arrastar meta',
     newGoalTitle: 'Nova meta',
     goalMenu: 'Ações da meta',

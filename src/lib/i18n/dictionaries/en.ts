@@ -159,6 +159,7 @@ export const enDictionary = {
     createGroupTitle: 'Create group',
     createGroupDescription: 'Choose the initial name for this group.',
     createGroupConfirm: 'Create group',
+    createGroup: 'Create group',
     dragGoal: 'Drag goal',
     newGoalTitle: 'New goal',
     goalMenu: 'Goal actions',

@@ -152,6 +152,7 @@ export interface Dictionary {
     createGroupTitle: string;
     createGroupDescription: string;
     createGroupConfirm: string;
+    createGroup: string;
     goalCategories: string;
     groupCategories: string;
     itemCategories: string;

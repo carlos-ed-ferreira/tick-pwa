@@ -3,6 +3,7 @@
 import {
   Archive,
   ArrowLeft,
+  FolderPlus,
   GripVertical,
   MoreHorizontal,
   LogOut,
@@ -48,6 +49,7 @@ import {
   assignGoalStepCategory,
   completeGoal,
   createGoal,
+  createGoalGroup,
   createGoalStep,
   groupGoalsTogether,
   indentGoalStep,
@@ -626,6 +628,9 @@ export function GoalsSurface() {
   const [dragTarget, setDragTarget] = useState<DragTarget | null>(null);
   const [pendingGoalCombine, setPendingGoalCombine] =
     useState<PendingGoalCombine | null>(null);
+  const [pendingSingleGoalGroup, setPendingSingleGoalGroup] = useState<
+    string | null
+  >(null);
   const [isCreatingGroup, setIsCreatingGroup] = useState(false);
 
   const clearDragState = useCallback(() => {
@@ -881,10 +886,29 @@ export function GoalsSurface() {
   function closeCreateGroupDialog() {
     if (!isCreatingGroup) {
       setPendingGoalCombine(null);
+      setPendingSingleGoalGroup(null);
     }
   }
 
   function confirmCreateGroup(title: string) {
+    if (pendingSingleGoalGroup) {
+      const goalId = pendingSingleGoalGroup;
+
+      setIsCreatingGroup(true);
+      void (async () => {
+        const group = await createGoalGroup({ scope: activeScope, title });
+        await moveGoalToGroup({
+          scope: activeScope,
+          goalId,
+          groupId: group.id,
+        });
+      })().finally(() => {
+        setIsCreatingGroup(false);
+        setPendingSingleGoalGroup(null);
+      });
+      return;
+    }
+
     if (!pendingGoalCombine) {
       return;
     }
@@ -1039,6 +1063,7 @@ export function GoalsSurface() {
                   summary={getGoalStepSummary(goalStepSummaries, goal.id)}
                   onBeginPointerDrag={beginPointerDrag}
                   onComplete={(goalId) => completeGoal({ scope, goalId })}
+                  onCreateGroup={(goalId) => setPendingSingleGoalGroup(goalId)}
                   onMoveGoal={(goalId, groupId) =>
                     moveGoalToGroup({ scope, goalId, groupId })
                   }
@@ -1067,7 +1092,7 @@ export function GoalsSurface() {
         )}
       </section>
 
-      {pendingGoalCombine ? (
+      {pendingGoalCombine || pendingSingleGoalGroup ? (
         <CreateGoalGroupDialog
           cancelLabel={dictionary.actions.cancel}
           confirmLabel={dictionary.goals.createGroupConfirm}
@@ -1116,7 +1141,7 @@ function CreateGoalGroupDialog({
     <Dialog
       closeLabel={cancelLabel}
       open
-      panelClassName="sm:h-auto sm:max-w-md"
+      panelClassName="border-transparent shadow-[0_30px_80px_rgba(8,6,20,0.5)] after:hidden sm:h-auto sm:max-w-md"
       title={title}
       onClose={closeDialog}
     >
@@ -1151,21 +1176,20 @@ function CreateGoalGroupDialog({
           />
         </fieldset>
         <div className="flex items-center justify-end gap-2">
-          <Button
-            className="h-12 rounded-[1.15rem] border border-white/10 bg-white/5 px-5 text-[#fff9f2] hover:bg-white/[0.09] focus-visible:outline-[#f0c38e]"
-            tone="subtle"
+          <button
+            type="button"
+            className="inline-flex h-10 items-center justify-center rounded-[0.75rem] bg-white/[0.06] px-4 text-sm font-semibold text-[#fff9f2] transition hover:bg-white/[0.12] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e] disabled:cursor-not-allowed disabled:opacity-65"
             onClick={closeDialog}
           >
             {cancelLabel}
-          </Button>
-          <Button
-            className="h-12 rounded-[1.15rem] px-5 shadow-[0_14px_28px_rgba(59,130,246,0.18)]"
-            disabled={normalizedTitle.length === 0 || isCreatingGroup}
-            tone="primary"
+          </button>
+          <button
             type="submit"
+            className="inline-flex h-10 items-center justify-center rounded-[0.75rem] border border-[#f8d7aa]/70 bg-[#f0c38e] px-4 text-sm font-semibold text-[#312c51] shadow-md shadow-[#f0c38e]/18 transition hover:border-[#ffe0b8] hover:bg-[#f5d09f] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e] disabled:cursor-not-allowed disabled:opacity-65"
+            disabled={normalizedTitle.length === 0 || isCreatingGroup}
           >
             {confirmLabel}
-          </Button>
+          </button>
         </div>
       </form>
     </Dialog>
@@ -1478,6 +1502,7 @@ function GoalCard({
   summary,
   onBeginPointerDrag,
   onComplete,
+  onCreateGroup,
   onMoveGoal,
   onOpen,
   onRestore,
@@ -1496,14 +1521,16 @@ function GoalCard({
     payload: DragPayload,
     event: ReactPointerEvent<HTMLElement>,
   ) => void;
+  onCreateGroup?: (goalId: string) => void;
   onMoveGoal?: (goalId: string, groupId: string | null) => Promise<void> | void;
   onOpen: (goalId: string) => void;
   onRestore?: (goalId: string) => Promise<void> | void;
 }) {
-  const { dictionary } = useAppContext();
+  const { dictionary, scope } = useAppContext();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isArchiveDialogOpen, setIsArchiveDialogOpen] = useState(false);
   const [isRestoreDialogOpen, setIsRestoreDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [menuStyle, setMenuStyle] = useState<{
     top: number;
     right: number;
@@ -1550,6 +1577,15 @@ function GoalCard({
     setIsMenuOpen(false);
     setMenuStyle(null);
   }, []);
+
+  const deleteGoal = useCallback(async () => {
+    if (!scope) {
+      return;
+    }
+
+    setIsDeleteDialogOpen(false);
+    await softDeleteGoal({ scope, goalId: goal.id });
+  }, [goal.id, scope]);
 
   useEffect(() => {
     if (!isMenuOpen) {
@@ -1626,6 +1662,42 @@ function GoalCard({
             className="modal-panel fixed z-60 grid max-h-[min(20rem,calc(100vh-2rem))] min-w-48 gap-1 overflow-y-auto p-2 text-sm shadow-[0_24px_70px_rgba(8,6,20,0.44)]"
             style={menuStyle}
           >
+            {!archived && onCreateGroup && goal.groupId === null ? (
+              <button
+                type="button"
+                className="flex items-center gap-2 rounded-xl px-2 py-2 text-left text-[#f8f3ea] hover:bg-white/[0.08]"
+                onClick={() => {
+                  closeMenu();
+                  onCreateGroup(goal.id);
+                }}
+              >
+                <FolderPlus aria-hidden="true" className="size-4" />
+                {dictionary.goals.createGroup}
+              </button>
+            ) : null}
+            {!archived ? (
+              <CategoryAssignmentMenu
+                assignLabel={dictionary.goals.assignGoalCategory}
+                clearLabel={dictionary.dayEditor.clearCategory}
+                renderTriggerContent={() => (
+                  <>
+                    <Palette aria-hidden="true" className="size-4" />
+                    <span>{dictionary.goals.assignGoalCategory}</span>
+                  </>
+                )}
+                selectedCategoryTagId={goal.categoryTagId}
+                surface="goal"
+                triggerClassName="flex w-full items-center gap-2 rounded-xl px-2 py-2 text-left text-[#f8f3ea] hover:bg-white/[0.08] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e]"
+                onAssign={(categoryTagId) => {
+                  if (!scope) return;
+                  return assignGoalCategory({
+                    scope,
+                    goalId: goal.id,
+                    categoryTagId,
+                  });
+                }}
+              />
+            ) : null}
             {!archived && onComplete ? (
               <button
                 type="button"
@@ -1650,6 +1722,23 @@ function GoalCard({
               >
                 <RotateCcw aria-hidden="true" className="size-4" />
                 {dictionary.goals.restoreGoal}
+              </button>
+            ) : null}
+            {!archived ? (
+              <button
+                type="button"
+                className="flex items-center gap-2 rounded-xl px-2 py-2 text-left text-rose-100 hover:bg-rose-400/12"
+                onClick={() => {
+                  closeMenu();
+                  if (summary.itemCount > 0) {
+                    setIsDeleteDialogOpen(true);
+                  } else {
+                    void deleteGoal();
+                  }
+                }}
+              >
+                <Trash2 aria-hidden="true" className="size-4" />
+                {dictionary.goals.deleteGoal}
               </button>
             ) : null}
             {!archived && onMoveGoal && goal.groupId !== null ? (
@@ -1787,6 +1876,15 @@ function GoalCard({
             void onRestore?.(goal.id);
           }}
         />
+        <ConfirmationDialog
+          cancelLabel={dictionary.actions.cancel}
+          confirmLabel={dictionary.actions.delete}
+          description={dictionary.goals.confirmDeleteGoal}
+          open={isDeleteDialogOpen}
+          title={dictionary.goals.deleteGoal}
+          onClose={() => setIsDeleteDialogOpen(false)}
+          onConfirm={() => void deleteGoal()}
+        />
 
         <GoalPreview
           categoryTagMap={stepCategoryMap}
@@ -1823,7 +1921,7 @@ function MoveGoalMenu({
   }
 
   return (
-    <div className="grid gap-2 border-t border-white/10 pt-2">
+    <div className="grid gap-1 border-t border-white/10 pt-1">
       <span className="px-2 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-[#9f96b8]">
         {dictionary.goals.moveTo}
       </span>
