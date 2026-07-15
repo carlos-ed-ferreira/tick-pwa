@@ -98,6 +98,7 @@ function createDefaultCategoryTag(
     name: tag.name,
     colorHex: tag.colorHex,
     position,
+    useOwnName: false,
     createdAt: now,
     updatedAt: now,
     deletedAt: null,

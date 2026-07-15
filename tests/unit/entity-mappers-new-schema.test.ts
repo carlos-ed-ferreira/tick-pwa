@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { createUserScope } from '@/lib/domain';
-import { toRemotePayload } from '@/lib/supabase/entity-mappers';
+import {
+  categoryTagFromRemote,
+  toRemotePayload,
+} from '@/lib/supabase/entity-mappers';
 
 const base = {
   scopeId: 'user:user-1' as const,
@@ -78,5 +81,42 @@ describe('new functional schema payloads', () => {
     expect(goalPayload).not.toHaveProperty('status');
     expect(goalPayload).not.toHaveProperty('progress_mode');
     expect(goalPayload).not.toHaveProperty('archived_at');
+  });
+
+  it('round-trips the useOwnName flag for category tags', () => {
+    const payload = toRemotePayload(scope, 'categoryTag', {
+      ...base,
+      id: 'category-1',
+      name: '',
+      colorHex: '#71717a',
+      position: 'n',
+      surface: 'goal_group',
+      useOwnName: true,
+    });
+
+    expect(payload).toMatchObject({
+      id: 'category-1',
+      name: '',
+      color_hex: '#71717a',
+      surface: 'goal_group',
+      use_own_name: true,
+    });
+
+    const categoryTag = categoryTagFromRemote(scope, {
+      id: 'category-1',
+      user_id: 'user-1',
+      created_at: base.createdAt,
+      updated_at: base.updatedAt,
+      deleted_at: null,
+      client_updated_at: base.clientUpdatedAt,
+      revision: 1,
+      name: '',
+      color_hex: '#71717a',
+      position: 'n',
+      surface: 'goal_group',
+      use_own_name: true,
+    });
+
+    expect(categoryTag.useOwnName).toBe(true);
   });
 });

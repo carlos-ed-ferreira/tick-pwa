@@ -493,6 +493,39 @@ describe('GoalsSurface', () => {
     });
   });
 
+  it('renders the group category as a color dot instead of a text badge when useOwnName is true', () => {
+    useCategoryTagsMock.mockReturnValue([
+      {
+        id: 'category-1',
+        name: '',
+        colorHex: '#f97316',
+        position: '1',
+        surface: 'goals',
+        useOwnName: true,
+      },
+    ]);
+    useGoalGroupsMock.mockReturnValue([
+      group({
+        id: 'group-1',
+        title: 'Life',
+        categoryTagId: 'category-1',
+      }),
+    ]);
+
+    const { container } = render(<GoalsSurface />);
+
+    expect(screen.queryByText('Modo local')).not.toBeInTheDocument();
+
+    const dot = Array.from(container.querySelectorAll('span')).find(
+      (element) =>
+        element.className.includes('border-white/30') &&
+        element.className.includes('rounded-full'),
+    );
+
+    expect(dot).toBeDefined();
+    expect(dot).toHaveStyle({ backgroundColor: '#f97316' });
+  });
+
   it('renders goal actions in a portal, shows remove from group for grouped goals, omits new group and closes on outside click', async () => {
     useGoalGroupsMock.mockReturnValue([
       group({ id: 'group-1', title: 'Life' }),
@@ -920,6 +953,53 @@ describe('GoalsSurface', () => {
       borderColor: 'rgba(249, 115, 22, 0.6)',
       backgroundColor: 'rgba(249, 115, 22, 0.14)',
     });
+  });
+
+  it('renders the goal category as a color dot instead of a text badge when useOwnName is true', () => {
+    useCategoryTagsMock.mockImplementation((_scope, surface) => {
+      if (surface === 'goal') {
+        return [
+          {
+            id: 'category-1',
+            name: '',
+            colorHex: '#f97316',
+            position: '1',
+            surface: 'goal',
+            useOwnName: true,
+          },
+        ];
+      }
+
+      return [];
+    });
+    useGoalsMock.mockImplementation((_scope, options = {}) => {
+      if (options.archived) {
+        return [];
+      }
+
+      return [
+        goal({
+          id: 'goal-1',
+          title: 'Focus',
+          categoryTagId: 'category-1',
+        }),
+      ];
+    });
+    useGoalStepTreeMock.mockReturnValue([goalStep()]);
+
+    const { container } = render(<GoalsSurface />);
+    fireEvent.click(screen.getByRole('button', { name: 'Focus' }));
+
+    expect(screen.queryByText('Modo local')).not.toBeInTheDocument();
+
+    const dot = Array.from(container.querySelectorAll('span')).find(
+      (element) =>
+        element.className.includes('border-white/30') &&
+        element.className.includes('rounded-full'),
+    );
+
+    expect(dot).toBeDefined();
+    expect(dot).toHaveStyle({ backgroundColor: '#f97316' });
   });
 
   it('uses an adaptive title width with only a max width in the goal header', () => {

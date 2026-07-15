@@ -131,6 +131,7 @@ export const ptBRDictionary = {
     toggleItem: 'Alternar item',
     categories: 'Categorias',
     categoryNamePlaceholder: 'Nome da categoria',
+    createOwnCategory: 'Criar categoria própria',
     deleteCategory: 'Excluir categoria',
     confirmDeleteItem,
     selectItem: 'Selecionar item',

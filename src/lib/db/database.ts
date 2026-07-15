@@ -944,6 +944,20 @@ export class TickDatabase extends Dexie {
       }
     });
 
+    this.version(12).upgrade(async (transaction) => {
+      const categoryTagsTable = transaction.table('colorTags') as Table<
+        CategoryTag,
+        string
+      >;
+
+      for (const categoryTag of await categoryTagsTable.toArray()) {
+        await categoryTagsTable.put({
+          ...categoryTag,
+          useOwnName: categoryTag.useOwnName ?? false,
+        });
+      }
+    });
+
     this.categoryTags = this.table('colorTags');
   }
 }

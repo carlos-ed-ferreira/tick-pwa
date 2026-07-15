@@ -38,7 +38,11 @@ import {
   IconButton,
   Input,
 } from '@/components/ui';
-import { CategoryAssignmentMenu, useCategoryTags } from '@/features/categories';
+import {
+  canUseOwnName,
+  CategoryAssignmentMenu,
+  useCategoryTags,
+} from '@/features/categories';
 import { useDebouncedInlineEdit } from '@/hooks/use-debounced-inline-edit';
 import { useTreeBulkActions } from '@/hooks/use-tree-bulk-actions';
 import { useTreeSelection } from '@/hooks/use-tree-selection';
@@ -48,6 +52,7 @@ import {
   assignGoalGroupCategory,
   assignGoalStepCategory,
   completeGoal,
+  createCategoryTag,
   createGoal,
   createGoalGroup,
   createGoalStep,
@@ -69,13 +74,16 @@ import {
   toggleGoalStepChecked,
   toggleGoalStepCollapsed,
   toggleGoalStepPriority,
+  updateCategoryTag,
   updateGoalGroupTitle,
   updateGoalStepText,
   updateGoalTitle,
 } from '@/lib/db';
 import type {
+  AppScope,
   AppScopeId,
   CategoryTag,
+  CategoryTagSurface,
   Goal,
   GoalGroup,
   GoalStep,
@@ -1266,9 +1274,11 @@ function PositionIndicator({ side }: { side: PositionSide }) {
 function CategoryAccent({
   category,
   position = 'dot',
+  size = 'lg',
 }: {
   category?: CategoryTag | null;
   position?: 'dot' | 'top' | 'vertical';
+  size?: 'sm' | 'lg';
 }) {
   if (!category) {
     return null;
@@ -1299,9 +1309,84 @@ function CategoryAccent({
   return (
     <span
       aria-hidden="true"
-      className="size-3 rounded-full border border-white/30"
-      style={{ backgroundColor: category.colorHex }}
-    />
+      className={`relative block shrink-0 rounded-full border border-white/10 bg-white/5 p-1 shadow-sm shadow-[#312c51]/10 ${size === 'sm' ? 'size-6' : 'size-8'}`}
+    >
+      <span
+        className="block size-full rounded-full border border-white/30 shadow-[0_6px_14px_rgba(8,6,20,0.24)]"
+        style={{ backgroundColor: category.colorHex }}
+      />
+    </span>
+  );
+}
+
+// Always-visible color control that owns the "own category" flow. Picking a
+// color creates (or recolors) a nameless own-name category for this entity;
+// removing the category stays in the CategoryAssignmentMenu.
+function CategoryColorButton({
+  onAssign,
+  scope,
+  selectedCategory,
+  surface,
+}: {
+  onAssign: (categoryTagId: string) => Promise<void> | void;
+  scope: AppScope | null;
+  selectedCategory: CategoryTag | null;
+  surface: CategoryTagSurface;
+}) {
+  const { dictionary } = useAppContext();
+
+  if (!canUseOwnName(surface)) {
+    return null;
+  }
+
+  const ownColorHex = selectedCategory?.useOwnName
+    ? selectedCategory.colorHex
+    : null;
+
+  async function handleColorChange(colorHex: string) {
+    if (!scope) {
+      return;
+    }
+
+    if (selectedCategory?.useOwnName) {
+      await updateCategoryTag({
+        scope,
+        categoryTagId: selectedCategory.id,
+        colorHex,
+      });
+      return;
+    }
+
+    const createdTag = await createCategoryTag({
+      scope,
+      surface,
+      name: '',
+      colorHex,
+      useOwnName: true,
+    });
+
+    await onAssign(createdTag.id);
+  }
+
+  return (
+    <span className="relative inline-flex size-10 shrink-0 items-center justify-center rounded-md border border-white/10 bg-white/5 shadow-sm shadow-[#312c51]/10 transition hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/10 focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-[#f7d9b0]">
+      <input
+        aria-label={dictionary.dayEditor.createOwnCategory}
+        className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+        type="color"
+        value={ownColorHex ?? '#71717a'}
+        onChange={(event) => void handleColorChange(event.target.value)}
+      />
+      <span
+        aria-hidden="true"
+        className={`block size-5 rounded-full shadow-[0_6px_14px_rgba(8,6,20,0.24)] ${
+          ownColorHex
+            ? 'border border-white/30'
+            : 'border border-dashed border-white/25'
+        }`}
+        style={ownColorHex ? { backgroundColor: ownColorHex } : undefined}
+      />
+    </span>
   );
 }
 
@@ -1383,15 +1468,19 @@ function GoalGroupCard({
             {group.title || dictionary.goals.newGroupName}
           </span>
           {category ? (
-            <span
-              className="inline-flex min-h-7 shrink-0 items-center gap-2 rounded-full border px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.24em] text-[#f7e8ce] shadow-sm shadow-[#312c51]/10"
-              style={{
-                borderColor: toAlphaColor(category.colorHex, 0.6),
-                backgroundColor: toAlphaColor(category.colorHex, 0.14),
-              }}
-            >
-              <span className="truncate">{category.name}</span>
-            </span>
+            category.useOwnName ? (
+              <CategoryAccent category={category} size="sm" />
+            ) : (
+              <span
+                className="inline-flex min-h-7 shrink-0 items-center gap-2 rounded-full border px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.24em] text-[#f7e8ce] shadow-sm shadow-[#312c51]/10"
+                style={{
+                  borderColor: toAlphaColor(category.colorHex, 0.6),
+                  backgroundColor: toAlphaColor(category.colorHex, 0.14),
+                }}
+              >
+                <span className="truncate">{category.name}</span>
+              </span>
+            )
           ) : null}
         </span>
         <span className="grid grid-cols-2 gap-2 self-start">
@@ -2084,7 +2173,7 @@ function GoalGroupDetailHeader({
     <header className="flex flex-col gap-3 px-1 sm:grid sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-2 sm:px-0">
       <div className="flex min-w-0 flex-wrap items-center gap-2 sm:flex-nowrap">
         <GoalGroupTitleEditor autoFocus={false} group={group} />
-        {groupCategory ? (
+        {groupCategory && !groupCategory.useOwnName ? (
           <span
             className="inline-flex min-h-10 max-w-full shrink-0 items-center rounded-full border px-3 py-1 text-sm font-medium text-[#f7e8ce] shadow-sm shadow-[#312c51]/10"
             style={{
@@ -2095,6 +2184,20 @@ function GoalGroupDetailHeader({
             <span className="truncate">{groupCategory.name}</span>
           </span>
         ) : null}
+        <CategoryColorButton
+          onAssign={(categoryTagId) =>
+            scope
+              ? assignGoalGroupCategory({
+                  scope,
+                  goalGroupId: group.id,
+                  categoryTagId,
+                })
+              : undefined
+          }
+          scope={scope}
+          selectedCategory={groupCategory}
+          surface="goal_group"
+        />
         <CategoryAssignmentMenu
           assignLabel={dictionary.goals.assignGroupCategory}
           clearLabel={dictionary.dayEditor.clearCategory}
@@ -2181,7 +2284,7 @@ function GoalDetailHeader({
       <header className="flex flex-col gap-3 px-1 sm:grid sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-2 sm:px-0">
         <div className="flex min-w-0 flex-wrap items-center gap-2 sm:flex-nowrap">
           <GoalTitleEditor goal={goal} />
-          {goalCategory ? (
+          {goalCategory && !goalCategory.useOwnName ? (
             <span
               className="inline-flex min-h-10 max-w-full shrink-0 items-center rounded-full border px-3 py-1 text-sm font-medium text-[#f7e8ce] shadow-sm shadow-[#312c51]/10"
               style={{
@@ -2192,6 +2295,20 @@ function GoalDetailHeader({
               <span className="truncate">{goalCategory.name}</span>
             </span>
           ) : null}
+          <CategoryColorButton
+            onAssign={(categoryTagId) =>
+              scope
+                ? assignGoalCategory({
+                    scope,
+                    goalId: goal.id,
+                    categoryTagId,
+                  })
+                : undefined
+            }
+            scope={scope}
+            selectedCategory={goalCategory}
+            surface="goal"
+          />
           <CategoryAssignmentMenu
             assignLabel={dictionary.goals.assignGoalCategory}
             clearLabel={dictionary.dayEditor.clearCategory}

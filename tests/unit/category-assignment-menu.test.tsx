@@ -34,11 +34,13 @@ describe('CategoryAssignmentMenu', () => {
         id: 'category-home',
         name: 'Home',
         colorHex: '#f59e0b',
+        useOwnName: false,
       },
       {
         id: 'category-health',
         name: 'Health',
         colorHex: '#4b6f52',
+        useOwnName: false,
       },
     ]);
   });
@@ -73,6 +75,44 @@ describe('CategoryAssignmentMenu', () => {
     await waitFor(() => {
       expect(onAssign).toHaveBeenCalledWith('category-home');
     });
+  });
+
+  it('never lists own-name categories and does not scroll or clamp height', async () => {
+    useCategoryTagsMock.mockReturnValue([
+      {
+        id: 'category-named',
+        name: 'Health',
+        colorHex: '#4b6f52',
+        useOwnName: false,
+      },
+      {
+        id: 'category-own',
+        name: '',
+        colorHex: '#f59e0b',
+        useOwnName: true,
+      },
+    ]);
+
+    render(
+      <CategoryAssignmentMenu
+        assignLabel="Assign category"
+        clearLabel="Clear category"
+        selectedCategoryTagId="category-own"
+        surface="goal_group"
+        onAssign={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Assign category' }));
+
+    const menu = (await screen.findByRole('button', { name: 'Health' }))
+      .parentElement;
+
+    expect(menu?.className).not.toMatch(/overflow-y-auto/);
+    expect(menu?.className).not.toMatch(/max-h-/);
+    // The own-name category assigned to this entity is never offered as an
+    // option in the selector.
+    expect(menu?.querySelectorAll('button').length).toBe(2); // clear + single named category
   });
 
   it('keeps the portal menu inside a narrow viewport', async () => {

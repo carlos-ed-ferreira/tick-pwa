@@ -110,6 +110,7 @@ export interface CategoryTag extends BaseEntity {
   colorHex: string;
   position: string;
   surface: CategoryTagSurface;
+  useOwnName: boolean;
 }
 
 export interface Goal extends BaseEntity {

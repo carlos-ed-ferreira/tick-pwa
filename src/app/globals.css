@@ -318,6 +318,24 @@ body {
       0 12px 32px rgba(8, 6, 20, 0.16);
     backdrop-filter: blur(14px);
   }
+
+  .modal-surface--flat,
+  .modal-surface--flat::after {
+    border-color: transparent;
+  }
+
+  .modal-surface--flat {
+    box-shadow: 0 30px 80px rgba(8, 6, 20, 0.5);
+  }
+
+  .modal-surface--flat .modal-header {
+    border-bottom-color: transparent;
+  }
+
+  .modal-panel--flat {
+    border-color: transparent;
+    box-shadow: 0 12px 32px rgba(8, 6, 20, 0.16);
+  }
 }
 
 @media (min-width: 640px) {

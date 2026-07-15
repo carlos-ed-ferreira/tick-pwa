@@ -16,7 +16,7 @@ import { useCategoryTags } from './use-category-tags';
 
 const menuOffset = 8;
 const viewportPadding = 16;
-const menuPreferredWidth = 192;
+const menuPreferredWidth = 248;
 
 export function CategoryAssignmentMenu({
   assignLabel,
@@ -56,6 +56,9 @@ export function CategoryAssignmentMenu({
   const selectedCategory = categoryTags.find(
     (tag) => tag.id === selectedCategoryTagId,
   );
+  // Own-name categories are managed through the dedicated color control, not
+  // this selector, so they never show up in the assignable list.
+  const assignableCategoryTags = categoryTags.filter((tag) => !tag.useOwnName);
 
   const getMenuStyle = useCallback(() => {
     const trigger = triggerRef.current;
@@ -74,7 +77,7 @@ export function CategoryAssignmentMenu({
       window.innerWidth - viewportPadding - menuWidth,
     );
     const estimatedMenuHeight = Math.min(
-      56 + categoryTags.length * 40,
+      56 + assignableCategoryTags.length * 40,
       window.innerHeight - viewportPadding * 2,
     );
     const shouldOpenUpward =
@@ -99,7 +102,7 @@ export function CategoryAssignmentMenu({
       top: Math.max(viewportPadding, triggerRect.bottom + menuOffset),
       width,
     };
-  }, [categoryTags.length]);
+  }, [assignableCategoryTags.length]);
 
   const closeMenu = useCallback(
     ({ restoreFocus = false }: { restoreFocus?: boolean } = {}) => {
@@ -191,7 +194,7 @@ export function CategoryAssignmentMenu({
       ? createPortal(
           <div
             ref={menuRef}
-            className="modal-panel fixed z-60 grid max-h-[min(20rem,calc(100vh-2rem))] gap-1 overflow-y-auto p-2 text-sm text-[#fff9f2] shadow-[0_24px_70px_rgba(8,6,20,0.44)]"
+            className="modal-panel modal-panel--flat fixed z-60 grid gap-1 p-2 text-sm text-[#fff9f2] shadow-[0_24px_70px_rgba(8,6,20,0.44)]"
             style={menuStyle}
           >
             <button
@@ -202,7 +205,7 @@ export function CategoryAssignmentMenu({
               <X aria-hidden="true" className="size-4" />
               {clearLabel}
             </button>
-            {categoryTags.map((tag) => (
+            {assignableCategoryTags.map((tag) => (
               <button
                 key={tag.id}
                 type="button"
@@ -211,7 +214,7 @@ export function CategoryAssignmentMenu({
               >
                 <span
                   aria-hidden="true"
-                  className="size-3 rounded-full"
+                  className="size-3 shrink-0 rounded-full"
                   style={{ backgroundColor: tag.colorHex }}
                 />
                 <span className="truncate">{tag.name}</span>

@@ -66,6 +66,7 @@ create table public.category_tags (
   color_hex text not null,
   surface text not null,
   position text not null,
+  use_own_name boolean not null default false,
   created_at timestamptz not null default timezone('utc', now()),
   updated_at timestamptz not null default timezone('utc', now()),
   deleted_at timestamptz,

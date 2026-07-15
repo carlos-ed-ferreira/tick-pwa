@@ -86,11 +86,13 @@ export async function createCategoryTag({
   surface,
   name,
   colorHex,
+  useOwnName = false,
 }: {
   scope: AppScope;
   surface: CategoryTagSurface;
   name: string;
   colorHex: string;
+  useOwnName?: boolean;
 }): Promise<CategoryTag> {
   return db.transaction('rw', db.categoryTags, async () => {
     const categoryTags = await getActiveCategoryTags(scope, surface);
@@ -99,12 +101,13 @@ export async function createCategoryTag({
       id: createId(),
       scopeId: scope.id,
       surface,
-      name: normalizeCategoryTagName(name) || 'CATEGORY',
+      name: useOwnName ? '' : normalizeCategoryTagName(name) || 'CATEGORY',
       colorHex: normalizeColorHex(colorHex),
       position: createSortRankBetween(
         categoryTags.at(-1)?.position ?? null,
         null,
       ),
+      useOwnName,
       createdAt: now,
       updatedAt: now,
       deletedAt: null,
@@ -131,11 +134,13 @@ export async function updateCategoryTag({
   categoryTagId,
   name,
   colorHex,
+  useOwnName,
 }: {
   scope: AppScope;
   categoryTagId: string;
   name?: string;
   colorHex?: string;
+  useOwnName?: boolean;
 }): Promise<void> {
   await db.transaction('rw', db.categoryTags, db.localPreferences, async () => {
     const categoryTag = await db.categoryTags.get(categoryTagId);
@@ -148,8 +153,10 @@ export async function updateCategoryTag({
       return;
     }
 
-    const nextName =
-      name === undefined
+    const nextUseOwnName = useOwnName ?? categoryTag.useOwnName;
+    const nextName = nextUseOwnName
+      ? ''
+      : name === undefined
         ? categoryTag.name
         : normalizeCategoryTagName(name) || categoryTag.name;
     const nextColorHex =
@@ -159,7 +166,8 @@ export async function updateCategoryTag({
 
     if (
       nextName === categoryTag.name &&
-      nextColorHex === categoryTag.colorHex
+      nextColorHex === categoryTag.colorHex &&
+      nextUseOwnName === categoryTag.useOwnName
     ) {
       return;
     }
@@ -168,10 +176,12 @@ export async function updateCategoryTag({
       ...categoryTag,
       name: nextName,
       colorHex: nextColorHex,
+      useOwnName: nextUseOwnName,
     });
     const changedFields = [
-      ...(name === undefined ? [] : ['name']),
+      ...(nextName === categoryTag.name ? [] : ['name']),
       ...(colorHex === undefined ? [] : ['colorHex']),
+      ...(useOwnName === undefined ? [] : ['useOwnName']),
     ];
 
     if (changedFields.length === 0) {

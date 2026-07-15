@@ -34,6 +34,7 @@ export interface RemoteCategoryTag extends RemoteBaseRow {
   color_hex: string;
   position: string;
   surface: CategoryTagSurface;
+  use_own_name: boolean;
 }
 
 export interface RemoteDailyEntry extends RemoteBaseRow {
@@ -182,6 +183,7 @@ export function toRemotePayload(
       color_hex: categoryTag.colorHex,
       position: categoryTag.position,
       surface,
+      use_own_name: categoryTag.useOwnName,
     };
   }
 
@@ -278,6 +280,7 @@ export function categoryTagFromRemote(
     colorHex: row.color_hex,
     position: row.position,
     surface: row.surface,
+    useOwnName: row.use_own_name,
   };
 }
 

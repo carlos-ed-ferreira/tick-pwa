@@ -118,6 +118,7 @@ export interface Dictionary {
     toggleItem: string;
     categories: string;
     categoryNamePlaceholder: string;
+    createOwnCategory: string;
     deleteCategory: string;
     confirmDeleteItem: string;
     selectItem: string;

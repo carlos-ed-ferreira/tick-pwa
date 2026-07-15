@@ -13,6 +13,7 @@ import {
   sortByRank,
 } from '@/lib/domain';
 import { db } from './database';
+import { softDeleteCategoryTag } from './category-commands';
 import {
   createSyncMetadata,
   createTimestamp,
@@ -22,6 +23,30 @@ import { persistAccountEntityChange } from './account-persistence';
 
 function normalizeGoalTitle(title: string): string {
   return title.normalize('NFC').trim().toLocaleUpperCase();
+}
+
+// Own-name categories exist only for a single group/goal. When that entity
+// stops referencing it, the tag becomes orphaned and must be removed.
+async function resolveOrphanOwnCategoryTagId(
+  scope: AppScope,
+  previousCategoryTagId: string | null,
+): Promise<string | null> {
+  if (!previousCategoryTagId) {
+    return null;
+  }
+
+  const previous = await db.categoryTags.get(previousCategoryTagId);
+
+  if (
+    previous &&
+    previous.scopeId === scope.id &&
+    !previous.deletedAt &&
+    previous.useOwnName
+  ) {
+    return previous.id;
+  }
+
+  return null;
 }
 
 function sortGoalSteps(goalSteps: GoalStep[]): GoalStep[] {
@@ -202,6 +227,8 @@ export async function assignGoalGroupCategory({
   goalGroupId: string;
   categoryTagId: string | null;
 }): Promise<void> {
+  let orphanOwnCategoryTagId: string | null = null;
+
   await db.transaction('rw', db.goalGroups, db.categoryTags, async () => {
     const group = await db.goalGroups.get(goalGroupId);
     const categoryTag = categoryTagId
@@ -224,12 +251,24 @@ export async function assignGoalGroupCategory({
       return;
     }
 
+    orphanOwnCategoryTagId = await resolveOrphanOwnCategoryTagId(
+      scope,
+      group.categoryTagId,
+    );
+
     await persistGoalGroupUpdate(
       scope,
       touchGoalGroup(scope, { ...group, categoryTagId: safeCategoryTagId }),
       ['categoryTagId'],
     );
   });
+
+  if (orphanOwnCategoryTagId) {
+    await softDeleteCategoryTag({
+      scope,
+      categoryTagId: orphanOwnCategoryTagId,
+    });
+  }
 }
 
 export async function updateGoalGroupTitle({
@@ -944,6 +983,8 @@ export async function assignGoalCategory({
   goalId: string;
   categoryTagId: string | null;
 }): Promise<void> {
+  let orphanOwnCategoryTagId: string | null = null;
+
   await db.transaction('rw', db.goals, db.categoryTags, async () => {
     const goal = await getScopedGoal(scope, goalId);
 
@@ -971,12 +1012,24 @@ export async function assignGoalCategory({
       return;
     }
 
+    orphanOwnCategoryTagId = await resolveOrphanOwnCategoryTagId(
+      scope,
+      goal.categoryTagId,
+    );
+
     const updatedGoal = touchGoal(scope, {
       ...goal,
       categoryTagId: safeCategoryTagId,
     });
     await persistGoalUpdate(scope, updatedGoal, ['categoryTagId']);
   });
+
+  if (orphanOwnCategoryTagId) {
+    await softDeleteCategoryTag({
+      scope,
+      categoryTagId: orphanOwnCategoryTagId,
+    });
+  }
 }
 
 export async function createGoalStep({

@@ -66,6 +66,8 @@ describe('CategoryManager', () => {
         id: 'category-1',
         name: 'HOME',
         colorHex: '#71717a',
+        surface: 'checklist_item',
+        useOwnName: false,
       },
     ]);
   });
@@ -130,5 +132,38 @@ describe('CategoryManager', () => {
     fireEvent.change(input, { target: { value: 'saude' } });
 
     expect(input).toHaveValue('SAUDE');
+  });
+
+  it('renders the section label and the add button on the same row', () => {
+    render(<CategoryManager label="Grupos" surface="goal_group" />);
+
+    expect(screen.getByText('Grupos')).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Add category' }),
+    ).toBeInTheDocument();
+  });
+
+  it('never lists own-name categories in the manager', () => {
+    useCategoryTagsMock.mockReturnValue([
+      {
+        id: 'category-named',
+        name: 'HOME',
+        colorHex: '#71717a',
+        surface: 'goal',
+        useOwnName: false,
+      },
+      {
+        id: 'category-own',
+        name: '',
+        colorHex: '#f59e0b',
+        surface: 'goal',
+        useOwnName: true,
+      },
+    ]);
+
+    render(<CategoryManager surface="goal" />);
+
+    expect(screen.getAllByLabelText('Category name')).toHaveLength(1);
+    expect(screen.getByLabelText('Category name')).toHaveValue('HOME');
   });
 });

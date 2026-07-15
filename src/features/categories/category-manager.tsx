@@ -2,7 +2,7 @@
 
 import { ArrowDown, ArrowUp, Plus, Trash2 } from 'lucide-react';
 import { useState, type KeyboardEvent } from 'react';
-import { Button, Dialog, IconButton, Input } from '@/components/ui';
+import { Dialog, IconButton, Input } from '@/components/ui';
 import type { CategoryTag, CategoryTagSurface } from '@/lib/domain';
 import {
   createCategoryTag,
@@ -17,9 +17,23 @@ function normalizeCategoryDraftName(name: string): string {
   return name.normalize('NFC').toLocaleUpperCase();
 }
 
-export function CategoryManager({ surface }: { surface: CategoryTagSurface }) {
+export function canUseOwnName(surface: CategoryTagSurface): boolean {
+  return surface === 'goal_group' || surface === 'goal';
+}
+
+export function CategoryManager({
+  label,
+  surface,
+}: {
+  label?: string;
+  surface: CategoryTagSurface;
+}) {
   const { dictionary, scope } = useAppContext();
-  const categoryTags = useCategoryTags(scope, surface);
+  // Own-name categories belong to a single group/goal and are edited through
+  // its color control, so they are never listed in the shared manager.
+  const categoryTags = useCategoryTags(scope, surface).filter(
+    (tag) => !tag.useOwnName,
+  );
 
   async function addCategory() {
     if (!scope) {
@@ -36,18 +50,25 @@ export function CategoryManager({ surface }: { surface: CategoryTagSurface }) {
 
   return (
     <section className="flex w-full flex-col">
-      <div className="flex items-center justify-end gap-2">
-        <Button
-          className="h-12 rounded-[1.15rem] px-5 shadow-[0_16px_32px_rgba(240,195,142,0.18)]"
-          tone="accent"
+      <div className="flex items-center justify-between gap-2">
+        {label ? (
+          <h3 className="min-w-0 truncate px-1 text-sm font-semibold uppercase tracking-[0.18em] text-[#d8d0e8]">
+            {label}
+          </h3>
+        ) : (
+          <span />
+        )}
+        <button
+          type="button"
+          className="flex shrink-0 items-center gap-1.5 rounded-full border border-[#f0c38e]/22 bg-[#f0c38e]/10 px-3 py-1.5 text-sm font-medium text-[#f7d7ad] shadow-sm transition hover:border-[#f0c38e]/36 hover:bg-[#f0c38e]/16 hover:text-[#fff9f2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e]"
           onClick={() => void addCategory()}
         >
-          <Plus aria-hidden="true" className="size-4" />
+          <Plus aria-hidden="true" className="size-3.5" />
           {dictionary.dayEditor.addCategory}
-        </Button>
+        </button>
       </div>
 
-      <div className="mt-4 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+      <div className="mt-3 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
         {categoryTags.map((tag, index) => (
           <CategoryManagerRow
             key={`${tag.id}:${tag.name}`}
@@ -79,21 +100,22 @@ export function CategoryManagerDialog({
     <Dialog
       closeLabel={dictionary.actions.cancel}
       open={open}
+      panelClassName="modal-surface--flat"
       title={title}
       onClose={onClose}
     >
       <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-5">
         {isGoalSurface ? (
           <div className="grid gap-6">
-            <CategoryManagerSection
+            <CategoryManager
               label={dictionary.goals.groupCategories}
               surface="goal_group"
             />
-            <CategoryManagerSection
+            <CategoryManager
               label={dictionary.goals.goalCategories}
               surface="goal"
             />
-            <CategoryManagerSection
+            <CategoryManager
               label={dictionary.goals.itemCategories}
               surface="goal_step"
             />
@@ -103,23 +125,6 @@ export function CategoryManagerDialog({
         )}
       </div>
     </Dialog>
-  );
-}
-
-function CategoryManagerSection({
-  label,
-  surface,
-}: {
-  label: string;
-  surface: CategoryTagSurface;
-}) {
-  return (
-    <section className="grid gap-3">
-      <h3 className="px-1 text-sm font-semibold uppercase tracking-[0.18em] text-[#d8d0e8]">
-        {label}
-      </h3>
-      <CategoryManager surface={surface} />
-    </section>
   );
 }
 
@@ -176,7 +181,7 @@ function CategoryManagerRow({
   }
 
   return (
-    <div className="modal-panel grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 px-3 py-3 text-sm transition hover:border-[#f0c38e]/20 hover:bg-white/[0.055]">
+    <div className="modal-panel modal-panel--flat grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 px-3 py-3 text-sm transition hover:border-[#f0c38e]/20 hover:bg-white/[0.055]">
       <label className="relative block size-8 shrink-0 rounded-full border border-white/10 bg-white/5 p-1 shadow-sm focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-[#f0c38e]">
         <input
           aria-label={`${dictionary.dayEditor.assignCategory}: ${tag.name}`}

@@ -157,6 +157,72 @@ describe('goal commands', () => {
     expect(deletedGoal?.deletedAt).not.toBeNull();
   });
 
+  it('deletes an own-name category when the goal switches to another category', async () => {
+    const scope = createGuestScope('goal-own-category-cleanup');
+    const namedCategory = await createCategoryTag({
+      scope,
+      surface: 'goal',
+      name: 'Work',
+      colorHex: '#2563eb',
+    });
+    const ownCategory = await createCategoryTag({
+      scope,
+      surface: 'goal',
+      name: '',
+      colorHex: '#f59e0b',
+      useOwnName: true,
+    });
+    const goal = await createGoal({ scope, title: 'Ship it' });
+
+    await assignGoalCategory({
+      scope,
+      goalId: goal.id,
+      categoryTagId: ownCategory.id,
+    });
+    await assignGoalCategory({
+      scope,
+      goalId: goal.id,
+      categoryTagId: namedCategory.id,
+    });
+
+    const storedGoal = await db.goals.get(goal.id);
+    const storedOwn = await db.categoryTags.get(ownCategory.id);
+    const storedNamed = await db.categoryTags.get(namedCategory.id);
+
+    expect(storedGoal?.categoryTagId).toBe(namedCategory.id);
+    expect(storedOwn?.deletedAt).not.toBeNull();
+    expect(storedNamed?.deletedAt).toBeNull();
+  });
+
+  it('deletes an own-name category when the goal category is cleared', async () => {
+    const scope = createGuestScope('goal-own-category-clear');
+    const ownCategory = await createCategoryTag({
+      scope,
+      surface: 'goal',
+      name: '',
+      colorHex: '#f59e0b',
+      useOwnName: true,
+    });
+    const goal = await createGoal({ scope, title: 'Ship it' });
+
+    await assignGoalCategory({
+      scope,
+      goalId: goal.id,
+      categoryTagId: ownCategory.id,
+    });
+    await assignGoalCategory({
+      scope,
+      goalId: goal.id,
+      categoryTagId: null,
+    });
+
+    const storedGoal = await db.goals.get(goal.id);
+    const storedOwn = await db.categoryTags.get(ownCategory.id);
+
+    expect(storedGoal?.categoryTagId).toBeNull();
+    expect(storedOwn?.deletedAt).not.toBeNull();
+  });
+
   it('moves a step under another step without creating a cycle', async () => {
     const scope = createGuestScope('goal-step-reparent');
     const goal = await createGoal({ scope, title: 'Ship feature' });

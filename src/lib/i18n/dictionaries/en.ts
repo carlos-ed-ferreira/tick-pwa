@@ -128,6 +128,7 @@ export const enDictionary = {
     toggleItem: 'Toggle item',
     categories: 'Categories',
     categoryNamePlaceholder: 'Category name',
+    createOwnCategory: 'Create own category',
     deleteCategory: 'Delete category',
     confirmDeleteItem,
     selectItem: 'Select item',
