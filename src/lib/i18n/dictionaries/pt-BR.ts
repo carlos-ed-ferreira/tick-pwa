@@ -156,6 +156,7 @@ export const ptBRDictionary = {
     activeGoals: 'Ativas',
     archivedGoals: 'Arquivadas',
     assignGoalCategory: 'Atribuir categoria da meta',
+    assignGoalColor: 'Atribuir cor da meta',
     assignGroupCategory: 'Atribuir categoria do grupo',
     backToGoalGroups: 'Voltar para grupos de metas',
     completeGoal: 'Arquivar meta',

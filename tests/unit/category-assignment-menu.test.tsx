@@ -69,11 +69,43 @@ describe('CategoryAssignmentMenu', () => {
 
     expect(container.contains(optionButton)).toBe(false);
     expect(optionButton.parentElement).toHaveClass('fixed');
+    // The clear action no longer lives inside the selector menu, and it is
+    // hidden while nothing is assigned.
+    expect(
+      screen.queryByRole('button', { name: 'Clear category' }),
+    ).not.toBeInTheDocument();
 
     fireEvent.click(optionButton);
 
     await waitFor(() => {
       expect(onAssign).toHaveBeenCalledWith('category-home');
+    });
+  });
+
+  it('renders a clear button beside the trigger when a category is assigned', async () => {
+    const onAssign = vi.fn();
+    const { container } = render(
+      <CategoryAssignmentMenu
+        assignLabel="Assign category"
+        clearLabel="Clear category"
+        selectedCategoryTagId="category-home"
+        surface="calendar"
+        onAssign={onAssign}
+      />,
+    );
+
+    const clearButton = screen.getByRole('button', { name: 'Clear category' });
+
+    // The clear button renders next to the trigger, outside any portal menu.
+    expect(container.contains(clearButton)).toBe(true);
+    expect(
+      screen.getByRole('button', { name: 'Assign category' }).parentElement,
+    ).toBe(clearButton.parentElement);
+
+    fireEvent.click(clearButton);
+
+    await waitFor(() => {
+      expect(onAssign).toHaveBeenCalledWith(null);
     });
   });
 
@@ -111,8 +143,8 @@ describe('CategoryAssignmentMenu', () => {
     expect(menu?.className).not.toMatch(/overflow-y-auto/);
     expect(menu?.className).not.toMatch(/max-h-/);
     // The own-name category assigned to this entity is never offered as an
-    // option in the selector.
-    expect(menu?.querySelectorAll('button').length).toBe(2); // clear + single named category
+    // option in the selector, and clear lives outside the menu.
+    expect(menu?.querySelectorAll('button').length).toBe(1); // single named category
   });
 
   it('keeps the portal menu inside a narrow viewport', async () => {

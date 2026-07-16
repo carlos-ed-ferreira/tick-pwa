@@ -154,6 +154,7 @@ export const enDictionary = {
     activeGoals: 'Active',
     archivedGoals: 'Archived',
     assignGoalCategory: 'Assign goal category',
+    assignGoalColor: 'Assign goal color',
     assignGroupCategory: 'Assign group category',
     backToGoalGroups: 'Back to goal groups',
     completeGoal: 'Archive goal',

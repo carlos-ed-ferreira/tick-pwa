@@ -143,6 +143,7 @@ export interface Dictionary {
     activeGoals: string;
     archivedGoals: string;
     assignGoalCategory: string;
+    assignGoalColor: string;
     assignGroupCategory: string;
     backToGoalGroups: string;
     completeGoal: string;

@@ -3,6 +3,7 @@
 import {
   Archive,
   ArrowLeft,
+  ChevronDown,
   FolderPlus,
   GripVertical,
   MoreHorizontal,
@@ -10,7 +11,9 @@ import {
   Palette,
   Plus,
   RotateCcw,
+  Tag,
   Trash2,
+  X,
 } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createPortal } from 'react-dom';
@@ -1319,9 +1322,43 @@ function CategoryAccent({
   );
 }
 
-// Always-visible color control that owns the "own category" flow. Picking a
-// color creates (or recolors) a nameless own-name category for this entity;
-// removing the category stays in the CategoryAssignmentMenu.
+// Shared "own category" flow: picking a color creates (or recolors) a
+// nameless own-name category for this entity.
+async function applyOwnColorCategory({
+  colorHex,
+  onAssign,
+  scope,
+  selectedCategory,
+  surface,
+}: {
+  colorHex: string;
+  onAssign: (categoryTagId: string) => Promise<void> | void;
+  scope: AppScope;
+  selectedCategory: CategoryTag | null;
+  surface: CategoryTagSurface;
+}) {
+  if (selectedCategory?.useOwnName) {
+    await updateCategoryTag({
+      scope,
+      categoryTagId: selectedCategory.id,
+      colorHex,
+    });
+    return;
+  }
+
+  const createdTag = await createCategoryTag({
+    scope,
+    surface,
+    name: '',
+    colorHex,
+    useOwnName: true,
+  });
+
+  await onAssign(createdTag.id);
+}
+
+// Always-visible color control that owns the "own category" flow. Removing
+// the category lives in the clear button beside the CategoryAssignmentMenu.
 function CategoryColorButton({
   onAssign,
   scope,
@@ -1348,24 +1385,13 @@ function CategoryColorButton({
       return;
     }
 
-    if (selectedCategory?.useOwnName) {
-      await updateCategoryTag({
-        scope,
-        categoryTagId: selectedCategory.id,
-        colorHex,
-      });
-      return;
-    }
-
-    const createdTag = await createCategoryTag({
-      scope,
-      surface,
-      name: '',
+    await applyOwnColorCategory({
       colorHex,
-      useOwnName: true,
+      onAssign,
+      scope,
+      selectedCategory,
+      surface,
     });
-
-    await onAssign(createdTag.id);
   }
 
   return (
@@ -1464,23 +1490,33 @@ function GoalGroupCard({
           >
             <GripVertical aria-hidden="true" className="size-4" />
           </button>
-          <span className="min-w-0 truncate text-base font-semibold leading-tight text-[#fff9f2]">
-            {group.title || dictionary.goals.newGroupName}
-          </span>
-          {category ? (
-            category.useOwnName ? (
-              <CategoryAccent category={category} size="sm" />
-            ) : (
-              <span
-                className="inline-flex min-h-7 shrink-0 items-center gap-2 rounded-full border px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.24em] text-[#f7e8ce] shadow-sm shadow-[#312c51]/10"
-                style={{
-                  borderColor: toAlphaColor(category.colorHex, 0.6),
-                  backgroundColor: toAlphaColor(category.colorHex, 0.14),
-                }}
-              >
-                <span className="truncate">{category.name}</span>
+          {category?.useOwnName ? (
+            <span
+              className="inline-flex min-h-7 min-w-0 items-center rounded-full border px-3 py-1 shadow-sm shadow-[#312c51]/10"
+              style={{
+                borderColor: toAlphaColor(category.colorHex, 0.6),
+                backgroundColor: toAlphaColor(category.colorHex, 0.14),
+              }}
+            >
+              <span className="truncate text-base font-semibold leading-tight text-[#fff9f2]">
+                {group.title || dictionary.goals.newGroupName}
               </span>
-            )
+            </span>
+          ) : (
+            <span className="min-w-0 truncate text-base font-semibold leading-tight text-[#fff9f2]">
+              {group.title || dictionary.goals.newGroupName}
+            </span>
+          )}
+          {category && !category.useOwnName ? (
+            <span
+              className="inline-flex min-h-7 shrink-0 items-center gap-2 rounded-full border px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.24em] text-[#f7e8ce] shadow-sm shadow-[#312c51]/10"
+              style={{
+                borderColor: toAlphaColor(category.colorHex, 0.6),
+                backgroundColor: toAlphaColor(category.colorHex, 0.14),
+              }}
+            >
+              <span className="truncate">{category.name}</span>
+            </span>
           ) : null}
         </span>
         <span className="grid grid-cols-2 gap-2 self-start">
@@ -1750,11 +1786,14 @@ function GoalCard({
             ref={menuRef}
             className="modal-panel fixed z-60 grid max-h-[min(20rem,calc(100vh-2rem))] min-w-48 gap-1 overflow-y-auto p-2 text-sm shadow-[0_24px_70px_rgba(8,6,20,0.44)]"
             style={menuStyle}
+            // Clicks inside the portal bubble through the React tree to the
+            // card's onClick, which would close the menu mid-interaction.
+            onClick={(event) => event.stopPropagation()}
           >
             {!archived && onCreateGroup && goal.groupId === null ? (
               <button
                 type="button"
-                className="flex items-center gap-2 rounded-xl px-2 py-2 text-left text-[#f8f3ea] hover:bg-white/[0.08]"
+                className="flex items-center gap-2 rounded-xl px-2 py-2 text-left font-medium text-[#fff9f2] hover:bg-white/[0.08]"
                 onClick={() => {
                   closeMenu();
                   onCreateGroup(goal.id);
@@ -1764,20 +1803,50 @@ function GoalCard({
                 {dictionary.goals.createGroup}
               </button>
             ) : null}
-            {!archived ? (
-              <CategoryAssignmentMenu
-                assignLabel={dictionary.goals.assignGoalCategory}
-                clearLabel={dictionary.dayEditor.clearCategory}
-                renderTriggerContent={() => (
-                  <>
-                    <Palette aria-hidden="true" className="size-4" />
-                    <span>{dictionary.goals.assignGoalCategory}</span>
-                  </>
+            {!archived && canUseOwnName('goal') ? (
+              <label className="relative flex cursor-pointer items-center gap-2 rounded-xl px-2 py-2 text-left font-medium text-[#fff9f2] transition focus-within:bg-white/[0.08] hover:bg-white/[0.08]">
+                {goalCategory?.useOwnName ? (
+                  <span
+                    aria-hidden="true"
+                    className="size-4 shrink-0 rounded-full border border-white/30"
+                    style={{ backgroundColor: goalCategory.colorHex }}
+                  />
+                ) : (
+                  <Palette aria-hidden="true" className="size-4" />
                 )}
+                {dictionary.goals.assignGoalColor}
+                <input
+                  aria-label={dictionary.goals.assignGoalColor}
+                  className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                  type="color"
+                  value={
+                    goalCategory?.useOwnName ? goalCategory.colorHex : '#71717a'
+                  }
+                  onChange={(event) => {
+                    if (!scope) return;
+                    void applyOwnColorCategory({
+                      colorHex: event.target.value,
+                      onAssign: (categoryTagId) =>
+                        assignGoalCategory({
+                          scope,
+                          goalId: goal.id,
+                          categoryTagId,
+                        }),
+                      scope,
+                      selectedCategory: goalCategory ?? null,
+                      surface: 'goal',
+                    });
+                  }}
+                />
+              </label>
+            ) : null}
+            {!archived ? (
+              <CategoryMenuSection
+                label={dictionary.goals.assignGoalCategory}
                 selectedCategoryTagId={goal.categoryTagId}
                 surface="goal"
-                triggerClassName="flex w-full items-center gap-2 rounded-xl px-2 py-2 text-left text-[#f8f3ea] hover:bg-white/[0.08] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e]"
                 onAssign={(categoryTagId) => {
+                  closeMenu();
                   if (!scope) return;
                   return assignGoalCategory({
                     scope,
@@ -1787,10 +1856,28 @@ function GoalCard({
                 }}
               />
             ) : null}
+            {!archived && goal.categoryTagId !== null ? (
+              <button
+                type="button"
+                className="flex items-center gap-2 rounded-xl px-2 py-2 text-left font-medium text-[#fff9f2] transition hover:bg-white/[0.08]"
+                onClick={() => {
+                  closeMenu();
+                  if (!scope) return;
+                  void assignGoalCategory({
+                    scope,
+                    goalId: goal.id,
+                    categoryTagId: null,
+                  });
+                }}
+              >
+                <X aria-hidden="true" className="size-4" />
+                {dictionary.dayEditor.clearCategory}
+              </button>
+            ) : null}
             {!archived && onComplete ? (
               <button
                 type="button"
-                className="flex items-center gap-2 rounded-xl px-2 py-2 text-left text-[#f8f3ea] hover:bg-white/[0.08]"
+                className="flex items-center gap-2 rounded-xl px-2 py-2 text-left font-medium text-[#fff9f2] hover:bg-white/[0.08]"
                 onClick={() => {
                   closeMenu();
                   setIsArchiveDialogOpen(true);
@@ -1803,7 +1890,7 @@ function GoalCard({
             {archived && onRestore ? (
               <button
                 type="button"
-                className="flex items-center gap-2 rounded-xl px-2 py-2 text-left text-[#f8f3ea] hover:bg-white/[0.08]"
+                className="flex items-center gap-2 rounded-xl px-2 py-2 text-left font-medium text-[#fff9f2] hover:bg-white/[0.08]"
                 onClick={() => {
                   closeMenu();
                   setIsRestoreDialogOpen(true);
@@ -1816,7 +1903,7 @@ function GoalCard({
             {!archived ? (
               <button
                 type="button"
-                className="flex items-center gap-2 rounded-xl px-2 py-2 text-left text-rose-100 hover:bg-rose-400/12"
+                className="flex items-center gap-2 rounded-xl px-2 py-2 text-left font-medium text-rose-300 hover:bg-rose-400/15 hover:text-rose-200"
                 onClick={() => {
                   closeMenu();
                   if (summary.itemCount > 0) {
@@ -1833,7 +1920,7 @@ function GoalCard({
             {!archived && onMoveGoal && goal.groupId !== null ? (
               <button
                 type="button"
-                className="flex w-full items-center gap-2 rounded-xl px-2 py-2 text-left text-[#f8f3ea] hover:bg-white/[0.08] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e]"
+                className="flex w-full items-center gap-2 rounded-xl px-2 py-2 text-left text-[#fff9f2] hover:bg-white/[0.08] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e]"
                 onClick={() => {
                   closeMenu();
                   void onMoveGoal(goal.id, null);
@@ -1991,6 +2078,67 @@ function GoalCard({
   );
 }
 
+// Inline category picker used inside the goal card actions menu. It expands
+// in place instead of opening a nested portal, so the outer menu's
+// outside-click handling keeps working.
+function CategoryMenuSection({
+  label,
+  selectedCategoryTagId,
+  surface,
+  onAssign,
+}: {
+  label: string;
+  selectedCategoryTagId: string | null;
+  surface: CategoryTagSurface;
+  onAssign: (categoryTagId: string) => Promise<void> | void;
+}) {
+  const { scope } = useAppContext();
+  const categoryTags = useCategoryTags(scope, surface);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const assignableCategoryTags = categoryTags.filter((tag) => !tag.useOwnName);
+
+  if (assignableCategoryTags.length === 0) {
+    return null;
+  }
+
+  return (
+    <>
+      <button
+        type="button"
+        aria-expanded={isExpanded}
+        className="flex items-center gap-2 rounded-xl px-2 py-2 text-left font-medium text-[#fff9f2] transition hover:bg-white/[0.08]"
+        onClick={() => setIsExpanded((value) => !value)}
+      >
+        <Tag aria-hidden="true" className="size-4" />
+        <span className="min-w-0 flex-1 truncate">{label}</span>
+        <ChevronDown
+          aria-hidden="true"
+          className={`size-4 shrink-0 transition ${isExpanded ? 'rotate-180' : ''}`}
+        />
+      </button>
+      {isExpanded
+        ? assignableCategoryTags.map((tag) => (
+            <button
+              key={tag.id}
+              type="button"
+              className={`flex items-center gap-2 rounded-xl py-2 pl-8 pr-2 text-left text-[#fff9f2] transition hover:bg-white/[0.08] ${
+                tag.id === selectedCategoryTagId ? 'bg-white/[0.06]' : ''
+              }`}
+              onClick={() => void onAssign(tag.id)}
+            >
+              <span
+                aria-hidden="true"
+                className="size-3 shrink-0 rounded-full"
+                style={{ backgroundColor: tag.colorHex }}
+              />
+              <span className="truncate">{tag.name}</span>
+            </button>
+          ))
+        : null}
+    </>
+  );
+}
+
 function MoveGoalMenu({
   currentGroupId,
   groups,
@@ -2011,14 +2159,14 @@ function MoveGoalMenu({
 
   return (
     <div className="grid gap-1 border-t border-white/10 pt-1">
-      <span className="px-2 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-[#9f96b8]">
+      <span className="px-2 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-[#bdb4d4]">
         {dictionary.goals.moveTo}
       </span>
       {movableGroups.map((group) => (
         <button
           key={group.id}
           type="button"
-          className="rounded-xl px-2 py-2 text-left text-[#f8f3ea] transition hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-40"
+          className="rounded-xl px-2 py-2 text-left font-medium text-[#fff9f2] transition hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-40"
           onClick={() => void onMove(group.id)}
         >
           {group.title}
@@ -2200,6 +2348,7 @@ function GoalGroupDetailHeader({
         />
         <CategoryAssignmentMenu
           assignLabel={dictionary.goals.assignGroupCategory}
+          clearClassName="inline-flex size-10 shrink-0 items-center justify-center rounded-md border border-white/10 bg-white/5 text-[#d8d0e8] shadow-sm shadow-[#312c51]/10 transition hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/10 hover:text-[#fff9f2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0]"
           clearLabel={dictionary.dayEditor.clearCategory}
           renderTriggerContent={() => (
             <Palette aria-hidden="true" className="size-4" />
@@ -2311,6 +2460,7 @@ function GoalDetailHeader({
           />
           <CategoryAssignmentMenu
             assignLabel={dictionary.goals.assignGoalCategory}
+            clearClassName="inline-flex size-10 shrink-0 items-center justify-center rounded-md border border-white/10 bg-white/5 text-[#d8d0e8] shadow-sm shadow-[#312c51]/10 transition hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/10 hover:text-[#fff9f2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0]"
             clearLabel={dictionary.dayEditor.clearCategory}
             renderTriggerContent={() => (
               <Palette aria-hidden="true" className="size-4" />

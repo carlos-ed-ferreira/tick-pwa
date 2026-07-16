@@ -15,7 +15,9 @@ const scope = {
 };
 
 const {
+  assignGoalCategoryMock,
   completeGoalMock,
+  createCategoryTagMock,
   createGoalMock,
   createGoalStepMock,
   groupGoalsTogetherMock,
@@ -24,6 +26,7 @@ const {
   routerPushMock,
   setGoalStepsCompletedMock,
   softDeleteGoalStepMock,
+  updateCategoryTagMock,
   updateGoalStepTextMock,
   updateGoalTitleMock,
   useCategoryTagsMock,
@@ -32,7 +35,9 @@ const {
   useGoalStepSummariesMock,
   useGoalStepTreeMock,
 } = vi.hoisted(() => ({
+  assignGoalCategoryMock: vi.fn().mockResolvedValue(undefined),
   completeGoalMock: vi.fn().mockResolvedValue(undefined),
+  createCategoryTagMock: vi.fn(),
   createGoalMock: vi.fn(),
   createGoalStepMock: vi.fn(),
   groupGoalsTogetherMock: vi.fn().mockResolvedValue({ id: 'group-new' }),
@@ -41,6 +46,7 @@ const {
   routerPushMock: vi.fn(),
   setGoalStepsCompletedMock: vi.fn().mockResolvedValue(undefined),
   softDeleteGoalStepMock: vi.fn().mockResolvedValue(undefined),
+  updateCategoryTagMock: vi.fn().mockResolvedValue(undefined),
   updateGoalStepTextMock: vi.fn().mockResolvedValue(undefined),
   updateGoalTitleMock: vi.fn().mockResolvedValue(undefined),
   useCategoryTagsMock: vi.fn(),
@@ -58,10 +64,11 @@ vi.mock('next/navigation', () => ({
 }));
 
 vi.mock('@/lib/db', () => ({
-  assignGoalCategory: vi.fn().mockResolvedValue(undefined),
+  assignGoalCategory: assignGoalCategoryMock,
   assignGoalGroupCategory: vi.fn().mockResolvedValue(undefined),
   assignGoalStepCategory: vi.fn().mockResolvedValue(undefined),
   completeGoal: completeGoalMock,
+  createCategoryTag: createCategoryTagMock,
   createGoal: createGoalMock,
   createGoalStep: createGoalStepMock,
   createGoalStepChild: vi.fn().mockResolvedValue({ id: 'child' }),
@@ -83,6 +90,7 @@ vi.mock('@/lib/db', () => ({
   toggleGoalStepChecked: vi.fn().mockResolvedValue(undefined),
   toggleGoalStepCollapsed: vi.fn().mockResolvedValue(undefined),
   toggleGoalStepPriority: vi.fn().mockResolvedValue(undefined),
+  updateCategoryTag: updateCategoryTagMock,
   updateGoalGroupTitle: vi.fn().mockResolvedValue(undefined),
   updateGoalStepText: updateGoalStepTextMock,
   updateGoalTitle: updateGoalTitleMock,
@@ -117,6 +125,7 @@ vi.mock('@/providers', () => ({
         archivedGoals: 'Archived',
         addStep: 'Add step',
         assignGoalCategory: 'Assign goal category',
+        assignGoalColor: 'Assign goal color',
         assignGroupCategory: 'Assign group category',
         backToGoalGroups: 'Back to goal groups',
         completeGoal: 'Archive goal',
@@ -493,7 +502,7 @@ describe('GoalsSurface', () => {
     });
   });
 
-  it('renders the group category as a color dot instead of a text badge when useOwnName is true', () => {
+  it('wraps the group name in a color pill instead of showing a dot when useOwnName is true', () => {
     useCategoryTagsMock.mockReturnValue([
       {
         id: 'category-1',
@@ -516,14 +525,21 @@ describe('GoalsSurface', () => {
 
     expect(screen.queryByText('Modo local')).not.toBeInTheDocument();
 
+    const pill = screen.getByText('Life').parentElement;
+
+    expect(pill).toHaveClass('rounded-full', 'border');
+    expect(pill).toHaveStyle({
+      borderColor: 'rgba(249, 115, 22, 0.6)',
+      backgroundColor: 'rgba(249, 115, 22, 0.14)',
+    });
+
     const dot = Array.from(container.querySelectorAll('span')).find(
       (element) =>
         element.className.includes('border-white/30') &&
         element.className.includes('rounded-full'),
     );
 
-    expect(dot).toBeDefined();
-    expect(dot).toHaveStyle({ backgroundColor: '#f97316' });
+    expect(dot).toBeUndefined();
   });
 
   it('renders goal actions in a portal, shows remove from group for grouped goals, omits new group and closes on outside click', async () => {
@@ -566,6 +582,90 @@ describe('GoalsSurface', () => {
         screen.queryByRole('button', { name: 'Archive goal' }),
       ).not.toBeInTheDocument();
     });
+  });
+
+  it('assigns a named category from the separate category option in the card menu', async () => {
+    render(<GoalsSurface />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Goal actions' }));
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Assign goal category' }),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Modo local' }));
+
+    await waitFor(() => {
+      expect(assignGoalCategoryMock).toHaveBeenCalledWith({
+        scope,
+        goalId: 'goal-1',
+        categoryTagId: 'category-1',
+      });
+    });
+
+    await waitFor(() => {
+      expect(
+        screen.queryByRole('button', { name: 'Delete goal' }),
+      ).not.toBeInTheDocument();
+    });
+  });
+
+  it('creates and assigns an own-name color from the separate color option in the card menu', async () => {
+    createCategoryTagMock.mockResolvedValue({ id: 'category-own' });
+
+    render(<GoalsSurface />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Goal actions' }));
+
+    fireEvent.change(screen.getByLabelText('Assign goal color'), {
+      target: { value: '#ff0000' },
+    });
+
+    await waitFor(() => {
+      expect(createCategoryTagMock).toHaveBeenCalledWith({
+        scope,
+        surface: 'goal',
+        name: '',
+        colorHex: '#ff0000',
+        useOwnName: true,
+      });
+      expect(assignGoalCategoryMock).toHaveBeenCalledWith({
+        scope,
+        goalId: 'goal-1',
+        categoryTagId: 'category-own',
+      });
+    });
+  });
+
+  it('clears the assigned category from a dedicated card menu action', async () => {
+    useGoalsMock.mockImplementation((_scope, options = {}) => {
+      if (options.archived) return [];
+
+      return [
+        goal({ id: 'goal-1', title: 'Focus', categoryTagId: 'category-1' }),
+      ];
+    });
+
+    render(<GoalsSurface />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Goal actions' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Clear category' }));
+
+    await waitFor(() => {
+      expect(assignGoalCategoryMock).toHaveBeenCalledWith({
+        scope,
+        goalId: 'goal-1',
+        categoryTagId: null,
+      });
+    });
+  });
+
+  it('renders the delete action with a clearly visible red tone in the card menu', () => {
+    render(<GoalsSurface />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Goal actions' }));
+
+    expect(screen.getByRole('button', { name: 'Delete goal' })).toHaveClass(
+      'text-rose-300',
+    );
   });
 
   it('opens a group and then opens a goal inside that group', () => {

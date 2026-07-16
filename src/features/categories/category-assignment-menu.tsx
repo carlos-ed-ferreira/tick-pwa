@@ -20,6 +20,7 @@ const menuPreferredWidth = 248;
 
 export function CategoryAssignmentMenu({
   assignLabel,
+  clearClassName,
   clearLabel,
   disabled,
   renderTriggerContent,
@@ -30,6 +31,7 @@ export function CategoryAssignmentMenu({
   onAssign,
 }: {
   assignLabel: string;
+  clearClassName?: string;
   clearLabel: string;
   disabled?: boolean;
   renderTriggerContent?: (args: {
@@ -77,7 +79,7 @@ export function CategoryAssignmentMenu({
       window.innerWidth - viewportPadding - menuWidth,
     );
     const estimatedMenuHeight = Math.min(
-      56 + assignableCategoryTags.length * 40,
+      16 + assignableCategoryTags.length * 40,
       window.innerHeight - viewportPadding * 2,
     );
     const shouldOpenUpward =
@@ -197,14 +199,6 @@ export function CategoryAssignmentMenu({
             className="modal-panel modal-panel--flat fixed z-60 grid gap-1 p-2 text-sm text-[#fff9f2] shadow-[0_24px_70px_rgba(8,6,20,0.44)]"
             style={menuStyle}
           >
-            <button
-              type="button"
-              className="flex items-center gap-2 rounded-xl px-2 py-2 text-left text-[#bdb4d4] transition hover:bg-white/[0.08] hover:text-[#fff9f2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e]"
-              onClick={() => void assignCategory(null)}
-            >
-              <X aria-hidden="true" className="size-4" />
-              {clearLabel}
-            </button>
             {assignableCategoryTags.map((tag) => (
               <button
                 key={tag.id}
@@ -226,7 +220,7 @@ export function CategoryAssignmentMenu({
       : null;
 
   return (
-    <div ref={containerRef} className="relative">
+    <div ref={containerRef} className="relative flex items-center gap-1">
       <button
         aria-expanded={isOpen}
         aria-label={assignLabel}
@@ -276,6 +270,24 @@ export function CategoryAssignmentMenu({
           </>
         )}
       </button>
+
+      {selectedCategory ? (
+        <button
+          aria-label={clearLabel}
+          className={
+            clearClassName ??
+            'inline-flex size-9 shrink-0 items-center justify-center rounded-full text-muted transition hover:bg-white/[0.08] hover:text-[#fff9f2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e] disabled:cursor-not-allowed disabled:opacity-40'
+          }
+          disabled={disabled}
+          type="button"
+          onClick={() => {
+            closeMenu();
+            void onAssign(null);
+          }}
+        >
+          <X aria-hidden="true" className="size-4" />
+        </button>
+      ) : null}
 
       {menu}
     </div>
