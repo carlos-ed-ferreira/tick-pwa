@@ -62,6 +62,17 @@ Modo autenticado com conta:
 Não existe sync ou migração automática do modo local para o modo autenticado.
 Essa separação é intencional.
 
+## Importação JSON
+
+Em `/calendar`, o botão **Importar JSON** abre um modal onde você cola um JSON
+com dias e tarefas. `text` é o único campo obrigatório da tarefa; horário,
+prioridade e categoria são opcionais, e categorias que não existirem são criadas
+com a cor informada. A importação anexa às tarefas do dia e funciona nos dois
+modos de uso.
+
+Formato, regras completas e mensagens de erro em
+[docs/importacao-json.md](docs/importacao-json.md).
+
 ## Setup local
 
 Requisitos:

@@ -31,7 +31,7 @@ function normalizeColorHex(colorHex: string): string {
   return '#71717a';
 }
 
-function normalizeCategoryTagName(name: string): string {
+export function normalizeCategoryTagName(name: string): string {
   return name.normalize('NFC').trim().toLocaleUpperCase();
 }
 

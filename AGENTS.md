@@ -37,6 +37,7 @@ src/lib/time      helpers de data e timezone
 src/providers     providers globais
 tests             testes unitários, integração e E2E
 supabase          configuração, seed e migrations SQL
+docs              documentação detalhada por feature
 ```
 
 Mantenha regras de domínio perto da feature ou da camada responsável. UI não
@@ -223,5 +224,10 @@ persistência, PWA, Supabase, testes ou comportamento relevante para humanos.
 Atualize `AGENTS.md` quando mudar regras do projeto, decisões arquiteturais,
 persistência, validação, UX base, testes, CI/CD ou fluxo de trabalho para
 agentes.
+
+Documentação detalhada de uma feature vai em `docs/`, com um resumo curto e um
+link no `README.md`. Exemplo: `docs/importacao-json.md`, o contrato do JSON
+aceito pela importação do calendário — atualize-o sempre que o formato ou as
+regras de validação mudarem.
 
 Mantenha documentação curta, atual e acionável.

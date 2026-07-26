@@ -40,6 +40,7 @@ vi.mock('@/providers', () => ({
         nextYear: 'Next year',
         bulkCreate: 'Plan period',
         bulkClear: 'Clear period',
+        importCreate: 'Import JSON',
         sortByTime: 'Sort by time',
         weekdays: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
       },
@@ -64,6 +65,10 @@ vi.mock('@/features/calendar/use-month-entries', () => ({
 
 vi.mock('@/features/calendar/bulk-calendar-editor', () => ({
   BulkCalendarEditor: () => null,
+}));
+
+vi.mock('@/features/calendar/calendar-import-dialog', () => ({
+  CalendarImportDialog: () => null,
 }));
 
 vi.mock('@/features/calendar/calendar-task-transfer-action', () => ({

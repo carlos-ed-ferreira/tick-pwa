@@ -84,6 +84,33 @@ export const ptBRDictionary = {
     bulkSelectWeekdays: 'Selecione pelo menos um dia da semana.',
     bulkStartDate: 'Data inicial',
     bulkWeekdays: 'Dias da semana',
+    importApply: 'Importar',
+    importCreate: 'Importar JSON',
+    importDescription:
+      'Cole um JSON com os dias e as tarefas a importar. Apenas "text" é obrigatório; horário, prioridade e categoria são opcionais. Categorias que não existirem são criadas com a cor informada.',
+    importDialogTitle: 'Importar tarefas por JSON',
+    importEmptyPayload: 'O JSON não tem nenhuma tarefa para importar.',
+    importInvalidCategory:
+      '{path}: "category" deve ser um objeto com "name" e "color".',
+    importInvalidChildren: '{path}: "children" deve ser uma lista.',
+    importInvalidColor:
+      '{path}: cor inválida. Use um valor hexadecimal como #16a34a.',
+    importInvalidDate: '{path}: data inválida. Use AAAA-MM-DD.',
+    importInvalidDay: '{path}: cada dia deve ser um objeto.',
+    importInvalidItem: '{path}: cada tarefa deve ser um objeto.',
+    importInvalidItems: '{path}: "items" deve ser uma lista.',
+    importInvalidJson: 'JSON inválido: {detail}',
+    importInvalidPriority: '{path}: "priority" deve ser true ou false.',
+    importInvalidRoot: 'O JSON deve ser um objeto com a lista "days".',
+    importInvalidTime:
+      '{path}: horário inválido. Use HH:mm no formato de 24 horas.',
+    importLimitExceeded:
+      'O JSON excede o limite de {days} dias ou {items} tarefas.',
+    importPayloadLabel: 'Conteúdo JSON',
+    importPlaceholder:
+      '{"days":[{"date":"2026-07-26","items":[{"text":"Revisar PRs"}]}]}',
+    importRequirePayload: 'Cole um JSON antes de importar.',
+    importRequireText: '{path}: "text" é obrigatório e não pode ser vazio.',
     sortByTime: 'Ordenar por horário',
     transferDescription:
       'Escolha a data de destino para mover ou duplicar todas as tarefas deste dia.',

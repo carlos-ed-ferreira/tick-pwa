@@ -4,6 +4,7 @@ import {
   CalendarDays,
   ChevronLeft,
   ChevronRight,
+  FileJson,
   Plus,
   Trash2,
 } from 'lucide-react';
@@ -11,6 +12,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useCategoryTags } from '@/features/categories';
 import { BulkCalendarEditor } from '@/features/calendar/bulk-calendar-editor';
+import { CalendarImportDialog } from '@/features/calendar/calendar-import-dialog';
 import { DayDetail } from '@/features/day-editor';
 import type {
   DailyEntry,
@@ -153,6 +155,7 @@ export function CalendarMonth() {
   const [bulkEditorMode, setBulkEditorMode] = useState<
     'create' | 'clear' | null
   >(null);
+  const [isImportOpen, setIsImportOpen] = useState(false);
   const [visibleYear, setVisibleYear] = useState<number>(() => todayYear);
   const [visibleMonthIndex, setVisibleMonthIndex] = useState<number>(
     () => todayMonthIndex,
@@ -326,6 +329,18 @@ export function CalendarMonth() {
               <button
                 type="button"
                 className="group inline-flex h-9 items-center gap-2 rounded-[0.75rem] border border-[#fff9f2]/22 bg-[#fff9f2]/10 pl-1.5 pr-3 text-left text-[#fff9f2] shadow-sm shadow-[#312c51]/8 transition hover:border-[#fff9f2]/34 hover:bg-[#fff9f2]/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e] disabled:cursor-not-allowed disabled:opacity-65"
+                onClick={() => setIsImportOpen(true)}
+              >
+                <span className="grid size-6 shrink-0 place-items-center rounded-[0.5rem] bg-[#fff9f2]/12 text-[#fff9f2]">
+                  <FileJson aria-hidden="true" className="size-4" />
+                </span>
+                <span className="text-sm font-semibold">
+                  {dictionary.calendar.importCreate}
+                </span>
+              </button>
+              <button
+                type="button"
+                className="group inline-flex h-9 items-center gap-2 rounded-[0.75rem] border border-[#fff9f2]/22 bg-[#fff9f2]/10 pl-1.5 pr-3 text-left text-[#fff9f2] shadow-sm shadow-[#312c51]/8 transition hover:border-[#fff9f2]/34 hover:bg-[#fff9f2]/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e] disabled:cursor-not-allowed disabled:opacity-65"
                 onClick={() => setBulkEditorMode('clear')}
               >
                 <span className="grid size-6 shrink-0 place-items-center rounded-[0.5rem] bg-[#fff9f2]/12 text-[#fff9f2]">
@@ -367,6 +382,10 @@ export function CalendarMonth() {
         mode={bulkEditorMode ?? 'create'}
         open={bulkEditorMode !== null}
         onClose={() => setBulkEditorMode(null)}
+      />
+      <CalendarImportDialog
+        open={isImportOpen}
+        onClose={() => setIsImportOpen(false)}
       />
     </>
   );

@@ -81,6 +81,31 @@ export const enDictionary = {
     bulkSelectWeekdays: 'Select at least one weekday.',
     bulkStartDate: 'Start date',
     bulkWeekdays: 'Weekdays',
+    importApply: 'Import',
+    importCreate: 'Import JSON',
+    importDescription:
+      'Paste a JSON payload with the days and tasks to import. Only "text" is required; time, priority and category are optional. Missing categories are created with the color you provide.',
+    importDialogTitle: 'Import tasks from JSON',
+    importEmptyPayload: 'The payload has no tasks to import.',
+    importInvalidCategory:
+      '{path}: "category" must be an object with "name" and "color".',
+    importInvalidChildren: '{path}: "children" must be an array.',
+    importInvalidColor: '{path}: invalid color. Use a hex value like #16a34a.',
+    importInvalidDate: '{path}: invalid date. Use YYYY-MM-DD.',
+    importInvalidDay: '{path}: each day must be an object.',
+    importInvalidItem: '{path}: each task must be an object.',
+    importInvalidItems: '{path}: "items" must be an array.',
+    importInvalidJson: 'Invalid JSON: {detail}',
+    importInvalidPriority: '{path}: "priority" must be true or false.',
+    importInvalidRoot: 'The payload must be an object with a "days" array.',
+    importInvalidTime: '{path}: invalid time. Use HH:mm in 24-hour format.',
+    importLimitExceeded:
+      'The payload exceeds the limit of {days} days or {items} tasks.',
+    importPayloadLabel: 'JSON payload',
+    importPlaceholder:
+      '{"days":[{"date":"2026-07-26","items":[{"text":"Review PRs"}]}]}',
+    importRequirePayload: 'Paste a JSON payload before importing.',
+    importRequireText: '{path}: "text" is required and cannot be empty.',
     sortByTime: 'Sort by time',
     transferDescription:
       'Choose the destination date to move or duplicate all tasks from this day.',
