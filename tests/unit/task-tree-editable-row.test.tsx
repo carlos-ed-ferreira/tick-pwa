@@ -41,6 +41,8 @@ const labels = {
   moveItemUp: 'Move item up',
   dragItem: 'Drag item',
   itemTime: 'Task time',
+  makeTextBold: 'Make text bold',
+  makeTextNormal: 'Make text normal',
   outdentItem: 'Outdent item',
   selectItem: 'Select item',
   toggleItem: 'Toggle item',
@@ -62,6 +64,7 @@ function renderRow(
     onOutdent: vi.fn(),
     onSaveText: vi.fn(),
     onToggleChecked: vi.fn().mockResolvedValue(undefined),
+    onToggleBold: vi.fn().mockResolvedValue(undefined),
     onToggleCollapsed: vi.fn(),
     onTogglePriority: vi.fn().mockResolvedValue(undefined),
     onSaveTime: vi.fn(),
@@ -72,6 +75,7 @@ function renderRow(
       categoryTagId={null}
       categoryTagMap={new Map()}
       checked={false}
+      bold={false}
       collapsed={false}
       depth={0}
       hasChildren={false}
@@ -123,6 +127,22 @@ describe('TaskTreeEditableRow', () => {
       'text-[#8f85aa]',
       'opacity-75',
     );
+  });
+
+  it('toggles the whole task text between normal and bold', () => {
+    const callbacks = renderRow();
+    const text = screen.getByDisplayValue('Existing item');
+
+    expect(text).not.toHaveClass('font-bold');
+    expect(screen.getByTestId('task-bold-indicator')).toHaveClass(
+      'font-normal',
+    );
+    fireEvent.click(screen.getByLabelText('Make text bold'));
+
+    expect(callbacks.onToggleBold).toHaveBeenCalledOnce();
+    expect(text).toHaveClass('font-bold');
+    expect(screen.getByTestId('task-bold-indicator')).toHaveClass('font-bold');
+    expect(screen.getByLabelText('Make text normal')).toBeInTheDocument();
   });
 
   it('flushes text before creating a sibling with Enter', async () => {

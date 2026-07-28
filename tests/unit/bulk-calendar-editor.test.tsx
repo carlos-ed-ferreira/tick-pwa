@@ -77,6 +77,8 @@ vi.mock('@/providers', () => ({
         dragItem: 'Drag item',
         itemTime: 'Task time',
         itemPlaceholder: 'Write a task',
+        makeTextBold: 'Make text bold',
+        makeTextNormal: 'Make text normal',
         markPriority: 'Mark as priority',
         moveCategoryDown: 'Move category down',
         moveCategoryUp: 'Move category up',

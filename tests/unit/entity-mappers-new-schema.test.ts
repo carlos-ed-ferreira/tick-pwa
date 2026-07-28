@@ -131,12 +131,13 @@ describe('new functional schema payloads', () => {
         scheduledTime: null,
         checked: false,
         ignored: true,
+        bold: true,
         priority: false,
         collapsed: false,
         categoryTagId: null,
         sortRank: 'n',
       }),
-    ).toMatchObject({ checked: false, ignored: true });
+    ).toMatchObject({ checked: false, ignored: true, bold: true });
 
     expect(
       toRemotePayload(scope, 'goalStep', {
@@ -147,11 +148,12 @@ describe('new functional schema payloads', () => {
         text: 'Optional step',
         completed: false,
         ignored: true,
+        bold: true,
         priority: false,
         collapsed: false,
         categoryTagId: null,
         sortRank: 'n',
       }),
-    ).toMatchObject({ completed: false, ignored: true });
+    ).toMatchObject({ completed: false, ignored: true, bold: true });
   });
 });

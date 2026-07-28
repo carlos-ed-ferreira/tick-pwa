@@ -8,7 +8,9 @@ import {
   createGoalStep,
   db,
   openOrCreateDailyEntry,
+  toggleChecklistItemBold,
   toggleChecklistItemChecked,
+  toggleGoalStepBold,
   toggleGoalStepChecked,
 } from '@/lib/db';
 import { waitForAccountPersistence } from '@/lib/db/account-persistence';
@@ -155,8 +157,10 @@ describe('account persistence boundaries', () => {
     });
     await toggleChecklistItemChecked({ scope, itemId: item.id });
     await toggleChecklistItemChecked({ scope, itemId: item.id });
+    await toggleChecklistItemBold({ scope, itemId: item.id });
     await toggleGoalStepChecked({ scope, goalStepId: goalStep.id });
     await toggleGoalStepChecked({ scope, goalStepId: goalStep.id });
+    await toggleGoalStepBold({ scope, goalStepId: goalStep.id });
     await waitForAccountPersistence(scope.id);
 
     expect(accountClient.writes.map((write) => write.table)).toEqual(
@@ -180,6 +184,17 @@ describe('account persistence boundaries', () => {
           write.table === 'checklist_items' &&
           write.payload.ignored === true &&
           write.payload.checked === false,
+      ),
+    ).toBe(true);
+    expect(
+      accountClient.writes.some(
+        (write) =>
+          write.table === 'checklist_items' && write.payload.bold === true,
+      ),
+    ).toBe(true);
+    expect(
+      accountClient.writes.some(
+        (write) => write.table === 'goal_steps' && write.payload.bold === true,
       ),
     ).toBe(true);
     expect(

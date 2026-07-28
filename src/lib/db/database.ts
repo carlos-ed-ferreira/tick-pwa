@@ -34,6 +34,7 @@ type LegacyChecklistItem = Omit<
   | 'priority'
   | 'scheduledTime'
   | 'ignored'
+  | 'bold'
 > & {
   categoryTagId?: string | null;
   colorTagId?: string | null;
@@ -42,6 +43,7 @@ type LegacyChecklistItem = Omit<
   priority?: boolean;
   scheduledTime?: string | null;
   ignored?: boolean;
+  bold?: boolean;
 };
 
 type LegacyGoal = Omit<Goal, 'categoryTagId'> & {
@@ -51,7 +53,7 @@ type LegacyGoal = Omit<Goal, 'categoryTagId'> & {
 
 type LegacyGoalStep = Omit<
   GoalStep,
-  'parentId' | 'collapsed' | 'categoryTagId' | 'priority' | 'ignored'
+  'parentId' | 'collapsed' | 'categoryTagId' | 'priority' | 'ignored' | 'bold'
 > & {
   parentId?: string | null;
   collapsed?: boolean;
@@ -59,6 +61,7 @@ type LegacyGoalStep = Omit<
   categoryTagId?: string | null;
   colorTagId?: string | null;
   ignored?: boolean;
+  bold?: boolean;
 };
 
 type LegacyCategoryTag = Omit<CategoryTag, 'colorHex'> & {
@@ -107,6 +110,7 @@ function migrateChecklistItem(item: LegacyChecklistItem): ChecklistItem {
     priority,
     scheduledTime,
     ignored,
+    bold,
     ...rest
   } = item;
 
@@ -118,6 +122,7 @@ function migrateChecklistItem(item: LegacyChecklistItem): ChecklistItem {
     priority: priority ?? false,
     scheduledTime: scheduledTime ?? null,
     ignored: ignored ?? false,
+    bold: bold ?? false,
   };
 }
 
@@ -148,6 +153,7 @@ function migrateGoalStep(goalStep: LegacyGoalStep): GoalStep {
     parentId,
     priority,
     ignored,
+    bold,
     ...rest
   } = goalStep;
 
@@ -157,6 +163,7 @@ function migrateGoalStep(goalStep: LegacyGoalStep): GoalStep {
     collapsed: collapsed ?? false,
     priority: priority ?? false,
     ignored: ignored ?? false,
+    bold: bold ?? false,
     categoryTagId: categoryTagId ?? colorTagId ?? null,
   };
 }
@@ -977,6 +984,27 @@ export class TickDatabase extends Dexie {
     });
 
     this.version(13).upgrade(async (transaction) => {
+      const checklistItemsTable = transaction.table('checklistItems') as Table<
+        LegacyChecklistItem,
+        string
+      >;
+      const goalStepsTable = transaction.table('goalSteps') as Table<
+        LegacyGoalStep,
+        string
+      >;
+
+      for (const item of await checklistItemsTable.toArray()) {
+        await checklistItemsTable.put(
+          migrateChecklistItem(item) as LegacyChecklistItem,
+        );
+      }
+
+      for (const goalStep of await goalStepsTable.toArray()) {
+        await goalStepsTable.put(migrateGoalStep(goalStep) as LegacyGoalStep);
+      }
+    });
+
+    this.version(14).upgrade(async (transaction) => {
       const checklistItemsTable = transaction.table('checklistItems') as Table<
         LegacyChecklistItem,
         string

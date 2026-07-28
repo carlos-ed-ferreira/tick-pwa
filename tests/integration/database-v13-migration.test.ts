@@ -27,12 +27,12 @@ const metadata = {
   clientUpdatedAt: '2026-07-28T10:00:00.000Z',
 };
 
-describe('Dexie version 13 migration', () => {
+describe('Dexie task state migrations', () => {
   afterEach(async () => {
     await Dexie.delete('tick');
   });
 
-  it('defaults existing checklist items and goal steps to not ignored', async () => {
+  it('defaults existing checklist items and goal steps to not ignored and normal text', async () => {
     const legacy = new Dexie('tick');
     legacy.version(12).stores(storesV12);
     await legacy.open();
@@ -68,9 +68,10 @@ describe('Dexie version 13 migration', () => {
 
     await expect(
       migrated.checklistItems.get('legacy-item'),
-    ).resolves.toMatchObject({ ignored: false });
+    ).resolves.toMatchObject({ ignored: false, bold: false });
     await expect(migrated.goalSteps.get('legacy-step')).resolves.toMatchObject({
       ignored: false,
+      bold: false,
     });
     migrated.close();
   });

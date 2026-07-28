@@ -147,6 +147,8 @@ export const ptBRDictionary = {
     indentItem: 'Indentar item',
     dragItem: 'Arrastar item',
     itemTime: 'Horário da tarefa',
+    makeTextBold: 'Deixar texto em negrito',
+    makeTextNormal: 'Deixar texto normal',
     markPriority: 'Marcar como prioridade',
     moveItemDown: 'Mover item para baixo',
     moveItemUp: 'Mover item para cima',

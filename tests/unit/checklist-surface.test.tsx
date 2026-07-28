@@ -392,6 +392,7 @@ describe('ChecklistSurface delete confirmation', () => {
         parentId: null,
         afterItemId: 'item-Original task',
         scheduledTime: null,
+        bold: false,
         text: 'Draft task',
       });
     });

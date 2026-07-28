@@ -28,6 +28,7 @@ import {
   outdentChecklistItem,
   reorderChecklistItem,
   softDeleteChecklistItem,
+  toggleChecklistItemBold,
   toggleChecklistItemChecked,
   toggleChecklistItemCollapsed,
   toggleChecklistItemPriority,
@@ -74,6 +75,7 @@ function createChecklistDraftItem({
     scheduledTime: null,
     checked: false,
     ignored: false,
+    bold: false,
     priority: false,
     collapsed: false,
     categoryTagId: null,
@@ -562,6 +564,7 @@ function ChecklistRow({
         parentId: item.parentId,
         afterItemId: item.afterItemId,
         scheduledTime: item.scheduledTime,
+        bold: item.bold,
         text,
       });
 
@@ -589,6 +592,7 @@ function ChecklistRow({
 
   return (
     <TaskTreeEditableRow
+      bold={item.bold}
       categoryTagId={item.categoryTagId}
       categoryTagMap={categoryTagMap}
       checked={item.checked}
@@ -704,6 +708,15 @@ function ChecklistRow({
         isDraft
           ? Promise.resolve()
           : toggleChecklistItemChecked({ scope, itemId: item.id })
+      }
+      onToggleBold={() =>
+        isDraft
+          ? setDraftItems((currentDrafts) =>
+              currentDrafts.map((draft) =>
+                draft.id === item.id ? { ...draft, bold: !draft.bold } : draft,
+              ),
+            )
+          : toggleChecklistItemBold({ scope, itemId: item.id })
       }
       onToggleCollapsed={() =>
         toggleChecklistItemCollapsed({ scope, itemId: item.id })

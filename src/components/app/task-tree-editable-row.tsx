@@ -57,6 +57,8 @@ interface TaskTreeRowLabels {
   expandItem: string;
   indentItem: string;
   itemPlaceholder: string;
+  makeTextBold: string;
+  makeTextNormal: string;
   markPriority: string;
   dragItem: string;
   itemTime: string;
@@ -89,6 +91,7 @@ async function createAndFocusNewItem(
 }
 
 export function TaskTreeEditableRow({
+  bold,
   categoryTagId,
   categoryTagMap,
   checked,
@@ -119,12 +122,14 @@ export function TaskTreeEditableRow({
   onSaveTime,
   onSaveText,
   onTextChange,
+  onToggleBold,
   onToggleChecked,
   onToggleCollapsed,
   onTogglePriority,
   scheduledTime = null,
   showScheduledTime = false,
 }: {
+  bold: boolean;
   categoryTagId: string | null;
   categoryTagMap: Map<string, { colorHex: string; name: string }>;
   checked: boolean;
@@ -162,6 +167,7 @@ export function TaskTreeEditableRow({
   onSaveTime?: (scheduledTime: string | null) => Promise<void> | void;
   onSaveText: (text: string) => Promise<void> | void;
   onTextChange?: (text: string) => void;
+  onToggleBold: () => Promise<void> | void;
   onToggleChecked: () => Promise<void> | void;
   onToggleCollapsed: () => Promise<void> | void;
   onTogglePriority: () => Promise<void> | void;
@@ -182,6 +188,10 @@ export function TaskTreeEditableRow({
     base: boolean;
     value: boolean;
   } | null>(null);
+  const [optimisticBold, setOptimisticBold] = useState<{
+    base: boolean;
+    value: boolean;
+  } | null>(null);
   const normalizedScheduledTime = scheduledTime ?? '';
   const [timeState, setTimeState] = useState({
     source: normalizedScheduledTime,
@@ -192,6 +202,7 @@ export function TaskTreeEditableRow({
     ? (categoryTagMap.get(categoryTagId) ?? null)
     : null;
   const normalizedChecked = checked ?? false;
+  const normalizedBold = bold ?? false;
   const normalizedIgnored = ignored ?? false;
   const normalizedPriority = priority ?? false;
   const completionState = getTaskCompletionState(
@@ -210,6 +221,10 @@ export function TaskTreeEditableRow({
     optimisticPriority.base === normalizedPriority
       ? optimisticPriority.value
       : normalizedPriority;
+  const displayedBold =
+    optimisticBold !== null && optimisticBold.base === normalizedBold
+      ? optimisticBold.value
+      : normalizedBold;
   const {
     flush: flushText,
     reset: resetText,
@@ -289,6 +304,20 @@ export function TaskTreeEditableRow({
       throw error;
     }
   }, [displayedPriority, normalizedPriority, onTogglePriority]);
+
+  const toggleBold = useCallback(async () => {
+    setOptimisticBold({
+      base: normalizedBold,
+      value: !displayedBold,
+    });
+
+    try {
+      await onToggleBold();
+    } catch (error) {
+      setOptimisticBold(null);
+      throw error;
+    }
+  }, [displayedBold, normalizedBold, onToggleBold]);
 
   const requestDelete = useCallback(async () => {
     if (requiresDeleteConfirmation(text)) {
@@ -597,7 +626,7 @@ export function TaskTreeEditableRow({
               displayedChecked || displayedIgnored
                 ? 'text-[#8f85aa] opacity-75'
                 : 'text-[#fff9f2]'
-            }`}
+            } ${displayedBold ? 'font-bold' : 'font-normal'}`}
             onBlur={() => void flushEditableText()}
             onHeightChange={handleTextHeightChange}
             onChange={(event) => {
@@ -616,6 +645,23 @@ export function TaskTreeEditableRow({
         ) : null}
 
         <TaskTreeActionGroup>
+          <IconButton
+            aria-label={
+              displayedBold ? labels.makeTextNormal : labels.makeTextBold
+            }
+            className="rounded-full hover:bg-white/[0.08] hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
+            onClick={() => void toggleBold()}
+          >
+            <span
+              aria-hidden="true"
+              data-testid="task-bold-indicator"
+              className={`text-base leading-none ${
+                displayedBold ? 'font-bold' : 'font-normal'
+              }`}
+            >
+              B
+            </span>
+          </IconButton>
           <IconButton
             aria-label={
               displayedPriority ? labels.unmarkPriority : labels.markPriority

@@ -100,6 +100,7 @@ export interface ChecklistItem extends BaseEntity {
   scheduledTime: string | null;
   checked: boolean;
   ignored: boolean;
+  bold: boolean;
   priority: boolean;
   collapsed: boolean;
   categoryTagId: string | null;
@@ -141,6 +142,7 @@ export interface GoalStep extends BaseEntity {
   text: string;
   completed: boolean;
   ignored: boolean;
+  bold: boolean;
   priority: boolean;
   collapsed: boolean;
   categoryTagId: string | null;

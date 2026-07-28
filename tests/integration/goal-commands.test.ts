@@ -21,6 +21,7 @@ import {
   softDeleteGoalStep,
   setGoalStepsCompleted,
   toggleGoalStepChecked,
+  toggleGoalStepBold,
   toggleGoalStepCollapsed,
   toggleGoalStepPriority,
   updateGoalStepText,
@@ -420,6 +421,26 @@ describe('goal commands', () => {
     await expect(db.goalSteps.get(step.id)).resolves.toMatchObject({
       completed: false,
       ignored: false,
+    });
+  });
+
+  it('toggles bold formatting for a goal step', async () => {
+    const scope = createGuestScope('goal-step-bold');
+    const goal = await createGoal({ scope, title: 'Important goal' });
+    const step = await createGoalStep({
+      scope,
+      goalId: goal.id,
+      text: 'Important step',
+    });
+
+    await toggleGoalStepBold({ scope, goalStepId: step.id });
+    await expect(db.goalSteps.get(step.id)).resolves.toMatchObject({
+      bold: true,
+    });
+
+    await toggleGoalStepBold({ scope, goalStepId: step.id });
+    await expect(db.goalSteps.get(step.id)).resolves.toMatchObject({
+      bold: false,
     });
   });
 

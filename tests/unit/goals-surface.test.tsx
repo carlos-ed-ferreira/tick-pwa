@@ -1060,6 +1060,7 @@ describe('GoalsSurface', () => {
         id: expect.any(String),
         parentId: null,
         afterGoalStepId: 'goal-step-1',
+        bold: false,
         text: 'Draft step',
       });
     });

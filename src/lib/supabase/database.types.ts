@@ -75,6 +75,7 @@ export type Database = {
       checklist_items: {
         Row: {
           category_tag_id: string | null;
+          bold: boolean;
           checked: boolean;
           client_updated_at: string;
           collapsed: boolean;
@@ -94,6 +95,7 @@ export type Database = {
         };
         Insert: {
           category_tag_id?: string | null;
+          bold?: boolean;
           checked?: boolean;
           client_updated_at?: string;
           collapsed?: boolean;
@@ -113,6 +115,7 @@ export type Database = {
         };
         Update: {
           category_tag_id?: string | null;
+          bold?: boolean;
           checked?: boolean;
           client_updated_at?: string;
           collapsed?: boolean;
@@ -205,6 +208,7 @@ export type Database = {
       goal_groups: {
         Row: {
           category_tag_id: string | null;
+          bold: boolean;
           client_updated_at: string;
           created_at: string;
           deleted_at: string | null;
@@ -217,6 +221,7 @@ export type Database = {
         };
         Insert: {
           category_tag_id?: string | null;
+          bold?: boolean;
           client_updated_at?: string;
           created_at?: string;
           deleted_at?: string | null;
@@ -229,6 +234,7 @@ export type Database = {
         };
         Update: {
           category_tag_id?: string | null;
+          bold?: boolean;
           client_updated_at?: string;
           created_at?: string;
           deleted_at?: string | null;

@@ -142,6 +142,8 @@ export const enDictionary = {
     indentItem: 'Indent item',
     dragItem: 'Drag item',
     itemTime: 'Task time',
+    makeTextBold: 'Make text bold',
+    makeTextNormal: 'Make text normal',
     markPriority: 'Mark as priority',
     moveItemDown: 'Move item down',
     moveItemUp: 'Move item up',

@@ -75,6 +75,7 @@ import {
   softDeleteGoalGroup,
   softDeleteGoalStep,
   setGoalStepsCompleted,
+  toggleGoalStepBold,
   toggleGoalStepChecked,
   toggleGoalStepCollapsed,
   toggleGoalStepPriority,
@@ -139,6 +140,7 @@ function createGoalStepDraft({
     text: '',
     completed: false,
     ignored: false,
+    bold: false,
     priority: false,
     collapsed: false,
     categoryTagId: null,
@@ -3260,6 +3262,7 @@ function GoalStepRow({
         id: goalStep.id,
         parentId: goalStep.parentId,
         afterGoalStepId: goalStep.afterGoalStepId,
+        bold: goalStep.bold,
         text,
       });
 
@@ -3287,6 +3290,7 @@ function GoalStepRow({
 
   return (
     <TaskTreeEditableRow
+      bold={goalStep.bold}
       categoryTagId={goalStep.categoryTagId}
       categoryTagMap={categoryTagMap}
       checked={goalStep.completed}
@@ -3390,6 +3394,17 @@ function GoalStepRow({
         isDraft
           ? Promise.resolve()
           : toggleGoalStepChecked({ scope, goalStepId: goalStep.id })
+      }
+      onToggleBold={() =>
+        isDraft
+          ? setDraftGoalSteps((currentDrafts) =>
+              currentDrafts.map((draft) =>
+                draft.id === goalStep.id
+                  ? { ...draft, bold: !draft.bold }
+                  : draft,
+              ),
+            )
+          : toggleGoalStepBold({ scope, goalStepId: goalStep.id })
       }
       onToggleCollapsed={() =>
         toggleGoalStepCollapsed({ scope, goalStepId: goalStep.id })

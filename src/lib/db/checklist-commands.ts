@@ -179,6 +179,7 @@ async function cloneChecklistChildrenToDailyEntry({
       scheduledTime: sourceItem.scheduledTime,
       checked: sourceItem.checked,
       ignored: sourceItem.ignored,
+      bold: sourceItem.bold,
       priority: sourceItem.priority,
       collapsed: sourceItem.collapsed,
       categoryTagId: sourceItem.categoryTagId,
@@ -267,6 +268,7 @@ export interface ChecklistTemplateItem {
   scheduledTime?: string | null;
   checked: boolean;
   ignored: boolean;
+  bold: boolean;
   priority: boolean;
   collapsed: boolean;
   categoryTagId: string | null;
@@ -301,6 +303,7 @@ export async function createChecklistItem({
   parentId = null,
   afterItemId = null,
   scheduledTime = null,
+  bold = false,
   text = '',
 }: {
   scope: AppScope;
@@ -309,6 +312,7 @@ export async function createChecklistItem({
   parentId?: string | null;
   afterItemId?: string | null;
   scheduledTime?: string | null;
+  bold?: boolean;
   text?: string;
 }): Promise<ChecklistItem> {
   if (!hasMeaningfulText(text)) {
@@ -346,6 +350,7 @@ export async function createChecklistItem({
       scheduledTime: normalizeScheduledTime(scheduledTime),
       checked: false,
       ignored: false,
+      bold,
       priority: false,
       collapsed: false,
       categoryTagId: null,
@@ -595,6 +600,28 @@ export async function toggleChecklistItemPriority({
       priority: !item.priority,
     });
     await persistChecklistItemUpdate(scope, updatedItem, ['priority']);
+  });
+}
+
+export async function toggleChecklistItemBold({
+  scope,
+  itemId,
+}: {
+  scope: AppScope;
+  itemId: string;
+}): Promise<void> {
+  await db.transaction('rw', db.checklistItems, async () => {
+    const item = await getScopedChecklistItem(scope, itemId);
+
+    if (!item) {
+      return;
+    }
+
+    const updatedItem = touchChecklistItem(scope, {
+      ...item,
+      bold: !item.bold,
+    });
+    await persistChecklistItemUpdate(scope, updatedItem, ['bold']);
   });
 }
 
@@ -1086,6 +1113,7 @@ async function cloneChecklistItemDescendants({
       scheduledTime: sourceItem.scheduledTime,
       checked: sourceItem.checked,
       ignored: sourceItem.ignored,
+      bold: sourceItem.bold,
       priority: sourceItem.priority,
       collapsed: sourceItem.collapsed,
       categoryTagId: sourceItem.categoryTagId,
@@ -1184,6 +1212,7 @@ export async function duplicateChecklistItemToDate({
       scheduledTime: sourceItem.scheduledTime,
       checked: sourceItem.checked,
       ignored: sourceItem.ignored,
+      bold: sourceItem.bold,
       priority: sourceItem.priority,
       collapsed: sourceItem.collapsed,
       categoryTagId: sourceItem.categoryTagId,
@@ -1493,6 +1522,7 @@ export async function applyChecklistTemplateToDateRange({
             scheduledTime: templateItem.scheduledTime ?? null,
             checked: templateItem.checked,
             ignored: templateItem.ignored,
+            bold: templateItem.bold,
             priority: templateItem.priority,
             collapsed: templateItem.collapsed,
             categoryTagId: templateItem.categoryTagId,

@@ -22,6 +22,7 @@ import {
   softDeleteChecklistItem,
   softDeleteCategoryTag,
   toggleChecklistItemChecked,
+  toggleChecklistItemBold,
   toggleChecklistItemPriority,
   setChecklistItemsChecked,
   updateCategoryTag,
@@ -105,6 +106,30 @@ describe('checklist commands', () => {
     await expect(db.dailyEntries.get(entry.id)).resolves.toMatchObject({
       itemCount: 1,
       completedCount: 0,
+    });
+  });
+
+  it('toggles bold formatting for a checklist task', async () => {
+    const scope = createGuestScope('checklist-bold');
+    const entry = await openOrCreateDailyEntry({
+      scope,
+      date: '2026-05-15',
+      timezone: 'America/Sao_Paulo',
+    });
+    const item = await createChecklistItem({
+      scope,
+      dailyEntryId: entry.id,
+      text: 'Important task',
+    });
+
+    await toggleChecklistItemBold({ scope, itemId: item.id });
+    await expect(db.checklistItems.get(item.id)).resolves.toMatchObject({
+      bold: true,
+    });
+
+    await toggleChecklistItemBold({ scope, itemId: item.id });
+    await expect(db.checklistItems.get(item.id)).resolves.toMatchObject({
+      bold: false,
     });
   });
 
@@ -1073,6 +1098,7 @@ describe('checklist commands', () => {
           text: 'Root task',
           checked: false,
           ignored: false,
+          bold: false,
           priority: false,
           collapsed: false,
           categoryTagId: null,
@@ -1084,6 +1110,7 @@ describe('checklist commands', () => {
           text: 'Nested task',
           checked: true,
           ignored: false,
+          bold: true,
           priority: true,
           collapsed: false,
           categoryTagId: categoryTag.id,
@@ -1095,6 +1122,7 @@ describe('checklist commands', () => {
           text: 'Later task',
           checked: false,
           ignored: false,
+          bold: false,
           priority: true,
           collapsed: true,
           categoryTagId: categoryTag.id,
@@ -1145,6 +1173,7 @@ describe('checklist commands', () => {
       {
         text: 'Nested task',
         checked: true,
+        bold: true,
         priority: true,
         categoryTagId: categoryTag.id,
       },

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   createBulkChecklistDraftItem,
   moveBulkChecklistDraftItemToParent,
+  toggleBulkChecklistDraftItemBold,
 } from '@/features/calendar/bulk-checklist-draft';
 
 describe('moveBulkChecklistDraftItemToParent', () => {
@@ -30,5 +31,18 @@ describe('moveBulkChecklistDraftItemToParent', () => {
       'parent',
     );
     expect(cycleAttempt).toEqual(nestedItems);
+  });
+});
+
+describe('toggleBulkChecklistDraftItemBold', () => {
+  it('keeps bold formatting in the bulk draft', () => {
+    const items = createBulkChecklistDraftItem([], {
+      id: 'task',
+      text: 'Important',
+    });
+
+    const boldItems = toggleBulkChecklistDraftItemBold(items, 'task');
+
+    expect(boldItems[0]).toMatchObject({ bold: true });
   });
 });

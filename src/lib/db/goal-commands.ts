@@ -1039,6 +1039,7 @@ export async function createGoalStep({
   id = createId(),
   parentId = null,
   afterGoalStepId = null,
+  bold = false,
   text = '',
 }: {
   scope: AppScope;
@@ -1046,6 +1047,7 @@ export async function createGoalStep({
   id?: string;
   parentId?: string | null;
   afterGoalStepId?: string | null;
+  bold?: boolean;
   text?: string;
 }): Promise<GoalStep> {
   if (!hasMeaningfulGoalStepText(text)) {
@@ -1076,6 +1078,7 @@ export async function createGoalStep({
       text,
       completed: false,
       ignored: false,
+      bold,
       priority: false,
       collapsed: false,
       categoryTagId: null,
@@ -1239,6 +1242,28 @@ export async function toggleGoalStepPriority({
       priority: !goalStep.priority,
     });
     await persistGoalStepUpdate(scope, updatedGoalStep, ['priority']);
+  });
+}
+
+export async function toggleGoalStepBold({
+  scope,
+  goalStepId,
+}: {
+  scope: AppScope;
+  goalStepId: string;
+}): Promise<void> {
+  await db.transaction('rw', db.goalSteps, async () => {
+    const goalStep = await getScopedGoalStep(scope, goalStepId);
+
+    if (!goalStep) {
+      return;
+    }
+
+    const updatedGoalStep = touchGoalStep(scope, {
+      ...goalStep,
+      bold: !goalStep.bold,
+    });
+    await persistGoalStepUpdate(scope, updatedGoalStep, ['bold']);
   });
 }
 

@@ -30,6 +30,7 @@ import {
   moveBulkChecklistDraftItemToParent,
   outdentBulkChecklistDraftItem,
   toggleBulkChecklistDraftItemChecked,
+  toggleBulkChecklistDraftItemBold,
   toggleBulkChecklistDraftItemCollapsed,
   toggleBulkChecklistDraftItemPriority,
   updateBulkChecklistDraftItemScheduledTime,
@@ -445,6 +446,7 @@ function BulkChecklistRow({
 
   return (
     <TaskTreeEditableRow
+      bold={item.bold}
       categoryTagId={item.categoryTagId}
       categoryTagMap={categoryTagMap}
       checked={item.checked}
@@ -573,6 +575,11 @@ function BulkChecklistRow({
       onToggleChecked={() =>
         setDraftItems((currentItems) =>
           toggleBulkChecklistDraftItemChecked(currentItems, item.id),
+        )
+      }
+      onToggleBold={() =>
+        setDraftItems((currentItems) =>
+          toggleBulkChecklistDraftItemBold(currentItems, item.id),
         )
       }
       onToggleCollapsed={() =>

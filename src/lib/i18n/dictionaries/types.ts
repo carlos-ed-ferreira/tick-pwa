@@ -128,6 +128,8 @@ export interface Dictionary {
     indentItem: string;
     dragItem: string;
     itemTime: string;
+    makeTextBold: string;
+    makeTextNormal: string;
     markPriority: string;
     moveItemDown: string;
     moveItemUp: string;
