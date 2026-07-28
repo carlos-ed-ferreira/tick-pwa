@@ -84,6 +84,7 @@ vi.mock('@/providers', () => ({
         moveCategoryUp: 'Move category up',
         moveItemDown: 'Move item down',
         moveItemUp: 'Move item up',
+        moreActions: 'More actions',
         newCategory: 'New category',
         outdentItem: 'Outdent item',
         title: 'Day editor',
@@ -94,6 +95,10 @@ vi.mock('@/providers', () => ({
         bulkDeleteItems: 'Delete selected',
         confirmBulkDeleteItems: 'Are you sure you want to delete this item?',
         clearSelection: 'Clear selection',
+        bulkPriority: 'Priority',
+        bulkBold: 'Bold',
+        bulkCategory: 'Category',
+        bulkDelete: 'Delete',
         unmarkPriority: 'Remove priority',
         untitledItem: 'New item',
         categories: 'Categories',
@@ -151,6 +156,7 @@ describe('BulkCalendarEditor', () => {
     fireEvent.change(screen.getByPlaceholderText('Write a task'), {
       target: { value: 'My recurring task' },
     });
+    fireEvent.click(screen.getByLabelText('More actions'));
     fireEvent.click(screen.getByLabelText('Mark as priority'));
     fireEvent.change(screen.getByLabelText('Start date'), {
       target: { value: '01012026' },
@@ -284,6 +290,7 @@ describe('BulkCalendarEditor', () => {
     fireEvent.change(screen.getByPlaceholderText('Write a task'), {
       target: { value: 'My recurring task' },
     });
+    fireEvent.click(screen.getByLabelText('More actions'));
     fireEvent.click(screen.getByLabelText('Mark as priority'));
 
     const input = screen.getByDisplayValue(

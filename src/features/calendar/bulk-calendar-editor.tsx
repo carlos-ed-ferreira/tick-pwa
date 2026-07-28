@@ -2,7 +2,11 @@
 
 import { Trash2 } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
-import { TaskTreeEditableRow, TreeListPanel } from '@/components/app';
+import {
+  TaskTreeBulkActions,
+  TaskTreeEditableRow,
+  TreeListPanel,
+} from '@/components/app';
 import { Button, Dialog, Input } from '@/components/ui';
 import { useCategoryTags } from '@/features/categories';
 import { useTreeSelection } from '@/hooks/use-tree-selection';
@@ -362,6 +366,15 @@ function BulkChecklistSurface({
     );
     return newId;
   }, [setDraftItems]);
+  const selectedItems = draftItems.filter((item) => selectedIds.has(item.id));
+  const allSelectedPriority =
+    selectedItems.length > 0 && selectedItems.every((item) => item.priority);
+  const allSelectedBold =
+    selectedItems.length > 0 && selectedItems.every((item) => item.bold);
+  const selectedLabel = dictionary.dayEditor.itemsSelected.replace(
+    '{count}',
+    String(selectedCount),
+  );
 
   return (
     <section className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
@@ -376,6 +389,56 @@ function BulkChecklistSurface({
         isSelectionMode={isSelectionMode}
         onAddRoot={createRootItem}
         onClearSelection={clearSelection}
+        selectionActions={
+          <TaskTreeBulkActions
+            allBold={allSelectedBold}
+            allPriority={allSelectedPriority}
+            labels={{
+              bold: dictionary.dayEditor.bulkBold,
+              category: dictionary.dayEditor.bulkCategory,
+              clearCategory: dictionary.dayEditor.clearCategory,
+              delete: dictionary.dayEditor.bulkDelete,
+              priority: dictionary.dayEditor.bulkPriority,
+              selected: selectedLabel,
+            }}
+            surface="checklist_item"
+            onAssignCategory={async (categoryTagId) => {
+              setDraftItems((currentItems) =>
+                currentItems.map((item) =>
+                  selectedIds.has(item.id) ? { ...item, categoryTagId } : item,
+                ),
+              );
+            }}
+            onDelete={() => {
+              setDraftItems((currentItems) =>
+                [...selectedIds].reduce(
+                  (nextItems, selectedId) =>
+                    deleteBulkChecklistDraftItem(nextItems, selectedId),
+                  currentItems,
+                ),
+              );
+              clearSelection();
+            }}
+            onToggleBold={async () => {
+              const nextBold = !allSelectedBold;
+              setDraftItems((currentItems) =>
+                currentItems.map((item) =>
+                  selectedIds.has(item.id) ? { ...item, bold: nextBold } : item,
+                ),
+              );
+            }}
+            onTogglePriority={async () => {
+              const nextPriority = !allSelectedPriority;
+              setDraftItems((currentItems) =>
+                currentItems.map((item) =>
+                  selectedIds.has(item.id)
+                    ? { ...item, priority: nextPriority }
+                    : item,
+                ),
+              );
+            }}
+          />
+        }
       >
         {rows.map((row) => (
           <BulkChecklistRow

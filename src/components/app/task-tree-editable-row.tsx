@@ -5,8 +5,6 @@ import {
   IndentDecrease,
   IndentIncrease,
   Plus,
-  Star,
-  Trash2,
 } from 'lucide-react';
 import {
   useCallback,
@@ -20,7 +18,6 @@ import {
   ConfirmationDialog,
   IconButton,
 } from '@/components/ui';
-import { CategoryAssignmentMenu } from '@/features/categories';
 import { useDebouncedInlineEdit } from '@/hooks/use-debounced-inline-edit';
 import { useFocusAfterCreate } from '@/hooks/use-focus-after-create';
 import { requiresDeleteConfirmation } from '@/lib/confirm-delete';
@@ -33,6 +30,7 @@ import {
 import { TaskTreeActionGroup } from './task-tree-action-group';
 import { TaskTreeCategoryChip } from './task-tree-category-chip';
 import { TaskTreeCollapseButton } from './task-tree-collapse-button';
+import { TaskTreeMoreActionsMenu } from './task-tree-more-actions-menu';
 import { TaskTreeRowLayout } from './task-tree-row-layout';
 import { TaskTreeSelectionButton } from './task-tree-selection-button';
 import type { TreeMovePlacement } from './move-tree-item-to-target';
@@ -64,6 +62,7 @@ interface TaskTreeRowLabels {
   itemTime: string;
   moveItemDown: string;
   moveItemUp: string;
+  moreActions: string;
   outdentItem: string;
   selectItem: string;
   toggleItem: string;
@@ -109,7 +108,6 @@ export function TaskTreeEditableRow({
   priority,
   selection,
   siblingIds,
-  surface,
   text: sourceText,
   isDraft = false,
   onAssignCategory,
@@ -645,37 +643,14 @@ export function TaskTreeEditableRow({
         ) : null}
 
         <TaskTreeActionGroup>
-          <IconButton
-            aria-label={
-              displayedBold ? labels.makeTextNormal : labels.makeTextBold
-            }
-            className="rounded-full hover:bg-white/[0.08] hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
-            onClick={() => void toggleBold()}
-          >
-            <span
-              aria-hidden="true"
-              data-testid="task-bold-indicator"
-              className={`text-base leading-none ${
-                displayedBold ? 'font-bold' : 'font-normal'
-              }`}
-            >
-              B
-            </span>
-          </IconButton>
-          <IconButton
-            aria-label={
-              displayedPriority ? labels.unmarkPriority : labels.markPriority
-            }
-            className="rounded-full hover:bg-white/[0.08] hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
-            onClick={() => void togglePriority()}
-          >
-            <Star
-              aria-hidden="true"
-              className={`size-4 ${
-                displayedPriority ? 'fill-current text-[#f0c38e]' : 'opacity-60'
-              }`}
+          {selection ? (
+            <TaskTreeSelectionButton
+              deselectLabel={labels.deselectItem}
+              isSelected={selection.isSelected}
+              selectLabel={labels.selectItem}
+              onToggle={selection.onToggle}
             />
-          </IconButton>
+          ) : null}
           <IconButton
             aria-label={labels.addChild}
             className="rounded-full hover:bg-white/[0.08] hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
@@ -689,14 +664,6 @@ export function TaskTreeEditableRow({
             <Plus aria-hidden="true" className="size-4" />
           </IconButton>
           <IconButton
-            aria-label={labels.indentItem}
-            className="rounded-full hover:bg-white/[0.08] hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
-            disabled={isFirstSibling}
-            onClick={() => void onIndent()}
-          >
-            <IndentIncrease aria-hidden="true" className="size-4" />
-          </IconButton>
-          <IconButton
             aria-label={labels.outdentItem}
             className="rounded-full hover:bg-white/[0.08] hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
             disabled={depth === 0}
@@ -704,44 +671,26 @@ export function TaskTreeEditableRow({
           >
             <IndentDecrease aria-hidden="true" className="size-4" />
           </IconButton>
-          {selection ? (
-            <TaskTreeSelectionButton
-              deselectLabel={labels.deselectItem}
-              isSelected={selection.isSelected}
-              selectLabel={labels.selectItem}
-              onToggle={selection.onToggle}
-            />
-          ) : null}
-          <CategoryAssignmentMenu
-            assignLabel={labels.assignCategory}
-            clearLabel={labels.clearCategory}
-            disabled={
-              selection?.isSelectionMode === true && !selection.isSelected
-            }
-            selectedCategoryTagId={categoryTagId}
-            surface={surface}
-            onAssign={(nextCategoryTagId) => {
-              if (selection?.isSelectionMode) {
-                return selection.onBulkAssignCategory(nextCategoryTagId);
-              }
-
-              return onAssignCategory(nextCategoryTagId);
-            }}
-          />
           <IconButton
-            aria-label={labels.deleteItem}
-            className="mr-1 rounded-full hover:bg-rose-400/[0.12] hover:text-rose-100 focus-visible:outline-[#f0c38e]"
-            disabled={
-              selection?.isSelectionMode === true && !selection.isSelected
-            }
-            onClick={() =>
-              selection?.isSelectionMode
-                ? selection.onBulkDelete()
-                : void requestDelete()
-            }
+            aria-label={labels.indentItem}
+            className="rounded-full hover:bg-white/[0.08] hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
+            disabled={isFirstSibling}
+            onClick={() => void onIndent()}
           >
-            <Trash2 aria-hidden="true" className="size-4" />
+            <IndentIncrease aria-hidden="true" className="size-4" />
           </IconButton>
+          <TaskTreeMoreActionsMenu
+            bold={displayedBold}
+            categoryTagMap={categoryTagMap}
+            disabled={selection?.isSelectionMode === true}
+            labels={labels}
+            priority={displayedPriority}
+            selectedCategoryTagId={categoryTagId}
+            onAssignCategory={onAssignCategory}
+            onDelete={requestDelete}
+            onToggleBold={toggleBold}
+            onTogglePriority={togglePriority}
+          />
         </TaskTreeActionGroup>
       </TaskTreeRowLayout>
 

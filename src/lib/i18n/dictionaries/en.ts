@@ -147,6 +147,7 @@ export const enDictionary = {
     markPriority: 'Mark as priority',
     moveItemDown: 'Move item down',
     moveItemUp: 'Move item up',
+    moreActions: 'More actions',
     moveCategoryDown: 'Move category down',
     moveCategoryUp: 'Move category up',
     outdentItem: 'Outdent item',
@@ -164,6 +165,10 @@ export const enDictionary = {
     bulkDeleteItems: 'Delete selected',
     confirmBulkDeleteItems: confirmDeleteItem,
     clearSelection: 'Clear selection',
+    bulkPriority: 'Priority',
+    bulkBold: 'Bold',
+    bulkCategory: 'Category',
+    bulkDelete: 'Delete',
   },
   goals: {
     title: 'Goals',

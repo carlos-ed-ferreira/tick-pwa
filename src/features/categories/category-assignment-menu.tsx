@@ -25,6 +25,7 @@ export function CategoryAssignmentMenu({
   disabled,
   renderTriggerContent,
   selectedCategoryTagId,
+  showClearInMenu = false,
   surface,
   triggerClassName,
   triggerStyle,
@@ -43,6 +44,7 @@ export function CategoryAssignmentMenu({
     } | null;
   }) => ReactNode;
   selectedCategoryTagId: string | null;
+  showClearInMenu?: boolean;
   surface: CategoryTagSurface;
   triggerClassName?: string;
   triggerStyle?: CSSProperties;
@@ -79,7 +81,7 @@ export function CategoryAssignmentMenu({
       window.innerWidth - viewportPadding - menuWidth,
     );
     const estimatedMenuHeight = Math.min(
-      16 + assignableCategoryTags.length * 40,
+      16 + (assignableCategoryTags.length + (showClearInMenu ? 1 : 0)) * 40,
       window.innerHeight - viewportPadding * 2,
     );
     const shouldOpenUpward =
@@ -104,7 +106,7 @@ export function CategoryAssignmentMenu({
       top: Math.max(viewportPadding, triggerRect.bottom + menuOffset),
       width,
     };
-  }, [assignableCategoryTags.length]);
+  }, [assignableCategoryTags.length, showClearInMenu]);
 
   const closeMenu = useCallback(
     ({ restoreFocus = false }: { restoreFocus?: boolean } = {}) => {
@@ -214,6 +216,17 @@ export function CategoryAssignmentMenu({
                 <span className="truncate">{tag.name}</span>
               </button>
             ))}
+            {showClearInMenu ? (
+              <button
+                type="button"
+                aria-label={clearLabel}
+                className="flex items-center gap-2 rounded-xl px-2 py-2 text-left transition hover:bg-white/[0.08] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e]"
+                onClick={() => void assignCategory(null)}
+              >
+                <X aria-hidden="true" className="size-4" />
+                <span className="truncate">{clearLabel}</span>
+              </button>
+            ) : null}
           </div>,
           document.body,
         )

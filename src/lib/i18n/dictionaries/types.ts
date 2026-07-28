@@ -133,6 +133,7 @@ export interface Dictionary {
     markPriority: string;
     moveItemDown: string;
     moveItemUp: string;
+    moreActions: string;
     moveCategoryDown: string;
     moveCategoryUp: string;
     outdentItem: string;
@@ -150,6 +151,10 @@ export interface Dictionary {
     bulkDeleteItems: string;
     confirmBulkDeleteItems: string;
     clearSelection: string;
+    bulkPriority: string;
+    bulkBold: string;
+    bulkCategory: string;
+    bulkDelete: string;
   };
   goals: {
     title: string;

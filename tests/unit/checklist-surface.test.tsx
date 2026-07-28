@@ -14,6 +14,7 @@ const {
   reorderChecklistItemMock,
   setChecklistItemsCheckedMock,
   softDeleteChecklistItemMock,
+  toggleChecklistItemBoldMock,
   toggleChecklistItemPriorityMock,
   updateChecklistItemScheduledTimeMock,
   updateChecklistItemTextMock,
@@ -24,6 +25,7 @@ const {
   reorderChecklistItemMock: vi.fn().mockResolvedValue(undefined),
   setChecklistItemsCheckedMock: vi.fn().mockResolvedValue(undefined),
   softDeleteChecklistItemMock: vi.fn().mockResolvedValue(undefined),
+  toggleChecklistItemBoldMock: vi.fn().mockResolvedValue(undefined),
   toggleChecklistItemPriorityMock: vi.fn().mockResolvedValue(undefined),
   updateChecklistItemScheduledTimeMock: vi.fn().mockResolvedValue(undefined),
   updateChecklistItemTextMock: vi.fn().mockResolvedValue(undefined),
@@ -41,6 +43,7 @@ vi.mock('@/lib/db', () => ({
   setChecklistItemsChecked: setChecklistItemsCheckedMock,
   softDeleteChecklistItem: softDeleteChecklistItemMock,
   toggleChecklistItemChecked: vi.fn().mockResolvedValue(undefined),
+  toggleChecklistItemBold: toggleChecklistItemBoldMock,
   toggleChecklistItemCollapsed: vi.fn().mockResolvedValue(undefined),
   toggleChecklistItemPriority: toggleChecklistItemPriorityMock,
   updateChecklistItemScheduledTime: updateChecklistItemScheduledTimeMock,
@@ -68,6 +71,7 @@ vi.mock('@/providers', () => ({
         markPriority: 'Mark as priority',
         moveItemDown: 'Move item down',
         moveItemUp: 'Move item up',
+        moreActions: 'More actions',
         outdentItem: 'Outdent item',
         unmarkPriority: 'Remove priority',
         deleteItem: 'Delete item',
@@ -80,6 +84,10 @@ vi.mock('@/providers', () => ({
         bulkDeleteItems: 'Delete selected',
         confirmBulkDeleteItems: 'Are you sure you want to delete this item?',
         clearSelection: 'Clear selection',
+        bulkPriority: 'Priority',
+        bulkBold: 'Bold',
+        bulkCategory: 'Category',
+        bulkDelete: 'Delete',
       },
     },
     scope: {
@@ -146,6 +154,7 @@ describe('ChecklistSurface delete confirmation', () => {
     reorderChecklistItemMock.mockClear();
     setChecklistItemsCheckedMock.mockClear();
     softDeleteChecklistItemMock.mockClear();
+    toggleChecklistItemBoldMock.mockClear();
     toggleChecklistItemPriorityMock.mockClear();
     updateChecklistItemTextMock.mockClear();
   });
@@ -160,6 +169,7 @@ describe('ChecklistSurface delete confirmation', () => {
 
     render(<ChecklistSurface dailyEntryId="entry-1" />);
 
+    fireEvent.click(screen.getByLabelText('More actions'));
     fireEvent.click(screen.getAllByLabelText('Delete item')[0]);
 
     expect(
@@ -186,6 +196,7 @@ describe('ChecklistSurface delete confirmation', () => {
 
     render(<ChecklistSurface dailyEntryId="entry-1" />);
 
+    fireEvent.click(screen.getByLabelText('More actions'));
     fireEvent.click(screen.getAllByLabelText('Delete item')[0]);
 
     await waitFor(() => {
@@ -325,6 +336,7 @@ describe('ChecklistSurface delete confirmation', () => {
 
     render(<ChecklistSurface dailyEntryId="entry-1" />);
 
+    fireEvent.click(screen.getByLabelText('More actions'));
     fireEvent.click(screen.getByLabelText('Mark as priority'));
 
     await waitFor(() => {
@@ -469,6 +481,53 @@ describe('ChecklistSurface delete confirmation', () => {
     });
   });
 
+  it('shows collective actions beside the global add button and applies bold to every selected row', async () => {
+    useChecklistTreeMock.mockReturnValue([
+      createRow('First task'),
+      createRow('Second task'),
+    ]);
+
+    render(<ChecklistSurface dailyEntryId="entry-1" />);
+
+    const selectionButtons = screen.getAllByLabelText('Select item');
+    fireEvent.click(selectionButtons[0]);
+    fireEvent.click(selectionButtons[1]);
+    const addButton = screen.getByRole('button', { name: 'Add item' });
+    const bulkBold = screen.getByRole('button', {
+      name: 'Bold · 2 selected',
+    });
+
+    expect(bulkBold.closest('[data-tree-selection-actions]')).toBe(
+      addButton.parentElement?.querySelector('[data-tree-selection-actions]'),
+    );
+
+    fireEvent.click(bulkBold);
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Priority · 2 selected' }),
+    );
+
+    await waitFor(() => {
+      expect(toggleChecklistItemBoldMock).toHaveBeenCalledTimes(2);
+      expect(toggleChecklistItemPriorityMock).toHaveBeenCalledTimes(2);
+      expect(toggleChecklistItemBoldMock).toHaveBeenNthCalledWith(1, {
+        scope: {
+          id: 'guest:test',
+          kind: 'guest',
+          ownerId: 'test',
+        },
+        itemId: 'item-First task',
+      });
+      expect(toggleChecklistItemBoldMock).toHaveBeenNthCalledWith(2, {
+        scope: {
+          id: 'guest:test',
+          kind: 'guest',
+          ownerId: 'test',
+        },
+        itemId: 'item-Second task',
+      });
+    });
+  });
+
   it('bulk deletes a selected row from selection mode', async () => {
     useChecklistTreeMock.mockReturnValue([
       createRow('First task'),
@@ -478,7 +537,9 @@ describe('ChecklistSurface delete confirmation', () => {
     render(<ChecklistSurface dailyEntryId="entry-1" />);
 
     fireEvent.click(screen.getAllByLabelText('Select item')[0]);
-    fireEvent.click(screen.getAllByLabelText('Delete item')[0]);
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Delete · 1 selected' }),
+    );
 
     expect(
       await screen.findByText('Are you sure you want to delete this item?'),
@@ -522,7 +583,9 @@ describe('ChecklistSurface delete confirmation', () => {
     const draftInput = screen.getAllByPlaceholderText('Write a task')[1];
     fireEvent.change(draftInput, { target: { value: 'Draft fragment' } });
     fireEvent.click(screen.getAllByLabelText('Select item')[0]);
-    fireEvent.click(screen.getAllByLabelText('Delete item')[0]);
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Delete · 1 selected' }),
+    );
     fireEvent.click(await screen.findByRole('button', { name: 'Delete' }));
 
     await waitFor(() => {
@@ -564,7 +627,9 @@ describe('ChecklistSurface delete confirmation', () => {
     fireEvent.click(screen.getAllByLabelText('Select item')[1], {
       shiftKey: true,
     });
-    fireEvent.click(screen.getAllByLabelText('Delete item')[0]);
+    fireEvent.click(
+      screen.getByRole('button', { name: /^Delete · \d+ selected$/ }),
+    );
 
     expect(
       await screen.findByText('Are you sure you want to delete this item?'),

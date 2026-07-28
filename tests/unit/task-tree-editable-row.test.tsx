@@ -39,6 +39,7 @@ const labels = {
   markPriority: 'Mark as priority',
   moveItemDown: 'Move item down',
   moveItemUp: 'Move item up',
+  moreActions: 'More actions',
   dragItem: 'Drag item',
   itemTime: 'Task time',
   makeTextBold: 'Make text bold',
@@ -111,6 +112,7 @@ describe('TaskTreeEditableRow', () => {
     expect(checkbox).toBeChecked();
     expect(callbacks.onToggleChecked).toHaveBeenCalledOnce();
 
+    fireEvent.click(screen.getByLabelText('More actions'));
     fireEvent.click(screen.getByLabelText('Mark as priority'));
     expect(callbacks.onTogglePriority).toHaveBeenCalledOnce();
     expect(screen.getByLabelText('Remove priority')).toBeInTheDocument();
@@ -134,6 +136,7 @@ describe('TaskTreeEditableRow', () => {
     const text = screen.getByDisplayValue('Existing item');
 
     expect(text).not.toHaveClass('font-bold');
+    fireEvent.click(screen.getByLabelText('More actions'));
     expect(screen.getByTestId('task-bold-indicator')).toHaveClass(
       'font-normal',
     );
@@ -179,7 +182,7 @@ describe('TaskTreeEditableRow', () => {
       'cursor-grab',
       'active:cursor-grabbing',
     );
-    expect(screen.getByRole('button', { name: 'Delete item' })).toHaveClass(
+    expect(screen.getByRole('button', { name: 'More actions' })).toHaveClass(
       'mr-1',
     );
   });
@@ -261,11 +264,118 @@ describe('TaskTreeEditableRow', () => {
   });
 
   it('uses the same category adapter for individual rows', () => {
-    const callbacks = renderRow();
+    const callbacks = renderRow({
+      categoryTagMap: new Map([
+        ['category-1', { colorHex: '#ff0000', name: 'Focus' }],
+      ]),
+    });
 
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }));
     fireEvent.click(screen.getByRole('button', { name: 'Assign category' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Focus' }));
 
     expect(callbacks.onAssignCategory).toHaveBeenCalledWith('category-1');
+  });
+
+  it('places clear category immediately below assign category', () => {
+    renderRow({
+      categoryTagId: 'category-1',
+      categoryTagMap: new Map([
+        ['category-1', { colorHex: '#ff0000', name: 'Focus' }],
+      ]),
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }));
+
+    const assignCategory = screen.getByRole('button', {
+      name: 'Assign category',
+    });
+    const clearCategory = screen.getByRole('button', {
+      name: 'Clear category',
+    });
+
+    expect(assignCategory.nextElementSibling).toBe(clearCategory);
+  });
+
+  it('opens categories as a right-side hover extension aligned to the category option', () => {
+    renderRow({
+      categoryTagMap: new Map([
+        ['category-1', { colorHex: '#ff0000', name: 'Focus' }],
+      ]),
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }));
+    const categoryButton = screen.getByRole('button', {
+      name: 'Assign category',
+    });
+    vi.spyOn(categoryButton, 'getBoundingClientRect').mockReturnValue({
+      bottom: 140,
+      height: 40,
+      left: 100,
+      right: 300,
+      top: 100,
+      width: 200,
+      x: 100,
+      y: 100,
+      toJSON: () => ({}),
+    });
+    const actionsMenu = categoryButton.closest(
+      '[data-task-actions-menu="true"]',
+    );
+    vi.spyOn(actionsMenu!, 'getBoundingClientRect').mockReturnValue({
+      bottom: 300,
+      height: 280,
+      left: 80,
+      right: 328,
+      top: 20,
+      width: 248,
+      x: 80,
+      y: 20,
+      toJSON: () => ({}),
+    });
+
+    fireEvent.mouseEnter(categoryButton);
+
+    const extension = screen
+      .getByRole('button', { name: 'Focus' })
+      .closest('[data-task-category-submenu="true"]');
+
+    expect(extension).toHaveClass('rounded-l-none', 'border-0');
+    expect(extension).toHaveStyle({
+      left: '328px',
+      top: '120px',
+      transform: 'translateY(-50%)',
+    });
+  });
+
+  it('keeps only selection, add, outdent, indent, and more actions visible in that order', () => {
+    renderRow({
+      selection: {
+        isSelected: false,
+        isSelectionMode: false,
+        onBulkAssignCategory: vi.fn(),
+        onBulkDelete: vi.fn(),
+        onBulkToggleChecked: vi.fn(),
+        onToggle: vi.fn(),
+      },
+    });
+
+    const actionGroup = screen.getByRole('button', {
+      name: 'More actions',
+    }).parentElement;
+    const labels = Array.from(
+      actionGroup?.querySelectorAll('button') ?? [],
+    ).map((button) => button.getAttribute('aria-label'));
+
+    expect(labels).toEqual([
+      'Select item',
+      'Add child',
+      'Outdent item',
+      'Indent item',
+      'More actions',
+    ]);
+    expect(screen.queryByLabelText('Mark as priority')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Delete item')).not.toBeInTheDocument();
   });
 
   it('renders a drag handle instead of move up and down buttons', () => {

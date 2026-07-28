@@ -11,6 +11,7 @@ import {
 } from 'react';
 import {
   moveTreeItemToTarget,
+  TaskTreeBulkActions,
   TaskTreeEditableRow,
   TreeListPanel,
 } from '@/components/app';
@@ -360,6 +361,17 @@ export function ChecklistSurface({ dailyEntryId }: { dailyEntryId: string }) {
     setDraftItems((currentDrafts) => [...currentDrafts, nextDraft]);
     return nextDraft.id;
   }, [dailyEntryId, scope]);
+  const selectedItems = rows
+    .map((row) => row.item)
+    .filter((item) => selectedIds.has(item.id));
+  const allSelectedPriority =
+    selectedItems.length > 0 && selectedItems.every((item) => item.priority);
+  const allSelectedBold =
+    selectedItems.length > 0 && selectedItems.every((item) => item.bold);
+  const selectedLabel = dictionary.dayEditor.itemsSelected.replace(
+    '{count}',
+    String(selectedCount),
+  );
 
   if (!scope) {
     return null;
@@ -388,6 +400,43 @@ export function ChecklistSurface({ dailyEntryId }: { dailyEntryId: string }) {
         isSelectionMode={isSelectionMode}
         onAddRoot={createRootItem}
         onClearSelection={clearSelection}
+        selectionActions={
+          <TaskTreeBulkActions
+            allBold={allSelectedBold}
+            allPriority={allSelectedPriority}
+            labels={{
+              bold: dictionary.dayEditor.bulkBold,
+              category: dictionary.dayEditor.bulkCategory,
+              clearCategory: dictionary.dayEditor.clearCategory,
+              delete: dictionary.dayEditor.bulkDelete,
+              priority: dictionary.dayEditor.bulkPriority,
+              selected: selectedLabel,
+            }}
+            surface="checklist_item"
+            onAssignCategory={assignBulkCategory}
+            onDelete={openBulkDeleteDialog}
+            onToggleBold={async () => {
+              const nextBold = !allSelectedBold;
+              await Promise.all(
+                selectedItems
+                  .filter((item) => item.bold !== nextBold)
+                  .map((item) =>
+                    toggleChecklistItemBold({ scope, itemId: item.id }),
+                  ),
+              );
+            }}
+            onTogglePriority={async () => {
+              const nextPriority = !allSelectedPriority;
+              await Promise.all(
+                selectedItems
+                  .filter((item) => item.priority !== nextPriority)
+                  .map((item) =>
+                    toggleChecklistItemPriority({ scope, itemId: item.id }),
+                  ),
+              );
+            }}
+          />
+        }
       >
         {displayRows.map((row) => (
           <ChecklistRow

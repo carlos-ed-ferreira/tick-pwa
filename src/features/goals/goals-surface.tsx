@@ -31,6 +31,7 @@ import {
 } from 'react';
 import {
   moveTreeItemToTarget,
+  TaskTreeBulkActions,
   TaskTreeEditableRow,
   TreeListPanel,
 } from '@/components/app';
@@ -1568,7 +1569,7 @@ function GoalGroupCard({
           <div
             ref={menuRef}
             data-card-actions-menu="true"
-            className="modal-panel fixed z-60 grid max-h-[min(20rem,calc(100vh-2rem))] min-w-52 gap-1 overflow-y-auto p-2 text-sm shadow-[0_24px_70px_rgba(8,6,20,0.44)]"
+            className="modal-panel fixed z-60 grid max-h-[min(20rem,calc(100vh-2rem))] min-w-52 gap-1 overflow-y-auto border-0 p-2 text-sm shadow-[0_24px_70px_rgba(8,6,20,0.44)]"
             style={menuStyle}
             onClick={(event) => event.stopPropagation()}
           >
@@ -2035,7 +2036,7 @@ function GoalCard({
             ref={menuRef}
             data-card-actions-menu="true"
             data-goal-actions-menu="true"
-            className="modal-panel fixed z-60 grid max-h-[min(20rem,calc(100vh-2rem))] min-w-48 gap-1 overflow-y-auto p-2 text-sm shadow-[0_24px_70px_rgba(8,6,20,0.44)]"
+            className="modal-panel fixed z-60 grid max-h-[min(20rem,calc(100vh-2rem))] min-w-48 gap-1 overflow-y-auto border-0 p-2 text-sm shadow-[0_24px_70px_rgba(8,6,20,0.44)]"
             style={menuStyle}
             // Clicks inside the portal bubble through the React tree to the
             // card's onClick, which would close the menu mid-interaction.
@@ -2439,7 +2440,7 @@ function CategoryMenuSection({
           <div
             ref={submenuRef}
             data-goal-category-submenu="true"
-            className="modal-panel fixed z-70 grid max-h-[min(20rem,calc(100vh-2rem))] min-w-52 gap-1 overflow-y-auto rounded-l-none p-2 text-sm shadow-[0_24px_70px_rgba(8,6,20,0.44)]"
+            className="modal-panel fixed z-70 grid max-h-[min(20rem,calc(100vh-2rem))] min-w-52 gap-1 overflow-y-auto rounded-l-none border-0 p-2 text-sm shadow-[0_24px_70px_rgba(8,6,20,0.44)]"
             style={{ ...submenuStyle, transform: 'translateY(-50%)' }}
             onClick={(event) => event.stopPropagation()}
             onFocus={(event) => event.stopPropagation()}
@@ -3053,6 +3054,19 @@ function GoalDetailCard({
     setDraftGoalSteps((currentDrafts) => [...currentDrafts, nextDraft]);
     return nextDraft.id;
   }, [goal.id, scope]);
+  const selectedGoalSteps = goalStepRows
+    .map((row) => row.goalStep)
+    .filter((goalStep) => selectedIds.has(goalStep.id));
+  const allSelectedPriority =
+    selectedGoalSteps.length > 0 &&
+    selectedGoalSteps.every((goalStep) => goalStep.priority);
+  const allSelectedBold =
+    selectedGoalSteps.length > 0 &&
+    selectedGoalSteps.every((goalStep) => goalStep.bold);
+  const selectedLabel = dictionary.dayEditor.itemsSelected.replace(
+    '{count}',
+    String(selectedCount),
+  );
 
   return (
     <section
@@ -3079,6 +3093,57 @@ function GoalDetailCard({
         isSelectionMode={isSelectionMode}
         onAddRoot={createRootGoalStep}
         onClearSelection={clearSelection}
+        selectionActions={
+          <TaskTreeBulkActions
+            allBold={allSelectedBold}
+            allPriority={allSelectedPriority}
+            labels={{
+              bold: dictionary.dayEditor.bulkBold,
+              category: dictionary.dayEditor.bulkCategory,
+              clearCategory: dictionary.dayEditor.clearCategory,
+              delete: dictionary.dayEditor.bulkDelete,
+              priority: dictionary.dayEditor.bulkPriority,
+              selected: selectedLabel,
+            }}
+            surface="goal_step"
+            onAssignCategory={assignBulkCategory}
+            onDelete={openBulkDeleteDialog}
+            onToggleBold={async () => {
+              if (!scope) {
+                return;
+              }
+
+              const nextBold = !allSelectedBold;
+              await Promise.all(
+                selectedGoalSteps
+                  .filter((goalStep) => goalStep.bold !== nextBold)
+                  .map((goalStep) =>
+                    toggleGoalStepBold({
+                      scope,
+                      goalStepId: goalStep.id,
+                    }),
+                  ),
+              );
+            }}
+            onTogglePriority={async () => {
+              if (!scope) {
+                return;
+              }
+
+              const nextPriority = !allSelectedPriority;
+              await Promise.all(
+                selectedGoalSteps
+                  .filter((goalStep) => goalStep.priority !== nextPriority)
+                  .map((goalStep) =>
+                    toggleGoalStepPriority({
+                      scope,
+                      goalStepId: goalStep.id,
+                    }),
+                  ),
+              );
+            }}
+          />
+        }
         surface="none"
       >
         {displayGoalStepRows.map((row) => (

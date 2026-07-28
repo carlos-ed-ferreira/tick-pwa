@@ -109,6 +109,32 @@ describe('CategoryAssignmentMenu', () => {
     });
   });
 
+  it('can expose clear category inside the menu for collective actions', async () => {
+    const onAssign = vi.fn();
+
+    render(
+      <CategoryAssignmentMenu
+        assignLabel="Assign category to selected"
+        clearLabel="Clear category"
+        selectedCategoryTagId={null}
+        showClearInMenu
+        surface="calendar"
+        onAssign={onAssign}
+      />,
+    );
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Assign category to selected' }),
+    );
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Clear category' }),
+    );
+
+    await waitFor(() => {
+      expect(onAssign).toHaveBeenCalledWith(null);
+    });
+  });
+
   it('never lists own-name categories and does not scroll or clamp height', async () => {
     useCategoryTagsMock.mockReturnValue([
       {

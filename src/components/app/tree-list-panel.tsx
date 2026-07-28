@@ -25,6 +25,7 @@ export function TreeListPanel({
   isSelectionMode,
   onAddRoot,
   onClearSelection,
+  selectionActions,
   surface = 'panel',
 }: {
   addLabel: string;
@@ -36,6 +37,7 @@ export function TreeListPanel({
   isSelectionMode: boolean;
   onAddRoot: () => Promise<string | null> | string | null;
   onClearSelection: () => void;
+  selectionActions?: ReactNode;
   surface?: 'panel' | 'none';
 }) {
   const focusAfterCreate = useFocusAfterCreate();
@@ -101,7 +103,7 @@ export function TreeListPanel({
         )}
 
         {hasRows ? (
-          <div className="flex items-center justify-between px-1 pt-2">
+          <div className="flex flex-wrap items-center justify-between gap-2 px-1 pt-2">
             <button
               type="button"
               className="flex items-center gap-1.5 rounded-full border border-[#f0c38e]/22 bg-[#f0c38e]/10 px-3 py-1.5 text-sm font-medium text-[#f7d7ad] shadow-sm transition hover:border-[#f0c38e]/36 hover:bg-[#f0c38e]/16 hover:text-[#fff9f2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e]"
@@ -111,14 +113,17 @@ export function TreeListPanel({
               {addLabel}
             </button>
             {isSelectionMode ? (
-              <button
-                type="button"
-                className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-sm font-medium text-[#bdb4d4] shadow-sm transition hover:bg-white/10 hover:text-[#fff9f2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e]"
-                onClick={onClearSelection}
-              >
-                <X aria-hidden="true" className="size-3.5" />
-                {clearSelectionLabel}
-              </button>
+              <div className="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-1.5">
+                {selectionActions}
+                <button
+                  type="button"
+                  className="flex min-h-8 items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-xs font-medium text-[#bdb4d4] shadow-sm transition hover:bg-white/10 hover:text-[#fff9f2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e]"
+                  onClick={onClearSelection}
+                >
+                  <X aria-hidden="true" className="size-3.5" />
+                  {clearSelectionLabel}
+                </button>
+              </div>
             ) : null}
           </div>
         ) : null}

@@ -152,6 +152,7 @@ export const ptBRDictionary = {
     markPriority: 'Marcar como prioridade',
     moveItemDown: 'Mover item para baixo',
     moveItemUp: 'Mover item para cima',
+    moreActions: 'Mais opções',
     moveCategoryDown: 'Mover categoria para baixo',
     moveCategoryUp: 'Mover categoria para cima',
     outdentItem: 'Recuar item',
@@ -169,6 +170,10 @@ export const ptBRDictionary = {
     bulkDeleteItems: 'Excluir selecionados',
     confirmBulkDeleteItems: confirmDeleteItem,
     clearSelection: 'Limpar seleção',
+    bulkPriority: 'Prioridade',
+    bulkBold: 'Negrito',
+    bulkCategory: 'Categoria',
+    bulkDelete: 'Excluir',
   },
   goals: {
     title: 'Metas',

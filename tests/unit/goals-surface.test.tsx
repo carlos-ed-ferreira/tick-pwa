@@ -114,7 +114,12 @@ vi.mock('@/providers', () => ({
         indentItem: 'Indent item',
         moveItemDown: 'Move item down',
         moveItemUp: 'Move item up',
+        moreActions: 'More actions',
         outdentItem: 'Outdent item',
+        markPriority: 'Mark as priority',
+        unmarkPriority: 'Remove priority',
+        makeTextBold: 'Make text bold',
+        makeTextNormal: 'Make text normal',
         deleteItem: 'Delete item',
         assignCategory: 'Assign category',
         clearCategory: 'Clear category',
@@ -125,6 +130,10 @@ vi.mock('@/providers', () => ({
         bulkDeleteItems: 'Delete selected',
         confirmBulkDeleteItems: 'Are you sure?',
         clearSelection: 'Clear selection',
+        bulkPriority: 'Priority',
+        bulkBold: 'Bold',
+        bulkCategory: 'Category',
+        bulkDelete: 'Delete',
       },
       goals: {
         activeGoals: 'Active',
@@ -514,6 +523,11 @@ describe('GoalsSurface', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Group actions' }));
 
     expect(routerPushMock).not.toHaveBeenCalled();
+    expect(
+      screen
+        .getByLabelText('Assign independent color')
+        .closest('[data-card-actions-menu="true"]'),
+    ).toHaveClass('border-0');
     expect(screen.getByLabelText('Assign independent color')).toBeVisible();
     expect(
       screen.getByRole('button', { name: 'Assign category' }),
@@ -663,6 +677,9 @@ describe('GoalsSurface', () => {
       name: 'Archive goal',
     });
 
+    expect(
+      completeButton.closest('[data-goal-actions-menu="true"]'),
+    ).toHaveClass('border-0');
     expect(completeButton.closest('article')).toBeNull();
     expect(
       screen.queryByRole('button', { name: 'New group' }),
@@ -768,7 +785,7 @@ describe('GoalsSurface', () => {
     const extension = categoryOption.closest('.modal-panel');
 
     expect(categoryOption).toBeVisible();
-    expect(extension).toHaveClass('rounded-l-none');
+    expect(extension).toHaveClass('rounded-l-none', 'border-0');
     expect(extension).not.toHaveClass('-translate-y-1/2');
     expect(extension).toHaveStyle({
       left: '308px',
@@ -1138,7 +1155,9 @@ describe('GoalsSurface', () => {
     const draftInput = screen.getAllByPlaceholderText('Write a task')[1];
     fireEvent.change(draftInput, { target: { value: 'Draft fragment' } });
     fireEvent.click(screen.getAllByLabelText('Select item')[0]);
-    fireEvent.click(screen.getAllByLabelText('Delete item')[0]);
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Delete · 1 selected' }),
+    );
     fireEvent.click(await screen.findByRole('button', { name: 'Delete' }));
 
     await waitFor(() => {
