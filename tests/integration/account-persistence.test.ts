@@ -8,6 +8,8 @@ import {
   createGoalStep,
   db,
   openOrCreateDailyEntry,
+  toggleChecklistItemChecked,
+  toggleGoalStepChecked,
 } from '@/lib/db';
 import { waitForAccountPersistence } from '@/lib/db/account-persistence';
 import { refreshAccountCache } from '@/lib/supabase/account-cache';
@@ -151,6 +153,10 @@ describe('account persistence boundaries', () => {
       goalId: goal.id,
       text: 'Cloud goal step',
     });
+    await toggleChecklistItemChecked({ scope, itemId: item.id });
+    await toggleChecklistItemChecked({ scope, itemId: item.id });
+    await toggleGoalStepChecked({ scope, goalStepId: goalStep.id });
+    await toggleGoalStepChecked({ scope, goalStepId: goalStep.id });
     await waitForAccountPersistence(scope.id);
 
     expect(accountClient.writes.map((write) => write.table)).toEqual(
@@ -166,6 +172,22 @@ describe('account persistence boundaries', () => {
     expect(
       accountClient.writes.every(
         (write) => write.payload.user_id === scope.ownerId,
+      ),
+    ).toBe(true);
+    expect(
+      accountClient.writes.some(
+        (write) =>
+          write.table === 'checklist_items' &&
+          write.payload.ignored === true &&
+          write.payload.checked === false,
+      ),
+    ).toBe(true);
+    expect(
+      accountClient.writes.some(
+        (write) =>
+          write.table === 'goal_steps' &&
+          write.payload.ignored === true &&
+          write.payload.completed === false,
       ),
     ).toBe(true);
     await expect(db.dailyEntries.get(entry.id)).resolves.toMatchObject({

@@ -48,6 +48,10 @@ export function useGoalStepSummaries(
     const summaries = new Map<string, GoalStepSummary>();
 
     for (const step of goalSteps ?? []) {
+      if (step.ignored) {
+        continue;
+      }
+
       const current: GoalStepSummary = summaries.get(step.goalId) ?? {
         completedCount: 0,
         itemCount: 0,

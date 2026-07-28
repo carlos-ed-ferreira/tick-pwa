@@ -10,6 +10,7 @@ import {
   createId,
   createReorderedRank,
   createSortRankBetween,
+  getNextTaskCompletionValues,
   sortByRank,
 } from '@/lib/domain';
 import { db } from './database';
@@ -1074,6 +1075,7 @@ export async function createGoalStep({
       parentId: safeParentId,
       text,
       completed: false,
+      ignored: false,
       priority: false,
       collapsed: false,
       categoryTagId: null,
@@ -1165,11 +1167,19 @@ export async function toggleGoalStepChecked({
       return;
     }
 
+    const nextState = getNextTaskCompletionValues(
+      goalStep.completed,
+      goalStep.ignored ?? false,
+    );
     const updatedGoalStep = touchGoalStep(scope, {
       ...goalStep,
-      completed: !goalStep.completed,
+      completed: nextState.completed,
+      ignored: nextState.ignored,
     });
-    await persistGoalStepUpdate(scope, updatedGoalStep, ['completed']);
+    await persistGoalStepUpdate(scope, updatedGoalStep, [
+      'completed',
+      'ignored',
+    ]);
   });
 }
 
@@ -1190,15 +1200,22 @@ export async function setGoalStepsCompleted({
     for (const goalStepId of goalStepIds) {
       const goalStep = await getScopedGoalStep(scope, goalStepId);
 
-      if (!goalStep || goalStep.completed === completed) {
+      if (
+        !goalStep ||
+        (goalStep.completed === completed && !goalStep.ignored)
+      ) {
         continue;
       }
 
       const updatedGoalStep = touchGoalStep(scope, {
         ...goalStep,
         completed,
+        ignored: false,
       });
-      await persistGoalStepUpdate(scope, updatedGoalStep, ['completed']);
+      await persistGoalStepUpdate(scope, updatedGoalStep, [
+        'completed',
+        'ignored',
+      ]);
     }
   });
 }

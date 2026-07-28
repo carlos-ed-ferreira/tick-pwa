@@ -3,7 +3,7 @@
 import {
   Archive,
   ArrowLeft,
-  ChevronDown,
+  ChevronRight,
   FolderPlus,
   GripVertical,
   MoreHorizontal,
@@ -72,6 +72,7 @@ import {
   reopenGoal,
   reorderGoalStep,
   softDeleteGoal,
+  softDeleteGoalGroup,
   softDeleteGoalStep,
   setGoalStepsCompleted,
   toggleGoalStepChecked,
@@ -137,6 +138,7 @@ function createGoalStepDraft({
     parentId,
     text: '',
     completed: false,
+    ignored: false,
     priority: false,
     collapsed: false,
     categoryTagId: null,
@@ -1438,8 +1440,21 @@ function GoalGroupCard({
   ) => void;
   onOpen: (groupId: string) => void;
 }) {
-  const { dictionary } = useAppContext();
+  const { dictionary, scope } = useAppContext();
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [menuStyle, setMenuStyle] = useState<{
+    top: number;
+    right: number;
+  } | null>(null);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+  const colorInputRef = useRef<HTMLInputElement | null>(null);
   const groupPayload = { id: group.id, type: 'group' } satisfies DragPayload;
+  const groupCardLabel = [
+    group.title || dictionary.goals.newGroupName,
+    ...goals.map((goal) => goal.title || dictionary.goals.newGoalTitle),
+  ].join('');
   const isDragging = isSameDragPayload(activeDragPayload, groupPayload);
   const showDropTarget =
     activeDragPayload?.type === 'goal' &&
@@ -1454,11 +1469,195 @@ function GoalGroupCard({
       ? dragTarget
       : null;
 
+  const getMenuStyle = useCallback(() => {
+    const trigger = triggerRef.current;
+
+    if (!trigger || typeof window === 'undefined') {
+      return null;
+    }
+
+    const triggerRect = trigger.getBoundingClientRect();
+
+    return {
+      right: Math.max(16, window.innerWidth - triggerRect.right),
+      top: Math.max(16, triggerRect.bottom + 8),
+    };
+  }, []);
+
+  const closeMenu = useCallback(() => {
+    setIsMenuOpen(false);
+    setMenuStyle(null);
+  }, []);
+
+  useEffect(() => {
+    if (!isMenuOpen) {
+      return;
+    }
+
+    function handlePointerDown(event: globalThis.PointerEvent) {
+      const target = event.target as Node;
+
+      if (
+        !triggerRef.current?.contains(target) &&
+        !menuRef.current?.contains(target)
+      ) {
+        closeMenu();
+      }
+    }
+
+    function handleFocusIn(event: FocusEvent) {
+      const target = event.target as Node;
+
+      if (
+        !triggerRef.current?.contains(target) &&
+        !menuRef.current?.contains(target)
+      ) {
+        closeMenu();
+      }
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        closeMenu();
+        triggerRef.current?.focus();
+      }
+    }
+
+    const colorInput = colorInputRef.current;
+
+    document.addEventListener('pointerdown', handlePointerDown);
+    document.addEventListener('focusin', handleFocusIn);
+    document.addEventListener('keydown', handleKeyDown);
+    colorInput?.addEventListener('change', closeMenu);
+
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown);
+      document.removeEventListener('focusin', handleFocusIn);
+      document.removeEventListener('keydown', handleKeyDown);
+      colorInput?.removeEventListener('change', closeMenu);
+    };
+  }, [closeMenu, isMenuOpen]);
+
+  useEffect(() => {
+    if (!isMenuOpen) {
+      return;
+    }
+
+    function updateMenuStyle() {
+      const nextMenuStyle = getMenuStyle();
+
+      if (nextMenuStyle) {
+        setMenuStyle(nextMenuStyle);
+      }
+    }
+
+    window.addEventListener('resize', updateMenuStyle);
+    window.addEventListener('scroll', updateMenuStyle, true);
+
+    return () => {
+      window.removeEventListener('resize', updateMenuStyle);
+      window.removeEventListener('scroll', updateMenuStyle, true);
+    };
+  }, [getMenuStyle, isMenuOpen]);
+
+  const menu =
+    isMenuOpen && menuStyle && typeof document !== 'undefined'
+      ? createPortal(
+          <div
+            ref={menuRef}
+            data-card-actions-menu="true"
+            className="modal-panel fixed z-60 grid max-h-[min(20rem,calc(100vh-2rem))] min-w-52 gap-1 overflow-y-auto p-2 text-sm shadow-[0_24px_70px_rgba(8,6,20,0.44)]"
+            style={menuStyle}
+            onClick={(event) => event.stopPropagation()}
+          >
+            {canUseOwnName('goal_group') ? (
+              <label className="relative flex cursor-pointer items-center gap-2 rounded-xl px-2 py-2 text-left font-medium text-[#fff9f2] transition focus-within:bg-white/[0.08] hover:bg-white/[0.08]">
+                {category?.useOwnName ? (
+                  <span
+                    aria-hidden="true"
+                    className="size-4 shrink-0 rounded-full border border-white/30"
+                    style={{ backgroundColor: category.colorHex }}
+                  />
+                ) : (
+                  <Palette aria-hidden="true" className="size-4" />
+                )}
+                {dictionary.goals.assignGroupColor}
+                <input
+                  ref={colorInputRef}
+                  aria-label={dictionary.goals.assignGroupColor}
+                  className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                  type="color"
+                  value={category?.useOwnName ? category.colorHex : '#71717a'}
+                  onInput={(event) => {
+                    if (!scope) return;
+                    void applyOwnColorCategory({
+                      colorHex: event.currentTarget.value,
+                      onAssign: (categoryTagId) =>
+                        assignGoalGroupCategory({
+                          scope,
+                          goalGroupId: group.id,
+                          categoryTagId,
+                        }),
+                      scope,
+                      selectedCategory: category ?? null,
+                      surface: 'goal_group',
+                    });
+                  }}
+                />
+              </label>
+            ) : null}
+            <CategoryMenuSection
+              label={dictionary.goals.assignGroupCategoryMenu}
+              selectedCategoryTagId={group.categoryTagId}
+              surface="goal_group"
+              onAssign={(categoryTagId) => {
+                closeMenu();
+                if (!scope) return;
+                return assignGoalGroupCategory({
+                  scope,
+                  goalGroupId: group.id,
+                  categoryTagId,
+                });
+              }}
+            />
+            <button
+              type="button"
+              className="flex items-center gap-2 rounded-xl px-2 py-2 text-left font-medium text-[#fff9f2] transition hover:bg-white/[0.08]"
+              onClick={() => {
+                closeMenu();
+                if (!scope) return;
+                void assignGoalGroupCategory({
+                  scope,
+                  goalGroupId: group.id,
+                  categoryTagId: null,
+                });
+              }}
+            >
+              <X aria-hidden="true" className="size-4" />
+              {dictionary.goals.clearGroupCategory}
+            </button>
+            <button
+              type="button"
+              className="flex items-center gap-2 rounded-xl px-2 py-2 text-left font-medium text-rose-300 hover:bg-rose-400/15 hover:text-rose-200"
+              onClick={() => {
+                closeMenu();
+                setIsDeleteDialogOpen(true);
+              }}
+            >
+              <Trash2 aria-hidden="true" className="size-4" />
+              {dictionary.goals.deleteGroup}
+            </button>
+          </div>,
+          document.body,
+        )
+      : null;
+
   return (
     <>
       <article
         role="button"
         tabIndex={0}
+        aria-label={groupCardLabel}
         className={`group relative grid h-32 cursor-pointer content-start gap-2 rounded-[1.35rem] bg-white/[0.05] px-4 pb-5 pt-3.5 text-left shadow-[0_14px_34px_rgba(8,6,20,0.12)] ring-1 ring-white/[0.08] transition hover:-translate-y-0.5 hover:bg-white/[0.075] hover:ring-[#f0c38e]/25 active:translate-y-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0] ${
           isDragging ? 'invisible' : ''
         }`}
@@ -1480,7 +1679,7 @@ function GoalGroupCard({
         {positionTarget ? (
           <PositionIndicator side={positionTarget.side} />
         ) : null}
-        <span className="flex min-w-0 items-center justify-start gap-2">
+        <span className="flex min-w-0 items-center justify-start gap-2 pr-10">
           <button
             type="button"
             aria-label={dictionary.goals.dragGoal}
@@ -1519,6 +1718,31 @@ function GoalGroupCard({
             </span>
           ) : null}
         </span>
+        <div className="absolute right-4 top-3">
+          <IconButton
+            ref={triggerRef}
+            aria-expanded={isMenuOpen}
+            aria-label={dictionary.goals.groupMenu}
+            className="size-8 rounded-full text-[#bdb4d4] hover:bg-white/[0.08] hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
+            onClick={(event) => {
+              event.stopPropagation();
+
+              if (isMenuOpen) {
+                closeMenu();
+                return;
+              }
+
+              const nextMenuStyle = getMenuStyle();
+
+              if (nextMenuStyle) {
+                setMenuStyle(nextMenuStyle);
+                setIsMenuOpen(true);
+              }
+            }}
+          >
+            <MoreHorizontal aria-hidden="true" className="size-4" />
+          </IconButton>
+        </div>
         <span className="grid grid-cols-2 gap-2 self-start">
           {goals.slice(0, goals.length > 4 ? 3 : 4).map((goal) => {
             const cat = goalCategoryMap.get(goal.categoryTagId ?? '');
@@ -1545,6 +1769,20 @@ function GoalGroupCard({
           ) : null}
         </span>
       </article>
+      {menu}
+      <ConfirmationDialog
+        cancelLabel={dictionary.actions.cancel}
+        confirmLabel={dictionary.actions.delete}
+        description={dictionary.goals.confirmDeleteGroup}
+        open={isDeleteDialogOpen}
+        title={dictionary.goals.deleteGroup}
+        onClose={() => setIsDeleteDialogOpen(false)}
+        onConfirm={() => {
+          setIsDeleteDialogOpen(false);
+          if (!scope) return;
+          void softDeleteGoalGroup({ scope, goalGroupId: group.id });
+        }}
+      />
     </>
   );
 }
@@ -1662,6 +1900,7 @@ function GoalCard({
   } | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
+  const colorInputRef = useRef<HTMLInputElement | null>(null);
   const progressTone = getProgressTone(summary);
   const goalPayload = { id: goal.id, type: 'goal' } satisfies DragPayload;
   const isDragging = isSameDragPayload(activeDragPayload, goalPayload);
@@ -1746,14 +1985,22 @@ function GoalCard({
       }
     }
 
+    const colorInput = colorInputRef.current;
+
+    function handleColorPickerClose() {
+      closeMenu();
+    }
+
     document.addEventListener('pointerdown', handlePointerDown);
     document.addEventListener('focusin', handleFocusIn);
     document.addEventListener('keydown', handleKeyDown);
+    colorInput?.addEventListener('change', handleColorPickerClose);
 
     return () => {
       document.removeEventListener('pointerdown', handlePointerDown);
       document.removeEventListener('focusin', handleFocusIn);
       document.removeEventListener('keydown', handleKeyDown);
+      colorInput?.removeEventListener('change', handleColorPickerClose);
     };
   }, [closeMenu, isMenuOpen]);
 
@@ -1784,6 +2031,8 @@ function GoalCard({
       ? createPortal(
           <div
             ref={menuRef}
+            data-card-actions-menu="true"
+            data-goal-actions-menu="true"
             className="modal-panel fixed z-60 grid max-h-[min(20rem,calc(100vh-2rem))] min-w-48 gap-1 overflow-y-auto p-2 text-sm shadow-[0_24px_70px_rgba(8,6,20,0.44)]"
             style={menuStyle}
             // Clicks inside the portal bubble through the React tree to the
@@ -1816,16 +2065,17 @@ function GoalCard({
                 )}
                 {dictionary.goals.assignGoalColor}
                 <input
+                  ref={colorInputRef}
                   aria-label={dictionary.goals.assignGoalColor}
                   className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
                   type="color"
                   value={
                     goalCategory?.useOwnName ? goalCategory.colorHex : '#71717a'
                   }
-                  onChange={(event) => {
+                  onInput={(event) => {
                     if (!scope) return;
                     void applyOwnColorCategory({
-                      colorHex: event.target.value,
+                      colorHex: event.currentTarget.value,
                       onAssign: (categoryTagId) =>
                         assignGoalCategory({
                           scope,
@@ -1842,7 +2092,7 @@ function GoalCard({
             ) : null}
             {!archived ? (
               <CategoryMenuSection
-                label={dictionary.goals.assignGoalCategory}
+                label={dictionary.goals.assignGoalCategoryMenu}
                 selectedCategoryTagId={goal.categoryTagId}
                 surface="goal"
                 onAssign={(categoryTagId) => {
@@ -1871,7 +2121,7 @@ function GoalCard({
                 }}
               >
                 <X aria-hidden="true" className="size-4" />
-                {dictionary.dayEditor.clearCategory}
+                {dictionary.goals.clearGoalCategory}
               </button>
             ) : null}
             {!archived && onComplete ? (
@@ -2001,9 +2251,19 @@ function GoalCard({
               <GripVertical aria-hidden="true" className="size-4" />
             </button>
           ) : null}
-          <span className="min-w-0 flex-1 truncate text-base font-semibold leading-tight text-[#fff9f2]">
+          <span className="min-w-0 truncate text-base font-semibold leading-tight text-[#fff9f2]">
             {goal.title || dictionary.goals.newGoalTitle}
           </span>
+          {goalCategory &&
+          !goalCategory.useOwnName &&
+          goalCategory.name.trim().length > 0 ? (
+            <span
+              className="max-w-[40%] shrink-0 truncate text-xs font-semibold leading-tight"
+              style={{ color: goalCategory.colorHex }}
+            >
+              {goalCategory.name}
+            </span>
+          ) : null}
         </div>
         <div className="absolute right-4 top-3">
           <IconButton
@@ -2078,9 +2338,7 @@ function GoalCard({
   );
 }
 
-// Inline category picker used inside the goal card actions menu. It expands
-// in place instead of opening a nested portal, so the outer menu's
-// outside-click handling keeps working.
+// Goal-only category submenu used by the goal card actions menu.
 function CategoryMenuSection({
   label,
   selectedCategoryTagId,
@@ -2095,46 +2353,158 @@ function CategoryMenuSection({
   const { scope } = useAppContext();
   const categoryTags = useCategoryTags(scope, surface);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [submenuStyle, setSubmenuStyle] = useState<{
+    left: number;
+    top: number;
+  } | null>(null);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const submenuRef = useRef<HTMLDivElement | null>(null);
+  const closeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const assignableCategoryTags = categoryTags.filter((tag) => !tag.useOwnName);
+
+  const cancelScheduledClose = useCallback(() => {
+    if (closeTimeoutRef.current !== null) {
+      clearTimeout(closeTimeoutRef.current);
+      closeTimeoutRef.current = null;
+    }
+  }, []);
+
+  const scheduleClose = useCallback(() => {
+    cancelScheduledClose();
+    closeTimeoutRef.current = setTimeout(() => {
+      setIsExpanded(false);
+      closeTimeoutRef.current = null;
+    }, 120);
+  }, [cancelScheduledClose]);
+
+  const updateSubmenuPosition = useCallback(() => {
+    const trigger = triggerRef.current;
+
+    if (!trigger) {
+      return;
+    }
+
+    const triggerRect = trigger.getBoundingClientRect();
+    const actionsMenuRect = trigger
+      .closest<HTMLElement>('[data-card-actions-menu="true"]')
+      ?.getBoundingClientRect();
+    const submenuLeft = actionsMenuRect?.right ?? triggerRect.right;
+
+    setSubmenuStyle({
+      left: submenuLeft,
+      top: triggerRect.top + triggerRect.height / 2,
+    });
+  }, []);
+
+  const openSubmenu = useCallback(() => {
+    cancelScheduledClose();
+    updateSubmenuPosition();
+    setIsExpanded(true);
+  }, [cancelScheduledClose, updateSubmenuPosition]);
+
+  useEffect(
+    () => () => {
+      cancelScheduledClose();
+    },
+    [cancelScheduledClose],
+  );
+
+  useEffect(() => {
+    if (!isExpanded) {
+      return;
+    }
+
+    function updatePosition() {
+      updateSubmenuPosition();
+    }
+
+    window.addEventListener('resize', updatePosition);
+    window.addEventListener('scroll', updatePosition, true);
+
+    return () => {
+      window.removeEventListener('resize', updatePosition);
+      window.removeEventListener('scroll', updatePosition, true);
+    };
+  }, [isExpanded, updateSubmenuPosition]);
 
   if (assignableCategoryTags.length === 0) {
     return null;
   }
 
+  const submenu =
+    isExpanded && submenuStyle && typeof document !== 'undefined'
+      ? createPortal(
+          <div
+            ref={submenuRef}
+            data-goal-category-submenu="true"
+            className="modal-panel fixed z-70 grid max-h-[min(20rem,calc(100vh-2rem))] min-w-52 gap-1 overflow-y-auto rounded-l-none p-2 text-sm shadow-[0_24px_70px_rgba(8,6,20,0.44)]"
+            style={{ ...submenuStyle, transform: 'translateY(-50%)' }}
+            onClick={(event) => event.stopPropagation()}
+            onFocus={(event) => event.stopPropagation()}
+            onMouseEnter={cancelScheduledClose}
+            onMouseLeave={(event) => {
+              const nextTarget = event.relatedTarget;
+
+              if (
+                !(nextTarget instanceof Node) ||
+                !triggerRef.current?.contains(nextTarget)
+              ) {
+                scheduleClose();
+              }
+            }}
+            onPointerDown={(event) => event.stopPropagation()}
+          >
+            {assignableCategoryTags.map((tag) => (
+              <button
+                key={tag.id}
+                type="button"
+                className={`flex items-center gap-2 rounded-xl px-2 py-2 text-left text-[#fff9f2] transition hover:bg-white/[0.08] ${
+                  tag.id === selectedCategoryTagId ? 'bg-white/[0.06]' : ''
+                }`}
+                onClick={() => void onAssign(tag.id)}
+              >
+                <span
+                  aria-hidden="true"
+                  className="size-3 shrink-0 rounded-full"
+                  style={{ backgroundColor: tag.colorHex }}
+                />
+                <span className="truncate">{tag.name}</span>
+              </button>
+            ))}
+          </div>,
+          document.body,
+        )
+      : null;
+
   return (
     <>
-      <button
-        type="button"
-        aria-expanded={isExpanded}
-        className="flex items-center gap-2 rounded-xl px-2 py-2 text-left font-medium text-[#fff9f2] transition hover:bg-white/[0.08]"
-        onClick={() => setIsExpanded((value) => !value)}
-      >
-        <Tag aria-hidden="true" className="size-4" />
-        <span className="min-w-0 flex-1 truncate">{label}</span>
-        <ChevronDown
-          aria-hidden="true"
-          className={`size-4 shrink-0 transition ${isExpanded ? 'rotate-180' : ''}`}
-        />
-      </button>
-      {isExpanded
-        ? assignableCategoryTags.map((tag) => (
-            <button
-              key={tag.id}
-              type="button"
-              className={`flex items-center gap-2 rounded-xl py-2 pl-8 pr-2 text-left text-[#fff9f2] transition hover:bg-white/[0.08] ${
-                tag.id === selectedCategoryTagId ? 'bg-white/[0.06]' : ''
-              }`}
-              onClick={() => void onAssign(tag.id)}
-            >
-              <span
-                aria-hidden="true"
-                className="size-3 shrink-0 rounded-full"
-                style={{ backgroundColor: tag.colorHex }}
-              />
-              <span className="truncate">{tag.name}</span>
-            </button>
-          ))
-        : null}
+      <div className="relative grid">
+        <button
+          ref={triggerRef}
+          type="button"
+          aria-expanded={isExpanded}
+          aria-haspopup="menu"
+          className="flex w-full items-center gap-2 rounded-xl px-2 py-2 text-left font-medium text-[#fff9f2] transition hover:bg-white/[0.08]"
+          onClick={openSubmenu}
+          onFocus={openSubmenu}
+          onMouseEnter={openSubmenu}
+          onMouseLeave={(event) => {
+            const nextTarget = event.relatedTarget;
+
+            if (
+              !(nextTarget instanceof Node) ||
+              !submenuRef.current?.contains(nextTarget)
+            ) {
+              scheduleClose();
+            }
+          }}
+        >
+          <Tag aria-hidden="true" className="size-4" />
+          <span className="min-w-0 flex-1 truncate">{label}</span>
+          <ChevronRight aria-hidden="true" className="size-4 shrink-0" />
+        </button>
+      </div>
+      {submenu}
     </>
   );
 }
@@ -2920,6 +3290,7 @@ function GoalStepRow({
       categoryTagId={goalStep.categoryTagId}
       categoryTagMap={categoryTagMap}
       checked={goalStep.completed}
+      ignored={goalStep.ignored}
       collapsed={goalStep.collapsed}
       depth={depth}
       hasChildren={hasChildren}

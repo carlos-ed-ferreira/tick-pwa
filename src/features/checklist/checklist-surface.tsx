@@ -73,6 +73,7 @@ function createChecklistDraftItem({
     text: '',
     scheduledTime: null,
     checked: false,
+    ignored: false,
     priority: false,
     collapsed: false,
     categoryTagId: null,
@@ -591,6 +592,7 @@ function ChecklistRow({
       categoryTagId={item.categoryTagId}
       categoryTagMap={categoryTagMap}
       checked={item.checked}
+      ignored={item.ignored}
       collapsed={item.collapsed}
       depth={depth}
       hasChildren={hasChildren}

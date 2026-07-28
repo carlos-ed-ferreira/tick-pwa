@@ -52,6 +52,7 @@ export interface RemoteChecklistItem extends RemoteBaseRow {
   text: string;
   scheduled_time: string | null;
   checked: boolean;
+  ignored: boolean;
   priority: boolean;
   collapsed: boolean;
   category_tag_id: string | null;
@@ -77,6 +78,7 @@ export interface RemoteGoalStep extends RemoteBaseRow {
   parent_id: string | null;
   text: string;
   completed: boolean;
+  ignored: boolean;
   priority: boolean;
   collapsed: boolean;
   category_tag_id: string | null;
@@ -211,6 +213,7 @@ export function toRemotePayload(
       text: item.text,
       scheduled_time: item.scheduledTime,
       checked: item.checked,
+      ignored: item.ignored,
       priority: item.priority,
       collapsed: item.collapsed,
       category_tag_id: item.categoryTagId,
@@ -250,6 +253,7 @@ export function toRemotePayload(
     parent_id: goalStep.parentId,
     text: goalStep.text,
     completed: goalStep.completed,
+    ignored: goalStep.ignored,
     priority: goalStep.priority,
     collapsed: goalStep.collapsed,
     category_tag_id: goalStep.categoryTagId,
@@ -325,6 +329,7 @@ export function checklistItemFromRemote(
     text: row.text,
     scheduledTime: row.scheduled_time ?? null,
     checked: row.checked,
+    ignored: row.ignored ?? false,
     priority: row.priority ?? false,
     collapsed: row.collapsed,
     categoryTagId: row.category_tag_id,
@@ -360,6 +365,7 @@ export function goalStepFromRemote(
     parentId: row.parent_id,
     text: row.text,
     completed: row.completed,
+    ignored: row.ignored ?? false,
     priority: row.priority ?? false,
     collapsed: row.collapsed,
     categoryTagId: row.category_tag_id,

@@ -24,7 +24,12 @@ import { CategoryAssignmentMenu } from '@/features/categories';
 import { useDebouncedInlineEdit } from '@/hooks/use-debounced-inline-edit';
 import { useFocusAfterCreate } from '@/hooks/use-focus-after-create';
 import { requiresDeleteConfirmation } from '@/lib/confirm-delete';
-import type { CategoryTagSurface } from '@/lib/domain';
+import {
+  getNextTaskCompletionValues,
+  getTaskCompletionState,
+  type CategoryTagSurface,
+  type TaskCompletionState,
+} from '@/lib/domain';
 import { TaskTreeActionGroup } from './task-tree-action-group';
 import { TaskTreeCategoryChip } from './task-tree-category-chip';
 import { TaskTreeCollapseButton } from './task-tree-collapse-button';
@@ -87,6 +92,7 @@ export function TaskTreeEditableRow({
   categoryTagId,
   categoryTagMap,
   checked,
+  ignored = false,
   collapsed,
   depth,
   hasChildren,
@@ -122,6 +128,7 @@ export function TaskTreeEditableRow({
   categoryTagId: string | null;
   categoryTagMap: Map<string, { colorHex: string; name: string }>;
   checked: boolean;
+  ignored?: boolean;
   collapsed: boolean;
   depth: number;
   hasChildren: boolean;
@@ -167,9 +174,9 @@ export function TaskTreeEditableRow({
   );
   const [isDragging, setIsDragging] = useState(false);
   const [isTextMultiline, setIsTextMultiline] = useState(false);
-  const [optimisticChecked, setOptimisticChecked] = useState<{
-    base: boolean;
-    value: boolean;
+  const [optimisticCompletion, setOptimisticCompletion] = useState<{
+    base: TaskCompletionState;
+    value: TaskCompletionState;
   } | null>(null);
   const [optimisticPriority, setOptimisticPriority] = useState<{
     base: boolean;
@@ -185,11 +192,19 @@ export function TaskTreeEditableRow({
     ? (categoryTagMap.get(categoryTagId) ?? null)
     : null;
   const normalizedChecked = checked ?? false;
+  const normalizedIgnored = ignored ?? false;
   const normalizedPriority = priority ?? false;
-  const displayedChecked =
-    optimisticChecked !== null && optimisticChecked.base === normalizedChecked
-      ? optimisticChecked.value
-      : normalizedChecked;
+  const completionState = getTaskCompletionState(
+    normalizedChecked,
+    normalizedIgnored,
+  );
+  const displayedCompletionState =
+    optimisticCompletion !== null &&
+    optimisticCompletion.base === completionState
+      ? optimisticCompletion.value
+      : completionState;
+  const displayedChecked = displayedCompletionState === 'completed';
+  const displayedIgnored = displayedCompletionState === 'ignored';
   const displayedPriority =
     optimisticPriority !== null &&
     optimisticPriority.base === normalizedPriority
@@ -238,18 +253,28 @@ export function TaskTreeEditableRow({
       return;
     }
 
-    setOptimisticChecked({
-      base: normalizedChecked,
-      value: !displayedChecked,
+    const nextValues = getNextTaskCompletionValues(
+      displayedChecked,
+      displayedIgnored,
+    );
+    setOptimisticCompletion({
+      base: completionState,
+      value: getTaskCompletionState(nextValues.completed, nextValues.ignored),
     });
 
     try {
       await onToggleChecked();
     } catch (error) {
-      setOptimisticChecked(null);
+      setOptimisticCompletion(null);
       throw error;
     }
-  }, [displayedChecked, normalizedChecked, onToggleChecked, selection]);
+  }, [
+    completionState,
+    displayedChecked,
+    displayedIgnored,
+    onToggleChecked,
+    selection,
+  ]);
 
   const togglePriority = useCallback(async () => {
     setOptimisticPriority({
@@ -528,6 +553,7 @@ export function TaskTreeEditableRow({
         <Checkbox
           aria-label={labels.toggleItem}
           checked={displayedChecked}
+          indeterminate={displayedIgnored}
           disabled={
             selection?.isSelectionMode === true && !selection.isSelected
           }
@@ -568,7 +594,9 @@ export function TaskTreeEditableRow({
             value={text}
             placeholder={labels.itemPlaceholder}
             className={`min-w-0 w-full bg-transparent px-2 py-0 text-sm leading-5 outline-none placeholder:text-[#8f85aa] ${
-              displayedChecked ? 'text-[#8f85aa] opacity-75' : 'text-[#fff9f2]'
+              displayedChecked || displayedIgnored
+                ? 'text-[#8f85aa] opacity-75'
+                : 'text-[#fff9f2]'
             }`}
             onBlur={() => void flushEditableText()}
             onHeightChange={handleTextHeightChange}

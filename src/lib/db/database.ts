@@ -28,7 +28,12 @@ type LegacyDailyEntry = Omit<
 
 type LegacyChecklistItem = Omit<
   ChecklistItem,
-  'categoryTagId' | 'parentId' | 'collapsed' | 'priority' | 'scheduledTime'
+  | 'categoryTagId'
+  | 'parentId'
+  | 'collapsed'
+  | 'priority'
+  | 'scheduledTime'
+  | 'ignored'
 > & {
   categoryTagId?: string | null;
   colorTagId?: string | null;
@@ -36,6 +41,7 @@ type LegacyChecklistItem = Omit<
   collapsed?: boolean;
   priority?: boolean;
   scheduledTime?: string | null;
+  ignored?: boolean;
 };
 
 type LegacyGoal = Omit<Goal, 'categoryTagId'> & {
@@ -45,13 +51,14 @@ type LegacyGoal = Omit<Goal, 'categoryTagId'> & {
 
 type LegacyGoalStep = Omit<
   GoalStep,
-  'parentId' | 'collapsed' | 'categoryTagId' | 'priority'
+  'parentId' | 'collapsed' | 'categoryTagId' | 'priority' | 'ignored'
 > & {
   parentId?: string | null;
   collapsed?: boolean;
   priority?: boolean;
   categoryTagId?: string | null;
   colorTagId?: string | null;
+  ignored?: boolean;
 };
 
 type LegacyCategoryTag = Omit<CategoryTag, 'colorHex'> & {
@@ -99,6 +106,7 @@ function migrateChecklistItem(item: LegacyChecklistItem): ChecklistItem {
     collapsed,
     priority,
     scheduledTime,
+    ignored,
     ...rest
   } = item;
 
@@ -109,6 +117,7 @@ function migrateChecklistItem(item: LegacyChecklistItem): ChecklistItem {
     collapsed: collapsed ?? false,
     priority: priority ?? false,
     scheduledTime: scheduledTime ?? null,
+    ignored: ignored ?? false,
   };
 }
 
@@ -132,14 +141,22 @@ function migrateCategoryTag(categoryTag: LegacyCategoryTag): CategoryTag {
 }
 
 function migrateGoalStep(goalStep: LegacyGoalStep): GoalStep {
-  const { categoryTagId, collapsed, colorTagId, parentId, priority, ...rest } =
-    goalStep;
+  const {
+    categoryTagId,
+    collapsed,
+    colorTagId,
+    parentId,
+    priority,
+    ignored,
+    ...rest
+  } = goalStep;
 
   return {
     ...rest,
     parentId: parentId ?? null,
     collapsed: collapsed ?? false,
     priority: priority ?? false,
+    ignored: ignored ?? false,
     categoryTagId: categoryTagId ?? colorTagId ?? null,
   };
 }
@@ -340,7 +357,7 @@ async function recalculateMigratedDailyEntrySummary({
   >();
 
   for (const item of checklistItems) {
-    if (!item.categoryTagId) {
+    if (!item.categoryTagId || item.ignored) {
       continue;
     }
 
@@ -363,14 +380,15 @@ async function recalculateMigratedDailyEntrySummary({
     firstItem.sortRank.localeCompare(secondItem.sortRank),
   );
   const categorySummaries = Array.from(categorySummaryMap.values());
+  const countedItems = checklistItems.filter((item) => !item.ignored);
 
   return {
     ...dailyEntry,
     previewText:
       sortedItems.find((item) => item.text.trim().length > 0)?.text.trim() ??
       '',
-    itemCount: checklistItems.length,
-    completedCount: checklistItems.filter((item) => item.checked).length,
+    itemCount: countedItems.length,
+    completedCount: countedItems.filter((item) => item.checked).length,
     categoryTagIds: categorySummaries.map((summary) => summary.categoryTagId),
     categorySummaries,
   };
@@ -955,6 +973,27 @@ export class TickDatabase extends Dexie {
           ...categoryTag,
           useOwnName: categoryTag.useOwnName ?? false,
         });
+      }
+    });
+
+    this.version(13).upgrade(async (transaction) => {
+      const checklistItemsTable = transaction.table('checklistItems') as Table<
+        LegacyChecklistItem,
+        string
+      >;
+      const goalStepsTable = transaction.table('goalSteps') as Table<
+        LegacyGoalStep,
+        string
+      >;
+
+      for (const item of await checklistItemsTable.toArray()) {
+        await checklistItemsTable.put(
+          migrateChecklistItem(item) as LegacyChecklistItem,
+        );
+      }
+
+      for (const goalStep of await goalStepsTable.toArray()) {
+        await goalStepsTable.put(migrateGoalStep(goalStep) as LegacyGoalStep);
       }
     });
 

@@ -68,6 +68,46 @@ describe('checklist commands', () => {
     });
   });
 
+  it('cycles checklist tasks through completed, ignored, and unchecked without counting ignored tasks', async () => {
+    const scope = createGuestScope('checklist-ignore-cycle');
+    const entry = await openOrCreateDailyEntry({
+      scope,
+      date: '2026-05-14',
+      timezone: 'America/Sao_Paulo',
+    });
+    const item = await createChecklistItem({
+      scope,
+      dailyEntryId: entry.id,
+      text: 'Optional task',
+    });
+
+    await toggleChecklistItemChecked({ scope, itemId: item.id });
+    await expect(db.checklistItems.get(item.id)).resolves.toMatchObject({
+      checked: true,
+      ignored: false,
+    });
+
+    await toggleChecklistItemChecked({ scope, itemId: item.id });
+    await expect(db.checklistItems.get(item.id)).resolves.toMatchObject({
+      checked: false,
+      ignored: true,
+    });
+    await expect(db.dailyEntries.get(entry.id)).resolves.toMatchObject({
+      itemCount: 0,
+      completedCount: 0,
+    });
+
+    await toggleChecklistItemChecked({ scope, itemId: item.id });
+    await expect(db.checklistItems.get(item.id)).resolves.toMatchObject({
+      checked: false,
+      ignored: false,
+    });
+    await expect(db.dailyEntries.get(entry.id)).resolves.toMatchObject({
+      itemCount: 1,
+      completedCount: 0,
+    });
+  });
+
   it('does not persist empty checklist items or empty text updates', async () => {
     const scope = createGuestScope('checklist-empty-guard');
     const entry = await openOrCreateDailyEntry({
@@ -1032,6 +1072,7 @@ describe('checklist commands', () => {
           parentId: null,
           text: 'Root task',
           checked: false,
+          ignored: false,
           priority: false,
           collapsed: false,
           categoryTagId: null,
@@ -1042,6 +1083,7 @@ describe('checklist commands', () => {
           parentId: 'root-1',
           text: 'Nested task',
           checked: true,
+          ignored: false,
           priority: true,
           collapsed: false,
           categoryTagId: categoryTag.id,
@@ -1052,6 +1094,7 @@ describe('checklist commands', () => {
           parentId: null,
           text: 'Later task',
           checked: false,
+          ignored: false,
           priority: true,
           collapsed: true,
           categoryTagId: categoryTag.id,

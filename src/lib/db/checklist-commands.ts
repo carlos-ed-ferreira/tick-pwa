@@ -4,6 +4,7 @@ import {
   createId,
   createReorderedRank,
   createSortRankBetween,
+  getNextTaskCompletionValues,
   sortByRank,
 } from '@/lib/domain';
 import { getDatesInRangeForWeekdays, type WeekdayIndex } from '@/lib/time';
@@ -177,6 +178,7 @@ async function cloneChecklistChildrenToDailyEntry({
       text: sourceItem.text,
       scheduledTime: sourceItem.scheduledTime,
       checked: sourceItem.checked,
+      ignored: sourceItem.ignored,
       priority: sourceItem.priority,
       collapsed: sourceItem.collapsed,
       categoryTagId: sourceItem.categoryTagId,
@@ -264,6 +266,7 @@ export interface ChecklistTemplateItem {
   text: string;
   scheduledTime?: string | null;
   checked: boolean;
+  ignored: boolean;
   priority: boolean;
   collapsed: boolean;
   categoryTagId: string | null;
@@ -342,6 +345,7 @@ export async function createChecklistItem({
       text,
       scheduledTime: normalizeScheduledTime(scheduledTime),
       checked: false,
+      ignored: false,
       priority: false,
       collapsed: false,
       categoryTagId: null,
@@ -511,11 +515,19 @@ export async function toggleChecklistItemChecked({
       return;
     }
 
+    const nextState = getNextTaskCompletionValues(
+      item.checked,
+      item.ignored ?? false,
+    );
     const updatedItem = touchChecklistItem(scope, {
       ...item,
-      checked: !item.checked,
+      checked: nextState.completed,
+      ignored: nextState.ignored,
     });
-    await persistChecklistItemUpdate(scope, updatedItem, ['checked']);
+    await persistChecklistItemUpdate(scope, updatedItem, [
+      'checked',
+      'ignored',
+    ]);
     await recalculateDailyEntrySummary({
       scope,
       dailyEntryId: item.dailyEntryId,
@@ -542,15 +554,19 @@ export async function setChecklistItemsChecked({
     for (const itemId of itemIds) {
       const item = await getScopedChecklistItem(scope, itemId);
 
-      if (!item || item.checked === checked) {
+      if (!item || (item.checked === checked && !item.ignored)) {
         continue;
       }
 
       const updatedItem = touchChecklistItem(scope, {
         ...item,
         checked,
+        ignored: false,
       });
-      await persistChecklistItemUpdate(scope, updatedItem, ['checked']);
+      await persistChecklistItemUpdate(scope, updatedItem, [
+        'checked',
+        'ignored',
+      ]);
       dailyEntryIds.add(item.dailyEntryId);
     }
 
@@ -1069,6 +1085,7 @@ async function cloneChecklistItemDescendants({
       text: sourceItem.text,
       scheduledTime: sourceItem.scheduledTime,
       checked: sourceItem.checked,
+      ignored: sourceItem.ignored,
       priority: sourceItem.priority,
       collapsed: sourceItem.collapsed,
       categoryTagId: sourceItem.categoryTagId,
@@ -1166,6 +1183,7 @@ export async function duplicateChecklistItemToDate({
       text: sourceItem.text,
       scheduledTime: sourceItem.scheduledTime,
       checked: sourceItem.checked,
+      ignored: sourceItem.ignored,
       priority: sourceItem.priority,
       collapsed: sourceItem.collapsed,
       categoryTagId: sourceItem.categoryTagId,
@@ -1474,6 +1492,7 @@ export async function applyChecklistTemplateToDateRange({
             text: templateItem.text,
             scheduledTime: templateItem.scheduledTime ?? null,
             checked: templateItem.checked,
+            ignored: templateItem.ignored,
             priority: templateItem.priority,
             collapsed: templateItem.collapsed,
             categoryTagId: templateItem.categoryTagId,

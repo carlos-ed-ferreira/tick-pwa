@@ -13,6 +13,7 @@ function item(overrides: Partial<ChecklistItem>): ChecklistItem {
     text: '',
     scheduledTime: null,
     checked: false,
+    ignored: false,
     priority: false,
     collapsed: false,
     categoryTagId: null,

@@ -164,13 +164,19 @@ export interface Dictionary {
     activeGoals: string;
     archivedGoals: string;
     assignGoalCategory: string;
+    assignGoalCategoryMenu: string;
     assignGoalColor: string;
+    clearGoalCategory: string;
     assignGroupCategory: string;
+    assignGroupCategoryMenu: string;
+    assignGroupColor: string;
+    clearGroupCategory: string;
     backToGoalGroups: string;
     completeGoal: string;
     dragGoal: string;
     newGoalTitle: string;
     goalMenu: string;
+    groupMenu: string;
     groupTitlePlaceholder: string;
     createGroupTitle: string;
     createGroupDescription: string;
@@ -184,6 +190,8 @@ export interface Dictionary {
     noGroup: string;
     originGroup: string;
     renameGroup: string;
+    deleteGroup: string;
+    confirmDeleteGroup: string;
     restoreGoal: string;
     confirmRestoreGoal: string;
     goalTitlePlaceholder: string;

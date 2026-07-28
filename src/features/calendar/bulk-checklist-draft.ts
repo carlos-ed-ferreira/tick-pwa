@@ -14,6 +14,7 @@ export interface BulkChecklistDraftItem {
   text: string;
   scheduledTime: string | null;
   checked: boolean;
+  ignored: boolean;
   priority: boolean;
   collapsed: boolean;
   categoryTagId: string | null;
@@ -114,6 +115,7 @@ export function createBulkChecklistDraftItem(
     text,
     scheduledTime: null,
     checked: false,
+    ignored: false,
     priority: false,
     collapsed: false,
     categoryTagId: null,
@@ -184,10 +186,17 @@ export function toggleBulkChecklistDraftItemChecked(
   items: BulkChecklistDraftItem[],
   itemId: string,
 ): BulkChecklistDraftItem[] {
-  return updateDraftItem(items, itemId, (item) => ({
-    ...item,
-    checked: !item.checked,
-  }));
+  return updateDraftItem(items, itemId, (item) => {
+    if (item.ignored) {
+      return { ...item, checked: false, ignored: false };
+    }
+
+    if (item.checked) {
+      return { ...item, checked: false, ignored: true };
+    }
+
+    return { ...item, checked: true, ignored: false };
+  });
 }
 
 export function toggleBulkChecklistDraftItemPriority(

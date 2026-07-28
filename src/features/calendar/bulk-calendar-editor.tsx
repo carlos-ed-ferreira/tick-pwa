@@ -448,6 +448,7 @@ function BulkChecklistRow({
       categoryTagId={item.categoryTagId}
       categoryTagMap={categoryTagMap}
       checked={item.checked}
+      ignored={item.ignored}
       collapsed={item.collapsed}
       depth={depth}
       hasChildren={hasChildren}
@@ -490,7 +491,11 @@ function BulkChecklistRow({
           setDraftItems((currentItems) =>
             currentItems.map((currentItem) =>
               selectedIds.has(currentItem.id)
-                ? { ...currentItem, checked: nextChecked }
+                ? {
+                    ...currentItem,
+                    checked: nextChecked,
+                    ignored: false,
+                  }
                 : currentItem,
             ),
           );

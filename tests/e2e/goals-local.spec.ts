@@ -63,3 +63,80 @@ test('caps a long goal title without deforming the back button or overflowing th
   expect(finalButtonBox?.width).toBeCloseTo(initialButtonBox?.width ?? 0, 0);
   expect(finalButtonBox?.height).toBeCloseTo(initialButtonBox?.height ?? 0, 0);
 });
+
+test('aligns the goal category submenu with its hovered action', async ({
+  page,
+}) => {
+  await enterLocalMode(page);
+  await page.goto('/goals');
+  await page.getByRole('button', { name: labels.createGoal }).click();
+  await page.waitForURL(/\/goals\?goal=.+/);
+  await page
+    .getByRole('button', {
+      name: /back to goal groups|voltar para grupos de metas/i,
+    })
+    .click();
+
+  await page
+    .getByRole('button', { name: /goal actions|ações da meta/i })
+    .click();
+
+  const categoryAction = page.getByRole('button', {
+    name: /^assign category$|^atribuir categoria$/i,
+  });
+  const actionsMenu = page.locator('[data-goal-actions-menu="true"]');
+  const submenu = page.locator('[data-goal-category-submenu="true"]');
+
+  await expect(submenu).toHaveCount(0);
+  await categoryAction.hover();
+  await expect(submenu).toBeVisible();
+
+  const horizontalOverflow = await actionsMenu.evaluate(
+    (element) => element.scrollWidth - element.clientWidth,
+  );
+  expect(horizontalOverflow).toBe(0);
+
+  const scrollbarStyle = await actionsMenu.evaluate((element) => {
+    const style = window.getComputedStyle(element);
+    return {
+      color: style.scrollbarColor,
+      width: style.scrollbarWidth,
+    };
+  });
+  expect(scrollbarStyle.width).toBe('thin');
+  expect(scrollbarStyle.color).not.toBe('auto');
+
+  const actionBox = await categoryAction.boundingBox();
+  const actionsMenuBox = await actionsMenu.boundingBox();
+  const submenuBox = await submenu.boundingBox();
+  const radii = await submenu.evaluate((element) => {
+    const style = window.getComputedStyle(element);
+    return {
+      bottomLeft: style.borderBottomLeftRadius,
+      topLeft: style.borderTopLeftRadius,
+    };
+  });
+
+  expect(actionBox).not.toBeNull();
+  expect(actionsMenuBox).not.toBeNull();
+  expect(submenuBox).not.toBeNull();
+  expect(submenuBox?.x).toBeCloseTo(
+    (actionsMenuBox?.x ?? 0) + (actionsMenuBox?.width ?? 0),
+    0,
+  );
+  expect(submenuBox?.x ?? 0).toBeGreaterThanOrEqual(
+    (actionBox?.x ?? 0) + (actionBox?.width ?? 0),
+  );
+  expect((submenuBox?.y ?? 0) + (submenuBox?.height ?? 0) / 2).toBeCloseTo(
+    (actionBox?.y ?? 0) + (actionBox?.height ?? 0) / 2,
+    0,
+  );
+  expect(radii).toEqual({ bottomLeft: '0px', topLeft: '0px' });
+
+  await submenu.hover();
+  await expect(submenu).toBeVisible();
+  await page
+    .getByRole('button', { name: /archive goal|arquivar meta/i })
+    .hover();
+  await expect(submenu).toHaveCount(0);
+});

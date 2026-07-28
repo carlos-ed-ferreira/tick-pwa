@@ -25,6 +25,7 @@ export interface CalendarImportItem {
   text: string;
   scheduledTime: string | null;
   checked: boolean;
+  ignored: boolean;
   priority: boolean;
   collapsed: boolean;
   category: CalendarImportCategory | null;
@@ -120,6 +121,7 @@ function toTemplateItems(
     text: item.text,
     scheduledTime: item.scheduledTime,
     checked: item.checked,
+    ignored: item.ignored,
     priority: item.priority,
     collapsed: item.collapsed,
     categoryTagId: item.category

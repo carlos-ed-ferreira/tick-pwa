@@ -215,6 +215,7 @@ export function parseCalendarImportPayload(
         text,
         scheduledTime: scheduledTime === 'invalid' ? null : scheduledTime,
         checked: false,
+        ignored: false,
         priority: rawItem.priority === true,
         collapsed: false,
         category,

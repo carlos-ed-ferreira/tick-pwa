@@ -112,6 +112,19 @@ describe('TaskTreeEditableRow', () => {
     expect(screen.getByLabelText('Remove priority')).toBeInTheDocument();
   });
 
+  it('renders ignored tasks with the same faded text and a mixed checkbox', () => {
+    renderRow({ checked: false, ignored: true });
+
+    expect(screen.getByRole('checkbox')).toHaveAttribute(
+      'aria-checked',
+      'mixed',
+    );
+    expect(screen.getByDisplayValue('Existing item')).toHaveClass(
+      'text-[#8f85aa]',
+      'opacity-75',
+    );
+  });
+
   it('flushes text before creating a sibling with Enter', async () => {
     const callbacks = renderRow();
     const input = screen.getByDisplayValue('Existing item');

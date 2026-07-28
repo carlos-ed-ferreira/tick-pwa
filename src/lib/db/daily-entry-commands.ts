@@ -140,10 +140,11 @@ export async function recalculateDailyEntrySummary({
   visit(null);
   const previewText =
     sortedItems.find((item) => item.text.trim().length > 0)?.text.trim() ?? '';
+  const countedItems = checklistItems.filter((item) => !item.ignored);
   const categorySummaryMap = new Map<string, DailyEntryCategorySummary>();
 
   for (const item of sortedItems) {
-    if (!item.categoryTagId) {
+    if (!item.categoryTagId || item.ignored) {
       continue;
     }
 
@@ -170,8 +171,8 @@ export async function recalculateDailyEntrySummary({
   const updatedEntry: DailyEntry = {
     ...dailyEntry,
     previewText,
-    itemCount: checklistItems.length,
-    completedCount: checklistItems.filter((item) => item.checked).length,
+    itemCount: countedItems.length,
+    completedCount: countedItems.filter((item) => item.checked).length,
     categoryTagIds,
     categorySummaries,
     updatedAt: now,

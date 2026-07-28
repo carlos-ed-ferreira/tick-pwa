@@ -82,6 +82,7 @@ export type Database = {
           daily_entry_id: string;
           deleted_at: string | null;
           id: string;
+          ignored: boolean;
           parent_id: string | null;
           priority: boolean;
           revision: number;
@@ -100,6 +101,7 @@ export type Database = {
           daily_entry_id: string;
           deleted_at?: string | null;
           id: string;
+          ignored?: boolean;
           parent_id?: string | null;
           priority?: boolean;
           revision?: number;
@@ -118,6 +120,7 @@ export type Database = {
           daily_entry_id?: string;
           deleted_at?: string | null;
           id?: string;
+          ignored?: boolean;
           parent_id?: string | null;
           priority?: boolean;
           revision?: number;
@@ -256,6 +259,7 @@ export type Database = {
           deleted_at: string | null;
           goal_id: string;
           id: string;
+          ignored: boolean;
           parent_id: string | null;
           priority: boolean;
           revision: number;
@@ -273,6 +277,7 @@ export type Database = {
           deleted_at?: string | null;
           goal_id: string;
           id: string;
+          ignored?: boolean;
           parent_id?: string | null;
           priority?: boolean;
           revision?: number;
@@ -290,6 +295,7 @@ export type Database = {
           deleted_at?: string | null;
           goal_id?: string;
           id?: string;
+          ignored?: boolean;
           parent_id?: string | null;
           priority?: boolean;
           revision?: number;

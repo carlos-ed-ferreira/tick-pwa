@@ -119,4 +119,39 @@ describe('new functional schema payloads', () => {
 
     expect(categoryTag.useOwnName).toBe(true);
   });
+
+  it('persists ignored state for checklist items and goal steps', () => {
+    expect(
+      toRemotePayload(scope, 'checklistItem', {
+        ...base,
+        id: 'item-1',
+        dailyEntryId: 'entry-1',
+        parentId: null,
+        text: 'Optional task',
+        scheduledTime: null,
+        checked: false,
+        ignored: true,
+        priority: false,
+        collapsed: false,
+        categoryTagId: null,
+        sortRank: 'n',
+      }),
+    ).toMatchObject({ checked: false, ignored: true });
+
+    expect(
+      toRemotePayload(scope, 'goalStep', {
+        ...base,
+        id: 'step-1',
+        goalId: 'goal-1',
+        parentId: null,
+        text: 'Optional step',
+        completed: false,
+        ignored: true,
+        priority: false,
+        collapsed: false,
+        categoryTagId: null,
+        sortRank: 'n',
+      }),
+    ).toMatchObject({ completed: false, ignored: true });
+  });
 });

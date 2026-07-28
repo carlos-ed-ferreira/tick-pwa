@@ -395,6 +395,34 @@ describe('goal commands', () => {
     });
   });
 
+  it('cycles goal steps through completed, ignored, and unchecked', async () => {
+    const scope = createGuestScope('goal-step-ignore-cycle');
+    const goal = await createGoal({ scope, title: 'Flexible goal' });
+    const step = await createGoalStep({
+      scope,
+      goalId: goal.id,
+      text: 'Optional step',
+    });
+
+    await toggleGoalStepChecked({ scope, goalStepId: step.id });
+    await expect(db.goalSteps.get(step.id)).resolves.toMatchObject({
+      completed: true,
+      ignored: false,
+    });
+
+    await toggleGoalStepChecked({ scope, goalStepId: step.id });
+    await expect(db.goalSteps.get(step.id)).resolves.toMatchObject({
+      completed: false,
+      ignored: true,
+    });
+
+    await toggleGoalStepChecked({ scope, goalStepId: step.id });
+    await expect(db.goalSteps.get(step.id)).resolves.toMatchObject({
+      completed: false,
+      ignored: false,
+    });
+  });
+
   it('reorders goals and goal steps at the same level', async () => {
     const scope = createGuestScope('goals-reorder-test');
     const firstGoal = await createGoal({ scope, title: 'First goal' });
