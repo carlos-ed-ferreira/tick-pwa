@@ -10,6 +10,7 @@ import {
   type CSSProperties,
   type ReactNode,
 } from 'react';
+import { Tooltip } from '@/components/ui';
 import type { CategoryTagSurface } from '@/lib/domain';
 import { useAppContext } from '@/providers';
 import { useCategoryTags } from './use-category-tags';
@@ -238,72 +239,76 @@ export function CategoryAssignmentMenu({
 
   return (
     <div ref={containerRef} className="relative flex items-center gap-1">
-      <button
-        aria-expanded={isOpen}
-        aria-label={assignLabel}
-        className={
-          renderTriggerContent
-            ? (triggerClassName ?? '')
-            : `inline-flex size-9 items-center justify-center rounded-full text-muted transition hover:bg-white/[0.08] hover:text-[#fff9f2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e] disabled:cursor-not-allowed disabled:opacity-40 ${
-                selectedCategory ? 'text-[#fff9f2]' : ''
-              } ${triggerClassName ?? ''}`
-        }
-        disabled={disabled}
-        ref={triggerRef}
-        style={triggerStyle}
-        type="button"
-        onClick={() => {
-          if (isOpen) {
-            closeMenu();
-            return;
-          }
-
-          setMenuStyle(getMenuStyle());
-          setIsOpen(true);
-        }}
-      >
-        {renderTriggerContent ? (
-          renderTriggerContent({
-            isOpen,
-            selectedCategory: selectedCategory
-              ? {
-                  colorHex: selectedCategory.colorHex,
-                  id: selectedCategory.id,
-                  name: selectedCategory.name,
-                }
-              : null,
-          })
-        ) : (
-          <>
-            {selectedCategory ? (
-              <span
-                aria-hidden="true"
-                className="size-4 rounded-full border border-white/25"
-                style={{ backgroundColor: selectedCategory.colorHex }}
-              />
-            ) : (
-              <Palette aria-hidden="true" className="size-4" />
-            )}
-          </>
-        )}
-      </button>
-
-      {selectedCategory && showClearButton ? (
+      <Tooltip content={assignLabel}>
         <button
-          aria-label={clearLabel}
+          aria-expanded={isOpen}
+          aria-label={assignLabel}
           className={
-            clearClassName ??
-            'inline-flex size-9 shrink-0 items-center justify-center rounded-full text-muted transition hover:bg-white/[0.08] hover:text-[#fff9f2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e] disabled:cursor-not-allowed disabled:opacity-40'
+            renderTriggerContent
+              ? (triggerClassName ?? '')
+              : `inline-flex size-9 items-center justify-center rounded-full text-muted transition hover:bg-white/[0.08] hover:text-[#fff9f2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e] disabled:cursor-not-allowed disabled:opacity-40 ${
+                  selectedCategory ? 'text-[#fff9f2]' : ''
+                } ${triggerClassName ?? ''}`
           }
           disabled={disabled}
+          ref={triggerRef}
+          style={triggerStyle}
           type="button"
           onClick={() => {
-            closeMenu();
-            void onAssign(null);
+            if (isOpen) {
+              closeMenu();
+              return;
+            }
+
+            setMenuStyle(getMenuStyle());
+            setIsOpen(true);
           }}
         >
-          <X aria-hidden="true" className="size-4" />
+          {renderTriggerContent ? (
+            renderTriggerContent({
+              isOpen,
+              selectedCategory: selectedCategory
+                ? {
+                    colorHex: selectedCategory.colorHex,
+                    id: selectedCategory.id,
+                    name: selectedCategory.name,
+                  }
+                : null,
+            })
+          ) : (
+            <>
+              {selectedCategory ? (
+                <span
+                  aria-hidden="true"
+                  className="size-4 rounded-full border border-white/25"
+                  style={{ backgroundColor: selectedCategory.colorHex }}
+                />
+              ) : (
+                <Palette aria-hidden="true" className="size-4" />
+              )}
+            </>
+          )}
         </button>
+      </Tooltip>
+
+      {selectedCategory && showClearButton ? (
+        <Tooltip content={clearLabel}>
+          <button
+            aria-label={clearLabel}
+            className={
+              clearClassName ??
+              'inline-flex size-9 shrink-0 items-center justify-center rounded-full text-muted transition hover:bg-white/[0.08] hover:text-[#fff9f2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e] disabled:cursor-not-allowed disabled:opacity-40'
+            }
+            disabled={disabled}
+            type="button"
+            onClick={() => {
+              closeMenu();
+              void onAssign(null);
+            }}
+          >
+            <X aria-hidden="true" className="size-4" />
+          </button>
+        </Tooltip>
       ) : null}
 
       {menu}

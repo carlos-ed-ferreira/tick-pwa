@@ -310,8 +310,11 @@ export function ChecklistSurface({ dailyEntryId }: { dailyEntryId: string }) {
   const { dictionary, scope } = useAppContext();
   const rows = useChecklistTree(scope, dailyEntryId);
   const [draftItems, setDraftItems] = useState<ChecklistDraftItem[]>([]);
-  const { actionPreferences, setActionPreferences } =
-    useTaskTreeRowActionPreferences('checklist_item');
+  const {
+    actionPreferences,
+    applyActionPreferencesToOtherSurface,
+    setActionPreferences,
+  } = useTaskTreeRowActionPreferences('checklist_item');
   const deletedDraftItemIdsRef = useRef(new Set<string>());
   const categoryTags = useCategoryTags(scope, 'checklist_item');
   const categoryTagMap = new Map(categoryTags.map((tag) => [tag.id, tag]));
@@ -496,6 +499,7 @@ export function ChecklistSurface({ dailyEntryId }: { dailyEntryId: string }) {
                   priority: dictionary.dayEditor.bulkPriority,
                   scheduledTime: dictionary.dayEditor.itemTime,
                 },
+                applyToOtherSurface: dictionary.dayEditor.applyToOtherSurface,
                 close: dictionary.actions.cancel,
                 configure: dictionary.dayEditor.configureRowActions,
                 hidden: dictionary.dayEditor.actionHidden,
@@ -506,6 +510,9 @@ export function ChecklistSurface({ dailyEntryId }: { dailyEntryId: string }) {
                 visible: dictionary.dayEditor.actionVisible,
               }}
               value={actionPreferences}
+              onApplyToOtherSurface={(nextPreferences) =>
+                void applyActionPreferencesToOtherSurface(nextPreferences)
+              }
               onChange={setActionPreferences}
             />
           </>

@@ -8,3 +8,4 @@ export * from './form-field';
 export * from './icon-button';
 export * from './input';
 export * from './text';
+export * from './tooltip';

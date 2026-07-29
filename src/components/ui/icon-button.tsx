@@ -1,20 +1,41 @@
 import { forwardRef, type ButtonHTMLAttributes, type ReactNode } from 'react';
+import { Tooltip } from './tooltip';
 
 export const IconButton = forwardRef<
   HTMLButtonElement,
-  ButtonHTMLAttributes<HTMLButtonElement> & { children: ReactNode }
+  ButtonHTMLAttributes<HTMLButtonElement> & {
+    children: ReactNode;
+    tooltip?: ReactNode;
+  }
 >(function IconButton(
-  { children, className = '', type = 'button', ...props },
+  {
+    'aria-label': ariaLabel,
+    children,
+    className = '',
+    title,
+    tooltip,
+    type = 'button',
+    ...props
+  },
   ref,
 ) {
-  return (
+  const tooltipContent =
+    tooltip ?? title ?? (typeof ariaLabel === 'string' ? ariaLabel : null);
+  const button = (
     <button
       ref={ref}
       type={type}
+      aria-label={ariaLabel}
       className={`inline-flex size-9 shrink-0 items-center justify-center rounded-md text-muted transition hover:bg-background hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground disabled:cursor-not-allowed disabled:opacity-40 ${className}`}
       {...props}
     >
       {children}
     </button>
+  );
+
+  return tooltipContent ? (
+    <Tooltip content={tooltipContent}>{button}</Tooltip>
+  ) : (
+    button
   );
 });

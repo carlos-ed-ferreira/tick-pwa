@@ -23,6 +23,18 @@ describe('product terminology', () => {
     expect(enDictionary.dayEditor.rowActionsTitle).toBe('Task actions');
   });
 
+  it('calls the overflow menu extra options instead of three dots', () => {
+    expect(ptBRDictionary.dayEditor.moreActions).toBe('Opções extras');
+    expect(ptBRDictionary.dayEditor.actionInMenu).toBe('Opções extras');
+    expect(ptBRDictionary.goalStepEditor.moreActions).toBe('Opções extras');
+    expect(ptBRDictionary.goalStepEditor.actionInMenu).toBe('Opções extras');
+
+    expect(enDictionary.dayEditor.moreActions).toBe('Extra options');
+    expect(enDictionary.dayEditor.actionInMenu).toBe('Extra options');
+    expect(enDictionary.goalStepEditor.moreActions).toBe('Extra options');
+    expect(enDictionary.goalStepEditor.actionInMenu).toBe('Extra options');
+  });
+
   it('uses steps and substeps throughout the goal UI', () => {
     expect(ptBRDictionary.goals.addStep).toBe('Adicionar etapa');
     expect(ptBRDictionary.goals.itemCategories).toBe('Etapas');

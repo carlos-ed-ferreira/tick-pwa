@@ -376,13 +376,18 @@ describe('ChecklistSurface delete confirmation', () => {
       name: 'Configure task actions',
     });
 
-    expect(sortButton).toHaveAttribute('title', 'Sort by time');
-    expect(preferencesButton).toHaveAttribute(
-      'title',
-      'Configure task actions',
-    );
+    expect(sortButton).not.toHaveAttribute('title');
+    expect(preferencesButton).not.toHaveAttribute('title');
     expect(sortButton).not.toHaveTextContent('Sort by time');
     expect(preferencesButton).not.toHaveTextContent('Configure task actions');
+
+    fireEvent.focus(sortButton);
+    expect(screen.getByRole('tooltip')).toHaveTextContent('Sort by time');
+    fireEvent.blur(sortButton);
+    fireEvent.focus(preferencesButton);
+    expect(screen.getByRole('tooltip')).toHaveTextContent(
+      'Configure task actions',
+    );
 
     fireEvent.click(sortButton);
     expect(reorderChecklistItemsByScheduledTimeMock).toHaveBeenCalledWith({

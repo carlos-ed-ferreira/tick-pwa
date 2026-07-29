@@ -40,6 +40,7 @@ export interface TreeEditorDictionary {
   bulkDeleteItems: string;
   confirmBulkDeleteItem: string;
   confirmBulkDeleteItems: string;
+  applyToOtherSurface: string;
   actionHidden: string;
   actionInMenu: string;
   actionOnRow: string;

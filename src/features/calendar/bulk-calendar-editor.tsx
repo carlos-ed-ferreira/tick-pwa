@@ -349,8 +349,11 @@ function BulkChecklistSurface({
   setDraftItems: React.Dispatch<React.SetStateAction<BulkChecklistDraftItem[]>>;
 }) {
   const { dictionary, scope } = useAppContext();
-  const { actionPreferences, setActionPreferences } =
-    useTaskTreeRowActionPreferences('checklist_item');
+  const {
+    actionPreferences,
+    applyActionPreferencesToOtherSurface,
+    setActionPreferences,
+  } = useTaskTreeRowActionPreferences('checklist_item');
   const categoryTags = useCategoryTags(scope, 'checklist_item');
   const categoryTagMap = new Map(categoryTags.map((tag) => [tag.id, tag]));
   const rows = useMemo(
@@ -476,6 +479,7 @@ function BulkChecklistSurface({
                   priority: dictionary.dayEditor.bulkPriority,
                   scheduledTime: dictionary.dayEditor.itemTime,
                 },
+                applyToOtherSurface: dictionary.dayEditor.applyToOtherSurface,
                 close: dictionary.actions.cancel,
                 configure: dictionary.dayEditor.configureRowActions,
                 hidden: dictionary.dayEditor.actionHidden,
@@ -486,6 +490,9 @@ function BulkChecklistSurface({
                 visible: dictionary.dayEditor.actionVisible,
               }}
               value={actionPreferences}
+              onApplyToOtherSurface={(nextPreferences) =>
+                void applyActionPreferencesToOtherSurface(nextPreferences)
+              }
               onChange={setActionPreferences}
             />
           </>

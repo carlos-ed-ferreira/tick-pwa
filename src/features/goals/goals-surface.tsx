@@ -47,6 +47,7 @@ import {
   Dialog,
   IconButton,
   Input,
+  Tooltip,
 } from '@/components/ui';
 import {
   canUseOwnName,
@@ -1712,15 +1713,17 @@ function GoalGroupCard({
           <PositionIndicator side={positionTarget.side} />
         ) : null}
         <span className="flex min-w-0 items-center justify-start gap-2 pr-10">
-          <button
-            type="button"
-            aria-label={dictionary.goals.dragGoal}
-            className="inline-flex size-7 shrink-0 touch-none cursor-grab items-center justify-center rounded-full border border-white/10 bg-white/[0.045] text-[#bdb4d4] transition hover:-translate-y-0.5 hover:border-[#f0c38e]/50 hover:bg-[#f0c38e]/14 hover:text-[#fff9f2] hover:shadow-[0_10px_22px_rgba(240,195,142,0.16)] active:translate-y-0 active:cursor-grabbing focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0]"
-            onClick={(event) => event.stopPropagation()}
-            onPointerDown={(event) => onBeginPointerDrag(groupPayload, event)}
-          >
-            <GripVertical aria-hidden="true" className="size-4" />
-          </button>
+          <Tooltip content={dictionary.goals.dragGoal}>
+            <button
+              type="button"
+              aria-label={dictionary.goals.dragGoal}
+              className="inline-flex size-7 shrink-0 touch-none cursor-grab items-center justify-center rounded-full border border-white/10 bg-white/[0.045] text-[#bdb4d4] transition hover:-translate-y-0.5 hover:border-[#f0c38e]/50 hover:bg-[#f0c38e]/14 hover:text-[#fff9f2] hover:shadow-[0_10px_22px_rgba(240,195,142,0.16)] active:translate-y-0 active:cursor-grabbing focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0]"
+              onClick={(event) => event.stopPropagation()}
+              onPointerDown={(event) => onBeginPointerDrag(groupPayload, event)}
+            >
+              <GripVertical aria-hidden="true" className="size-4" />
+            </button>
+          </Tooltip>
           {category?.useOwnName ? (
             <span
               className="inline-flex min-h-7 min-w-0 items-center rounded-full border px-3 py-1 shadow-sm shadow-[#312c51]/10"
@@ -2280,17 +2283,19 @@ function GoalCard({
         <CategoryAccent category={goalCategory} position="vertical" />
         <div className="flex min-w-0 items-center justify-start gap-2 pr-10">
           {!archived ? (
-            <button
-              type="button"
-              aria-label={dictionary.goals.dragGoal}
-              className="inline-flex size-7 shrink-0 touch-none cursor-grab items-center justify-center rounded-full border border-white/10 bg-white/[0.045] text-[#bdb4d4] transition hover:-translate-y-0.5 hover:border-[#f0c38e]/50 hover:bg-[#f0c38e]/14 hover:text-[#fff9f2] hover:shadow-[0_10px_22px_rgba(240,195,142,0.16)] active:translate-y-0 active:cursor-grabbing focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0]"
-              onClick={(event) => event.stopPropagation()}
-              onPointerDown={(event) =>
-                onBeginPointerDrag?.(goalPayload, event)
-              }
-            >
-              <GripVertical aria-hidden="true" className="size-4" />
-            </button>
+            <Tooltip content={dictionary.goals.dragGoal}>
+              <button
+                type="button"
+                aria-label={dictionary.goals.dragGoal}
+                className="inline-flex size-7 shrink-0 touch-none cursor-grab items-center justify-center rounded-full border border-white/10 bg-white/[0.045] text-[#bdb4d4] transition hover:-translate-y-0.5 hover:border-[#f0c38e]/50 hover:bg-[#f0c38e]/14 hover:text-[#fff9f2] hover:shadow-[0_10px_22px_rgba(240,195,142,0.16)] active:translate-y-0 active:cursor-grabbing focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0]"
+                onClick={(event) => event.stopPropagation()}
+                onPointerDown={(event) =>
+                  onBeginPointerDrag?.(goalPayload, event)
+                }
+              >
+                <GripVertical aria-hidden="true" className="size-4" />
+              </button>
+            </Tooltip>
           ) : null}
           <span className="min-w-0 truncate text-base font-semibold leading-tight text-[#fff9f2]">
             {goal.title || dictionary.goals.newGoalTitle}
@@ -3072,8 +3077,11 @@ function GoalDetailCard({
 }) {
   const { dictionary, scope } = useAppContext();
   const [draftGoalSteps, setDraftGoalSteps] = useState<GoalStepDraft[]>([]);
-  const { actionPreferences, setActionPreferences } =
-    useTaskTreeRowActionPreferences('goal_step');
+  const {
+    actionPreferences,
+    applyActionPreferencesToOtherSurface,
+    setActionPreferences,
+  } = useTaskTreeRowActionPreferences('goal_step');
   const deletedDraftGoalStepIdsRef = useRef(new Set<string>());
   const displayGoalStepRows = useMemo(
     () => insertGoalStepDraftRows(goalStepRows, draftGoalSteps),
@@ -3263,6 +3271,8 @@ function GoalDetailCard({
                 priority: dictionary.goalStepEditor.bulkPriority,
                 scheduledTime: dictionary.goalStepEditor.itemTime,
               },
+              applyToOtherSurface:
+                dictionary.goalStepEditor.applyToOtherSurface,
               close: dictionary.actions.cancel,
               configure: dictionary.goalStepEditor.configureRowActions,
               hidden: dictionary.goalStepEditor.actionHidden,
@@ -3274,6 +3284,9 @@ function GoalDetailCard({
             }}
             showScheduledTime={false}
             value={actionPreferences}
+            onApplyToOtherSurface={(nextPreferences) =>
+              void applyActionPreferencesToOtherSurface(nextPreferences)
+            }
             onChange={setActionPreferences}
           />
         }

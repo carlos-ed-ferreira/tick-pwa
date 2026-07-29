@@ -26,11 +26,12 @@ const labels = {
     priority: 'Priority',
     scheduledTime: 'Task time',
   },
+  applyToOtherSurface: 'Also apply to goal steps',
   close: 'Close',
   configure: 'Configure row actions',
   hidden: 'Hidden',
   inline: 'On row',
-  menu: 'Three-dot menu',
+  menu: 'Extra options',
   reset: 'Restore defaults',
   title: 'Task row actions',
   visible: 'Visible',
@@ -75,7 +76,7 @@ describe('TaskTreeRowActionsMenu', () => {
     }
     expect(
       within(dialog).getByRole('radio', {
-        name: 'Priority: Three-dot menu',
+        name: 'Priority: Extra options',
         checked: true,
       }),
     ).toBeInTheDocument();
@@ -137,7 +138,7 @@ describe('TaskTreeRowActionsMenu', () => {
     ).toBeChecked();
     expect(
       screen.queryByRole('radio', {
-        name: 'Drag and drop: Three-dot menu',
+        name: 'Drag and drop: Extra options',
       }),
     ).not.toBeInTheDocument();
   });
@@ -197,5 +198,49 @@ describe('TaskTreeRowActionsMenu', () => {
     fireEvent.click(resetButton);
 
     expect(onChange).toHaveBeenCalledWith(defaultTaskTreeRowActionPreferences);
+  });
+
+  it('can apply the current and subsequent preferences to the other surface', () => {
+    const onApplyToOtherSurface = vi.fn();
+    const onChange = vi.fn();
+
+    render(
+      <TaskTreeRowActionsMenu
+        labels={labels}
+        value={defaultTaskTreeRowActionPreferences}
+        onApplyToOtherSurface={onApplyToOtherSurface}
+        onChange={onChange}
+      />,
+    );
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Configure row actions' }),
+    );
+
+    const checkbox = screen.getByRole('checkbox', {
+      name: 'Also apply to goal steps',
+    });
+    const extraOptions = screen.getByRole('radio', {
+      name: 'Priority: Extra options',
+    });
+
+    expect(checkbox).not.toBeChecked();
+    expect(checkbox).toHaveClass('border-[#f0c38e]/55', 'bg-[#f0c38e]/12');
+    expect(extraOptions).toHaveClass('whitespace-nowrap');
+    expect(extraOptions.parentElement).toHaveClass('sm:w-[24rem]');
+
+    fireEvent.click(checkbox);
+    expect(onApplyToOtherSurface).toHaveBeenCalledWith(
+      defaultTaskTreeRowActionPreferences,
+    );
+
+    fireEvent.click(screen.getByRole('radio', { name: 'Priority: On row' }));
+    const updatedPreferences = {
+      ...defaultTaskTreeRowActionPreferences,
+      priority: 'inline' as const,
+    };
+
+    expect(onChange).toHaveBeenCalledWith(updatedPreferences);
+    expect(onApplyToOtherSurface).toHaveBeenLastCalledWith(updatedPreferences);
   });
 });

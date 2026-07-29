@@ -379,6 +379,9 @@ describe('GoalsSurface', () => {
       'rounded-full',
       'hover:bg-[#f0c38e]/14',
     );
+    expect(screen.getByLabelText('Drag goal')).not.toHaveClass(
+      'hover:bg-background',
+    );
     expect(screen.getByText('Focus')).toHaveClass('text-base');
     expect(screen.getByText('2/3')).toBeInTheDocument();
   });
@@ -510,6 +513,9 @@ describe('GoalsSurface', () => {
       'size-7',
       'rounded-full',
       'hover:bg-[#f0c38e]/14',
+    );
+    expect(screen.getByLabelText('Drag goal')).not.toHaveClass(
+      'hover:bg-background',
     );
     expect(screen.getByText('Health')).toBeInTheDocument();
     expect(screen.getByText('Work')).toBeInTheDocument();

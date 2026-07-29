@@ -31,6 +31,19 @@ export const defaultTaskTreeRowActionPreferences: TaskTreeRowActionPreferences =
     scheduledTime: true,
   };
 
+export function copyTaskTreeRowActionPreferences({
+  source,
+  target,
+}: {
+  source: TaskTreeRowActionPreferences;
+  target: TaskTreeRowActionPreferences;
+}): TaskTreeRowActionPreferences {
+  return {
+    ...source,
+    scheduledTime: target.scheduledTime,
+  };
+}
+
 export function isTaskTreeBulkActionVisible(
   preferences: TaskTreeRowActionPreferences,
   action: 'bold' | 'category' | 'clearCategory' | 'delete' | 'priority',

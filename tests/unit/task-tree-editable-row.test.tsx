@@ -455,7 +455,7 @@ describe('TaskTreeEditableRow', () => {
 
     const actionGroup = screen.getByRole('button', {
       name: 'More actions',
-    }).parentElement;
+    }).parentElement?.parentElement;
     const labels = Array.from(
       actionGroup?.querySelectorAll('button') ?? [],
     ).map((button) => button.getAttribute('aria-label'));

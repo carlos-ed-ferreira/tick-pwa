@@ -1,11 +1,13 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import {
   Button,
   Checkbox,
   ConfirmationDialog,
+  IconButton,
   Input,
   Text,
+  Tooltip,
 } from '@/components/ui';
 
 describe('UI primitives', () => {
@@ -69,6 +71,42 @@ describe('UI primitives', () => {
     expect(button).not.toHaveClass('shadow-sm');
   });
 
+  it('replaces native icon-button titles with the shared visual tooltip', () => {
+    render(
+      <IconButton aria-label="Configure preferences" title="Native title">
+        <svg aria-hidden="true" />
+      </IconButton>,
+    );
+
+    const button = screen.getByRole('button', {
+      name: 'Configure preferences',
+    });
+
+    expect(button).not.toHaveAttribute('title');
+    fireEvent.focus(button);
+
+    expect(screen.getByRole('tooltip')).toHaveTextContent('Native title');
+    expect(screen.getByRole('tooltip')).toHaveClass('tick-tooltip');
+
+    fireEvent.blur(button);
+    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+  });
+
+  it('provides the same visual tooltip to native icon-only controls', () => {
+    render(
+      <Tooltip content="Change language">
+        <button type="button" aria-label="Change language">
+          <svg aria-hidden="true" />
+        </button>
+      </Tooltip>,
+    );
+
+    const button = screen.getByRole('button', { name: 'Change language' });
+    fireEvent.focus(button);
+
+    expect(screen.getByRole('tooltip')).toHaveTextContent('Change language');
+  });
+
   it('keeps danger styling reserved for destructive confirmation dialogs', () => {
     const noop = () => {};
     const { rerender } = render(
@@ -84,9 +122,9 @@ describe('UI primitives', () => {
     );
 
     expect(screen.getByRole('button', { name: 'Delete' })).toHaveClass(
-      'border-rose-300/24',
-      'bg-rose-400/15',
+      'bg-rose-500/90',
       'text-rose-50',
+      'shadow-rose-500/20',
     );
 
     rerender(
@@ -103,9 +141,9 @@ describe('UI primitives', () => {
     );
 
     expect(screen.getByRole('button', { name: 'Archive' })).toHaveClass(
-      'bg-primary',
-      'text-primary-foreground',
-      'shadow-[0_14px_28px_rgba(59,130,246,0.18)]',
+      'border-[#f8d7aa]/70',
+      'bg-[#f0c38e]',
+      'text-[#312c51]',
     );
   });
 });

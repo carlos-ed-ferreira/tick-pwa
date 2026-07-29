@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
+  copyTaskTreeRowActionPreferences,
+  defaultTaskTreeRowActionPreferences,
+} from '@/components/app';
+import {
   ACCOUNT_PREFERENCE_KEYS,
   getTaskTreeRowActionsPreferenceKey,
   GOAL_STEP_TREE_ROW_ACTIONS_PREFERENCE_KEY,
@@ -18,5 +22,26 @@ describe('task tree row action preference keys', () => {
       TASK_TREE_ROW_ACTIONS_PREFERENCE_KEY,
       GOAL_STEP_TREE_ROW_ACTIONS_PREFERENCE_KEY,
     ]);
+  });
+
+  it('preserves the target time visibility when copying between surfaces', () => {
+    expect(
+      copyTaskTreeRowActionPreferences({
+        source: {
+          ...defaultTaskTreeRowActionPreferences,
+          priority: 'hidden',
+          scheduledTime: false,
+        },
+        target: {
+          ...defaultTaskTreeRowActionPreferences,
+          priority: 'inline',
+          scheduledTime: true,
+        },
+      }),
+    ).toEqual({
+      ...defaultTaskTreeRowActionPreferences,
+      priority: 'hidden',
+      scheduledTime: true,
+    });
   });
 });

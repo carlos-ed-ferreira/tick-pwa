@@ -99,8 +99,9 @@ describe('CategoryAssignmentMenu', () => {
     // The clear button renders next to the trigger, outside any portal menu.
     expect(container.contains(clearButton)).toBe(true);
     expect(
-      screen.getByRole('button', { name: 'Assign category' }).parentElement,
-    ).toBe(clearButton.parentElement);
+      screen.getByRole('button', { name: 'Assign category' }).parentElement
+        ?.parentElement,
+    ).toBe(clearButton.parentElement?.parentElement);
 
     fireEvent.click(clearButton);
 

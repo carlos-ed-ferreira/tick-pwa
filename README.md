@@ -45,6 +45,8 @@ supabase          configuração, seed e migrations SQL
 - Em `/goals`, o fluxo é **grupo de metas → meta → etapa → subetapa**.
 - Os nomes técnicos das entidades continuam `ChecklistItem` e `GoalStep`; essa
   distinção é apenas de linguagem e experiência na interface.
+- Botões exibidos somente com ícone têm tooltip visual ao receber hover ou foco;
+  menus de overflow são chamados de **opções extras**.
 
 ## Modos de uso
 

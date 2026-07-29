@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { IconButton } from '@/components/ui';
 import { useCategoryTags } from '@/features/categories';
 import { BulkCalendarEditor } from '@/features/calendar/bulk-calendar-editor';
 import { CalendarImportDialog } from '@/features/calendar/calendar-import-dialog';
@@ -267,25 +268,23 @@ export function CalendarMonth() {
                 {dictionary.calendar.today}
               </button>
               <span aria-hidden="true" className="h-5 w-px bg-white/10" />
-              <button
-                type="button"
+              <IconButton
                 aria-label={dictionary.calendar.previousYear}
-                className="inline-flex size-7 items-center justify-center rounded-full text-[#d8d0e8] transition hover:bg-white/8 hover:text-[#fff9f2] active:bg-white/12 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0]"
+                className="size-7 rounded-full text-[#d8d0e8] hover:bg-white/8 hover:text-[#fff9f2] active:bg-white/12 focus-visible:outline-[#f7d9b0]"
                 onClick={() => setVisibleYear((currentYear) => currentYear - 1)}
               >
                 <ChevronLeft aria-hidden="true" className="size-4" />
-              </button>
+              </IconButton>
               <span className="min-w-14 px-1 text-center text-sm font-semibold tabular-nums text-[#fff9f2]">
                 {visibleYear}
               </span>
-              <button
-                type="button"
+              <IconButton
                 aria-label={dictionary.calendar.nextYear}
-                className="inline-flex size-7 items-center justify-center rounded-full text-[#d8d0e8] transition hover:bg-white/8 hover:text-[#fff9f2] active:bg-white/12 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0]"
+                className="size-7 rounded-full text-[#d8d0e8] hover:bg-white/8 hover:text-[#fff9f2] active:bg-white/12 focus-visible:outline-[#f7d9b0]"
                 onClick={() => setVisibleYear((currentYear) => currentYear + 1)}
               >
                 <ChevronRight aria-hidden="true" className="size-4" />
-              </button>
+              </IconButton>
             </div>
           </div>
 

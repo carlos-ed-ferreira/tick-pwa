@@ -3,6 +3,7 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useCallback, useMemo } from 'react';
 import {
+  copyTaskTreeRowActionPreferences,
   defaultTaskTreeRowActionPreferences,
   type TaskTreeRowActionPlacement,
   type TaskTreeRowActionPreferences,
@@ -57,6 +58,9 @@ export function useTaskTreeRowActionPreferences(
 ) {
   const { scope } = useAppContext();
   const preferenceKey = getTaskTreeRowActionsPreferenceKey(surface);
+  const otherPreferenceKey = getTaskTreeRowActionsPreferenceKey(
+    surface === 'checklist_item' ? 'goal_step' : 'checklist_item',
+  );
   const storedPreferences = useLiveQuery(
     () =>
       scope
@@ -88,5 +92,32 @@ export function useTaskTreeRowActionPreferences(
     [preferenceKey, scope],
   );
 
-  return { actionPreferences, setActionPreferences };
+  const applyActionPreferencesToOtherSurface = useCallback(
+    async (nextPreferences: TaskTreeRowActionPreferences) => {
+      if (!scope) {
+        return;
+      }
+
+      const storedTargetPreferences = await getScopedPreference<
+        Partial<TaskTreeRowActionPreferences>
+      >(otherPreferenceKey, scope);
+      const targetPreferences = normalizePreferences(storedTargetPreferences);
+
+      await setScopedPreference({
+        key: otherPreferenceKey,
+        scope,
+        value: copyTaskTreeRowActionPreferences({
+          source: normalizePreferences(nextPreferences),
+          target: targetPreferences,
+        }),
+      });
+    },
+    [otherPreferenceKey, scope],
+  );
+
+  return {
+    actionPreferences,
+    applyActionPreferencesToOtherSurface,
+    setActionPreferences,
+  };
 }

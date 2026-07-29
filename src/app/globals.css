@@ -153,6 +153,23 @@ body {
 }
 
 @layer components {
+  @keyframes tick-tooltip-enter {
+    from {
+      opacity: 0;
+      transform: translateY(0.2rem) scale(0.96);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  .tick-tooltip {
+    animation: tick-tooltip-enter 140ms ease-out;
+    transform-origin: center;
+  }
+
   .tick-checkbox {
     position: relative;
     border-color: color-mix(in srgb, var(--accent) 58%, var(--foreground));
