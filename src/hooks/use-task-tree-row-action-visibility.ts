@@ -11,7 +11,7 @@ import {
   getScopedPreference,
   setScopedPreference,
 } from '@/lib/db/scoped-preferences';
-import { TASK_TREE_ROW_ACTIONS_PREFERENCE_KEY } from '@/lib/supabase/account-preferences';
+import { getTaskTreeRowActionsPreferenceKey } from '@/lib/supabase/account-preferences';
 import { useAppContext } from '@/providers';
 
 const placementActions = [
@@ -52,17 +52,20 @@ function normalizePreferences(
   return normalized;
 }
 
-export function useTaskTreeRowActionPreferences() {
+export function useTaskTreeRowActionPreferences(
+  surface: 'checklist_item' | 'goal_step',
+) {
   const { scope } = useAppContext();
+  const preferenceKey = getTaskTreeRowActionsPreferenceKey(surface);
   const storedPreferences = useLiveQuery(
     () =>
       scope
         ? getScopedPreference<Partial<TaskTreeRowActionPreferences>>(
-            TASK_TREE_ROW_ACTIONS_PREFERENCE_KEY,
+            preferenceKey,
             scope,
           )
         : Promise.resolve(null),
-    [scope?.id],
+    [preferenceKey, scope?.id],
     null,
   );
   const actionPreferences = useMemo(
@@ -77,12 +80,12 @@ export function useTaskTreeRowActionPreferences() {
       }
 
       void setScopedPreference({
-        key: TASK_TREE_ROW_ACTIONS_PREFERENCE_KEY,
+        key: preferenceKey,
         scope,
         value: normalizePreferences(nextPreferences),
       });
     },
-    [scope],
+    [preferenceKey, scope],
   );
 
   return { actionPreferences, setActionPreferences };

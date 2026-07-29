@@ -311,7 +311,7 @@ export function ChecklistSurface({ dailyEntryId }: { dailyEntryId: string }) {
   const rows = useChecklistTree(scope, dailyEntryId);
   const [draftItems, setDraftItems] = useState<ChecklistDraftItem[]>([]);
   const { actionPreferences, setActionPreferences } =
-    useTaskTreeRowActionPreferences();
+    useTaskTreeRowActionPreferences('checklist_item');
   const deletedDraftItemIdsRef = useRef(new Set<string>());
   const categoryTags = useCategoryTags(scope, 'checklist_item');
   const categoryTagMap = new Map(categoryTags.map((tag) => [tag.id, tag]));

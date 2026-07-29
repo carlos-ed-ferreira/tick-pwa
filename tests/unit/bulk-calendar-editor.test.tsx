@@ -37,18 +37,18 @@ vi.mock('@/providers', () => ({
         bulkApply: 'Create',
         bulkClear: 'Clear in bulk',
         bulkClearApply: 'Clear',
-        bulkClearDescription: 'All items on the selected days will be removed.',
+        bulkClearDescription: 'All tasks on the selected days will be removed.',
         bulkClearEditorTitle: 'Clear in bulk',
         bulkCreate: 'Create in bulk',
         bulkDatePlaceholder: 'DD-MM-YYYY',
         bulkEditorTitle: 'Create in bulk',
-        bulkEmptyChecklist: 'Start by adding items for this range',
+        bulkEmptyChecklist: 'Start by adding tasks for this range',
         bulkEndDate: 'End date',
         bulkInvalidDates: 'Enter valid dates in DD-MM-YYYY.',
         bulkInvalidRange: 'End date must be on or after the start date.',
         bulkNoMatchingDates:
           'No dates in this range match the selected weekdays.',
-        bulkRequireItems: 'Add at least one item before creating in bulk.',
+        bulkRequireItems: 'Add at least one task before creating in bulk.',
         bulkRequiredDates: 'Start and end dates are required.',
         bulkSelectWeekdays: 'Select at least one weekday.',
         bulkStartDate: 'Start date',
@@ -59,23 +59,23 @@ vi.mock('@/providers', () => ({
         nextMonth: 'Next month',
         previousYear: 'Previous year',
         nextYear: 'Next year',
-        emptyDay: 'No items',
+        emptyDay: 'No tasks',
         weekdays: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
       },
       dayEditor: {
-        addItem: 'Add item',
-        addChild: 'Add child',
+        addItem: 'Add task',
+        addChild: 'Create subtask',
         addCategory: 'Add category',
         assignCategory: 'Assign category',
         clearCategory: 'Clear category',
         close: 'Close',
-        collapseItem: 'Collapse item',
-        confirmDeleteItem: 'Are you sure you want to delete this item?',
-        deleteItem: 'Delete item',
-        emptyChecklist: 'Start this day with a checklist item',
-        expandItem: 'Expand item',
-        indentItem: 'Indent item',
-        dragItem: 'Drag item',
+        collapseItem: 'Collapse task',
+        confirmDeleteItem: 'Are you sure you want to delete this task?',
+        deleteItem: 'Delete task',
+        emptyChecklist: 'Start this day with a task',
+        expandItem: 'Expand task',
+        indentItem: 'Make subtask',
+        dragItem: 'Drag task',
         itemTime: 'Task time',
         itemPlaceholder: 'Write a task',
         makeTextBold: 'Make text bold',
@@ -83,21 +83,21 @@ vi.mock('@/providers', () => ({
         markPriority: 'Mark as priority',
         moveCategoryDown: 'Move category down',
         moveCategoryUp: 'Move category up',
-        moveItemDown: 'Move item down',
-        moveItemUp: 'Move item up',
+        moveItemDown: 'Move task down',
+        moveItemUp: 'Move task up',
         moreActions: 'More actions',
         newCategory: 'New category',
-        outdentItem: 'Outdent item',
+        outdentItem: 'Promote task one level',
         title: 'Day editor',
-        toggleItem: 'Toggle item',
-        selectItem: 'Select item',
-        deselectItem: 'Deselect item',
-        itemSelected: '{count} item selected',
-        itemsSelected: '{count} selected',
-        bulkDeleteItems: 'Delete selected',
+        toggleItem: 'Change task status',
+        selectItem: 'Select task',
+        deselectItem: 'Deselect task',
+        itemSelected: '{count} task selected',
+        itemsSelected: '{count} tasks selected',
+        bulkDeleteItems: 'Delete selected tasks',
         confirmBulkDeleteItem:
           'You are about to delete {count} selected record.',
-        confirmBulkDeleteItems: 'Are you sure you want to delete this item?',
+        confirmBulkDeleteItems: 'Are you sure you want to delete this task?',
         clearSelection: 'Clear selection',
         bulkPriority: 'Priority',
         bulkBold: 'Bold',
@@ -107,12 +107,12 @@ vi.mock('@/providers', () => ({
         actionInMenu: 'Three-dot menu',
         actionOnRow: 'On row',
         actionVisible: 'Visible',
-        configureRowActions: 'Configure row actions',
+        configureRowActions: 'Configure task actions',
         dragAndDrop: 'Drag and drop',
-        rowActionsTitle: 'Task row actions',
+        rowActionsTitle: 'Task actions',
         resetRowActions: 'Restore defaults',
         unmarkPriority: 'Remove priority',
-        untitledItem: 'New item',
+        untitledItem: 'New task',
         categories: 'Categories',
         categoryNamePlaceholder: 'Category name',
         deleteCategory: 'Delete category',
@@ -162,7 +162,7 @@ describe('BulkCalendarEditor', () => {
 
     fireEvent.click(
       screen.getByRole('button', {
-        name: 'Start by adding items for this range',
+        name: 'Start by adding tasks for this range',
       }),
     );
     fireEvent.change(screen.getByPlaceholderText('Write a task'), {
@@ -211,7 +211,7 @@ describe('BulkCalendarEditor', () => {
 
     fireEvent.click(
       screen.getByRole('button', {
-        name: 'Start by adding items for this range',
+        name: 'Start by adding tasks for this range',
       }),
     );
     fireEvent.change(screen.getByPlaceholderText('Write a task'), {
@@ -227,7 +227,7 @@ describe('BulkCalendarEditor', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Create' }));
 
     expect(
-      await screen.findByText('Add at least one item before creating in bulk.'),
+      await screen.findByText('Add at least one task before creating in bulk.'),
     ).toBeInTheDocument();
     expect(applyChecklistTemplateToDateRangeMock).not.toHaveBeenCalled();
   });
@@ -237,11 +237,11 @@ describe('BulkCalendarEditor', () => {
 
     fireEvent.click(
       screen.getByRole('button', {
-        name: 'Start by adding items for this range',
+        name: 'Start by adding tasks for this range',
       }),
     );
 
-    expect(screen.getByLabelText('Select item')).toBeInTheDocument();
+    expect(screen.getByLabelText('Select task')).toBeInTheDocument();
   });
 
   it('shows the shared selection footer for draft rows', () => {
@@ -249,13 +249,13 @@ describe('BulkCalendarEditor', () => {
 
     fireEvent.click(
       screen.getByRole('button', {
-        name: 'Start by adding items for this range',
+        name: 'Start by adding tasks for this range',
       }),
     );
-    fireEvent.click(screen.getByLabelText('Select item'));
+    fireEvent.click(screen.getByLabelText('Select task'));
 
     expect(
-      screen.getByRole('button', { name: '1 item selected' }),
+      screen.getByRole('button', { name: '1 task selected' }),
     ).toBeInTheDocument();
   });
 
@@ -264,7 +264,7 @@ describe('BulkCalendarEditor', () => {
 
     render(<BulkCalendarEditor mode="clear" open onClose={onClose} />);
 
-    expect(screen.queryByRole('button', { name: 'Add item' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Add task' })).toBeNull();
 
     fireEvent.change(screen.getByLabelText('Start date'), {
       target: { value: '01012026' },
@@ -296,7 +296,7 @@ describe('BulkCalendarEditor', () => {
 
     fireEvent.click(
       screen.getByRole('button', {
-        name: 'Start by adding items for this range',
+        name: 'Start by adding tasks for this range',
       }),
     );
     fireEvent.change(screen.getByPlaceholderText('Write a task'), {
@@ -330,7 +330,7 @@ describe('BulkCalendarEditor', () => {
 
       fireEvent.click(
         screen.getByRole('button', {
-          name: 'Start by adding items for this range',
+          name: 'Start by adding tasks for this range',
         }),
       );
       fireEvent.change(screen.getByPlaceholderText('Write a task'), {

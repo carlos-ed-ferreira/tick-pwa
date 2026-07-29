@@ -106,30 +106,30 @@ vi.mock('@/lib/db', () => ({
 vi.mock('@/providers', () => ({
   useAppContext: () => ({
     dictionary: {
-      dayEditor: {
-        expandItem: 'Expand item',
-        collapseItem: 'Collapse item',
-        toggleItem: 'Toggle item',
-        itemPlaceholder: 'Write a task',
-        addChild: 'Add child',
-        indentItem: 'Indent item',
-        moveItemDown: 'Move item down',
-        moveItemUp: 'Move item up',
+      goalStepEditor: {
+        expandItem: 'Expand step',
+        collapseItem: 'Collapse step',
+        toggleItem: 'Change step status',
+        itemPlaceholder: 'Write a step',
+        addChild: 'Create substep',
+        indentItem: 'Make substep',
+        moveItemDown: 'Move step down',
+        moveItemUp: 'Move step up',
         moreActions: 'More actions',
-        outdentItem: 'Outdent item',
+        outdentItem: 'Promote step one level',
         markPriority: 'Mark as priority',
         unmarkPriority: 'Remove priority',
         makeTextBold: 'Make text bold',
         makeTextNormal: 'Make text normal',
-        deleteItem: 'Delete item',
+        deleteItem: 'Delete step',
         assignCategory: 'Assign category',
         clearCategory: 'Clear category',
         confirmDeleteItem: 'Are you sure?',
-        selectItem: 'Select item',
-        deselectItem: 'Deselect item',
-        itemSelected: '{count} item selected',
-        itemsSelected: '{count} selected',
-        bulkDeleteItems: 'Delete selected',
+        selectItem: 'Select step',
+        deselectItem: 'Deselect step',
+        itemSelected: '{count} step selected',
+        itemsSelected: '{count} steps selected',
+        bulkDeleteItems: 'Delete selected steps',
         confirmBulkDeleteItem:
           'You are about to delete {count} selected record.',
         confirmBulkDeleteItems:
@@ -143,9 +143,9 @@ vi.mock('@/providers', () => ({
         actionInMenu: 'Three-dot menu',
         actionOnRow: 'On row',
         actionVisible: 'Visible',
-        configureRowActions: 'Configure row actions',
+        configureRowActions: 'Configure step actions',
         dragAndDrop: 'Drag and drop',
-        rowActionsTitle: 'Task row actions',
+        rowActionsTitle: 'Step actions',
         resetRowActions: 'Restore defaults',
       },
       goals: {
@@ -165,7 +165,7 @@ vi.mock('@/providers', () => ({
         confirmDeleteGoal: 'Delete this goal?',
         deleteGoal: 'Delete goal',
         dragGoal: 'Drag goal',
-        emptyGoal: 'Start this goal with a checklist item',
+        emptyGoal: 'Start this goal by adding a step',
         goalMenu: 'Goal actions',
         groupMenu: 'Group actions',
         goalTitlePlaceholder: 'Goal name',
@@ -272,13 +272,17 @@ function goalStep(overrides: Record<string, unknown> = {}) {
 
 describe('GoalsSurface', () => {
   it('uses the requested pt-BR labels in the goal card menu', () => {
-    expect(ptBRDictionary.dayEditor.itemSelected).toBe('{count} selecionado');
-    expect(ptBRDictionary.dayEditor.itemsSelected).toBe('{count} selecionados');
-    expect(ptBRDictionary.dayEditor.confirmBulkDeleteItem).toBe(
-      'Você está prestes a excluir {count} registro selecionado.',
+    expect(ptBRDictionary.goalStepEditor.itemSelected).toBe(
+      '{count} etapa selecionada',
     );
-    expect(ptBRDictionary.dayEditor.confirmBulkDeleteItems).toBe(
-      'Você está prestes a excluir {count} registros selecionados.',
+    expect(ptBRDictionary.goalStepEditor.itemsSelected).toBe(
+      '{count} etapas selecionadas',
+    );
+    expect(ptBRDictionary.goalStepEditor.confirmBulkDeleteItem).toBe(
+      'Você está prestes a excluir {count} etapa selecionada.',
+    );
+    expect(ptBRDictionary.goalStepEditor.confirmBulkDeleteItems).toBe(
+      'Você está prestes a excluir {count} etapas selecionadas.',
     );
     expect(ptBRDictionary.goals.assignGoalColor).toBe(
       'Atribuir cor independente',
@@ -1049,7 +1053,7 @@ describe('GoalsSurface', () => {
     ).not.toBeInTheDocument();
   });
 
-  it('opens a goal detail preserving the checklist item surface', () => {
+  it('opens a goal detail preserving the goal step surface', () => {
     useGoalStepTreeMock.mockReturnValue([goalStep()]);
 
     render(<GoalsSurface />);
@@ -1079,7 +1083,7 @@ describe('GoalsSurface', () => {
     });
     expect(createGoalStepMock).not.toHaveBeenCalled();
     await waitFor(() => {
-      expect(screen.getAllByPlaceholderText('Write a task')).toHaveLength(2);
+      expect(screen.getAllByPlaceholderText('Write a step')).toHaveLength(2);
     });
   });
 
@@ -1093,9 +1097,9 @@ describe('GoalsSurface', () => {
     });
 
     await waitFor(() => {
-      expect(screen.getAllByPlaceholderText('Write a task')).toHaveLength(2);
+      expect(screen.getAllByPlaceholderText('Write a step')).toHaveLength(2);
     });
-    const draftInput = screen.getAllByPlaceholderText('Write a task')[1];
+    const draftInput = screen.getAllByPlaceholderText('Write a step')[1];
     fireEvent.change(draftInput, { target: { value: 'Draft step' } });
     fireEvent.blur(draftInput);
 
@@ -1110,7 +1114,7 @@ describe('GoalsSurface', () => {
         text: 'Draft step',
       });
     });
-    expect(screen.getAllByPlaceholderText('Write a task')).toHaveLength(2);
+    expect(screen.getAllByPlaceholderText('Write a step')).toHaveLength(2);
     expect(draftInput).toBeInTheDocument();
   });
 
@@ -1121,18 +1125,18 @@ describe('GoalsSurface', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Focus' }));
     fireEvent.click(
       screen.getByRole('button', {
-        name: 'Start this goal with a checklist item',
+        name: 'Start this goal by adding a step',
       }),
     );
 
     await waitFor(() => {
-      expect(screen.getAllByPlaceholderText('Write a task')).toHaveLength(1);
+      expect(screen.getAllByPlaceholderText('Write a step')).toHaveLength(1);
     });
 
     fireEvent.click(screen.getByRole('button', { name: 'Add step' }));
 
     await waitFor(() => {
-      expect(screen.getAllByPlaceholderText('Write a task')).toHaveLength(2);
+      expect(screen.getAllByPlaceholderText('Write a step')).toHaveLength(2);
     });
     expect(createGoalStepMock).not.toHaveBeenCalled();
   });
@@ -1147,15 +1151,15 @@ describe('GoalsSurface', () => {
     });
 
     await waitFor(() => {
-      expect(screen.getAllByPlaceholderText('Write a task')).toHaveLength(2);
+      expect(screen.getAllByPlaceholderText('Write a step')).toHaveLength(2);
     });
-    const draftInput = screen.getAllByPlaceholderText('Write a task')[1];
+    const draftInput = screen.getAllByPlaceholderText('Write a step')[1];
     const draftRow = draftInput.closest('[data-tree-row]');
 
     expect(draftRow).not.toBeNull();
 
     fireEvent.click(
-      within(draftRow as HTMLElement).getByLabelText('Indent item'),
+      within(draftRow as HTMLElement).getByLabelText('Make substep'),
     );
 
     await waitFor(() => {
@@ -1166,7 +1170,9 @@ describe('GoalsSurface', () => {
 
     const indentedRow = draftInput.closest('[data-tree-row]');
     fireEvent.click(
-      within(indentedRow as HTMLElement).getByLabelText('Outdent item'),
+      within(indentedRow as HTMLElement).getByLabelText(
+        'Promote step one level',
+      ),
     );
 
     await waitFor(() => {
@@ -1184,20 +1190,20 @@ describe('GoalsSurface', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Focus' }));
     fireEvent.click(
       screen.getByRole('button', {
-        name: 'Start this goal with a checklist item',
+        name: 'Start this goal by adding a step',
       }),
     );
     fireEvent.click(screen.getByRole('button', { name: 'Add step' }));
 
     await waitFor(() => {
-      expect(screen.getAllByPlaceholderText('Write a task')).toHaveLength(2);
+      expect(screen.getAllByPlaceholderText('Write a step')).toHaveLength(2);
     });
 
     const [parentInput, childInput] =
-      screen.getAllByPlaceholderText('Write a task');
+      screen.getAllByPlaceholderText('Write a step');
     const childRow = childInput.closest('[data-tree-row]');
     fireEvent.click(
-      within(childRow as HTMLElement).getByLabelText('Indent item'),
+      within(childRow as HTMLElement).getByLabelText('Make substep'),
     );
 
     await waitFor(() => {
@@ -1208,19 +1214,19 @@ describe('GoalsSurface', () => {
 
     const parentRow = parentInput.closest('[data-tree-row]');
     fireEvent.click(
-      within(parentRow as HTMLElement).getByLabelText('Collapse item'),
+      within(parentRow as HTMLElement).getByLabelText('Collapse step'),
     );
 
     await waitFor(() => {
-      expect(screen.getAllByPlaceholderText('Write a task')).toHaveLength(1);
+      expect(screen.getAllByPlaceholderText('Write a step')).toHaveLength(1);
     });
 
     fireEvent.click(
-      within(parentRow as HTMLElement).getByLabelText('Expand item'),
+      within(parentRow as HTMLElement).getByLabelText('Expand step'),
     );
 
     await waitFor(() => {
-      expect(screen.getAllByPlaceholderText('Write a task')).toHaveLength(2);
+      expect(screen.getAllByPlaceholderText('Write a step')).toHaveLength(2);
     });
     expect(createGoalStepMock).not.toHaveBeenCalled();
   });
@@ -1237,8 +1243,8 @@ describe('GoalsSurface', () => {
 
     render(<GoalsSurface />);
     fireEvent.click(screen.getByRole('button', { name: 'Focus' }));
-    fireEvent.click(screen.getAllByLabelText('Select item')[0]);
-    fireEvent.click(screen.getByLabelText('Select item'));
+    fireEvent.click(screen.getAllByLabelText('Select step')[0]);
+    fireEvent.click(screen.getByLabelText('Select step'));
     fireEvent.click(screen.getAllByRole('checkbox')[0]);
 
     await waitFor(() => {
@@ -1263,7 +1269,7 @@ describe('GoalsSurface', () => {
 
     render(<GoalsSurface />);
     fireEvent.click(screen.getByRole('button', { name: 'Focus' }));
-    fireEvent.click(screen.getAllByLabelText('Select item')[0]);
+    fireEvent.click(screen.getAllByLabelText('Select step')[0]);
     fireEvent.click(screen.getAllByRole('checkbox')[0]);
 
     await waitFor(() => {
@@ -1293,14 +1299,14 @@ describe('GoalsSurface', () => {
     });
 
     await waitFor(() => {
-      expect(screen.getAllByPlaceholderText('Write a task')).toHaveLength(3);
+      expect(screen.getAllByPlaceholderText('Write a step')).toHaveLength(3);
     });
 
-    const draftInput = screen.getAllByPlaceholderText('Write a task')[1];
+    const draftInput = screen.getAllByPlaceholderText('Write a step')[1];
     fireEvent.change(draftInput, { target: { value: 'Draft fragment' } });
-    fireEvent.click(screen.getAllByLabelText('Select item')[0]);
+    fireEvent.click(screen.getAllByLabelText('Select step')[0]);
     fireEvent.click(
-      screen.getByRole('button', { name: 'Delete · 1 item selected' }),
+      screen.getByRole('button', { name: 'Delete · 1 step selected' }),
     );
     expect(
       await screen.findByText('You are about to delete 1 selected record.'),

@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { enterLocalMode, firstGoalStepInput, labels } from './helpers';
 
-test('persists a goal checklist item in local mode', async ({ page }) => {
+test('persists a goal step in local mode', async ({ page }) => {
   await enterLocalMode(page);
   await page.goto('/goals');
   await page.getByRole('button', { name: labels.createGoal }).click();

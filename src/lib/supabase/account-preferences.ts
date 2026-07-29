@@ -7,9 +7,20 @@ import { getSupabaseBrowserClient } from './client';
 import type { Json } from './database.types';
 
 export const TASK_TREE_ROW_ACTIONS_PREFERENCE_KEY = 'taskTreeRowActions';
+export const GOAL_STEP_TREE_ROW_ACTIONS_PREFERENCE_KEY =
+  'goalStepTreeRowActions';
 export const ACCOUNT_PREFERENCE_KEYS = [
   TASK_TREE_ROW_ACTIONS_PREFERENCE_KEY,
+  GOAL_STEP_TREE_ROW_ACTIONS_PREFERENCE_KEY,
 ] as const;
+
+export function getTaskTreeRowActionsPreferenceKey(
+  surface: 'checklist_item' | 'goal_step',
+) {
+  return surface === 'goal_step'
+    ? GOAL_STEP_TREE_ROW_ACTIONS_PREFERENCE_KEY
+    : TASK_TREE_ROW_ACTIONS_PREFERENCE_KEY;
+}
 const pendingPreferenceWrites = new Map<string, number>();
 
 interface RemoteUserPreference {

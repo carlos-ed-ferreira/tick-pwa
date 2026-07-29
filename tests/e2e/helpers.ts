@@ -1,17 +1,15 @@
 import { expect, type Locator, type Page } from '@playwright/test';
 
 export const labels = {
-  calendarLink:
-    /daily calendar|calendario diario|calendário diário|tarefas do dia/i,
+  calendarLink: /daily tasks|tarefas do dia/i,
   goalStepEmpty:
-    /start this goal with a checklist item|comece esta meta com um item de checklist/i,
+    /start this goal by adding a step|comece esta meta adicionando uma etapa/i,
   createGoal: /^new goal$|^nova meta$/i,
   goalsLink: /^goals$|^metas$/i,
   localModeBadge: /local mode|modo local/i,
   localModeButton:
     /continue without syncing|continuar sem sincronizar|use local mode|usar em modo local/i,
-  checklistEmpty:
-    /start this day with a checklist item|comece este dia com um item de checklist/i,
+  checklistEmpty: /start this day with a task|comece este dia com uma tarefa/i,
   backToCalendar: /back to calendar|voltar para o calendário/i,
 };
 

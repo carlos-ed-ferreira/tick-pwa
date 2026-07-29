@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { enterLocalMode, firstChecklistInput, labels } from './helpers';
 
-test('persists a day checklist item in local mode', async ({ page }) => {
+test('persists a daily task in local mode', async ({ page }) => {
   await enterLocalMode(page);
   await page.goto('/calendar?day=2026-05-21');
 

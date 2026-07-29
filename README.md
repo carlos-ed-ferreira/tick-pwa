@@ -38,6 +38,14 @@ tests             testes unitários, integração e E2E
 supabase          configuração, seed e migrations SQL
 ```
 
+## Terminologia do produto
+
+- Em `/calendar`, cada registro é apresentado como **tarefa** e seus
+  descendentes como **subtarefas**.
+- Em `/goals`, o fluxo é **grupo de metas → meta → etapa → subetapa**.
+- Os nomes técnicos das entidades continuam `ChecklistItem` e `GoalStep`; essa
+  distinção é apenas de linguagem e experiência na interface.
+
 ## Modos de uso
 
 Tick tem dois modos separados.
@@ -56,8 +64,8 @@ Modo autenticado com conta:
 - persiste dados da conta no Supabase;
 - confirma alterações primeiro no cache IndexedDB para manter a UI responsiva;
 - envia as alterações ao Supabase em ordem, depois do commit local;
-- mantém preferências de interface, como as ações visíveis nas linhas de tarefa,
-  associadas ao usuário em `user_preferences`;
+- mantém separadamente as preferências de ações das tarefas diárias e das etapas
+  de metas, associadas ao usuário em `user_preferences`;
 - restaura o valor remoto e mostra feedback se a persistência falhar;
 - não importa nem sincroniza dados do modo local.
 

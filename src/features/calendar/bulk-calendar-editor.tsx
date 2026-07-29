@@ -350,7 +350,7 @@ function BulkChecklistSurface({
 }) {
   const { dictionary, scope } = useAppContext();
   const { actionPreferences, setActionPreferences } =
-    useTaskTreeRowActionPreferences();
+    useTaskTreeRowActionPreferences('checklist_item');
   const categoryTags = useCategoryTags(scope, 'checklist_item');
   const categoryTagMap = new Map(categoryTags.map((tag) => [tag.id, tag]));
   const rows = useMemo(

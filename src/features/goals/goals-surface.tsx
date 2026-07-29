@@ -1422,7 +1422,7 @@ function CategoryColorButton({
   return (
     <span className="relative inline-flex size-10 shrink-0 items-center justify-center rounded-md border border-white/10 bg-white/5 shadow-sm shadow-[#312c51]/10 transition hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/10 focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-[#f7d9b0]">
       <input
-        aria-label={dictionary.dayEditor.createOwnCategory}
+        aria-label={dictionary.goalStepEditor.createOwnCategory}
         className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
         type="color"
         value={ownColorHex ?? '#71717a'}
@@ -2818,7 +2818,7 @@ function GoalGroupDetailHeader({
         <CategoryAssignmentMenu
           assignLabel={dictionary.goals.assignGroupCategory}
           clearClassName="inline-flex size-10 shrink-0 items-center justify-center rounded-md border border-white/10 bg-white/5 text-[#d8d0e8] shadow-sm shadow-[#312c51]/10 transition hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/10 hover:text-[#fff9f2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0]"
-          clearLabel={dictionary.dayEditor.clearCategory}
+          clearLabel={dictionary.goalStepEditor.clearCategory}
           renderTriggerContent={() => (
             <Palette aria-hidden="true" className="size-4" />
           )}
@@ -2930,7 +2930,7 @@ function GoalDetailHeader({
           <CategoryAssignmentMenu
             assignLabel={dictionary.goals.assignGoalCategory}
             clearClassName="inline-flex size-10 shrink-0 items-center justify-center rounded-md border border-white/10 bg-white/5 text-[#d8d0e8] shadow-sm shadow-[#312c51]/10 transition hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/10 hover:text-[#fff9f2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0]"
-            clearLabel={dictionary.dayEditor.clearCategory}
+            clearLabel={dictionary.goalStepEditor.clearCategory}
             renderTriggerContent={() => (
               <Palette aria-hidden="true" className="size-4" />
             )}
@@ -3073,7 +3073,7 @@ function GoalDetailCard({
   const { dictionary, scope } = useAppContext();
   const [draftGoalSteps, setDraftGoalSteps] = useState<GoalStepDraft[]>([]);
   const { actionPreferences, setActionPreferences } =
-    useTaskTreeRowActionPreferences();
+    useTaskTreeRowActionPreferences('goal_step');
   const deletedDraftGoalStepIdsRef = useRef(new Set<string>());
   const displayGoalStepRows = useMemo(
     () => insertGoalStepDraftRows(goalStepRows, draftGoalSteps),
@@ -3163,8 +3163,8 @@ function GoalDetailCard({
     selectedGoalSteps.every((goalStep) => goalStep.bold);
   const selectedLabel = formatSelectionLabel({
     count: selectedCount,
-    plural: dictionary.dayEditor.itemsSelected,
-    singular: dictionary.dayEditor.itemSelected,
+    plural: dictionary.goalStepEditor.itemsSelected,
+    singular: dictionary.goalStepEditor.itemSelected,
   });
 
   return (
@@ -3179,15 +3179,15 @@ function GoalDetailCard({
           confirmLabel: dictionary.actions.delete,
           description: formatCountLabel({
             count: selectedCount,
-            plural: dictionary.dayEditor.confirmBulkDeleteItems,
-            singular: dictionary.dayEditor.confirmBulkDeleteItem,
+            plural: dictionary.goalStepEditor.confirmBulkDeleteItems,
+            singular: dictionary.goalStepEditor.confirmBulkDeleteItem,
           }),
           open: isBulkDeleteDialogOpen,
-          title: dictionary.dayEditor.bulkDeleteItems,
+          title: dictionary.goalStepEditor.bulkDeleteItems,
           onClose: closeBulkDeleteDialog,
           onConfirm: () => void confirmBulkDelete(),
         }}
-        clearSelectionLabel={dictionary.dayEditor.clearSelection}
+        clearSelectionLabel={dictionary.goalStepEditor.clearSelection}
         emptyLabel={dictionary.goals.emptyGoal}
         hasRows={displayGoalStepRows.length > 0}
         isSelectionMode={isSelectionMode}
@@ -3199,11 +3199,11 @@ function GoalDetailCard({
             allBold={allSelectedBold}
             allPriority={allSelectedPriority}
             labels={{
-              bold: dictionary.dayEditor.bulkBold,
-              category: dictionary.dayEditor.bulkCategory,
-              clearCategory: dictionary.dayEditor.clearCategory,
-              delete: dictionary.dayEditor.bulkDelete,
-              priority: dictionary.dayEditor.bulkPriority,
+              bold: dictionary.goalStepEditor.bulkBold,
+              category: dictionary.goalStepEditor.bulkCategory,
+              clearCategory: dictionary.goalStepEditor.clearCategory,
+              delete: dictionary.goalStepEditor.bulkDelete,
+              priority: dictionary.goalStepEditor.bulkPriority,
               selected: selectedLabel,
             }}
             surface="goal_step"
@@ -3250,28 +3250,29 @@ function GoalDetailCard({
           <TaskTreeRowActionsMenu
             labels={{
               actions: {
-                add: dictionary.dayEditor.addChild,
-                bold: dictionary.dayEditor.bulkBold,
-                category: dictionary.dayEditor.bulkCategory,
-                clearCategory: dictionary.dayEditor.clearCategory,
-                delete: dictionary.dayEditor.bulkDelete,
-                drag: dictionary.dayEditor.dragAndDrop,
-                indent: dictionary.dayEditor.indentItem,
-                moveDown: dictionary.dayEditor.moveItemDown,
-                moveUp: dictionary.dayEditor.moveItemUp,
-                outdent: dictionary.dayEditor.outdentItem,
-                priority: dictionary.dayEditor.bulkPriority,
-                scheduledTime: dictionary.dayEditor.itemTime,
+                add: dictionary.goalStepEditor.addChild,
+                bold: dictionary.goalStepEditor.bulkBold,
+                category: dictionary.goalStepEditor.bulkCategory,
+                clearCategory: dictionary.goalStepEditor.clearCategory,
+                delete: dictionary.goalStepEditor.bulkDelete,
+                drag: dictionary.goalStepEditor.dragAndDrop,
+                indent: dictionary.goalStepEditor.indentItem,
+                moveDown: dictionary.goalStepEditor.moveItemDown,
+                moveUp: dictionary.goalStepEditor.moveItemUp,
+                outdent: dictionary.goalStepEditor.outdentItem,
+                priority: dictionary.goalStepEditor.bulkPriority,
+                scheduledTime: dictionary.goalStepEditor.itemTime,
               },
               close: dictionary.actions.cancel,
-              configure: dictionary.dayEditor.configureRowActions,
-              hidden: dictionary.dayEditor.actionHidden,
-              inline: dictionary.dayEditor.actionOnRow,
-              menu: dictionary.dayEditor.actionInMenu,
-              reset: dictionary.dayEditor.resetRowActions,
-              title: dictionary.dayEditor.rowActionsTitle,
-              visible: dictionary.dayEditor.actionVisible,
+              configure: dictionary.goalStepEditor.configureRowActions,
+              hidden: dictionary.goalStepEditor.actionHidden,
+              inline: dictionary.goalStepEditor.actionOnRow,
+              menu: dictionary.goalStepEditor.actionInMenu,
+              reset: dictionary.goalStepEditor.resetRowActions,
+              title: dictionary.goalStepEditor.rowActionsTitle,
+              visible: dictionary.goalStepEditor.actionVisible,
             }}
+            showScheduledTime={false}
             value={actionPreferences}
             onChange={setActionPreferences}
           />
@@ -3608,7 +3609,7 @@ function GoalStepRow({
       isLastSibling={isLastVisibleSibling}
       itemId={goalStep.id}
       labels={{
-        ...dictionary.dayEditor,
+        ...dictionary.goalStepEditor,
         cancel: dictionary.actions.cancel,
         delete: dictionary.actions.delete,
       }}

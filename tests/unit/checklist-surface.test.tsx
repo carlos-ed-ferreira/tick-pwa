@@ -69,31 +69,31 @@ vi.mock('@/providers', () => ({
         sortByTime: 'Sort by time',
       },
       dayEditor: {
-        addItem: 'Add item',
-        emptyChecklist: 'Start this day with a checklist item',
-        expandItem: 'Expand item',
-        collapseItem: 'Collapse item',
-        toggleItem: 'Toggle item',
+        addItem: 'Add task',
+        emptyChecklist: 'Start this day with a task',
+        expandItem: 'Expand task',
+        collapseItem: 'Collapse task',
+        toggleItem: 'Change task status',
         itemPlaceholder: 'Write a task',
-        addChild: 'Add child',
-        indentItem: 'Indent item',
-        dragItem: 'Drag item',
+        addChild: 'Create subtask',
+        indentItem: 'Make subtask',
+        dragItem: 'Drag task',
         itemTime: 'Task time',
         markPriority: 'Mark as priority',
-        moveItemDown: 'Move item down',
-        moveItemUp: 'Move item up',
+        moveItemDown: 'Move task down',
+        moveItemUp: 'Move task up',
         moreActions: 'More actions',
-        outdentItem: 'Outdent item',
+        outdentItem: 'Promote task one level',
         unmarkPriority: 'Remove priority',
-        deleteItem: 'Delete item',
+        deleteItem: 'Delete task',
         assignCategory: 'Assign category',
         clearCategory: 'Clear category',
-        confirmDeleteItem: 'Are you sure you want to delete this item?',
-        selectItem: 'Select item',
-        deselectItem: 'Deselect item',
-        itemSelected: '{count} item selected',
-        itemsSelected: '{count} selected',
-        bulkDeleteItems: 'Delete selected',
+        confirmDeleteItem: 'Are you sure you want to delete this task?',
+        selectItem: 'Select task',
+        deselectItem: 'Deselect task',
+        itemSelected: '{count} task selected',
+        itemsSelected: '{count} tasks selected',
+        bulkDeleteItems: 'Delete selected tasks',
         confirmBulkDeleteItem:
           'You are about to delete {count} selected record.',
         confirmBulkDeleteItems:
@@ -107,9 +107,9 @@ vi.mock('@/providers', () => ({
         actionInMenu: 'Three-dot menu',
         actionOnRow: 'On row',
         actionVisible: 'Visible',
-        configureRowActions: 'Configure row actions',
+        configureRowActions: 'Configure task actions',
         dragAndDrop: 'Drag and drop',
-        rowActionsTitle: 'Task row actions',
+        rowActionsTitle: 'Task actions',
         resetRowActions: 'Restore defaults',
       },
     },
@@ -202,10 +202,10 @@ describe('ChecklistSurface delete confirmation', () => {
     render(<ChecklistSurface dailyEntryId="entry-1" />);
 
     fireEvent.click(screen.getByLabelText('More actions'));
-    fireEvent.click(screen.getAllByLabelText('Delete item')[0]);
+    fireEvent.click(screen.getAllByLabelText('Delete task')[0]);
 
     expect(
-      await screen.findByText('Are you sure you want to delete this item?'),
+      await screen.findByText('Are you sure you want to delete this task?'),
     ).toBeInTheDocument();
     expect(softDeleteChecklistItemMock).not.toHaveBeenCalled();
 
@@ -229,7 +229,7 @@ describe('ChecklistSurface delete confirmation', () => {
     render(<ChecklistSurface dailyEntryId="entry-1" />);
 
     fireEvent.click(screen.getByLabelText('More actions'));
-    fireEvent.click(screen.getAllByLabelText('Delete item')[0]);
+    fireEvent.click(screen.getAllByLabelText('Delete task')[0]);
 
     await waitFor(() => {
       expect(softDeleteChecklistItemMock).toHaveBeenCalledWith({
@@ -242,7 +242,7 @@ describe('ChecklistSurface delete confirmation', () => {
       });
     });
     expect(
-      screen.queryByText('Are you sure you want to delete this item?'),
+      screen.queryByText('Are you sure you want to delete this task?'),
     ).not.toBeInTheDocument();
   });
 
@@ -260,7 +260,7 @@ describe('ChecklistSurface delete confirmation', () => {
       getData: (type: string) => data.get(type) ?? '',
       setData: (type: string, value: string) => data.set(type, value),
     };
-    const firstHandle = screen.getAllByLabelText('Drag item')[0];
+    const firstHandle = screen.getAllByLabelText('Drag task')[0];
     const secondRow = screen.getByDisplayValue('Second task').closest('.group');
 
     expect(secondRow).not.toBeNull();
@@ -297,7 +297,7 @@ describe('ChecklistSurface delete confirmation', () => {
     expect(firstRow).not.toBeNull();
     fireEvent.click(
       within(firstRow as HTMLElement).getByRole('button', {
-        name: 'Move item down',
+        name: 'Move task down',
       }),
     );
 
@@ -323,18 +323,18 @@ describe('ChecklistSurface delete confirmation', () => {
     const { unmount } = render(<ChecklistSurface dailyEntryId="entry-1" />);
 
     fireEvent.click(
-      screen.getByRole('button', { name: 'Configure row actions' }),
+      screen.getByRole('button', { name: 'Configure task actions' }),
     );
     fireEvent.click(
       screen.getByRole('radio', {
-        name: 'Move item down: Hidden',
+        name: 'Move task down: Hidden',
       }),
     );
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
 
     await waitFor(() => {
       expect(
-        screen.queryByRole('button', { name: 'Move item down' }),
+        screen.queryByRole('button', { name: 'Move task down' }),
       ).not.toBeInTheDocument();
     });
 
@@ -343,11 +343,11 @@ describe('ChecklistSurface delete confirmation', () => {
 
     await waitFor(() => {
       expect(
-        screen.queryByRole('button', { name: 'Move item down' }),
+        screen.queryByRole('button', { name: 'Move task down' }),
       ).not.toBeInTheDocument();
     });
     expect(
-      screen.getAllByRole('button', { name: 'Move item up' }),
+      screen.getAllByRole('button', { name: 'Move task up' }),
     ).toHaveLength(2);
   });
 
@@ -359,27 +359,30 @@ describe('ChecklistSurface delete confirmation', () => {
 
     render(<ChecklistSurface dailyEntryId="entry-1" />);
 
-    const addButton = screen.getByRole('button', { name: 'Add item' });
+    const addButton = screen.getByRole('button', { name: 'Add task' });
     const toolbar = addButton.parentElement;
     const toolbarButtons = Array.from(
       toolbar?.querySelectorAll('button') ?? [],
     ).map((button) => button.getAttribute('aria-label') ?? button.textContent);
 
     expect(toolbarButtons).toEqual([
-      'Add item',
+      'Add task',
       'Sort by time',
-      'Configure row actions',
+      'Configure task actions',
     ]);
 
     const sortButton = screen.getByRole('button', { name: 'Sort by time' });
     const preferencesButton = screen.getByRole('button', {
-      name: 'Configure row actions',
+      name: 'Configure task actions',
     });
 
     expect(sortButton).toHaveAttribute('title', 'Sort by time');
-    expect(preferencesButton).toHaveAttribute('title', 'Configure row actions');
+    expect(preferencesButton).toHaveAttribute(
+      'title',
+      'Configure task actions',
+    );
     expect(sortButton).not.toHaveTextContent('Sort by time');
-    expect(preferencesButton).not.toHaveTextContent('Configure row actions');
+    expect(preferencesButton).not.toHaveTextContent('Configure task actions');
 
     fireEvent.click(sortButton);
     expect(reorderChecklistItemsByScheduledTimeMock).toHaveBeenCalledWith({
@@ -406,7 +409,7 @@ describe('ChecklistSurface delete confirmation', () => {
       getData: (type: string) => data.get(type) ?? '',
       setData: (type: string, value: string) => data.set(type, value),
     };
-    const childHandle = screen.getAllByLabelText('Drag item')[1];
+    const childHandle = screen.getAllByLabelText('Drag task')[1];
     const parentRow = screen.getByDisplayValue('Parent task').closest('.group');
 
     expect(parentRow).not.toBeNull();
@@ -453,7 +456,7 @@ describe('ChecklistSurface delete confirmation', () => {
       getData: (type: string) => data.get(type) ?? '',
       setData: (type: string, value: string) => data.set(type, value),
     };
-    const draftHandle = screen.getAllByLabelText('Drag item')[1];
+    const draftHandle = screen.getAllByLabelText('Drag task')[1];
     const persistedRow = screen
       .getByDisplayValue('Original task')
       .closest('.group');
@@ -489,7 +492,7 @@ describe('ChecklistSurface delete confirmation', () => {
     expect(draftRow).not.toBeNull();
 
     fireEvent.click(
-      within(draftRow as HTMLElement).getByLabelText('Indent item'),
+      within(draftRow as HTMLElement).getByLabelText('Make subtask'),
     );
 
     await waitFor(() => {
@@ -500,7 +503,9 @@ describe('ChecklistSurface delete confirmation', () => {
 
     const indentedRow = draftInput.closest('[data-tree-row]');
     fireEvent.click(
-      within(indentedRow as HTMLElement).getByLabelText('Outdent item'),
+      within(indentedRow as HTMLElement).getByLabelText(
+        'Promote task one level',
+      ),
     );
 
     await waitFor(() => {
@@ -517,10 +522,10 @@ describe('ChecklistSurface delete confirmation', () => {
     render(<ChecklistSurface dailyEntryId="entry-1" />);
     fireEvent.click(
       screen.getByRole('button', {
-        name: 'Start this day with a checklist item',
+        name: 'Start this day with a task',
       }),
     );
-    fireEvent.click(screen.getByRole('button', { name: 'Add item' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add task' }));
 
     await waitFor(() => {
       expect(screen.getAllByPlaceholderText('Write a task')).toHaveLength(2);
@@ -530,7 +535,7 @@ describe('ChecklistSurface delete confirmation', () => {
       screen.getAllByPlaceholderText('Write a task');
     const childRow = childInput.closest('[data-tree-row]');
     fireEvent.click(
-      within(childRow as HTMLElement).getByLabelText('Indent item'),
+      within(childRow as HTMLElement).getByLabelText('Make subtask'),
     );
 
     await waitFor(() => {
@@ -541,7 +546,7 @@ describe('ChecklistSurface delete confirmation', () => {
 
     const parentRow = parentInput.closest('[data-tree-row]');
     fireEvent.click(
-      within(parentRow as HTMLElement).getByLabelText('Collapse item'),
+      within(parentRow as HTMLElement).getByLabelText('Collapse task'),
     );
 
     await waitFor(() => {
@@ -549,7 +554,7 @@ describe('ChecklistSurface delete confirmation', () => {
     });
 
     fireEvent.click(
-      within(parentRow as HTMLElement).getByLabelText('Expand item'),
+      within(parentRow as HTMLElement).getByLabelText('Expand task'),
     );
 
     await waitFor(() => {
@@ -668,7 +673,7 @@ describe('ChecklistSurface delete confirmation', () => {
 
     fireEvent.click(
       screen.getByRole('button', {
-        name: 'Start this day with a checklist item',
+        name: 'Start this day with a task',
       }),
     );
 
@@ -676,7 +681,7 @@ describe('ChecklistSurface delete confirmation', () => {
       expect(screen.getAllByPlaceholderText('Write a task')).toHaveLength(1);
     });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Add item' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add task' }));
 
     await waitFor(() => {
       expect(screen.getAllByPlaceholderText('Write a task')).toHaveLength(2);
@@ -692,8 +697,8 @@ describe('ChecklistSurface delete confirmation', () => {
 
     render(<ChecklistSurface dailyEntryId="entry-1" />);
 
-    fireEvent.click(screen.getAllByLabelText('Select item')[0]);
-    fireEvent.click(screen.getByLabelText('Select item'));
+    fireEvent.click(screen.getAllByLabelText('Select task')[0]);
+    fireEvent.click(screen.getByLabelText('Select task'));
     fireEvent.click(screen.getAllByRole('checkbox')[0]);
 
     await waitFor(() => {
@@ -718,7 +723,7 @@ describe('ChecklistSurface delete confirmation', () => {
 
     render(<ChecklistSurface dailyEntryId="entry-1" />);
 
-    fireEvent.click(screen.getAllByLabelText('Select item')[0]);
+    fireEvent.click(screen.getAllByLabelText('Select task')[0]);
     fireEvent.click(screen.getAllByRole('checkbox')[0]);
 
     await waitFor(() => {
@@ -743,12 +748,12 @@ describe('ChecklistSurface delete confirmation', () => {
 
     render(<ChecklistSurface dailyEntryId="entry-1" />);
 
-    const selectionButtons = screen.getAllByLabelText('Select item');
+    const selectionButtons = screen.getAllByLabelText('Select task');
     fireEvent.click(selectionButtons[0]);
     fireEvent.click(selectionButtons[1]);
-    const addButton = screen.getByRole('button', { name: 'Add item' });
+    const addButton = screen.getByRole('button', { name: 'Add task' });
     const bulkBold = screen.getByRole('button', {
-      name: 'Bold · 2 selected',
+      name: 'Bold · 2 tasks selected',
     });
 
     expect(bulkBold.closest('[data-tree-selection-actions]')).toBe(
@@ -759,7 +764,7 @@ describe('ChecklistSurface delete confirmation', () => {
 
     fireEvent.click(bulkBold);
     fireEvent.click(
-      screen.getByRole('button', { name: 'Priority · 2 selected' }),
+      screen.getByRole('button', { name: 'Priority · 2 tasks selected' }),
     );
 
     await waitFor(() => {
@@ -792,10 +797,10 @@ describe('ChecklistSurface delete confirmation', () => {
 
     render(<ChecklistSurface dailyEntryId="entry-1" />);
 
-    fireEvent.click(screen.getAllByLabelText('Select item')[0]);
+    fireEvent.click(screen.getAllByLabelText('Select task')[0]);
 
     expect(
-      screen.getByRole('button', { name: 'Priority · 1 item selected' }),
+      screen.getByRole('button', { name: 'Priority · 1 task selected' }),
     ).toBeInTheDocument();
   });
 
@@ -807,9 +812,9 @@ describe('ChecklistSurface delete confirmation', () => {
 
     render(<ChecklistSurface dailyEntryId="entry-1" />);
 
-    fireEvent.click(screen.getAllByLabelText('Select item')[0]);
+    fireEvent.click(screen.getAllByLabelText('Select task')[0]);
     fireEvent.click(
-      screen.getByRole('button', { name: 'Delete · 1 item selected' }),
+      screen.getByRole('button', { name: 'Delete · 1 task selected' }),
     );
 
     expect(
@@ -853,9 +858,9 @@ describe('ChecklistSurface delete confirmation', () => {
 
     const draftInput = screen.getAllByPlaceholderText('Write a task')[1];
     fireEvent.change(draftInput, { target: { value: 'Draft fragment' } });
-    fireEvent.click(screen.getAllByLabelText('Select item')[0]);
+    fireEvent.click(screen.getAllByLabelText('Select task')[0]);
     fireEvent.click(
-      screen.getByRole('button', { name: 'Delete · 1 item selected' }),
+      screen.getByRole('button', { name: 'Delete · 1 task selected' }),
     );
     fireEvent.click(await screen.findByRole('button', { name: 'Delete' }));
 
@@ -894,12 +899,12 @@ describe('ChecklistSurface delete confirmation', () => {
 
     render(<ChecklistSurface dailyEntryId="entry-1" />);
 
-    fireEvent.click(screen.getAllByLabelText('Select item')[0]);
-    fireEvent.click(screen.getAllByLabelText('Select item')[1], {
+    fireEvent.click(screen.getAllByLabelText('Select task')[0]);
+    fireEvent.click(screen.getAllByLabelText('Select task')[1], {
       shiftKey: true,
     });
     fireEvent.click(
-      screen.getByRole('button', { name: /^Delete · \d+ selected$/ }),
+      screen.getByRole('button', { name: /^Delete · \d+ tasks selected$/ }),
     );
 
     expect(

@@ -142,6 +142,28 @@ describe('TaskTreeRowActionsMenu', () => {
     ).not.toBeInTheDocument();
   });
 
+  it('omits task time when the current tree does not support scheduling', () => {
+    render(
+      <TaskTreeRowActionsMenu
+        labels={labels}
+        showScheduledTime={false}
+        value={defaultTaskTreeRowActionPreferences}
+        onChange={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Configure row actions' }),
+    );
+
+    expect(
+      screen.queryByRole('radio', { name: 'Task time: Visible' }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole('radio', { name: 'Drag and drop: Visible' }),
+    ).toBeChecked();
+  });
+
   it('restores every action to the default configuration', () => {
     const onChange = vi.fn();
 

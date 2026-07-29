@@ -81,10 +81,12 @@ const binaryActions = [
 
 export function TaskTreeRowActionsMenu({
   labels,
+  showScheduledTime = true,
   value,
   onChange,
 }: {
   labels: TaskTreeRowActionsMenuLabels;
+  showScheduledTime?: boolean;
   value: TaskTreeRowActionPreferences;
   onChange: (value: TaskTreeRowActionPreferences) => void;
 }) {
@@ -175,51 +177,53 @@ export function TaskTreeRowActionsMenu({
               </div>
             ))}
 
-            {binaryActions.map(({ icon: ActionIcon, key }) => (
-              <div
-                key={key}
-                data-row-action-setting
-                className="grid gap-2 rounded-xl bg-white/[0.035] p-2.5 sm:grid-cols-[minmax(10rem,1fr)_21rem] sm:items-center"
-              >
-                <div className="flex min-w-0 items-center gap-2 text-sm font-medium text-[#eee8f7]">
-                  <ActionIcon className="size-4 shrink-0" />
-                  <span className="truncate">{labels.actions[key]}</span>
-                </div>
+            {binaryActions
+              .filter(({ key }) => key !== 'scheduledTime' || showScheduledTime)
+              .map(({ icon: ActionIcon, key }) => (
                 <div
-                  role="radiogroup"
-                  aria-label={labels.actions[key]}
-                  className="grid w-full grid-cols-3 gap-1 sm:w-[21rem]"
+                  key={key}
+                  data-row-action-setting
+                  className="grid gap-2 rounded-xl bg-white/[0.035] p-2.5 sm:grid-cols-[minmax(10rem,1fr)_21rem] sm:items-center"
                 >
-                  {[
-                    { label: labels.visible, value: true },
-                    { label: labels.hidden, value: false },
-                  ].map((choice) => {
-                    const checked = value[key] === choice.value;
+                  <div className="flex min-w-0 items-center gap-2 text-sm font-medium text-[#eee8f7]">
+                    <ActionIcon className="size-4 shrink-0" />
+                    <span className="truncate">{labels.actions[key]}</span>
+                  </div>
+                  <div
+                    role="radiogroup"
+                    aria-label={labels.actions[key]}
+                    className="grid w-full grid-cols-3 gap-1 sm:w-[21rem]"
+                  >
+                    {[
+                      { label: labels.visible, value: true },
+                      { label: labels.hidden, value: false },
+                    ].map((choice) => {
+                      const checked = value[key] === choice.value;
 
-                    return (
-                      <button
-                        key={String(choice.value)}
-                        type="button"
-                        role="radio"
-                        data-row-action-choice
-                        aria-checked={checked}
-                        aria-label={`${labels.actions[key]}: ${choice.label}`}
-                        className={`${choiceClassName} ${
-                          checked
-                            ? 'border-[#f0c38e]/40 bg-[#f0c38e]/14 text-[#fff9f2]'
-                            : 'border-white/[0.08] bg-white/[0.025] text-[#aaa0bf] hover:bg-white/[0.07] hover:text-[#fff9f2]'
-                        }`}
-                        onClick={() =>
-                          onChange({ ...value, [key]: choice.value })
-                        }
-                      >
-                        {choice.label}
-                      </button>
-                    );
-                  })}
+                      return (
+                        <button
+                          key={String(choice.value)}
+                          type="button"
+                          role="radio"
+                          data-row-action-choice
+                          aria-checked={checked}
+                          aria-label={`${labels.actions[key]}: ${choice.label}`}
+                          className={`${choiceClassName} ${
+                            checked
+                              ? 'border-[#f0c38e]/40 bg-[#f0c38e]/14 text-[#fff9f2]'
+                              : 'border-white/[0.08] bg-white/[0.025] text-[#aaa0bf] hover:bg-white/[0.07] hover:text-[#fff9f2]'
+                          }`}
+                          onClick={() =>
+                            onChange({ ...value, [key]: choice.value })
+                          }
+                        >
+                          {choice.label}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
           </div>
         </div>
       </Dialog>
