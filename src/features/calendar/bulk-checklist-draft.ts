@@ -184,6 +184,41 @@ export function updateBulkChecklistDraftItemScheduledTime(
   }));
 }
 
+export function reorderBulkChecklistDraftItemsByScheduledTime(
+  items: BulkChecklistDraftItem[],
+): BulkChecklistDraftItem[] {
+  const sortedRootItems = sortDraftItems(
+    items.filter((item) => item.parentId === null),
+  ).sort((firstItem, secondItem) => {
+    if (firstItem.scheduledTime && secondItem.scheduledTime) {
+      return firstItem.scheduledTime.localeCompare(secondItem.scheduledTime);
+    }
+
+    if (firstItem.scheduledTime) {
+      return -1;
+    }
+
+    if (secondItem.scheduledTime) {
+      return 1;
+    }
+
+    return 0;
+  });
+  const rankByItemId = new Map<string, string>();
+  let previousSortRank: string | null = null;
+
+  for (const item of sortedRootItems) {
+    const sortRank = createSortRankBetween(previousSortRank, null);
+    rankByItemId.set(item.id, sortRank);
+    previousSortRank = sortRank;
+  }
+
+  return items.map((item) => {
+    const sortRank = rankByItemId.get(item.id);
+    return sortRank ? { ...item, sortRank } : item;
+  });
+}
+
 export function toggleBulkChecklistDraftItemChecked(
   items: BulkChecklistDraftItem[],
   itemId: string,

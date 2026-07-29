@@ -59,6 +59,15 @@ create table public.profiles (
   deleted_at timestamptz
 );
 
+create table public.user_preferences (
+  user_id uuid not null references auth.users (id) on delete cascade,
+  key text not null,
+  value jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default timezone('utc', now()),
+  updated_at timestamptz not null default timezone('utc', now()),
+  primary key (user_id, key)
+);
+
 create table public.category_tags (
   id text primary key,
   user_id uuid not null references auth.users (id) on delete cascade,
@@ -230,6 +239,8 @@ create trigger account_access_set_updated_at before update on public.account_acc
 for each row execute function public.set_updated_at();
 create trigger profiles_set_updated_at before update on public.profiles
 for each row execute function public.set_updated_at();
+create trigger user_preferences_set_updated_at before update on public.user_preferences
+for each row execute function public.set_updated_at();
 create trigger category_tags_bump_revision before insert or update on public.category_tags
 for each row execute function public.bump_entity_revision();
 create trigger daily_entries_bump_revision before insert or update on public.daily_entries
@@ -254,6 +265,7 @@ on public.goal_steps for each row execute function public.validate_category_tag_
 
 alter table public.account_access enable row level security;
 alter table public.profiles enable row level security;
+alter table public.user_preferences enable row level security;
 alter table public.category_tags enable row level security;
 alter table public.daily_entries enable row level security;
 alter table public.checklist_items enable row level security;
@@ -285,6 +297,7 @@ declare
 begin
   foreach table_name in array array[
     'category_tags',
+    'user_preferences',
     'daily_entries',
     'checklist_items',
     'goal_groups',

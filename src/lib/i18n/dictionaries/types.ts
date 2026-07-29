@@ -152,7 +152,15 @@ export interface Dictionary {
     bulkDeleteItems: string;
     confirmBulkDeleteItem: string;
     confirmBulkDeleteItems: string;
+    actionHidden: string;
+    actionInMenu: string;
+    actionOnRow: string;
+    actionVisible: string;
+    configureRowActions: string;
+    dragAndDrop: string;
     clearSelection: string;
+    rowActionsTitle: string;
+    resetRowActions: string;
     bulkPriority: string;
     bulkBold: string;
     bulkCategory: string;

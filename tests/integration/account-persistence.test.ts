@@ -7,6 +7,7 @@ import {
   createGoalGroup,
   createGoalStep,
   db,
+  getLocalPreference,
   openOrCreateDailyEntry,
   toggleChecklistItemBold,
   toggleChecklistItemChecked,
@@ -427,6 +428,15 @@ describe('account persistence boundaries', () => {
     const scope = createUserScope('sync-user');
     const now = '2026-05-21T10:00:00.000Z';
     const remoteRows: Record<string, unknown[]> = {
+      user_preferences: [
+        {
+          user_id: scope.ownerId,
+          key: 'taskTreeRowActions',
+          value: { add: 'menu', priority: 'inline' },
+          created_at: now,
+          updated_at: now,
+        },
+      ],
       category_tags: [
         {
           id: 'tag-1',
@@ -552,6 +562,12 @@ describe('account persistence boundaries', () => {
     await expect(db.goalSteps.get('goal-step-1')).resolves.toMatchObject({
       goalId: 'goal-1',
       scopeId: scope.id,
+    });
+    await expect(
+      getLocalPreference('taskTreeRowActions', scope),
+    ).resolves.toEqual({
+      add: 'menu',
+      priority: 'inline',
     });
   });
 });

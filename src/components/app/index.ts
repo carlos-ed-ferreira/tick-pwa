@@ -8,5 +8,7 @@ export * from './task-tree-collapse-button';
 export * from './task-tree-editable-row';
 export * from './task-tree-more-actions-menu';
 export * from './task-tree-row-layout';
+export * from './task-tree-row-action-visibility';
+export * from './task-tree-row-actions-menu';
 export * from './task-tree-selection-button';
 export * from './tree-list-panel';

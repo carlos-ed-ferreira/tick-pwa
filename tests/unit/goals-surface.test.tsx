@@ -139,6 +139,14 @@ vi.mock('@/providers', () => ({
         bulkBold: 'Bold',
         bulkCategory: 'Category',
         bulkDelete: 'Delete',
+        actionHidden: 'Hidden',
+        actionInMenu: 'Three-dot menu',
+        actionOnRow: 'On row',
+        actionVisible: 'Visible',
+        configureRowActions: 'Configure row actions',
+        dragAndDrop: 'Drag and drop',
+        rowActionsTitle: 'Task row actions',
+        resetRowActions: 'Restore defaults',
       },
       goals: {
         activeGoals: 'Active',
@@ -1165,6 +1173,54 @@ describe('GoalsSurface', () => {
       expect(draftInput.closest('[data-tree-row]')).toHaveStyle({
         paddingLeft: '0px',
       });
+    });
+    expect(createGoalStepMock).not.toHaveBeenCalled();
+  });
+
+  it('collapses and expands children of an empty goal step draft locally', async () => {
+    useGoalStepTreeMock.mockReturnValue([]);
+
+    render(<GoalsSurface />);
+    fireEvent.click(screen.getByRole('button', { name: 'Focus' }));
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: 'Start this goal with a checklist item',
+      }),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Add step' }));
+
+    await waitFor(() => {
+      expect(screen.getAllByPlaceholderText('Write a task')).toHaveLength(2);
+    });
+
+    const [parentInput, childInput] =
+      screen.getAllByPlaceholderText('Write a task');
+    const childRow = childInput.closest('[data-tree-row]');
+    fireEvent.click(
+      within(childRow as HTMLElement).getByLabelText('Indent item'),
+    );
+
+    await waitFor(() => {
+      expect(childInput.closest('[data-tree-row]')).toHaveStyle({
+        paddingLeft: '14px',
+      });
+    });
+
+    const parentRow = parentInput.closest('[data-tree-row]');
+    fireEvent.click(
+      within(parentRow as HTMLElement).getByLabelText('Collapse item'),
+    );
+
+    await waitFor(() => {
+      expect(screen.getAllByPlaceholderText('Write a task')).toHaveLength(1);
+    });
+
+    fireEvent.click(
+      within(parentRow as HTMLElement).getByLabelText('Expand item'),
+    );
+
+    await waitFor(() => {
+      expect(screen.getAllByPlaceholderText('Write a task')).toHaveLength(2);
     });
     expect(createGoalStepMock).not.toHaveBeenCalled();
   });

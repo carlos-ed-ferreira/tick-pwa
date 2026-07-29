@@ -8,11 +8,13 @@ import {
 } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ChecklistSurface } from '@/features/checklist/checklist-surface';
+import { db } from '@/lib/db/database';
 
 const {
   createChecklistItemMock,
   moveChecklistItemToParentMock,
   reorderChecklistItemMock,
+  reorderChecklistItemsByScheduledTimeMock,
   setChecklistItemsCheckedMock,
   softDeleteChecklistItemMock,
   toggleChecklistItemBoldMock,
@@ -24,6 +26,9 @@ const {
   createChecklistItemMock: vi.fn().mockResolvedValue({ id: 'new-item' }),
   moveChecklistItemToParentMock: vi.fn().mockResolvedValue(undefined),
   reorderChecklistItemMock: vi.fn().mockResolvedValue(undefined),
+  reorderChecklistItemsByScheduledTimeMock: vi
+    .fn()
+    .mockResolvedValue(undefined),
   setChecklistItemsCheckedMock: vi.fn().mockResolvedValue(undefined),
   softDeleteChecklistItemMock: vi.fn().mockResolvedValue(undefined),
   toggleChecklistItemBoldMock: vi.fn().mockResolvedValue(undefined),
@@ -41,6 +46,8 @@ vi.mock('@/lib/db', () => ({
   moveChecklistItemToParent: moveChecklistItemToParentMock,
   outdentChecklistItem: vi.fn().mockResolvedValue(undefined),
   reorderChecklistItem: reorderChecklistItemMock,
+  reorderChecklistItemsByScheduledTime:
+    reorderChecklistItemsByScheduledTimeMock,
   setChecklistItemsChecked: setChecklistItemsCheckedMock,
   softDeleteChecklistItem: softDeleteChecklistItemMock,
   toggleChecklistItemChecked: vi.fn().mockResolvedValue(undefined),
@@ -57,6 +64,9 @@ vi.mock('@/providers', () => ({
       actions: {
         cancel: 'Cancel',
         delete: 'Delete',
+      },
+      calendar: {
+        sortByTime: 'Sort by time',
       },
       dayEditor: {
         addItem: 'Add item',
@@ -93,6 +103,14 @@ vi.mock('@/providers', () => ({
         bulkBold: 'Bold',
         bulkCategory: 'Category',
         bulkDelete: 'Delete',
+        actionHidden: 'Hidden',
+        actionInMenu: 'Three-dot menu',
+        actionOnRow: 'On row',
+        actionVisible: 'Visible',
+        configureRowActions: 'Configure row actions',
+        dragAndDrop: 'Drag and drop',
+        rowActionsTitle: 'Task row actions',
+        resetRowActions: 'Restore defaults',
       },
     },
     scope: {
@@ -157,12 +175,15 @@ function createRow(
 }
 
 describe('ChecklistSurface delete confirmation', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
+    window.localStorage.clear();
+    await db.localPreferences.clear();
     useChecklistTreeMock.mockReset();
     createChecklistItemMock.mockClear();
     createChecklistItemMock.mockResolvedValue({ id: 'new-item' });
     moveChecklistItemToParentMock.mockClear();
     reorderChecklistItemMock.mockClear();
+    reorderChecklistItemsByScheduledTimeMock.mockClear();
     setChecklistItemsCheckedMock.mockClear();
     softDeleteChecklistItemMock.mockClear();
     toggleChecklistItemBoldMock.mockClear();
@@ -260,6 +281,114 @@ describe('ChecklistSurface delete confirmation', () => {
         itemId: 'item-First task',
         direction: 'down',
       });
+    });
+  });
+
+  it('moves a row down through the row action button', async () => {
+    useChecklistTreeMock.mockReturnValue([
+      createRow('First task'),
+      createRow('Second task'),
+    ]);
+
+    render(<ChecklistSurface dailyEntryId="entry-1" />);
+
+    const firstRow = screen.getByDisplayValue('First task').closest('.group');
+
+    expect(firstRow).not.toBeNull();
+    fireEvent.click(
+      within(firstRow as HTMLElement).getByRole('button', {
+        name: 'Move item down',
+      }),
+    );
+
+    await waitFor(() => {
+      expect(reorderChecklistItemMock).toHaveBeenCalledWith({
+        scope: {
+          id: 'guest:test',
+          kind: 'guest',
+          ownerId: 'test',
+        },
+        itemId: 'item-First task',
+        direction: 'down',
+      });
+    });
+  });
+
+  it('persists where row actions are displayed', async () => {
+    useChecklistTreeMock.mockReturnValue([
+      createRow('First task'),
+      createRow('Second task'),
+    ]);
+
+    const { unmount } = render(<ChecklistSurface dailyEntryId="entry-1" />);
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Configure row actions' }),
+    );
+    fireEvent.click(
+      screen.getByRole('radio', {
+        name: 'Move item down: Hidden',
+      }),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    await waitFor(() => {
+      expect(
+        screen.queryByRole('button', { name: 'Move item down' }),
+      ).not.toBeInTheDocument();
+    });
+
+    unmount();
+    render(<ChecklistSurface dailyEntryId="entry-1" />);
+
+    await waitFor(() => {
+      expect(
+        screen.queryByRole('button', { name: 'Move item down' }),
+      ).not.toBeInTheDocument();
+    });
+    expect(
+      screen.getAllByRole('button', { name: 'Move item up' }),
+    ).toHaveLength(2);
+  });
+
+  it('places icon-only sort and preference actions after the global add button', () => {
+    useChecklistTreeMock.mockReturnValue([
+      createRow('First task'),
+      createRow('Second task'),
+    ]);
+
+    render(<ChecklistSurface dailyEntryId="entry-1" />);
+
+    const addButton = screen.getByRole('button', { name: 'Add item' });
+    const toolbar = addButton.parentElement;
+    const toolbarButtons = Array.from(
+      toolbar?.querySelectorAll('button') ?? [],
+    ).map((button) => button.getAttribute('aria-label') ?? button.textContent);
+
+    expect(toolbarButtons).toEqual([
+      'Add item',
+      'Sort by time',
+      'Configure row actions',
+    ]);
+
+    const sortButton = screen.getByRole('button', { name: 'Sort by time' });
+    const preferencesButton = screen.getByRole('button', {
+      name: 'Configure row actions',
+    });
+
+    expect(sortButton).toHaveAttribute('title', 'Sort by time');
+    expect(preferencesButton).toHaveAttribute('title', 'Configure row actions');
+    expect(sortButton).not.toHaveTextContent('Sort by time');
+    expect(preferencesButton).not.toHaveTextContent('Configure row actions');
+
+    fireEvent.click(sortButton);
+    expect(reorderChecklistItemsByScheduledTimeMock).toHaveBeenCalledWith({
+      scope: {
+        id: 'guest:test',
+        kind: 'guest',
+        ownerId: 'test',
+      },
+      dailyEntryId: 'entry-1',
     });
   });
 
@@ -378,6 +507,53 @@ describe('ChecklistSurface delete confirmation', () => {
       expect(draftInput.closest('[data-tree-row]')).toHaveStyle({
         paddingLeft: '0px',
       });
+    });
+    expect(createChecklistItemMock).not.toHaveBeenCalled();
+  });
+
+  it('collapses and expands children of an empty draft locally', async () => {
+    useChecklistTreeMock.mockReturnValue([]);
+
+    render(<ChecklistSurface dailyEntryId="entry-1" />);
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: 'Start this day with a checklist item',
+      }),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Add item' }));
+
+    await waitFor(() => {
+      expect(screen.getAllByPlaceholderText('Write a task')).toHaveLength(2);
+    });
+
+    const [parentInput, childInput] =
+      screen.getAllByPlaceholderText('Write a task');
+    const childRow = childInput.closest('[data-tree-row]');
+    fireEvent.click(
+      within(childRow as HTMLElement).getByLabelText('Indent item'),
+    );
+
+    await waitFor(() => {
+      expect(childInput.closest('[data-tree-row]')).toHaveStyle({
+        paddingLeft: '14px',
+      });
+    });
+
+    const parentRow = parentInput.closest('[data-tree-row]');
+    fireEvent.click(
+      within(parentRow as HTMLElement).getByLabelText('Collapse item'),
+    );
+
+    await waitFor(() => {
+      expect(screen.getAllByPlaceholderText('Write a task')).toHaveLength(1);
+    });
+
+    fireEvent.click(
+      within(parentRow as HTMLElement).getByLabelText('Expand item'),
+    );
+
+    await waitFor(() => {
+      expect(screen.getAllByPlaceholderText('Write a task')).toHaveLength(2);
     });
     expect(createChecklistItemMock).not.toHaveBeenCalled();
   });
@@ -576,7 +752,9 @@ describe('ChecklistSurface delete confirmation', () => {
     });
 
     expect(bulkBold.closest('[data-tree-selection-actions]')).toBe(
-      addButton.parentElement?.querySelector('[data-tree-selection-actions]'),
+      addButton
+        .closest('[data-tree-list-toolbar]')
+        ?.querySelector('[data-tree-selection-actions]'),
     );
 
     fireEvent.click(bulkBold);

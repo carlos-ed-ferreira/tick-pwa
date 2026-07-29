@@ -56,6 +56,8 @@ Modo autenticado com conta:
 - persiste dados da conta no Supabase;
 - confirma alterações primeiro no cache IndexedDB para manter a UI responsiva;
 - envia as alterações ao Supabase em ordem, depois do commit local;
+- mantém preferências de interface, como as ações visíveis nas linhas de tarefa,
+  associadas ao usuário em `user_preferences`;
 - restaura o valor remoto e mostra feedback se a persistência falhar;
 - não importa nem sincroniza dados do modo local.
 

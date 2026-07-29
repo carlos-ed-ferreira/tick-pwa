@@ -1,6 +1,7 @@
 begin;
-select plan(19);
+select plan(21);
 
+select has_table('public', 'user_preferences', 'user_preferences exists');
 select has_table('public', 'goal_groups', 'goal_groups exists');
 select has_table('public', 'goals', 'goals exists');
 select has_table('public', 'goal_steps', 'goal_steps exists');
@@ -55,10 +56,19 @@ select ok(
 
 select ok(
   (
+    select count(*) from pg_policies
+    where schemaname = 'public' and tablename = 'user_preferences'
+  ) = 4,
+  'user preferences have four RLS policies'
+);
+
+select ok(
+  (
     select count(*) from pg_tables
     where schemaname = 'public'
       and tablename in (
         'category_tags',
+        'user_preferences',
         'daily_entries',
         'checklist_items',
         'goal_groups',
@@ -66,7 +76,7 @@ select ok(
         'goal_steps'
       )
       and rowsecurity
-  ) = 6,
+  ) = 7,
   'all functional tables have RLS enabled'
 );
 

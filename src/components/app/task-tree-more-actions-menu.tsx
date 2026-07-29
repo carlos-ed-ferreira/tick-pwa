@@ -1,6 +1,17 @@
 'use client';
 
-import { ChevronRight, MoreHorizontal, Star, Tag, Trash2 } from 'lucide-react';
+import {
+  ArrowDown,
+  ArrowUp,
+  ChevronRight,
+  IndentDecrease,
+  IndentIncrease,
+  MoreHorizontal,
+  Plus,
+  Star,
+  Tag,
+  Trash2,
+} from 'lucide-react';
 import { createPortal } from 'react-dom';
 import {
   useCallback,
@@ -17,12 +28,14 @@ import {
   type DropdownJoinShape,
 } from './dropdown-join-shape';
 import { TaskTreeClearCategoryIcon } from './task-tree-clear-category-icon';
+import type { TaskTreeRowActionPreferences } from './task-tree-row-action-visibility';
 
 const menuWidth = 248;
 const menuOffset = 8;
 const viewportPadding = 12;
 
 interface TaskTreeMoreActionsLabels {
+  addChild: string;
   assignCategory: string;
   bulkBold: string;
   bulkCategory: string;
@@ -33,23 +46,42 @@ interface TaskTreeMoreActionsLabels {
   makeTextBold: string;
   makeTextNormal: string;
   markPriority: string;
+  moveItemDown: string;
+  moveItemUp: string;
   moreActions: string;
+  indentItem: string;
+  outdentItem: string;
   unmarkPriority: string;
 }
 
 export function TaskTreeMoreActionsMenu({
+  actionPreferences,
   bold,
+  canIndent,
+  canMoveDown,
+  canMoveUp,
+  canOutdent,
   categoryTagMap,
   disabled = false,
   labels,
   priority,
   selectedCategoryTagId,
+  onAdd,
   onAssignCategory,
   onDelete,
+  onIndent,
+  onMoveDown,
+  onMoveUp,
+  onOutdent,
   onToggleBold,
   onTogglePriority,
 }: {
+  actionPreferences: TaskTreeRowActionPreferences;
   bold: boolean;
+  canIndent: boolean;
+  canMoveDown: boolean;
+  canMoveUp: boolean;
+  canOutdent: boolean;
   categoryTagMap: Map<
     string,
     { colorHex: string; name: string; useOwnName?: boolean }
@@ -58,8 +90,13 @@ export function TaskTreeMoreActionsMenu({
   labels: TaskTreeMoreActionsLabels;
   priority: boolean;
   selectedCategoryTagId: string | null;
+  onAdd: () => Promise<void> | void;
   onAssignCategory: (categoryTagId: string | null) => Promise<void> | void;
   onDelete: () => Promise<void> | void;
+  onIndent: () => Promise<void> | void;
+  onMoveDown: () => Promise<void> | void;
+  onMoveUp: () => Promise<void> | void;
+  onOutdent: () => Promise<void> | void;
   onToggleBold: () => Promise<void> | void;
   onTogglePriority: () => Promise<void> | void;
 }) {
@@ -80,6 +117,8 @@ export function TaskTreeMoreActionsMenu({
   const categories = [...categoryTagMap.entries()].filter(
     ([, category]) => !category.useOwnName,
   );
+  const isInMenu = (action: keyof TaskTreeRowActionPreferences): boolean =>
+    actionPreferences[action] === 'menu';
 
   const closeMenu = useCallback(
     ({ restoreFocus = false }: { restoreFocus?: boolean } = {}) => {
@@ -356,92 +395,162 @@ export function TaskTreeMoreActionsMenu({
             }`}
             style={menuStyle}
           >
-            <button
-              type="button"
-              aria-label={
-                priority ? labels.unmarkPriority : labels.markPriority
-              }
-              className={itemClassName}
-              onClick={() => void runAction(onTogglePriority)}
-            >
-              <Star
-                aria-hidden="true"
-                className={`size-4 ${
-                  priority ? 'fill-current text-[#f0c38e]' : ''
-                }`}
-              />
-              <span>{labels.bulkPriority}</span>
-            </button>
-
-            <button
-              type="button"
-              aria-label={bold ? labels.makeTextNormal : labels.makeTextBold}
-              className={itemClassName}
-              onClick={() => void runAction(onToggleBold)}
-            >
-              <span
-                aria-hidden="true"
-                data-testid="task-bold-indicator"
-                className={`flex size-4 items-center justify-center text-base leading-none ${
-                  bold ? 'font-bold' : 'font-normal'
-                }`}
+            {isInMenu('add') ? (
+              <button
+                type="button"
+                aria-label={labels.addChild}
+                className={itemClassName}
+                onClick={() => void runAction(onAdd)}
               >
-                B
-              </span>
-              <span>{labels.bulkBold}</span>
-            </button>
-
-            <button
-              ref={categoryTriggerRef}
-              type="button"
-              aria-expanded={isCategoryExpanded}
-              aria-haspopup="menu"
-              aria-label={labels.assignCategory}
-              className={itemClassName}
-              disabled={categories.length === 0}
-              onClick={openCategorySubmenu}
-              onFocus={openCategorySubmenu}
-              onMouseEnter={openCategorySubmenu}
-              onMouseLeave={(event) => {
-                const nextTarget = event.relatedTarget;
-
-                if (
-                  !(nextTarget instanceof Node) ||
-                  !categorySubmenuRef.current?.contains(nextTarget)
-                ) {
-                  scheduleCategoryClose();
+                <Plus aria-hidden="true" className="size-4" />
+                <span>{labels.addChild}</span>
+              </button>
+            ) : null}
+            {isInMenu('moveUp') ? (
+              <button
+                type="button"
+                aria-label={labels.moveItemUp}
+                className={itemClassName}
+                disabled={!canMoveUp}
+                onClick={() => void runAction(onMoveUp)}
+              >
+                <ArrowUp aria-hidden="true" className="size-4" />
+                <span>{labels.moveItemUp}</span>
+              </button>
+            ) : null}
+            {isInMenu('moveDown') ? (
+              <button
+                type="button"
+                aria-label={labels.moveItemDown}
+                className={itemClassName}
+                disabled={!canMoveDown}
+                onClick={() => void runAction(onMoveDown)}
+              >
+                <ArrowDown aria-hidden="true" className="size-4" />
+                <span>{labels.moveItemDown}</span>
+              </button>
+            ) : null}
+            {isInMenu('outdent') ? (
+              <button
+                type="button"
+                aria-label={labels.outdentItem}
+                className={itemClassName}
+                disabled={!canOutdent}
+                onClick={() => void runAction(onOutdent)}
+              >
+                <IndentDecrease aria-hidden="true" className="size-4" />
+                <span>{labels.outdentItem}</span>
+              </button>
+            ) : null}
+            {isInMenu('indent') ? (
+              <button
+                type="button"
+                aria-label={labels.indentItem}
+                className={itemClassName}
+                disabled={!canIndent}
+                onClick={() => void runAction(onIndent)}
+              >
+                <IndentIncrease aria-hidden="true" className="size-4" />
+                <span>{labels.indentItem}</span>
+              </button>
+            ) : null}
+            {isInMenu('priority') ? (
+              <button
+                type="button"
+                aria-label={
+                  priority ? labels.unmarkPriority : labels.markPriority
                 }
-              }}
-            >
-              <Tag aria-hidden="true" className="size-4" />
-              <span className="min-w-0 flex-1 truncate">
-                {labels.bulkCategory}
-              </span>
-              <ChevronRight aria-hidden="true" className="size-4 shrink-0" />
-            </button>
+                className={itemClassName}
+                onClick={() => void runAction(onTogglePriority)}
+              >
+                <Star
+                  aria-hidden="true"
+                  className={`size-4 ${
+                    priority ? 'fill-current text-[#f0c38e]' : ''
+                  }`}
+                />
+                <span>{labels.bulkPriority}</span>
+              </button>
+            ) : null}
 
-            <button
-              type="button"
-              aria-label={labels.clearCategory}
-              className={itemClassName}
-              disabled={!selectedCategoryTagId}
-              onClick={() => void runAction(() => onAssignCategory(null))}
-            >
-              <TaskTreeClearCategoryIcon />
-              <span>{labels.clearCategory}</span>
-            </button>
+            {isInMenu('bold') ? (
+              <button
+                type="button"
+                aria-label={bold ? labels.makeTextNormal : labels.makeTextBold}
+                className={itemClassName}
+                onClick={() => void runAction(onToggleBold)}
+              >
+                <span
+                  aria-hidden="true"
+                  data-testid="task-bold-indicator"
+                  className={`flex size-4 items-center justify-center text-base leading-none ${
+                    bold ? 'font-bold' : 'font-normal'
+                  }`}
+                >
+                  B
+                </span>
+                <span>{labels.bulkBold}</span>
+              </button>
+            ) : null}
 
-            <div className="my-1 border-t border-white/10" />
+            {isInMenu('category') ? (
+              <button
+                ref={categoryTriggerRef}
+                type="button"
+                aria-expanded={isCategoryExpanded}
+                aria-haspopup="menu"
+                aria-label={labels.assignCategory}
+                className={itemClassName}
+                disabled={categories.length === 0}
+                onClick={openCategorySubmenu}
+                onFocus={openCategorySubmenu}
+                onMouseEnter={openCategorySubmenu}
+                onMouseLeave={(event) => {
+                  const nextTarget = event.relatedTarget;
 
-            <button
-              type="button"
-              aria-label={labels.deleteItem}
-              className={`${itemClassName} text-rose-200 hover:bg-rose-400/[0.12] hover:text-rose-100`}
-              onClick={() => void runAction(onDelete)}
-            >
-              <Trash2 aria-hidden="true" className="size-4" />
-              <span>{labels.bulkDelete}</span>
-            </button>
+                  if (
+                    !(nextTarget instanceof Node) ||
+                    !categorySubmenuRef.current?.contains(nextTarget)
+                  ) {
+                    scheduleCategoryClose();
+                  }
+                }}
+              >
+                <Tag aria-hidden="true" className="size-4" />
+                <span className="min-w-0 flex-1 truncate">
+                  {labels.bulkCategory}
+                </span>
+                <ChevronRight aria-hidden="true" className="size-4 shrink-0" />
+              </button>
+            ) : null}
+
+            {isInMenu('clearCategory') ? (
+              <button
+                type="button"
+                aria-label={labels.clearCategory}
+                className={itemClassName}
+                disabled={!selectedCategoryTagId}
+                onClick={() => void runAction(() => onAssignCategory(null))}
+              >
+                <TaskTreeClearCategoryIcon />
+                <span>{labels.clearCategory}</span>
+              </button>
+            ) : null}
+
+            {isInMenu('delete') ? (
+              <>
+                <div className="my-1 border-t border-white/10" />
+                <button
+                  type="button"
+                  aria-label={labels.deleteItem}
+                  className={`${itemClassName} text-rose-200 hover:bg-rose-400/[0.12] hover:text-rose-100`}
+                  onClick={() => void runAction(onDelete)}
+                >
+                  <Trash2 aria-hidden="true" className="size-4" />
+                  <span>{labels.bulkDelete}</span>
+                </button>
+              </>
+            ) : null}
           </div>,
           document.body,
         )

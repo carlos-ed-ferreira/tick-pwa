@@ -1,15 +1,18 @@
 'use client';
 
-import { Trash2 } from 'lucide-react';
+import { Clock3, Trash2 } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
 import {
   TaskTreeBulkActions,
   TaskTreeEditableRow,
+  TaskTreeRowActionsMenu,
   TreeListPanel,
+  type TaskTreeRowActionPreferences,
 } from '@/components/app';
-import { Button, Dialog, Input } from '@/components/ui';
+import { Button, Dialog, IconButton, Input } from '@/components/ui';
 import { useCategoryTags } from '@/features/categories';
 import { useTreeSelection } from '@/hooks/use-tree-selection';
+import { useTaskTreeRowActionPreferences } from '@/hooks/use-task-tree-row-action-visibility';
 import {
   applyChecklistTemplateToDateRange,
   clearChecklistItemsFromDateRange,
@@ -34,6 +37,8 @@ import {
   moveBulkChecklistDraftItemToTarget,
   moveBulkChecklistDraftItemToParent,
   outdentBulkChecklistDraftItem,
+  reorderBulkChecklistDraftItem,
+  reorderBulkChecklistDraftItemsByScheduledTime,
   toggleBulkChecklistDraftItemChecked,
   toggleBulkChecklistDraftItemBold,
   toggleBulkChecklistDraftItemCollapsed,
@@ -344,6 +349,8 @@ function BulkChecklistSurface({
   setDraftItems: React.Dispatch<React.SetStateAction<BulkChecklistDraftItem[]>>;
 }) {
   const { dictionary, scope } = useAppContext();
+  const { actionPreferences, setActionPreferences } =
+    useTaskTreeRowActionPreferences();
   const categoryTags = useCategoryTags(scope, 'checklist_item');
   const categoryTagMap = new Map(categoryTags.map((tag) => [tag.id, tag]));
   const rows = useMemo(
@@ -390,6 +397,7 @@ function BulkChecklistSurface({
         onClearSelection={clearSelection}
         selectionActions={
           <TaskTreeBulkActions
+            actionPreferences={actionPreferences}
             allBold={allSelectedBold}
             allPriority={allSelectedPriority}
             labels={{
@@ -438,10 +446,55 @@ function BulkChecklistSurface({
             }}
           />
         }
+        toolbarActions={
+          <>
+            <IconButton
+              aria-label={dictionary.calendar.sortByTime}
+              title={dictionary.calendar.sortByTime}
+              className="rounded-full border border-white/10 bg-white/5 text-[#bdb4d4] hover:bg-white/10 hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
+              onClick={() =>
+                setDraftItems((currentItems) =>
+                  reorderBulkChecklistDraftItemsByScheduledTime(currentItems),
+                )
+              }
+            >
+              <Clock3 aria-hidden="true" className="size-4" />
+            </IconButton>
+            <TaskTreeRowActionsMenu
+              labels={{
+                actions: {
+                  add: dictionary.dayEditor.addChild,
+                  bold: dictionary.dayEditor.bulkBold,
+                  category: dictionary.dayEditor.bulkCategory,
+                  clearCategory: dictionary.dayEditor.clearCategory,
+                  delete: dictionary.dayEditor.bulkDelete,
+                  drag: dictionary.dayEditor.dragAndDrop,
+                  indent: dictionary.dayEditor.indentItem,
+                  moveDown: dictionary.dayEditor.moveItemDown,
+                  moveUp: dictionary.dayEditor.moveItemUp,
+                  outdent: dictionary.dayEditor.outdentItem,
+                  priority: dictionary.dayEditor.bulkPriority,
+                  scheduledTime: dictionary.dayEditor.itemTime,
+                },
+                close: dictionary.actions.cancel,
+                configure: dictionary.dayEditor.configureRowActions,
+                hidden: dictionary.dayEditor.actionHidden,
+                inline: dictionary.dayEditor.actionOnRow,
+                menu: dictionary.dayEditor.actionInMenu,
+                reset: dictionary.dayEditor.resetRowActions,
+                title: dictionary.dayEditor.rowActionsTitle,
+                visible: dictionary.dayEditor.actionVisible,
+              }}
+              value={actionPreferences}
+              onChange={setActionPreferences}
+            />
+          </>
+        }
       >
         {rows.map((row) => (
           <BulkChecklistRow
             key={row.item.id}
+            actionPreferences={actionPreferences}
             categoryTagMap={categoryTagMap}
             isSelected={isSelected(row.item.id)}
             isSelectionMode={isSelectionMode}
@@ -459,6 +512,7 @@ function BulkChecklistSurface({
 }
 
 function BulkChecklistRow({
+  actionPreferences,
   categoryTagMap,
   isSelected,
   isSelectionMode,
@@ -469,6 +523,7 @@ function BulkChecklistRow({
   onToggleSelect,
   setDraftItems,
 }: {
+  actionPreferences: TaskTreeRowActionPreferences;
   categoryTagMap: Map<string, { colorHex: string; name: string }>;
   isSelected: boolean;
   isSelectionMode: boolean;
@@ -480,10 +535,11 @@ function BulkChecklistRow({
   setDraftItems: React.Dispatch<React.SetStateAction<BulkChecklistDraftItem[]>>;
 }) {
   const { dictionary } = useAppContext();
-  const { item, depth, hasChildren, isFirstSibling, isLastSibling } = row;
+  const { item, depth, hasChildren } = row;
   const siblingIds = rows
     .filter((currentRow) => currentRow.item.parentId === item.parentId)
     .map((currentRow) => currentRow.item.id);
+  const siblingIndex = siblingIds.indexOf(item.id);
 
   function moveItemToTarget({
     itemId,
@@ -508,6 +564,7 @@ function BulkChecklistRow({
 
   return (
     <TaskTreeEditableRow
+      actionPreferences={actionPreferences}
       bold={item.bold}
       categoryTagId={item.categoryTagId}
       categoryTagMap={categoryTagMap}
@@ -518,8 +575,8 @@ function BulkChecklistRow({
       hasChildren={hasChildren}
       inputDataAttribute="data-bulk-checklist-input"
       inputSelector={bulkChecklistInputSelector}
-      isFirstSibling={isFirstSibling}
-      isLastSibling={isLastSibling}
+      isFirstSibling={siblingIndex === 0}
+      isLastSibling={siblingIndex === siblingIds.length - 1}
       itemId={item.id}
       labels={{
         ...dictionary.dayEditor,
@@ -610,6 +667,16 @@ function BulkChecklistRow({
         )
       }
       onMoveTo={moveItemToTarget}
+      onMoveDown={() =>
+        setDraftItems((currentItems) =>
+          reorderBulkChecklistDraftItem(currentItems, item.id, 'down'),
+        )
+      }
+      onMoveUp={() =>
+        setDraftItems((currentItems) =>
+          reorderBulkChecklistDraftItem(currentItems, item.id, 'up'),
+        )
+      }
       onOutdent={() =>
         setDraftItems((currentItems) =>
           outdentBulkChecklistDraftItem(currentItems, item.id),

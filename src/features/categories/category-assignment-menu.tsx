@@ -26,6 +26,7 @@ export function CategoryAssignmentMenu({
   menuPreferredWidth = defaultMenuPreferredWidth,
   renderTriggerContent,
   selectedCategoryTagId,
+  showClearButton = true,
   showClearInMenu = false,
   surface,
   triggerClassName,
@@ -46,6 +47,7 @@ export function CategoryAssignmentMenu({
     } | null;
   }) => ReactNode;
   selectedCategoryTagId: string | null;
+  showClearButton?: boolean;
   showClearInMenu?: boolean;
   surface: CategoryTagSurface;
   triggerClassName?: string;
@@ -286,7 +288,7 @@ export function CategoryAssignmentMenu({
         )}
       </button>
 
-      {selectedCategory ? (
+      {selectedCategory && showClearButton ? (
         <button
           aria-label={clearLabel}
           className={

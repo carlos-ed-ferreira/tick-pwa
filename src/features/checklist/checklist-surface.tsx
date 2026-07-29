@@ -1,5 +1,6 @@
 'use client';
 
+import { Clock3 } from 'lucide-react';
 import {
   useCallback,
   useMemo,
@@ -13,11 +14,15 @@ import {
   moveTreeItemToTarget,
   TaskTreeBulkActions,
   TaskTreeEditableRow,
+  TaskTreeRowActionsMenu,
   TreeListPanel,
+  type TaskTreeRowActionPreferences,
 } from '@/components/app';
+import { IconButton } from '@/components/ui';
 import { useCategoryTags } from '@/features/categories';
 import { useTreeBulkActions } from '@/hooks/use-tree-bulk-actions';
 import { useTreeSelection } from '@/hooks/use-tree-selection';
+import { useTaskTreeRowActionPreferences } from '@/hooks/use-task-tree-row-action-visibility';
 import type {
   AppScopeId,
   ChecklistItem,
@@ -32,6 +37,7 @@ import {
   setChecklistItemsChecked,
   outdentChecklistItem,
   reorderChecklistItem,
+  reorderChecklistItemsByScheduledTime,
   softDeleteChecklistItem,
   toggleChecklistItemBold,
   toggleChecklistItemChecked,
@@ -195,6 +201,18 @@ function insertChecklistDraftRow(
 
     if (parentIndex !== -1) {
       const parentRow = nextRows[parentIndex];
+      const isFirstChild = !parentRow.hasChildren;
+
+      nextRows[parentIndex] = {
+        ...parentRow,
+        childCount: parentRow.childCount + 1,
+        hasChildren: true,
+      };
+
+      if (parentRow.item.collapsed) {
+        return nextRows;
+      }
+
       const insertIndex = findRowSubtreeEndIndex(nextRows, parentIndex);
 
       nextRows.splice(insertIndex, 0, {
@@ -202,7 +220,7 @@ function insertChecklistDraftRow(
         depth: parentRow.depth + 1,
         childCount: 0,
         hasChildren: false,
-        isFirstSibling: !parentRow.hasChildren,
+        isFirstSibling: isFirstChild,
         isLastSibling: true,
       });
     }
@@ -292,6 +310,8 @@ export function ChecklistSurface({ dailyEntryId }: { dailyEntryId: string }) {
   const { dictionary, scope } = useAppContext();
   const rows = useChecklistTree(scope, dailyEntryId);
   const [draftItems, setDraftItems] = useState<ChecklistDraftItem[]>([]);
+  const { actionPreferences, setActionPreferences } =
+    useTaskTreeRowActionPreferences();
   const deletedDraftItemIdsRef = useRef(new Set<string>());
   const categoryTags = useCategoryTags(scope, 'checklist_item');
   const categoryTagMap = new Map(categoryTags.map((tag) => [tag.id, tag]));
@@ -409,6 +429,7 @@ export function ChecklistSurface({ dailyEntryId }: { dailyEntryId: string }) {
         onClearSelection={clearSelection}
         selectionActions={
           <TaskTreeBulkActions
+            actionPreferences={actionPreferences}
             allBold={allSelectedBold}
             allPriority={allSelectedPriority}
             labels={{
@@ -444,10 +465,56 @@ export function ChecklistSurface({ dailyEntryId }: { dailyEntryId: string }) {
             }}
           />
         }
+        toolbarActions={
+          <>
+            <IconButton
+              aria-label={dictionary.calendar.sortByTime}
+              title={dictionary.calendar.sortByTime}
+              className="rounded-full border border-white/10 bg-white/5 text-[#bdb4d4] hover:bg-white/10 hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
+              onClick={() =>
+                void reorderChecklistItemsByScheduledTime({
+                  scope,
+                  dailyEntryId,
+                })
+              }
+            >
+              <Clock3 aria-hidden="true" className="size-4" />
+            </IconButton>
+            <TaskTreeRowActionsMenu
+              labels={{
+                actions: {
+                  add: dictionary.dayEditor.addChild,
+                  bold: dictionary.dayEditor.bulkBold,
+                  category: dictionary.dayEditor.bulkCategory,
+                  clearCategory: dictionary.dayEditor.clearCategory,
+                  delete: dictionary.dayEditor.bulkDelete,
+                  drag: dictionary.dayEditor.dragAndDrop,
+                  indent: dictionary.dayEditor.indentItem,
+                  moveDown: dictionary.dayEditor.moveItemDown,
+                  moveUp: dictionary.dayEditor.moveItemUp,
+                  outdent: dictionary.dayEditor.outdentItem,
+                  priority: dictionary.dayEditor.bulkPriority,
+                  scheduledTime: dictionary.dayEditor.itemTime,
+                },
+                close: dictionary.actions.cancel,
+                configure: dictionary.dayEditor.configureRowActions,
+                hidden: dictionary.dayEditor.actionHidden,
+                inline: dictionary.dayEditor.actionOnRow,
+                menu: dictionary.dayEditor.actionInMenu,
+                reset: dictionary.dayEditor.resetRowActions,
+                title: dictionary.dayEditor.rowActionsTitle,
+                visible: dictionary.dayEditor.actionVisible,
+              }}
+              value={actionPreferences}
+              onChange={setActionPreferences}
+            />
+          </>
+        }
       >
         {displayRows.map((row) => (
           <ChecklistRow
             key={row.item.id}
+            actionPreferences={actionPreferences}
             categoryTagMap={categoryTagMap}
             dailyEntryId={dailyEntryId}
             deletedDraftItemIdsRef={deletedDraftItemIdsRef}
@@ -479,6 +546,7 @@ export function ChecklistSurface({ dailyEntryId }: { dailyEntryId: string }) {
 }
 
 function ChecklistRow({
+  actionPreferences,
   categoryTagMap,
   dailyEntryId,
   deletedDraftItemIdsRef,
@@ -492,6 +560,7 @@ function ChecklistRow({
   onToggleSelect,
   setDraftItems,
 }: {
+  actionPreferences: TaskTreeRowActionPreferences;
   categoryTagMap: Map<string, { colorHex: string; name: string }>;
   dailyEntryId: string;
   deletedDraftItemIdsRef: MutableRefObject<Set<string>>;
@@ -506,7 +575,7 @@ function ChecklistRow({
   setDraftItems: Dispatch<SetStateAction<ChecklistDraftItem[]>>;
 }) {
   const { dictionary, scope } = useAppContext();
-  const { item, depth, hasChildren, isFirstSibling, isLastSibling } = row;
+  const { item, depth, hasChildren } = row;
   if (!scope) {
     return null;
   }
@@ -515,6 +584,9 @@ function ChecklistRow({
   const siblingIds = rows
     .filter((currentRow) => currentRow.item.parentId === item.parentId)
     .map((currentRow) => currentRow.item.id);
+  const siblingIndex = siblingIds.indexOf(item.id);
+  const isFirstVisibleSibling = siblingIndex === 0;
+  const isLastVisibleSibling = siblingIndex === siblingIds.length - 1;
 
   async function moveItemToTarget({
     itemId,
@@ -690,8 +762,62 @@ function ChecklistRow({
     });
   }
 
+  function moveItem(direction: 'down' | 'up') {
+    if (!scope) {
+      return;
+    }
+
+    const targetItemId =
+      siblingIds[siblingIndex + (direction === 'up' ? -1 : 1)];
+
+    if (!targetItemId) {
+      return;
+    }
+
+    const targetItem = rows.find(
+      (currentRow) => currentRow.item.id === targetItemId,
+    )?.item;
+
+    if (isDraft) {
+      return moveItemToTarget({
+        itemId: item.id,
+        placement: direction === 'up' ? 'before' : 'after',
+        targetItemId,
+      });
+    }
+
+    if (targetItem && 'isDraft' in targetItem && targetItem.isDraft) {
+      return moveItemToTarget({
+        itemId: targetItem.id,
+        placement: direction === 'up' ? 'after' : 'before',
+        targetItemId: item.id,
+      });
+    }
+
+    return reorderChecklistItem({ scope, itemId: item.id, direction });
+  }
+
+  function toggleCollapsed() {
+    if (!scope) {
+      return;
+    }
+
+    if (!isDraft) {
+      return toggleChecklistItemCollapsed({ scope, itemId: item.id });
+    }
+
+    setDraftItems((currentDrafts) =>
+      currentDrafts.map((draft) =>
+        draft.id === item.id
+          ? { ...draft, collapsed: !draft.collapsed }
+          : draft,
+      ),
+    );
+  }
+
   return (
     <TaskTreeEditableRow
+      actionPreferences={actionPreferences}
       bold={item.bold}
       categoryTagId={item.categoryTagId}
       categoryTagMap={categoryTagMap}
@@ -702,8 +828,8 @@ function ChecklistRow({
       hasChildren={hasChildren}
       inputDataAttribute="data-checklist-input"
       inputSelector={checklistInputSelector}
-      isFirstSibling={isFirstSibling}
-      isLastSibling={isLastSibling}
+      isFirstSibling={isFirstVisibleSibling}
+      isLastSibling={isLastVisibleSibling}
       itemId={item.id}
       labels={{
         ...dictionary.dayEditor,
@@ -785,6 +911,8 @@ function ChecklistRow({
       }
       onIndent={indentItem}
       onMoveTo={moveItemToTarget}
+      onMoveDown={() => moveItem('down')}
+      onMoveUp={() => moveItem('up')}
       onOutdent={outdentItem}
       onSaveText={(text) =>
         isDraft
@@ -818,9 +946,7 @@ function ChecklistRow({
             )
           : toggleChecklistItemBold({ scope, itemId: item.id })
       }
-      onToggleCollapsed={() =>
-        toggleChecklistItemCollapsed({ scope, itemId: item.id })
-      }
+      onToggleCollapsed={toggleCollapsed}
       onTogglePriority={() =>
         toggleChecklistItemPriority({ scope, itemId: item.id })
       }

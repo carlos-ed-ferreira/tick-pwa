@@ -4,6 +4,11 @@ import { Star, Tag, Trash2 } from 'lucide-react';
 import { CategoryAssignmentMenu } from '@/features/categories';
 import type { CategoryTagSurface } from '@/lib/domain';
 import { TaskTreeClearCategoryIcon } from './task-tree-clear-category-icon';
+import {
+  defaultTaskTreeRowActionPreferences,
+  isTaskTreeBulkActionVisible,
+  type TaskTreeRowActionPreferences,
+} from './task-tree-row-action-visibility';
 
 interface TaskTreeBulkActionLabels {
   bold: string;
@@ -19,6 +24,7 @@ function bulkAriaLabel(label: string, selectedLabel: string) {
 }
 
 export function TaskTreeBulkActions({
+  actionPreferences = defaultTaskTreeRowActionPreferences,
   allBold,
   allPriority,
   labels,
@@ -28,6 +34,7 @@ export function TaskTreeBulkActions({
   onToggleBold,
   onTogglePriority,
 }: {
+  actionPreferences?: TaskTreeRowActionPreferences;
   allBold: boolean;
   allPriority: boolean;
   labels: TaskTreeBulkActionLabels;
@@ -52,73 +59,83 @@ export function TaskTreeBulkActions({
         {labels.selected}
       </span>
 
-      <button
-        type="button"
-        aria-label={bulkAriaLabel(labels.priority, labels.selected)}
-        className={buttonClassName}
-        onClick={() => void onTogglePriority()}
-      >
-        <Star
-          aria-hidden="true"
-          className={`size-3.5 ${
-            allPriority ? 'fill-current text-[#f0c38e]' : ''
-          }`}
-        />
-        <span>{labels.priority}</span>
-      </button>
-
-      <button
-        type="button"
-        aria-label={bulkAriaLabel(labels.bold, labels.selected)}
-        className={buttonClassName}
-        onClick={() => void onToggleBold()}
-      >
-        <span
-          aria-hidden="true"
-          className={`text-sm leading-none ${
-            allBold ? 'font-bold' : 'font-normal'
-          }`}
+      {isTaskTreeBulkActionVisible(actionPreferences, 'priority') ? (
+        <button
+          type="button"
+          aria-label={bulkAriaLabel(labels.priority, labels.selected)}
+          className={buttonClassName}
+          onClick={() => void onTogglePriority()}
         >
-          B
-        </span>
-        <span>{labels.bold}</span>
-      </button>
+          <Star
+            aria-hidden="true"
+            className={`size-3.5 ${
+              allPriority ? 'fill-current text-[#f0c38e]' : ''
+            }`}
+          />
+          <span>{labels.priority}</span>
+        </button>
+      ) : null}
 
-      <CategoryAssignmentMenu
-        assignLabel={bulkAriaLabel(labels.category, labels.selected)}
-        clearLabel={labels.clearCategory}
-        menuPreferredWidth={288}
-        selectedCategoryTagId={null}
-        surface={surface}
-        triggerClassName={buttonClassName}
-        renderTriggerContent={() => (
-          <>
-            <Tag aria-hidden="true" className="size-3.5" />
-            <span>{labels.category}</span>
-          </>
-        )}
-        onAssign={onAssignCategory}
-      />
+      {isTaskTreeBulkActionVisible(actionPreferences, 'bold') ? (
+        <button
+          type="button"
+          aria-label={bulkAriaLabel(labels.bold, labels.selected)}
+          className={buttonClassName}
+          onClick={() => void onToggleBold()}
+        >
+          <span
+            aria-hidden="true"
+            className={`text-sm leading-none ${
+              allBold ? 'font-bold' : 'font-normal'
+            }`}
+          >
+            B
+          </span>
+          <span>{labels.bold}</span>
+        </button>
+      ) : null}
 
-      <button
-        type="button"
-        aria-label={bulkAriaLabel(labels.clearCategory, labels.selected)}
-        className={buttonClassName}
-        onClick={() => void onAssignCategory(null)}
-      >
-        <TaskTreeClearCategoryIcon className="size-3.5" />
-        <span>{labels.clearCategory}</span>
-      </button>
+      {isTaskTreeBulkActionVisible(actionPreferences, 'category') ? (
+        <CategoryAssignmentMenu
+          assignLabel={bulkAriaLabel(labels.category, labels.selected)}
+          clearLabel={labels.clearCategory}
+          menuPreferredWidth={288}
+          selectedCategoryTagId={null}
+          surface={surface}
+          triggerClassName={buttonClassName}
+          renderTriggerContent={() => (
+            <>
+              <Tag aria-hidden="true" className="size-3.5" />
+              <span>{labels.category}</span>
+            </>
+          )}
+          onAssign={onAssignCategory}
+        />
+      ) : null}
 
-      <button
-        type="button"
-        aria-label={bulkAriaLabel(labels.delete, labels.selected)}
-        className={`${buttonClassName} text-rose-200 hover:bg-rose-400/[0.12] hover:text-rose-100`}
-        onClick={onDelete}
-      >
-        <Trash2 aria-hidden="true" className="size-3.5" />
-        <span>{labels.delete}</span>
-      </button>
+      {isTaskTreeBulkActionVisible(actionPreferences, 'clearCategory') ? (
+        <button
+          type="button"
+          aria-label={bulkAriaLabel(labels.clearCategory, labels.selected)}
+          className={buttonClassName}
+          onClick={() => void onAssignCategory(null)}
+        >
+          <TaskTreeClearCategoryIcon className="size-3.5" />
+          <span>{labels.clearCategory}</span>
+        </button>
+      ) : null}
+
+      {isTaskTreeBulkActionVisible(actionPreferences, 'delete') ? (
+        <button
+          type="button"
+          aria-label={bulkAriaLabel(labels.delete, labels.selected)}
+          className={`${buttonClassName} text-rose-200 hover:bg-rose-400/[0.12] hover:text-rose-100`}
+          onClick={onDelete}
+        >
+          <Trash2 aria-hidden="true" className="size-3.5" />
+          <span>{labels.delete}</span>
+        </button>
+      ) : null}
     </div>
   );
 }

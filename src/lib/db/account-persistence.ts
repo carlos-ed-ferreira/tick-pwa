@@ -89,7 +89,10 @@ async function markAccountEntityFailed({
   await db.goalSteps.update(entityId, update);
 }
 
-function enqueuePersistence(scopeId: string, task: () => Promise<void>) {
+export function enqueueAccountPersistence(
+  scopeId: string,
+  task: () => Promise<void>,
+) {
   const previousTask = persistenceQueues.get(scopeId) ?? Promise.resolve();
   const nextTask = previousTask
     .catch(() => undefined)
@@ -137,7 +140,7 @@ export function persistAccountEntityChange({
   }
 
   const persistAfterCommit = () => {
-    enqueuePersistence(scope.id, async () => {
+    enqueueAccountPersistence(scope.id, async () => {
       try {
         const revision = await persistAccountEntity({
           entityType,

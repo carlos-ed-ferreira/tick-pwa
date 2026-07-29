@@ -1,6 +1,7 @@
 import Dexie from 'dexie';
 import type { AppScope } from '@/lib/domain';
 import { db } from '@/lib/db/database';
+import { refreshAccountPreferences } from './account-preferences';
 import { getSupabaseBrowserClient } from './client';
 import {
   categoryTagFromRemote,
@@ -115,6 +116,7 @@ export async function refreshAccountCache(scope: AppScope): Promise<void> {
   }
 
   const [
+    ,
     categoryTagsResponse,
     dailyEntriesResponse,
     checklistItemsResponse,
@@ -122,6 +124,7 @@ export async function refreshAccountCache(scope: AppScope): Promise<void> {
     goalsResponse,
     goalStepsResponse,
   ] = await Promise.all([
+    refreshAccountPreferences(scope),
     selectRemoteRows<RemoteCategoryTag>('category_tags'),
     selectRemoteRows<RemoteDailyEntry>('daily_entries'),
     selectRemoteRows<RemoteChecklistItem>('checklist_items'),

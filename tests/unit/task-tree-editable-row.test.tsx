@@ -6,20 +6,48 @@ import {
   screen,
   waitFor,
 } from '@testing-library/react';
+import type { ReactNode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { TaskTreeEditableRow } from '@/components/app';
+import {
+  defaultTaskTreeRowActionPreferences,
+  TaskTreeEditableRow,
+} from '@/components/app';
 
 vi.mock('@/features/categories', () => ({
   CategoryAssignmentMenu: ({
     assignLabel,
+    clearLabel,
+    renderTriggerContent,
+    selectedCategoryTagId,
+    showClearButton = true,
+    triggerClassName,
     onAssign,
   }: {
     assignLabel: string;
+    clearLabel: string;
+    renderTriggerContent?: () => ReactNode;
+    selectedCategoryTagId: string | null;
+    showClearButton?: boolean;
+    triggerClassName?: string;
     onAssign: (categoryTagId: string | null) => void;
   }) => (
-    <button type="button" onClick={() => onAssign('category-1')}>
-      {assignLabel}
-    </button>
+    <div>
+      <button
+        type="button"
+        aria-label={assignLabel}
+        className={triggerClassName}
+        onClick={() => onAssign('category-1')}
+      >
+        {renderTriggerContent ? renderTriggerContent() : assignLabel}
+      </button>
+      {selectedCategoryTagId && showClearButton ? (
+        <button
+          type="button"
+          aria-label={clearLabel}
+          onClick={() => onAssign(null)}
+        />
+      ) : null}
+    </div>
   ),
 }));
 
@@ -64,8 +92,8 @@ function renderRow(
     onDelete: vi.fn(),
     onIndent: vi.fn(),
     onMoveDown: vi.fn(),
-    onMoveTo: vi.fn(),
     onMoveUp: vi.fn(),
+    onMoveTo: vi.fn(),
     onOutdent: vi.fn(),
     onSaveText: vi.fn(),
     onToggleChecked: vi.fn().mockResolvedValue(undefined),
@@ -413,8 +441,8 @@ describe('TaskTreeEditableRow', () => {
     });
   });
 
-  it('keeps only selection, add, outdent, indent, and more actions visible in that order', () => {
-    renderRow({
+  it('keeps selection, add, move, indent, and more actions visible in that order', () => {
+    const callbacks = renderRow({
       selection: {
         isSelected: false,
         isSelectionMode: false,
@@ -435,12 +463,132 @@ describe('TaskTreeEditableRow', () => {
     expect(labels).toEqual([
       'Select item',
       'Add child',
+      'Move item up',
+      'Move item down',
       'Outdent item',
       'Indent item',
       'More actions',
     ]);
     expect(screen.queryByLabelText('Mark as priority')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('Delete item')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Move item up' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Move item down' }));
+
+    expect(callbacks.onMoveUp).toHaveBeenCalledOnce();
+    expect(callbacks.onMoveDown).toHaveBeenCalledOnce();
+  });
+
+  it('places actions on the row, in the menu, or hides them', () => {
+    renderRow({
+      actionPreferences: {
+        ...defaultTaskTreeRowActionPreferences,
+        add: 'menu',
+        delete: 'hidden',
+        priority: 'inline',
+      },
+      selection: {
+        isSelected: false,
+        isSelectionMode: false,
+        onBulkAssignCategory: vi.fn(),
+        onBulkDelete: vi.fn(),
+        onBulkToggleChecked: vi.fn(),
+        onToggle: vi.fn(),
+      },
+    });
+
+    expect(screen.getByRole('button', { name: 'Select item' })).toBeVisible();
+    expect(screen.getByRole('button', { name: 'More actions' })).toBeVisible();
+    expect(
+      screen.getByRole('button', { name: 'Mark as priority' }),
+    ).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Add child' })).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }));
+
+    expect(screen.getByRole('button', { name: 'Add child' })).toBeVisible();
+    expect(
+      screen.getAllByRole('button', { name: 'Mark as priority' }),
+    ).toHaveLength(1);
+    expect(
+      screen.queryByRole('button', { name: 'Delete item' }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('can hide drag and the scheduled time field', () => {
+    renderRow({
+      actionPreferences: {
+        ...defaultTaskTreeRowActionPreferences,
+        drag: false,
+        scheduledTime: false,
+      },
+      showScheduledTime: true,
+    });
+
+    expect(screen.queryByRole('button', { name: 'Drag item' })).toBeNull();
+    expect(screen.queryByRole('textbox', { name: 'Task time' })).toBeNull();
+  });
+
+  it('hides the three-dot button when no action is assigned to its menu', () => {
+    renderRow({
+      actionPreferences: {
+        ...defaultTaskTreeRowActionPreferences,
+        bold: 'hidden',
+        category: 'inline',
+        clearCategory: 'inline',
+        delete: 'hidden',
+        priority: 'inline',
+      },
+    });
+
+    expect(
+      screen.queryByRole('button', { name: 'More actions' }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('shows only one category control when the item has a category', () => {
+    renderRow({
+      actionPreferences: {
+        ...defaultTaskTreeRowActionPreferences,
+        category: 'inline',
+      },
+      categoryTagId: 'category-1',
+      categoryTagMap: new Map([
+        ['category-1', { colorHex: '#ff0000', name: 'Focus' }],
+      ]),
+    });
+
+    expect(
+      screen.getAllByRole('button', { name: 'Assign category' }),
+    ).toHaveLength(1);
+    expect(
+      screen.queryByRole('button', { name: 'Clear category' }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('uses the same hover treatment for inline category and other row actions', () => {
+    renderRow({
+      actionPreferences: {
+        ...defaultTaskTreeRowActionPreferences,
+        category: 'inline',
+      },
+    });
+
+    const addButton = screen.getByRole('button', { name: 'Add child' });
+    const categoryButton = screen.getByRole('button', {
+      name: 'Assign category',
+    });
+
+    expect(categoryButton).toHaveClass(
+      'hover:bg-white/[0.08]',
+      'hover:text-[#fff9f2]',
+      'rounded-full',
+    );
+    expect(categoryButton).toHaveClass(
+      ...addButton.className
+        .split(' ')
+        .filter((className) => className.startsWith('hover:')),
+    );
   });
 
   it('disables every row action except selection while selection mode is active', () => {
@@ -464,6 +612,8 @@ describe('TaskTreeEditableRow', () => {
       'Collapse item',
       'Drag item',
       'Add child',
+      'Move item up',
+      'Move item down',
       'Outdent item',
       'Indent item',
       'More actions',
@@ -472,13 +622,13 @@ describe('TaskTreeEditableRow', () => {
     }
   });
 
-  it('renders a drag handle instead of move up and down buttons', () => {
+  it('renders a drag handle alongside move up and down buttons', () => {
     renderRow();
     const dragHandle = screen.getByLabelText('Drag item');
 
     expect(dragHandle).toBeInTheDocument();
-    expect(screen.queryByLabelText('Move item up')).not.toBeInTheDocument();
-    expect(screen.queryByLabelText('Move item down')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Move item up')).toBeInTheDocument();
+    expect(screen.getByLabelText('Move item down')).toBeInTheDocument();
   });
 
   it('shows a child drop target through the center of a row', async () => {

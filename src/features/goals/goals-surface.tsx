@@ -36,8 +36,10 @@ import {
   moveTreeItemToTarget,
   TaskTreeBulkActions,
   TaskTreeEditableRow,
+  TaskTreeRowActionsMenu,
   TreeListPanel,
   type DropdownJoinShape,
+  type TaskTreeRowActionPreferences,
 } from '@/components/app';
 import {
   Button,
@@ -54,6 +56,7 @@ import {
 import { useDebouncedInlineEdit } from '@/hooks/use-debounced-inline-edit';
 import { useTreeBulkActions } from '@/hooks/use-tree-bulk-actions';
 import { useTreeSelection } from '@/hooks/use-tree-selection';
+import { useTaskTreeRowActionPreferences } from '@/hooks/use-task-tree-row-action-visibility';
 import { toAlphaColor } from '@/lib/color';
 import { formatCountLabel, formatSelectionLabel } from '@/lib/i18n';
 import {
@@ -261,13 +264,24 @@ function insertGoalStepDraftRow(
 
     if (parentIndex !== -1) {
       const parentRow = nextRows[parentIndex];
+      const isFirstChild = !parentRow.hasChildren;
+
+      nextRows[parentIndex] = {
+        ...parentRow,
+        childCount: parentRow.childCount + 1,
+        hasChildren: true,
+      };
+
+      if (parentRow.goalStep.collapsed) {
+        return nextRows;
+      }
 
       nextRows.splice(findGoalStepSubtreeEndIndex(nextRows, parentIndex), 0, {
         goalStep: draft,
         depth: parentRow.depth + 1,
         childCount: 0,
         hasChildren: false,
-        isFirstSibling: !parentRow.hasChildren,
+        isFirstSibling: isFirstChild,
         isLastSibling: true,
       });
     }
@@ -3058,6 +3072,8 @@ function GoalDetailCard({
 }) {
   const { dictionary, scope } = useAppContext();
   const [draftGoalSteps, setDraftGoalSteps] = useState<GoalStepDraft[]>([]);
+  const { actionPreferences, setActionPreferences } =
+    useTaskTreeRowActionPreferences();
   const deletedDraftGoalStepIdsRef = useRef(new Set<string>());
   const displayGoalStepRows = useMemo(
     () => insertGoalStepDraftRows(goalStepRows, draftGoalSteps),
@@ -3179,6 +3195,7 @@ function GoalDetailCard({
         onClearSelection={clearSelection}
         selectionActions={
           <TaskTreeBulkActions
+            actionPreferences={actionPreferences}
             allBold={allSelectedBold}
             allPriority={allSelectedPriority}
             labels={{
@@ -3229,10 +3246,41 @@ function GoalDetailCard({
           />
         }
         surface="none"
+        toolbarActions={
+          <TaskTreeRowActionsMenu
+            labels={{
+              actions: {
+                add: dictionary.dayEditor.addChild,
+                bold: dictionary.dayEditor.bulkBold,
+                category: dictionary.dayEditor.bulkCategory,
+                clearCategory: dictionary.dayEditor.clearCategory,
+                delete: dictionary.dayEditor.bulkDelete,
+                drag: dictionary.dayEditor.dragAndDrop,
+                indent: dictionary.dayEditor.indentItem,
+                moveDown: dictionary.dayEditor.moveItemDown,
+                moveUp: dictionary.dayEditor.moveItemUp,
+                outdent: dictionary.dayEditor.outdentItem,
+                priority: dictionary.dayEditor.bulkPriority,
+                scheduledTime: dictionary.dayEditor.itemTime,
+              },
+              close: dictionary.actions.cancel,
+              configure: dictionary.dayEditor.configureRowActions,
+              hidden: dictionary.dayEditor.actionHidden,
+              inline: dictionary.dayEditor.actionOnRow,
+              menu: dictionary.dayEditor.actionInMenu,
+              reset: dictionary.dayEditor.resetRowActions,
+              title: dictionary.dayEditor.rowActionsTitle,
+              visible: dictionary.dayEditor.actionVisible,
+            }}
+            value={actionPreferences}
+            onChange={setActionPreferences}
+          />
+        }
       >
         {displayGoalStepRows.map((row) => (
           <GoalStepRow
             key={row.goalStep.id}
+            actionPreferences={actionPreferences}
             categoryTagMap={categoryTagMap}
             deletedDraftGoalStepIdsRef={deletedDraftGoalStepIdsRef}
             goalId={goal.id}
@@ -3264,6 +3312,7 @@ function GoalDetailCard({
 }
 
 function GoalStepRow({
+  actionPreferences,
   categoryTagMap,
   deletedDraftGoalStepIdsRef,
   goalId,
@@ -3277,6 +3326,7 @@ function GoalStepRow({
   onToggleSelect,
   setDraftGoalSteps,
 }: {
+  actionPreferences: TaskTreeRowActionPreferences;
   categoryTagMap: Map<string, { colorHex: string; name: string }>;
   deletedDraftGoalStepIdsRef: MutableRefObject<Set<string>>;
   goalId: string;
@@ -3291,7 +3341,7 @@ function GoalStepRow({
   setDraftGoalSteps: Dispatch<SetStateAction<GoalStepDraft[]>>;
 }) {
   const { dictionary, scope } = useAppContext();
-  const { goalStep, depth, hasChildren, isFirstSibling, isLastSibling } = row;
+  const { goalStep, depth, hasChildren } = row;
   if (!scope) {
     return null;
   }
@@ -3300,6 +3350,9 @@ function GoalStepRow({
   const siblingIds = rows
     .filter((currentRow) => currentRow.goalStep.parentId === goalStep.parentId)
     .map((currentRow) => currentRow.goalStep.id);
+  const siblingIndex = siblingIds.indexOf(goalStep.id);
+  const isFirstVisibleSibling = siblingIndex === 0;
+  const isLastVisibleSibling = siblingIndex === siblingIds.length - 1;
 
   async function handleMoveGoalStepToTarget({
     itemId,
@@ -3481,8 +3534,66 @@ function GoalStepRow({
     });
   }
 
+  function moveGoalStepItem(direction: 'down' | 'up') {
+    if (!scope) {
+      return;
+    }
+
+    const targetGoalStepId =
+      siblingIds[siblingIndex + (direction === 'up' ? -1 : 1)];
+
+    if (!targetGoalStepId) {
+      return;
+    }
+
+    const targetGoalStep = rows.find(
+      (currentRow) => currentRow.goalStep.id === targetGoalStepId,
+    )?.goalStep;
+
+    if (isDraft) {
+      return handleMoveGoalStepToTarget({
+        itemId: goalStep.id,
+        placement: direction === 'up' ? 'before' : 'after',
+        targetItemId: targetGoalStepId,
+      });
+    }
+
+    if (
+      targetGoalStep &&
+      'isDraft' in targetGoalStep &&
+      targetGoalStep.isDraft
+    ) {
+      return handleMoveGoalStepToTarget({
+        itemId: targetGoalStep.id,
+        placement: direction === 'up' ? 'after' : 'before',
+        targetItemId: goalStep.id,
+      });
+    }
+
+    return reorderGoalStep({ scope, goalStepId: goalStep.id, direction });
+  }
+
+  function toggleGoalStepItemCollapsed() {
+    if (!scope) {
+      return;
+    }
+
+    if (!isDraft) {
+      return toggleGoalStepCollapsed({ scope, goalStepId: goalStep.id });
+    }
+
+    setDraftGoalSteps((currentDrafts) =>
+      currentDrafts.map((draft) =>
+        draft.id === goalStep.id
+          ? { ...draft, collapsed: !draft.collapsed }
+          : draft,
+      ),
+    );
+  }
+
   return (
     <TaskTreeEditableRow
+      actionPreferences={actionPreferences}
       bold={goalStep.bold}
       categoryTagId={goalStep.categoryTagId}
       categoryTagMap={categoryTagMap}
@@ -3493,8 +3604,8 @@ function GoalStepRow({
       hasChildren={hasChildren}
       inputDataAttribute="data-goal-step-input"
       inputSelector={goalStepInputSelector}
-      isFirstSibling={isFirstSibling}
-      isLastSibling={isLastSibling}
+      isFirstSibling={isFirstVisibleSibling}
+      isLastSibling={isLastVisibleSibling}
       itemId={goalStep.id}
       labels={{
         ...dictionary.dayEditor,
@@ -3577,6 +3688,8 @@ function GoalStepRow({
       }
       onIndent={indentGoalStepItem}
       onMoveTo={handleMoveGoalStepToTarget}
+      onMoveDown={() => moveGoalStepItem('down')}
+      onMoveUp={() => moveGoalStepItem('up')}
       onOutdent={outdentGoalStepItem}
       onSaveText={(text) =>
         isDraft
@@ -3599,9 +3712,7 @@ function GoalStepRow({
             )
           : toggleGoalStepBold({ scope, goalStepId: goalStep.id })
       }
-      onToggleCollapsed={() =>
-        toggleGoalStepCollapsed({ scope, goalStepId: goalStep.id })
-      }
+      onToggleCollapsed={toggleGoalStepItemCollapsed}
       onTogglePriority={() =>
         toggleGoalStepPriority({ scope, goalStepId: goalStep.id })
       }

@@ -7,6 +7,7 @@ import {
 } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { TaskTreeBulkActions } from '@/components/app/task-tree-bulk-actions';
+import { defaultTaskTreeRowActionPreferences } from '@/components/app/task-tree-row-action-visibility';
 
 vi.mock('@/providers', () => ({
   useAppContext: () => ({
@@ -94,5 +95,50 @@ describe('TaskTreeBulkActions', () => {
     await waitFor(() => {
       expect(onAssignCategory).toHaveBeenCalledWith(null);
     });
+  });
+
+  it('omits collective actions configured as hidden everywhere', () => {
+    render(
+      <TaskTreeBulkActions
+        actionPreferences={{
+          ...defaultTaskTreeRowActionPreferences,
+          bold: 'hidden',
+          category: 'hidden',
+          clearCategory: 'hidden',
+        }}
+        allBold={false}
+        allPriority={false}
+        labels={{
+          bold: 'Bold',
+          category: 'Category',
+          clearCategory: 'Clear category',
+          delete: 'Delete',
+          priority: 'Priority',
+          selected: '2 selected',
+        }}
+        surface="checklist_item"
+        onAssignCategory={vi.fn()}
+        onDelete={vi.fn()}
+        onToggleBold={vi.fn()}
+        onTogglePriority={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText('2 selected')).toBeVisible();
+    expect(
+      screen.getByRole('button', { name: 'Priority · 2 selected' }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole('button', { name: 'Delete · 2 selected' }),
+    ).toBeVisible();
+    expect(
+      screen.queryByRole('button', { name: 'Bold · 2 selected' }),
+    ).toBeNull();
+    expect(
+      screen.queryByRole('button', { name: 'Category · 2 selected' }),
+    ).toBeNull();
+    expect(
+      screen.queryByRole('button', { name: 'Clear category · 2 selected' }),
+    ).toBeNull();
   });
 });

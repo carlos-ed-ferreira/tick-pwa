@@ -28,7 +28,6 @@ vi.mock('next/navigation', () => ({
 vi.mock('@/lib/db', () => ({
   duplicateChecklistItemsToDate: vi.fn().mockResolvedValue(undefined),
   moveChecklistItemsToDate: vi.fn().mockResolvedValue(undefined),
-  reorderChecklistItemsByScheduledTime: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock('@/providers', () => ({
@@ -168,8 +167,8 @@ describe('CalendarMonth', () => {
       'entry-1',
     );
     expect(
-      screen.getByRole('button', { name: 'Sort by time' }),
-    ).toBeInTheDocument();
+      screen.queryByRole('button', { name: 'Sort by time' }),
+    ).not.toBeInTheDocument();
     expect(
       screen.getByRole('button', { name: 'Transfer day' }),
     ).toBeInTheDocument();

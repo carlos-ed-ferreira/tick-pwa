@@ -7,10 +7,8 @@ import { CalendarTaskTransferAction } from '@/features/calendar/calendar-task-tr
 import {
   duplicateChecklistItemsToDate,
   moveChecklistItemsToDate,
-  reorderChecklistItemsByScheduledTime,
 } from '@/lib/db';
 import type { LocalDateString } from '@/lib/domain';
-import { Button } from '@/components/ui';
 import { formatLocalDateLabel } from '@/lib/i18n';
 import { parseLocalDateKey } from '@/lib/time';
 import { useAppContext } from '@/providers';
@@ -90,20 +88,6 @@ export function DayDetail({
                 onDuplicateToDate={handleDuplicateDay}
                 onMoveToDate={handleMoveDay}
               />
-              <Button
-                className="min-h-10 shrink-0 rounded-[1rem] border border-[#f0c38e]/[0.22] bg-[#f0c38e]/10 px-3 text-[#f7d7ad] hover:border-[#f0c38e]/[0.36] hover:bg-[#f0c38e]/[0.16] hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
-                tone="subtle"
-                onClick={() =>
-                  void (scope
-                    ? reorderChecklistItemsByScheduledTime({
-                        scope,
-                        dailyEntryId: entry.id,
-                      })
-                    : undefined)
-                }
-              >
-                {dictionary.calendar.sortByTime}
-              </Button>
             </div>
           ) : null}
         </div>

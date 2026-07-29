@@ -34,6 +34,13 @@ export async function setLocalPreference<TValue>(
   await db.localPreferences.put(preference);
 }
 
+export async function deleteLocalPreference(
+  key: string,
+  scope?: AppScope | null,
+): Promise<void> {
+  await db.localPreferences.delete(scopedPreferenceKey(key, scope));
+}
+
 export async function getOrCreateInstallationId(): Promise<string> {
   const existingInstallationId = await getLocalPreference<string>(
     INSTALLATION_ID_PREFERENCE_KEY,

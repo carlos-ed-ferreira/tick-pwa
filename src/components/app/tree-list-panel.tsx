@@ -27,6 +27,7 @@ export function TreeListPanel({
   onClearSelection,
   selectionActions,
   surface = 'panel',
+  toolbarActions,
 }: {
   addLabel: string;
   bulkDeleteDialog?: BulkDeleteDialog;
@@ -39,6 +40,7 @@ export function TreeListPanel({
   onClearSelection: () => void;
   selectionActions?: ReactNode;
   surface?: 'panel' | 'none';
+  toolbarActions?: ReactNode;
 }) {
   const focusAfterCreate = useFocusAfterCreate();
   const [isMovingItem, setIsMovingItem] = useState(false);
@@ -103,15 +105,21 @@ export function TreeListPanel({
         )}
 
         {hasRows ? (
-          <div className="flex flex-wrap items-center justify-between gap-2 px-1 pt-2">
-            <button
-              type="button"
-              className="flex items-center gap-1.5 rounded-full border border-[#f0c38e]/22 bg-[#f0c38e]/10 px-3 py-1.5 text-sm font-medium text-[#f7d7ad] shadow-sm transition hover:border-[#f0c38e]/36 hover:bg-[#f0c38e]/16 hover:text-[#fff9f2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e]"
-              onClick={() => void handleAddRoot()}
-            >
-              <Plus aria-hidden="true" className="size-3.5" />
-              {addLabel}
-            </button>
+          <div
+            data-tree-list-toolbar="true"
+            className="flex flex-wrap items-center justify-between gap-2 px-1 pt-2"
+          >
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                className="flex items-center gap-1.5 rounded-full border border-[#f0c38e]/22 bg-[#f0c38e]/10 px-3 py-1.5 text-sm font-medium text-[#f7d7ad] shadow-sm transition hover:border-[#f0c38e]/36 hover:bg-[#f0c38e]/16 hover:text-[#fff9f2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e]"
+                onClick={() => void handleAddRoot()}
+              >
+                <Plus aria-hidden="true" className="size-3.5" />
+                {addLabel}
+              </button>
+              {toolbarActions}
+            </div>
             {isSelectionMode ? (
               <div className="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-1.5">
                 {selectionActions}
