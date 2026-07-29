@@ -16,13 +16,14 @@ import { useCategoryTags } from './use-category-tags';
 
 const menuOffset = 8;
 const viewportPadding = 16;
-const menuPreferredWidth = 248;
+const defaultMenuPreferredWidth = 248;
 
 export function CategoryAssignmentMenu({
   assignLabel,
   clearClassName,
   clearLabel,
   disabled,
+  menuPreferredWidth = defaultMenuPreferredWidth,
   renderTriggerContent,
   selectedCategoryTagId,
   showClearInMenu = false,
@@ -35,6 +36,7 @@ export function CategoryAssignmentMenu({
   clearClassName?: string;
   clearLabel: string;
   disabled?: boolean;
+  menuPreferredWidth?: number;
   renderTriggerContent?: (args: {
     isOpen: boolean;
     selectedCategory: {
@@ -106,7 +108,7 @@ export function CategoryAssignmentMenu({
       top: Math.max(viewportPadding, triggerRect.bottom + menuOffset),
       width,
     };
-  }, [assignableCategoryTags.length, showClearInMenu]);
+  }, [assignableCategoryTags.length, menuPreferredWidth, showClearInMenu]);
 
   const closeMenu = useCallback(
     ({ restoreFocus = false }: { restoreFocus?: boolean } = {}) => {
@@ -237,13 +239,13 @@ export function CategoryAssignmentMenu({
       <button
         aria-expanded={isOpen}
         aria-label={assignLabel}
-        className={`inline-flex items-center justify-center rounded-md text-muted transition hover:bg-background hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground disabled:cursor-not-allowed disabled:opacity-40 ${
+        className={
           renderTriggerContent
             ? (triggerClassName ?? '')
-            : `size-9 rounded-full hover:bg-white/[0.08] hover:text-[#fff9f2] focus-visible:outline-[#f0c38e] ${
+            : `inline-flex size-9 items-center justify-center rounded-full text-muted transition hover:bg-white/[0.08] hover:text-[#fff9f2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e] disabled:cursor-not-allowed disabled:opacity-40 ${
                 selectedCategory ? 'text-[#fff9f2]' : ''
               } ${triggerClassName ?? ''}`
-        }`}
+        }
         disabled={disabled}
         ref={triggerRef}
         style={triggerStyle}

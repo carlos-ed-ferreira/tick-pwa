@@ -3,12 +3,14 @@ import { IconButton } from '@/components/ui';
 
 export function TaskTreeCollapseButton({
   collapseLabel,
+  disabled = false,
   expandLabel,
   hasChildren,
   isCollapsed,
   onClick,
 }: {
   collapseLabel: string;
+  disabled?: boolean;
   expandLabel: string;
   hasChildren: boolean;
   isCollapsed: boolean;
@@ -18,7 +20,7 @@ export function TaskTreeCollapseButton({
     <IconButton
       aria-label={isCollapsed ? expandLabel : collapseLabel}
       className="ml-1 -mr-2 rounded-full hover:bg-white/[0.08] hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
-      disabled={!hasChildren}
+      disabled={disabled || !hasChildren}
       onClick={onClick}
     >
       {isCollapsed || !hasChildren ? (

@@ -83,7 +83,7 @@ describe('useTreeBulkActions', () => {
     });
   });
 
-  it('assigns a category to selected items and clears the selection', async () => {
+  it('assigns a category to selected items and keeps the selection', async () => {
     const deleteSelectedItem = vi.fn().mockResolvedValue(undefined);
     const assignSelectedItemCategory = vi.fn().mockResolvedValue(undefined);
 
@@ -99,7 +99,7 @@ describe('useTreeBulkActions', () => {
     await waitFor(() => {
       expect(assignSelectedItemCategory).toHaveBeenCalledWith('one', 'cat');
       expect(assignSelectedItemCategory).toHaveBeenCalledWith('two', 'cat');
-      expect(screen.getByTestId('selected-count')).toHaveTextContent('0');
+      expect(screen.getByTestId('selected-count')).toHaveTextContent('2');
     });
   });
 

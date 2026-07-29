@@ -14,7 +14,8 @@ import {
   applyChecklistTemplateToDateRange,
   clearChecklistItemsFromDateRange,
 } from '@/lib/db';
-import { createId } from '@/lib/domain';
+import { createId, type TaskCompletionValues } from '@/lib/domain';
+import { formatSelectionLabel } from '@/lib/i18n';
 import type { WeekdayIndex } from '@/lib/time';
 import {
   getDatesInRangeForWeekdays,
@@ -371,19 +372,17 @@ function BulkChecklistSurface({
     selectedItems.length > 0 && selectedItems.every((item) => item.priority);
   const allSelectedBold =
     selectedItems.length > 0 && selectedItems.every((item) => item.bold);
-  const selectedLabel = dictionary.dayEditor.itemsSelected.replace(
-    '{count}',
-    String(selectedCount),
-  );
+  const selectedLabel = formatSelectionLabel({
+    count: selectedCount,
+    plural: dictionary.dayEditor.itemsSelected,
+    singular: dictionary.dayEditor.itemSelected,
+  });
 
   return (
     <section className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
       <TreeListPanel
         addLabel={dictionary.dayEditor.addItem}
-        clearSelectionLabel={dictionary.dayEditor.itemsSelected.replace(
-          '{count}',
-          String(selectedCount),
-        )}
+        clearSelectionLabel={selectedLabel}
         emptyLabel={dictionary.calendar.bulkEmptyChecklist}
         hasRows={rows.length > 0}
         isSelectionMode={isSelectionMode}
@@ -552,14 +551,14 @@ function BulkChecklistRow({
           );
           onClearSelection();
         },
-        onBulkToggleChecked: async (nextChecked) => {
+        onBulkToggleChecked: async (nextValues: TaskCompletionValues) => {
           setDraftItems((currentItems) =>
             currentItems.map((currentItem) =>
               selectedIds.has(currentItem.id)
                 ? {
                     ...currentItem,
-                    checked: nextChecked,
-                    ignored: false,
+                    checked: nextValues.completed,
+                    ignored: nextValues.ignored,
                   }
                 : currentItem,
             ),

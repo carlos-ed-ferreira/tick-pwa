@@ -1,21 +1,22 @@
 'use client';
 
-import {
-  ChevronRight,
-  MoreHorizontal,
-  Star,
-  Tag,
-  Trash2,
-  X,
-} from 'lucide-react';
+import { ChevronRight, MoreHorizontal, Star, Tag, Trash2 } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type CSSProperties,
 } from 'react';
+import { IconButton } from '@/components/ui';
+import {
+  getDropdownJoinShape,
+  dropdownJoinOverlap,
+  type DropdownJoinShape,
+} from './dropdown-join-shape';
+import { TaskTreeClearCategoryIcon } from './task-tree-clear-category-icon';
 
 const menuWidth = 248;
 const menuOffset = 8;
@@ -23,6 +24,10 @@ const viewportPadding = 12;
 
 interface TaskTreeMoreActionsLabels {
   assignCategory: string;
+  bulkBold: string;
+  bulkCategory: string;
+  bulkDelete: string;
+  bulkPriority: string;
   clearCategory: string;
   deleteItem: string;
   makeTextBold: string;
@@ -63,6 +68,8 @@ export function TaskTreeMoreActionsMenu({
   const [menuStyle, setMenuStyle] = useState<CSSProperties | null>(null);
   const [categorySubmenuStyle, setCategorySubmenuStyle] =
     useState<CSSProperties | null>(null);
+  const [categoryJoinShape, setCategoryJoinShape] =
+    useState<DropdownJoinShape | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const categoryTriggerRef = useRef<HTMLButtonElement | null>(null);
@@ -80,6 +87,7 @@ export function TaskTreeMoreActionsMenu({
       setIsCategoryExpanded(false);
       setMenuStyle(null);
       setCategorySubmenuStyle(null);
+      setCategoryJoinShape(null);
 
       if (restoreFocus) {
         triggerRef.current?.focus();
@@ -142,6 +150,7 @@ export function TaskTreeMoreActionsMenu({
     cancelScheduledCategoryClose();
     categoryCloseTimeoutRef.current = setTimeout(() => {
       setIsCategoryExpanded(false);
+      setCategoryJoinShape(null);
       categoryCloseTimeoutRef.current = null;
     }, 120);
   }, [cancelScheduledCategoryClose]);
@@ -159,7 +168,7 @@ export function TaskTreeMoreActionsMenu({
       ?.getBoundingClientRect();
 
     setCategorySubmenuStyle({
-      left: actionsMenuRect?.right ?? triggerRect.right,
+      left: (actionsMenuRect?.right ?? triggerRect.right) - dropdownJoinOverlap,
       top: triggerRect.top + triggerRect.height / 2,
     });
   }, []);
@@ -169,6 +178,43 @@ export function TaskTreeMoreActionsMenu({
     updateCategorySubmenuPosition();
     setIsCategoryExpanded(true);
   }, [cancelScheduledCategoryClose, updateCategorySubmenuPosition]);
+
+  const updateCategoryJoinShape = useCallback(() => {
+    const mainMenu = menuRef.current;
+    const categorySubmenu = categorySubmenuRef.current;
+
+    if (!mainMenu || !categorySubmenu) {
+      return;
+    }
+
+    setCategoryJoinShape(
+      getDropdownJoinShape(
+        mainMenu.getBoundingClientRect().height,
+        categorySubmenu.getBoundingClientRect().height,
+      ),
+    );
+  }, []);
+
+  useLayoutEffect(() => {
+    if (!isCategoryExpanded || !categorySubmenuStyle) {
+      return;
+    }
+
+    updateCategoryJoinShape();
+
+    if (typeof ResizeObserver === 'undefined') {
+      return;
+    }
+
+    const observer = new ResizeObserver(updateCategoryJoinShape);
+    const mainMenu = menuRef.current;
+    const categorySubmenu = categorySubmenuRef.current;
+
+    if (mainMenu) observer.observe(mainMenu);
+    if (categorySubmenu) observer.observe(categorySubmenu);
+
+    return () => observer.disconnect();
+  }, [categorySubmenuStyle, isCategoryExpanded, updateCategoryJoinShape]);
 
   useEffect(
     () => () => {
@@ -209,6 +255,7 @@ export function TaskTreeMoreActionsMenu({
 
       if (isCategoryExpanded) {
         updateCategorySubmenuPosition();
+        updateCategoryJoinShape();
       }
     }
 
@@ -229,6 +276,7 @@ export function TaskTreeMoreActionsMenu({
     isCategoryExpanded,
     isOpen,
     updateCategorySubmenuPosition,
+    updateCategoryJoinShape,
   ]);
 
   async function runAction(action: () => Promise<void> | void) {
@@ -247,7 +295,11 @@ export function TaskTreeMoreActionsMenu({
           <div
             ref={categorySubmenuRef}
             data-task-category-submenu="true"
-            className="modal-panel fixed z-70 grid max-h-[min(20rem,calc(100vh-2rem))] min-w-52 gap-1 overflow-y-auto rounded-l-none border-0 p-2 text-sm shadow-[0_24px_70px_rgba(8,6,20,0.44)]"
+            className={`dropdown-extension-panel modal-panel modal-panel--flat fixed z-50 min-w-52 text-sm shadow-[0_24px_70px_rgba(8,6,20,0.44)] ${
+              categoryJoinShape === 'extension-taller'
+                ? 'dropdown-extension-panel--rounded-left'
+                : 'rounded-l-none'
+            }`}
             style={{
               ...categorySubmenuStyle,
               transform: 'translateY(-50%)',
@@ -265,27 +317,25 @@ export function TaskTreeMoreActionsMenu({
             }}
             onPointerDown={(event) => event.stopPropagation()}
           >
-            {categories.map(([categoryTagId, category]) => (
-              <button
-                key={categoryTagId}
-                type="button"
-                className={`flex items-center gap-2 rounded-xl px-2 py-2 text-left text-[#fff9f2] transition hover:bg-white/[0.08] ${
-                  categoryTagId === selectedCategoryTagId
-                    ? 'bg-white/[0.06]'
-                    : ''
-                }`}
-                onClick={() =>
-                  void runAction(() => onAssignCategory(categoryTagId))
-                }
-              >
-                <span
-                  aria-hidden="true"
-                  className="size-3 shrink-0 rounded-full"
-                  style={{ backgroundColor: category.colorHex }}
-                />
-                <span className="truncate">{category.name}</span>
-              </button>
-            ))}
+            <div className="dropdown-extension-panel__content grid max-h-[min(20rem,calc(100vh-2rem))] gap-1 overflow-y-auto p-2">
+              {categories.map(([categoryTagId, category]) => (
+                <button
+                  key={categoryTagId}
+                  type="button"
+                  className="flex items-center gap-2 rounded-xl px-2 py-2 text-left text-[#fff9f2] transition hover:bg-white/[0.08]"
+                  onClick={() =>
+                    void runAction(() => onAssignCategory(categoryTagId))
+                  }
+                >
+                  <span
+                    aria-hidden="true"
+                    className="size-3 shrink-0 rounded-full"
+                    style={{ backgroundColor: category.colorHex }}
+                  />
+                  <span className="truncate">{category.name}</span>
+                </button>
+              ))}
+            </div>
           </div>,
           document.body,
         )
@@ -297,7 +347,13 @@ export function TaskTreeMoreActionsMenu({
           <div
             ref={menuRef}
             data-task-actions-menu="true"
-            className="modal-panel modal-panel--flat fixed z-60 grid max-h-[min(28rem,calc(100vh-1.5rem))] gap-1 overflow-y-auto p-2 shadow-[0_24px_70px_rgba(8,6,20,0.44)]"
+            className={`modal-panel modal-panel--flat fixed z-60 grid max-h-[min(28rem,calc(100vh-1.5rem))] gap-1 overflow-y-auto p-2 shadow-[0_24px_70px_rgba(8,6,20,0.44)] ${
+              isCategoryExpanded ? 'dropdown-joined-main' : ''
+            } ${
+              categoryJoinShape && categoryJoinShape !== 'main-taller'
+                ? 'rounded-r-none'
+                : ''
+            }`}
             style={menuStyle}
           >
             <button
@@ -314,9 +370,7 @@ export function TaskTreeMoreActionsMenu({
                   priority ? 'fill-current text-[#f0c38e]' : ''
                 }`}
               />
-              <span>
-                {priority ? labels.unmarkPriority : labels.markPriority}
-              </span>
+              <span>{labels.bulkPriority}</span>
             </button>
 
             <button
@@ -334,7 +388,7 @@ export function TaskTreeMoreActionsMenu({
               >
                 B
               </span>
-              <span>{bold ? labels.makeTextNormal : labels.makeTextBold}</span>
+              <span>{labels.bulkBold}</span>
             </button>
 
             <button
@@ -361,7 +415,7 @@ export function TaskTreeMoreActionsMenu({
             >
               <Tag aria-hidden="true" className="size-4" />
               <span className="min-w-0 flex-1 truncate">
-                {labels.assignCategory}
+                {labels.bulkCategory}
               </span>
               <ChevronRight aria-hidden="true" className="size-4 shrink-0" />
             </button>
@@ -373,7 +427,7 @@ export function TaskTreeMoreActionsMenu({
               disabled={!selectedCategoryTagId}
               onClick={() => void runAction(() => onAssignCategory(null))}
             >
-              <X aria-hidden="true" className="size-4" />
+              <TaskTreeClearCategoryIcon />
               <span>{labels.clearCategory}</span>
             </button>
 
@@ -386,7 +440,7 @@ export function TaskTreeMoreActionsMenu({
               onClick={() => void runAction(onDelete)}
             >
               <Trash2 aria-hidden="true" className="size-4" />
-              <span>{labels.deleteItem}</span>
+              <span>{labels.bulkDelete}</span>
             </button>
           </div>,
           document.body,
@@ -395,12 +449,11 @@ export function TaskTreeMoreActionsMenu({
 
   return (
     <>
-      <button
+      <IconButton
         ref={triggerRef}
-        type="button"
         aria-expanded={isOpen}
         aria-label={labels.moreActions}
-        className="mr-1 inline-flex size-9 shrink-0 items-center justify-center rounded-full text-muted transition hover:bg-white/[0.08] hover:text-[#fff9f2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e] disabled:cursor-not-allowed disabled:opacity-40"
+        className="mr-1 rounded-full hover:bg-white/[0.08] hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
         disabled={disabled}
         onClick={() => {
           if (isOpen) {
@@ -413,7 +466,7 @@ export function TaskTreeMoreActionsMenu({
         }}
       >
         <MoreHorizontal aria-hidden="true" className="size-4" />
-      </button>
+      </IconButton>
       {menu}
       {categorySubmenu}
     </>

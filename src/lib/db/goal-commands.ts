@@ -1190,10 +1190,12 @@ export async function setGoalStepsCompleted({
   scope,
   goalStepIds,
   completed,
+  ignored = false,
 }: {
   scope: AppScope;
   goalStepIds: string[];
   completed: boolean;
+  ignored?: boolean;
 }): Promise<void> {
   if (goalStepIds.length === 0) {
     return;
@@ -1205,7 +1207,8 @@ export async function setGoalStepsCompleted({
 
       if (
         !goalStep ||
-        (goalStep.completed === completed && !goalStep.ignored)
+        (goalStep.completed === completed &&
+          Boolean(goalStep.ignored) === ignored)
       ) {
         continue;
       }
@@ -1213,7 +1216,7 @@ export async function setGoalStepsCompleted({
       const updatedGoalStep = touchGoalStep(scope, {
         ...goalStep,
         completed,
-        ignored: false,
+        ignored,
       });
       await persistGoalStepUpdate(scope, updatedGoalStep, [
         'completed',

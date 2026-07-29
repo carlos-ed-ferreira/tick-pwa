@@ -312,6 +312,22 @@ describe('goal commands', () => {
     await expect(db.goalSteps.get(second.id)).resolves.toMatchObject({
       completed: true,
     });
+
+    await setGoalStepsCompleted({
+      scope,
+      goalStepIds: [first.id, second.id],
+      completed: false,
+      ignored: true,
+    });
+
+    await expect(db.goalSteps.get(first.id)).resolves.toMatchObject({
+      completed: false,
+      ignored: true,
+    });
+    await expect(db.goalSteps.get(second.id)).resolves.toMatchObject({
+      completed: false,
+      ignored: true,
+    });
   });
 
   it('groups goals together and deletes a source group when it becomes empty', async () => {

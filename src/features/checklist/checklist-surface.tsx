@@ -18,7 +18,11 @@ import {
 import { useCategoryTags } from '@/features/categories';
 import { useTreeBulkActions } from '@/hooks/use-tree-bulk-actions';
 import { useTreeSelection } from '@/hooks/use-tree-selection';
-import type { AppScopeId, ChecklistItem } from '@/lib/domain';
+import type {
+  AppScopeId,
+  ChecklistItem,
+  TaskCompletionValues,
+} from '@/lib/domain';
 import {
   assignChecklistItemCategory,
   createChecklistItem,
@@ -37,6 +41,7 @@ import {
   updateChecklistItemText,
 } from '@/lib/db';
 import { createId } from '@/lib/domain';
+import { formatCountLabel, formatSelectionLabel } from '@/lib/i18n';
 import { useAppContext } from '@/providers';
 import type { VisibleChecklistRow } from './checklist-tree';
 import { useChecklistTree } from './use-checklist-tree';
@@ -368,10 +373,11 @@ export function ChecklistSurface({ dailyEntryId }: { dailyEntryId: string }) {
     selectedItems.length > 0 && selectedItems.every((item) => item.priority);
   const allSelectedBold =
     selectedItems.length > 0 && selectedItems.every((item) => item.bold);
-  const selectedLabel = dictionary.dayEditor.itemsSelected.replace(
-    '{count}',
-    String(selectedCount),
-  );
+  const selectedLabel = formatSelectionLabel({
+    count: selectedCount,
+    plural: dictionary.dayEditor.itemsSelected,
+    singular: dictionary.dayEditor.itemSelected,
+  });
 
   if (!scope) {
     return null;
@@ -385,10 +391,11 @@ export function ChecklistSurface({ dailyEntryId }: { dailyEntryId: string }) {
         bulkDeleteDialog={{
           cancelLabel: dictionary.actions.cancel,
           confirmLabel: dictionary.actions.delete,
-          description: dictionary.dayEditor.confirmBulkDeleteItems.replace(
-            '{count}',
-            String(selectedCount),
-          ),
+          description: formatCountLabel({
+            count: selectedCount,
+            plural: dictionary.dayEditor.confirmBulkDeleteItems,
+            singular: dictionary.dayEditor.confirmBulkDeleteItem,
+          }),
           open: isBulkDeleteDialogOpen,
           title: dictionary.dayEditor.bulkDeleteItems,
           onClose: closeBulkDeleteDialog,
@@ -450,7 +457,7 @@ export function ChecklistSurface({ dailyEntryId }: { dailyEntryId: string }) {
             rows={displayRows}
             onBulkAssignCategory={assignBulkCategory}
             onBulkDelete={openBulkDeleteDialog}
-            onBulkToggleChecked={async (nextChecked) => {
+            onBulkToggleChecked={async (nextValues) => {
               if (!scope) {
                 return;
               }
@@ -458,7 +465,8 @@ export function ChecklistSurface({ dailyEntryId }: { dailyEntryId: string }) {
               await setChecklistItemsChecked({
                 scope,
                 itemIds: [...selectedIds],
-                checked: nextChecked,
+                checked: nextValues.completed,
+                ignored: nextValues.ignored,
               });
             }}
             onToggleSelect={toggleSelect}
@@ -493,7 +501,7 @@ function ChecklistRow({
   rows: ChecklistSurfaceRow[];
   onBulkAssignCategory: (categoryTagId: string | null) => Promise<void>;
   onBulkDelete: () => void;
-  onBulkToggleChecked: (nextChecked: boolean) => Promise<void>;
+  onBulkToggleChecked: (nextValues: TaskCompletionValues) => Promise<void>;
   onToggleSelect: (id: string, shiftKey: boolean) => void;
   setDraftItems: Dispatch<SetStateAction<ChecklistDraftItem[]>>;
 }) {
@@ -639,6 +647,49 @@ function ChecklistRow({
     }
   }
 
+  function indentItem() {
+    if (!scope) {
+      return;
+    }
+
+    if (!isDraft) {
+      return indentChecklistItem({ scope, itemId: item.id });
+    }
+
+    const currentSiblingIndex = siblingIds.indexOf(item.id);
+    const previousSiblingId = siblingIds[currentSiblingIndex - 1];
+
+    if (!previousSiblingId) {
+      return;
+    }
+
+    return moveItemToTarget({
+      itemId: item.id,
+      placement: 'child',
+      targetItemId: previousSiblingId,
+    });
+  }
+
+  function outdentItem() {
+    if (!scope) {
+      return;
+    }
+
+    if (!isDraft) {
+      return outdentChecklistItem({ scope, itemId: item.id });
+    }
+
+    if (!item.parentId) {
+      return;
+    }
+
+    return moveItemToTarget({
+      itemId: item.id,
+      placement: 'after',
+      targetItemId: item.parentId,
+    });
+  }
+
   return (
     <TaskTreeEditableRow
       bold={item.bold}
@@ -732,9 +783,9 @@ function ChecklistRow({
               );
             })()
       }
-      onIndent={() => indentChecklistItem({ scope, itemId: item.id })}
+      onIndent={indentItem}
       onMoveTo={moveItemToTarget}
-      onOutdent={() => outdentChecklistItem({ scope, itemId: item.id })}
+      onOutdent={outdentItem}
       onSaveText={(text) =>
         isDraft
           ? persistDraftItem(text)

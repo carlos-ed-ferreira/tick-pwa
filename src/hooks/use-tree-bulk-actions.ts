@@ -42,10 +42,8 @@ export function useTreeBulkActions({
           assignSelectedItemCategory(itemId, categoryTagId),
         ),
       );
-
-      clearSelection();
     },
-    [assignSelectedItemCategory, clearSelection, selectedIds],
+    [assignSelectedItemCategory, selectedIds],
   );
 
   return {

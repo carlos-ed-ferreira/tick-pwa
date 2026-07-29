@@ -26,6 +26,10 @@ vi.mock('@/features/categories', () => ({
 const labels = {
   addChild: 'Add child',
   assignCategory: 'Assign category',
+  bulkBold: 'Bold',
+  bulkCategory: 'Category',
+  bulkDelete: 'Delete',
+  bulkPriority: 'Priority',
   cancel: 'Cancel',
   clearCategory: 'Clear category',
   collapseItem: 'Collapse item',
@@ -187,6 +191,19 @@ describe('TaskTreeEditableRow', () => {
     );
   });
 
+  it('uses the same hover classes for add and more actions', () => {
+    renderRow();
+
+    const addButton = screen.getByRole('button', { name: 'Add child' });
+    const moreButton = screen.getByRole('button', { name: 'More actions' });
+    const moreClassesWithoutMargin = moreButton.className
+      .split(' ')
+      .filter((className) => className !== 'mr-1')
+      .join(' ');
+
+    expect(moreClassesWithoutMargin).toBe(addButton.className);
+  });
+
   it('keeps Shift+Enter available for inserting a line break', () => {
     const callbacks = renderRow();
     const input = screen.getByDisplayValue('Existing item');
@@ -297,6 +314,43 @@ describe('TaskTreeEditableRow', () => {
     expect(assignCategory.nextElementSibling).toBe(clearCategory);
   });
 
+  it('matches the bulk action labels and icons in the more actions menu', () => {
+    renderRow({
+      categoryTagId: 'category-1',
+      categoryTagMap: new Map([
+        ['category-1', { colorHex: '#ff0000', name: 'Focus' }],
+      ]),
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }));
+
+    const priority = screen.getByRole('button', {
+      name: 'Mark as priority',
+    });
+    const bold = screen.getByRole('button', { name: 'Make text bold' });
+    const category = screen.getByRole('button', { name: 'Assign category' });
+    const clearCategory = screen.getByRole('button', {
+      name: 'Clear category',
+    });
+    const deleteItem = screen.getByRole('button', { name: 'Delete item' });
+
+    expect(priority).toHaveTextContent('Priority');
+    expect(priority.querySelector('.lucide-star')).not.toBeNull();
+    expect(bold).toHaveTextContent('Bold');
+    expect(
+      bold.querySelector('[data-testid="task-bold-indicator"]'),
+    ).not.toBeNull();
+    expect(category).toHaveTextContent('Category');
+    expect(category.querySelector('.lucide-tag')).not.toBeNull();
+    expect(clearCategory).toHaveTextContent('Clear category');
+    expect(
+      clearCategory.querySelector('[data-clear-category-icon]'),
+    ).not.toBeNull();
+    expect(clearCategory.querySelector('.lucide-x')).toBeNull();
+    expect(deleteItem).toHaveTextContent('Delete');
+    expect(deleteItem.querySelector('.lucide-trash-2')).not.toBeNull();
+  });
+
   it('opens categories as a right-side hover extension aligned to the category option', () => {
     renderRow({
       categoryTagMap: new Map([
@@ -340,9 +394,20 @@ describe('TaskTreeEditableRow', () => {
       .getByRole('button', { name: 'Focus' })
       .closest('[data-task-category-submenu="true"]');
 
-    expect(extension).toHaveClass('rounded-l-none', 'border-0');
+    expect(extension).toHaveClass(
+      'dropdown-extension-panel',
+      'rounded-l-none',
+      'modal-panel--flat',
+      'z-50',
+    );
+    expect(extension).not.toHaveClass('z-70');
+    expect(extension).not.toHaveClass('border-0');
+    expect(actionsMenu).toHaveClass('dropdown-joined-main');
+    expect(screen.getByRole('button', { name: 'Focus' })).not.toHaveClass(
+      'bg-white/[0.06]',
+    );
     expect(extension).toHaveStyle({
-      left: '328px',
+      left: '327px',
       top: '120px',
       transform: 'translateY(-50%)',
     });
@@ -376,6 +441,35 @@ describe('TaskTreeEditableRow', () => {
     ]);
     expect(screen.queryByLabelText('Mark as priority')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('Delete item')).not.toBeInTheDocument();
+  });
+
+  it('disables every row action except selection while selection mode is active', () => {
+    renderRow({
+      depth: 1,
+      hasChildren: true,
+      selection: {
+        isSelected: true,
+        isSelectionMode: true,
+        onBulkAssignCategory: vi.fn(),
+        onBulkDelete: vi.fn(),
+        onBulkToggleChecked: vi.fn(),
+        onToggle: vi.fn(),
+      },
+    });
+
+    expect(screen.getByRole('button', { name: 'Deselect item' })).toBeEnabled();
+    expect(screen.getByRole('checkbox')).toBeEnabled();
+
+    for (const label of [
+      'Collapse item',
+      'Drag item',
+      'Add child',
+      'Outdent item',
+      'Indent item',
+      'More actions',
+    ]) {
+      expect(screen.getByRole('button', { name: label })).toBeDisabled();
+    }
   });
 
   it('renders a drag handle instead of move up and down buttons', () => {
@@ -597,8 +691,62 @@ describe('TaskTreeEditableRow', () => {
     fireEvent.click(screen.getByRole('checkbox'));
 
     await waitFor(() => {
-      expect(onBulkToggleChecked).toHaveBeenCalledWith(true);
+      expect(onBulkToggleChecked).toHaveBeenCalledWith({
+        completed: true,
+        ignored: false,
+      });
       expect(callbacks.onToggleChecked).not.toHaveBeenCalled();
+    });
+  });
+
+  it('advances selected rows from completed to ignored in bulk', async () => {
+    const onBulkToggleChecked = vi.fn().mockResolvedValue(undefined);
+    const callbacks = renderRow({
+      checked: true,
+      ignored: false,
+      selection: {
+        isSelected: true,
+        isSelectionMode: true,
+        onBulkAssignCategory: vi.fn(),
+        onBulkDelete: vi.fn(),
+        onBulkToggleChecked,
+        onToggle: vi.fn(),
+      },
+    });
+
+    fireEvent.click(screen.getByRole('checkbox'));
+
+    await waitFor(() => {
+      expect(onBulkToggleChecked).toHaveBeenCalledWith({
+        completed: false,
+        ignored: true,
+      });
+      expect(callbacks.onToggleChecked).not.toHaveBeenCalled();
+    });
+  });
+
+  it('advances selected rows from ignored to unchecked in bulk', async () => {
+    const onBulkToggleChecked = vi.fn().mockResolvedValue(undefined);
+    renderRow({
+      checked: false,
+      ignored: true,
+      selection: {
+        isSelected: true,
+        isSelectionMode: true,
+        onBulkAssignCategory: vi.fn(),
+        onBulkDelete: vi.fn(),
+        onBulkToggleChecked,
+        onToggle: vi.fn(),
+      },
+    });
+
+    fireEvent.click(screen.getByRole('checkbox'));
+
+    await waitFor(() => {
+      expect(onBulkToggleChecked).toHaveBeenCalledWith({
+        completed: false,
+        ignored: false,
+      });
     });
   });
 });

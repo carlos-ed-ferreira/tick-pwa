@@ -1,5 +1,19 @@
 import type { SupportedLocale } from '@/lib/domain';
 
+export function formatCountLabel({
+  count,
+  plural,
+  singular,
+}: {
+  count: number;
+  plural: string;
+  singular: string;
+}): string {
+  return (count === 1 ? singular : plural).replace('{count}', String(count));
+}
+
+export const formatSelectionLabel = formatCountLabel;
+
 export function formatMonthLabel(
   date: Date,
   locale: SupportedLocale,

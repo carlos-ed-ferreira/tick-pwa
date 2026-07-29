@@ -4,6 +4,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { GoalsSurface } from '@/features/goals';
@@ -126,9 +127,13 @@ vi.mock('@/providers', () => ({
         confirmDeleteItem: 'Are you sure?',
         selectItem: 'Select item',
         deselectItem: 'Deselect item',
+        itemSelected: '{count} item selected',
         itemsSelected: '{count} selected',
         bulkDeleteItems: 'Delete selected',
-        confirmBulkDeleteItems: 'Are you sure?',
+        confirmBulkDeleteItem:
+          'You are about to delete {count} selected record.',
+        confirmBulkDeleteItems:
+          'You are about to delete {count} selected records.',
         clearSelection: 'Clear selection',
         bulkPriority: 'Priority',
         bulkBold: 'Bold',
@@ -259,6 +264,14 @@ function goalStep(overrides: Record<string, unknown> = {}) {
 
 describe('GoalsSurface', () => {
   it('uses the requested pt-BR labels in the goal card menu', () => {
+    expect(ptBRDictionary.dayEditor.itemSelected).toBe('{count} selecionado');
+    expect(ptBRDictionary.dayEditor.itemsSelected).toBe('{count} selecionados');
+    expect(ptBRDictionary.dayEditor.confirmBulkDeleteItem).toBe(
+      'Você está prestes a excluir {count} registro selecionado.',
+    );
+    expect(ptBRDictionary.dayEditor.confirmBulkDeleteItems).toBe(
+      'Você está prestes a excluir {count} registros selecionados.',
+    );
     expect(ptBRDictionary.goals.assignGoalColor).toBe(
       'Atribuir cor independente',
     );
@@ -785,10 +798,18 @@ describe('GoalsSurface', () => {
     const extension = categoryOption.closest('.modal-panel');
 
     expect(categoryOption).toBeVisible();
-    expect(extension).toHaveClass('rounded-l-none', 'border-0');
+    expect(extension).toHaveClass(
+      'dropdown-extension-panel',
+      'rounded-l-none',
+      'border-0',
+      'z-50',
+    );
+    expect(extension).not.toHaveClass('z-70');
+    expect(actionsMenu).toHaveClass('dropdown-joined-main');
+    expect(categoryOption).not.toHaveClass('bg-white/[0.06]');
     expect(extension).not.toHaveClass('-translate-y-1/2');
     expect(extension).toHaveStyle({
-      left: '308px',
+      left: '307px',
       top: '120px',
       transform: 'translateY(-50%)',
     });
@@ -1108,9 +1129,75 @@ describe('GoalsSurface', () => {
     expect(createGoalStepMock).not.toHaveBeenCalled();
   });
 
+  it('indents and outdents an empty goal step draft locally', async () => {
+    useGoalStepTreeMock.mockReturnValue([goalStep()]);
+
+    render(<GoalsSurface />);
+    fireEvent.click(screen.getByRole('button', { name: 'Focus' }));
+    fireEvent.keyDown(screen.getByDisplayValue('Existing step'), {
+      key: 'Enter',
+    });
+
+    await waitFor(() => {
+      expect(screen.getAllByPlaceholderText('Write a task')).toHaveLength(2);
+    });
+    const draftInput = screen.getAllByPlaceholderText('Write a task')[1];
+    const draftRow = draftInput.closest('[data-tree-row]');
+
+    expect(draftRow).not.toBeNull();
+
+    fireEvent.click(
+      within(draftRow as HTMLElement).getByLabelText('Indent item'),
+    );
+
+    await waitFor(() => {
+      expect(draftInput.closest('[data-tree-row]')).toHaveStyle({
+        paddingLeft: '14px',
+      });
+    });
+
+    const indentedRow = draftInput.closest('[data-tree-row]');
+    fireEvent.click(
+      within(indentedRow as HTMLElement).getByLabelText('Outdent item'),
+    );
+
+    await waitFor(() => {
+      expect(draftInput.closest('[data-tree-row]')).toHaveStyle({
+        paddingLeft: '0px',
+      });
+    });
+    expect(createGoalStepMock).not.toHaveBeenCalled();
+  });
+
   it('bulk toggles selected goal steps from the checkbox', async () => {
     useGoalStepTreeMock.mockReturnValue([
       goalStep(),
+      goalStep({
+        id: 'goal-step-2',
+        text: 'Second step',
+        sortRank: 'j',
+      }),
+    ]);
+
+    render(<GoalsSurface />);
+    fireEvent.click(screen.getByRole('button', { name: 'Focus' }));
+    fireEvent.click(screen.getAllByLabelText('Select item')[0]);
+    fireEvent.click(screen.getByLabelText('Select item'));
+    fireEvent.click(screen.getAllByRole('checkbox')[0]);
+
+    await waitFor(() => {
+      expect(setGoalStepsCompletedMock).toHaveBeenCalledWith({
+        scope,
+        goalStepIds: ['goal-step-1', 'goal-step-2'],
+        completed: true,
+        ignored: false,
+      });
+    });
+  });
+
+  it('bulk advances selected completed goal steps to ignored', async () => {
+    useGoalStepTreeMock.mockReturnValue([
+      goalStep({ completed: true }),
       goalStep({
         id: 'goal-step-2',
         text: 'Second step',
@@ -1127,7 +1214,8 @@ describe('GoalsSurface', () => {
       expect(setGoalStepsCompletedMock).toHaveBeenCalledWith({
         scope,
         goalStepIds: ['goal-step-1'],
-        completed: true,
+        completed: false,
+        ignored: true,
       });
     });
   });
@@ -1156,8 +1244,11 @@ describe('GoalsSurface', () => {
     fireEvent.change(draftInput, { target: { value: 'Draft fragment' } });
     fireEvent.click(screen.getAllByLabelText('Select item')[0]);
     fireEvent.click(
-      screen.getByRole('button', { name: 'Delete · 1 selected' }),
+      screen.getByRole('button', { name: 'Delete · 1 item selected' }),
     );
+    expect(
+      await screen.findByText('You are about to delete 1 selected record.'),
+    ).toBeInTheDocument();
     fireEvent.click(await screen.findByRole('button', { name: 'Delete' }));
 
     await waitFor(() => {

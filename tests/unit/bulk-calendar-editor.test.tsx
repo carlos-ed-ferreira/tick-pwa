@@ -91,8 +91,11 @@ vi.mock('@/providers', () => ({
         toggleItem: 'Toggle item',
         selectItem: 'Select item',
         deselectItem: 'Deselect item',
+        itemSelected: '{count} item selected',
         itemsSelected: '{count} selected',
         bulkDeleteItems: 'Delete selected',
+        confirmBulkDeleteItem:
+          'You are about to delete {count} selected record.',
         confirmBulkDeleteItems: 'Are you sure you want to delete this item?',
         clearSelection: 'Clear selection',
         bulkPriority: 'Priority',
@@ -243,7 +246,7 @@ describe('BulkCalendarEditor', () => {
     fireEvent.click(screen.getByLabelText('Select item'));
 
     expect(
-      screen.getByRole('button', { name: '1 selected' }),
+      screen.getByRole('button', { name: '1 item selected' }),
     ).toBeInTheDocument();
   });
 

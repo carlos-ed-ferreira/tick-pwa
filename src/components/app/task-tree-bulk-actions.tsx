@@ -3,6 +3,7 @@
 import { Star, Tag, Trash2 } from 'lucide-react';
 import { CategoryAssignmentMenu } from '@/features/categories';
 import type { CategoryTagSurface } from '@/lib/domain';
+import { TaskTreeClearCategoryIcon } from './task-tree-clear-category-icon';
 
 interface TaskTreeBulkActionLabels {
   bold: string;
@@ -86,8 +87,8 @@ export function TaskTreeBulkActions({
       <CategoryAssignmentMenu
         assignLabel={bulkAriaLabel(labels.category, labels.selected)}
         clearLabel={labels.clearCategory}
+        menuPreferredWidth={288}
         selectedCategoryTagId={null}
-        showClearInMenu
         surface={surface}
         triggerClassName={buttonClassName}
         renderTriggerContent={() => (
@@ -98,6 +99,16 @@ export function TaskTreeBulkActions({
         )}
         onAssign={onAssignCategory}
       />
+
+      <button
+        type="button"
+        aria-label={bulkAriaLabel(labels.clearCategory, labels.selected)}
+        className={buttonClassName}
+        onClick={() => void onAssignCategory(null)}
+      >
+        <TaskTreeClearCategoryIcon className="size-3.5" />
+        <span>{labels.clearCategory}</span>
+      </button>
 
       <button
         type="button"

@@ -387,6 +387,41 @@ body {
     border-color: transparent;
     box-shadow: 0 12px 32px rgba(8, 6, 20, 0.16);
   }
+
+  .dropdown-joined-main {
+    clip-path: inset(-8rem 0 -8rem -8rem);
+  }
+
+  .dropdown-extension-panel {
+    --dropdown-extension-left-radius: 0;
+
+    background: transparent;
+    backdrop-filter: none;
+  }
+
+  .dropdown-extension-panel--rounded-left {
+    --dropdown-extension-left-radius: 1.25rem;
+  }
+
+  .dropdown-extension-panel::before {
+    position: absolute;
+    inset: 0 0 0 -2rem;
+    z-index: 0;
+    pointer-events: none;
+    content: '';
+    background: rgba(255, 255, 255, 0.04);
+    backdrop-filter: blur(14px);
+    clip-path: inset(
+      0 0 0 2rem round var(--dropdown-extension-left-radius) 1.25rem 1.25rem
+        var(--dropdown-extension-left-radius)
+    );
+  }
+
+  .dropdown-extension-panel__content {
+    position: relative;
+    z-index: 1;
+    border-radius: inherit;
+  }
 }
 
 @media (min-width: 640px) {

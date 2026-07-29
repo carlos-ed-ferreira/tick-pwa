@@ -147,8 +147,10 @@ export interface Dictionary {
     confirmDeleteItem: string;
     selectItem: string;
     deselectItem: string;
+    itemSelected: string;
     itemsSelected: string;
     bulkDeleteItems: string;
+    confirmBulkDeleteItem: string;
     confirmBulkDeleteItems: string;
     clearSelection: string;
     bulkPriority: string;

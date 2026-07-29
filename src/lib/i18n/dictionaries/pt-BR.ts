@@ -166,9 +166,13 @@ export const ptBRDictionary = {
     confirmDeleteItem,
     selectItem: 'Selecionar item',
     deselectItem: 'Desmarcar item',
+    itemSelected: '{count} selecionado',
     itemsSelected: '{count} selecionados',
     bulkDeleteItems: 'Excluir selecionados',
-    confirmBulkDeleteItems: confirmDeleteItem,
+    confirmBulkDeleteItem:
+      'Você está prestes a excluir {count} registro selecionado.',
+    confirmBulkDeleteItems:
+      'Você está prestes a excluir {count} registros selecionados.',
     clearSelection: 'Limpar seleção',
     bulkPriority: 'Prioridade',
     bulkBold: 'Negrito',

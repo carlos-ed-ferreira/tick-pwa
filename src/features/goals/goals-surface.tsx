@@ -20,6 +20,7 @@ import { createPortal } from 'react-dom';
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -30,10 +31,13 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from 'react';
 import {
+  dropdownJoinOverlap,
+  getDropdownJoinShape,
   moveTreeItemToTarget,
   TaskTreeBulkActions,
   TaskTreeEditableRow,
   TreeListPanel,
+  type DropdownJoinShape,
 } from '@/components/app';
 import {
   Button,
@@ -51,6 +55,7 @@ import { useDebouncedInlineEdit } from '@/hooks/use-debounced-inline-edit';
 import { useTreeBulkActions } from '@/hooks/use-tree-bulk-actions';
 import { useTreeSelection } from '@/hooks/use-tree-selection';
 import { toAlphaColor } from '@/lib/color';
+import { formatCountLabel, formatSelectionLabel } from '@/lib/i18n';
 import {
   assignGoalCategory,
   assignGoalGroupCategory,
@@ -93,6 +98,7 @@ import type {
   Goal,
   GoalGroup,
   GoalStep,
+  TaskCompletionValues,
 } from '@/lib/domain';
 import { createId } from '@/lib/domain';
 import { useAppContext } from '@/providers';
@@ -1445,6 +1451,8 @@ function GoalGroupCard({
 }) {
   const { dictionary, scope } = useAppContext();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [categoryJoinShape, setCategoryJoinShape] =
+    useState<DropdownJoinShape | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [menuStyle, setMenuStyle] = useState<{
     top: number;
@@ -1490,6 +1498,7 @@ function GoalGroupCard({
   const closeMenu = useCallback(() => {
     setIsMenuOpen(false);
     setMenuStyle(null);
+    setCategoryJoinShape(null);
   }, []);
 
   useEffect(() => {
@@ -1569,7 +1578,13 @@ function GoalGroupCard({
           <div
             ref={menuRef}
             data-card-actions-menu="true"
-            className="modal-panel fixed z-60 grid max-h-[min(20rem,calc(100vh-2rem))] min-w-52 gap-1 overflow-y-auto border-0 p-2 text-sm shadow-[0_24px_70px_rgba(8,6,20,0.44)]"
+            className={`modal-panel fixed z-60 grid max-h-[min(20rem,calc(100vh-2rem))] min-w-52 gap-1 overflow-y-auto border-0 p-2 text-sm shadow-[0_24px_70px_rgba(8,6,20,0.44)] ${
+              categoryJoinShape ? 'dropdown-joined-main' : ''
+            } ${
+              categoryJoinShape && categoryJoinShape !== 'main-taller'
+                ? 'rounded-r-none'
+                : ''
+            }`}
             style={menuStyle}
             onClick={(event) => event.stopPropagation()}
           >
@@ -1611,8 +1626,8 @@ function GoalGroupCard({
             ) : null}
             <CategoryMenuSection
               label={dictionary.goals.assignGroupCategoryMenu}
-              selectedCategoryTagId={group.categoryTagId}
               surface="goal_group"
+              onJoinShapeChange={setCategoryJoinShape}
               onAssign={(categoryTagId) => {
                 closeMenu();
                 if (!scope) return;
@@ -1894,6 +1909,8 @@ function GoalCard({
 }) {
   const { dictionary, scope } = useAppContext();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [categoryJoinShape, setCategoryJoinShape] =
+    useState<DropdownJoinShape | null>(null);
   const [isArchiveDialogOpen, setIsArchiveDialogOpen] = useState(false);
   const [isRestoreDialogOpen, setIsRestoreDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -1943,6 +1960,7 @@ function GoalCard({
   const closeMenu = useCallback(() => {
     setIsMenuOpen(false);
     setMenuStyle(null);
+    setCategoryJoinShape(null);
   }, []);
 
   const deleteGoal = useCallback(async () => {
@@ -2036,7 +2054,13 @@ function GoalCard({
             ref={menuRef}
             data-card-actions-menu="true"
             data-goal-actions-menu="true"
-            className="modal-panel fixed z-60 grid max-h-[min(20rem,calc(100vh-2rem))] min-w-48 gap-1 overflow-y-auto border-0 p-2 text-sm shadow-[0_24px_70px_rgba(8,6,20,0.44)]"
+            className={`modal-panel fixed z-60 grid max-h-[min(20rem,calc(100vh-2rem))] min-w-48 gap-1 overflow-y-auto border-0 p-2 text-sm shadow-[0_24px_70px_rgba(8,6,20,0.44)] ${
+              categoryJoinShape ? 'dropdown-joined-main' : ''
+            } ${
+              categoryJoinShape && categoryJoinShape !== 'main-taller'
+                ? 'rounded-r-none'
+                : ''
+            }`}
             style={menuStyle}
             // Clicks inside the portal bubble through the React tree to the
             // card's onClick, which would close the menu mid-interaction.
@@ -2096,8 +2120,8 @@ function GoalCard({
             {!archived ? (
               <CategoryMenuSection
                 label={dictionary.goals.assignGoalCategoryMenu}
-                selectedCategoryTagId={goal.categoryTagId}
                 surface="goal"
+                onJoinShapeChange={setCategoryJoinShape}
                 onAssign={(categoryTagId) => {
                   closeMenu();
                   if (!scope) return;
@@ -2344,18 +2368,19 @@ function GoalCard({
 // Goal-only category submenu used by the goal card actions menu.
 function CategoryMenuSection({
   label,
-  selectedCategoryTagId,
   surface,
   onAssign,
+  onJoinShapeChange,
 }: {
   label: string;
-  selectedCategoryTagId: string | null;
   surface: CategoryTagSurface;
   onAssign: (categoryTagId: string) => Promise<void> | void;
+  onJoinShapeChange: (shape: DropdownJoinShape | null) => void;
 }) {
   const { scope } = useAppContext();
   const categoryTags = useCategoryTags(scope, surface);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [joinShape, setJoinShape] = useState<DropdownJoinShape | null>(null);
   const [submenuStyle, setSubmenuStyle] = useState<{
     left: number;
     top: number;
@@ -2376,9 +2401,11 @@ function CategoryMenuSection({
     cancelScheduledClose();
     closeTimeoutRef.current = setTimeout(() => {
       setIsExpanded(false);
+      setJoinShape(null);
+      onJoinShapeChange(null);
       closeTimeoutRef.current = null;
     }, 120);
-  }, [cancelScheduledClose]);
+  }, [cancelScheduledClose, onJoinShapeChange]);
 
   const updateSubmenuPosition = useCallback(() => {
     const trigger = triggerRef.current;
@@ -2391,7 +2418,8 @@ function CategoryMenuSection({
     const actionsMenuRect = trigger
       .closest<HTMLElement>('[data-card-actions-menu="true"]')
       ?.getBoundingClientRect();
-    const submenuLeft = actionsMenuRect?.right ?? triggerRect.right;
+    const submenuLeft =
+      (actionsMenuRect?.right ?? triggerRect.right) - dropdownJoinOverlap;
 
     setSubmenuStyle({
       left: submenuLeft,
@@ -2404,6 +2432,48 @@ function CategoryMenuSection({
     updateSubmenuPosition();
     setIsExpanded(true);
   }, [cancelScheduledClose, updateSubmenuPosition]);
+
+  const updateJoinShape = useCallback(() => {
+    const trigger = triggerRef.current;
+    const submenu = submenuRef.current;
+    const mainMenu = trigger?.closest<HTMLElement>(
+      '[data-card-actions-menu="true"]',
+    );
+
+    if (!mainMenu || !submenu) {
+      return;
+    }
+
+    const nextShape = getDropdownJoinShape(
+      mainMenu.getBoundingClientRect().height,
+      submenu.getBoundingClientRect().height,
+    );
+    setJoinShape(nextShape);
+    onJoinShapeChange(nextShape);
+  }, [onJoinShapeChange]);
+
+  useLayoutEffect(() => {
+    if (!isExpanded || !submenuStyle) {
+      return;
+    }
+
+    updateJoinShape();
+
+    if (typeof ResizeObserver === 'undefined') {
+      return;
+    }
+
+    const observer = new ResizeObserver(updateJoinShape);
+    const mainMenu = triggerRef.current?.closest<HTMLElement>(
+      '[data-card-actions-menu="true"]',
+    );
+    const submenu = submenuRef.current;
+
+    if (mainMenu) observer.observe(mainMenu);
+    if (submenu) observer.observe(submenu);
+
+    return () => observer.disconnect();
+  }, [isExpanded, submenuStyle, updateJoinShape]);
 
   useEffect(
     () => () => {
@@ -2419,6 +2489,7 @@ function CategoryMenuSection({
 
     function updatePosition() {
       updateSubmenuPosition();
+      updateJoinShape();
     }
 
     window.addEventListener('resize', updatePosition);
@@ -2428,7 +2499,14 @@ function CategoryMenuSection({
       window.removeEventListener('resize', updatePosition);
       window.removeEventListener('scroll', updatePosition, true);
     };
-  }, [isExpanded, updateSubmenuPosition]);
+  }, [isExpanded, updateJoinShape, updateSubmenuPosition]);
+
+  useEffect(
+    () => () => {
+      onJoinShapeChange(null);
+    },
+    [onJoinShapeChange],
+  );
 
   if (assignableCategoryTags.length === 0) {
     return null;
@@ -2440,7 +2518,11 @@ function CategoryMenuSection({
           <div
             ref={submenuRef}
             data-goal-category-submenu="true"
-            className="modal-panel fixed z-70 grid max-h-[min(20rem,calc(100vh-2rem))] min-w-52 gap-1 overflow-y-auto rounded-l-none border-0 p-2 text-sm shadow-[0_24px_70px_rgba(8,6,20,0.44)]"
+            className={`dropdown-extension-panel modal-panel fixed z-50 min-w-52 border-0 text-sm shadow-[0_24px_70px_rgba(8,6,20,0.44)] ${
+              joinShape === 'extension-taller'
+                ? 'dropdown-extension-panel--rounded-left'
+                : 'rounded-l-none'
+            }`}
             style={{ ...submenuStyle, transform: 'translateY(-50%)' }}
             onClick={(event) => event.stopPropagation()}
             onFocus={(event) => event.stopPropagation()}
@@ -2457,23 +2539,23 @@ function CategoryMenuSection({
             }}
             onPointerDown={(event) => event.stopPropagation()}
           >
-            {assignableCategoryTags.map((tag) => (
-              <button
-                key={tag.id}
-                type="button"
-                className={`flex items-center gap-2 rounded-xl px-2 py-2 text-left text-[#fff9f2] transition hover:bg-white/[0.08] ${
-                  tag.id === selectedCategoryTagId ? 'bg-white/[0.06]' : ''
-                }`}
-                onClick={() => void onAssign(tag.id)}
-              >
-                <span
-                  aria-hidden="true"
-                  className="size-3 shrink-0 rounded-full"
-                  style={{ backgroundColor: tag.colorHex }}
-                />
-                <span className="truncate">{tag.name}</span>
-              </button>
-            ))}
+            <div className="dropdown-extension-panel__content grid max-h-[min(20rem,calc(100vh-2rem))] gap-1 overflow-y-auto p-2">
+              {assignableCategoryTags.map((tag) => (
+                <button
+                  key={tag.id}
+                  type="button"
+                  className="flex items-center gap-2 rounded-xl px-2 py-2 text-left text-[#fff9f2] transition hover:bg-white/[0.08]"
+                  onClick={() => void onAssign(tag.id)}
+                >
+                  <span
+                    aria-hidden="true"
+                    className="size-3 shrink-0 rounded-full"
+                    style={{ backgroundColor: tag.colorHex }}
+                  />
+                  <span className="truncate">{tag.name}</span>
+                </button>
+              ))}
+            </div>
           </div>,
           document.body,
         )
@@ -3063,10 +3145,11 @@ function GoalDetailCard({
   const allSelectedBold =
     selectedGoalSteps.length > 0 &&
     selectedGoalSteps.every((goalStep) => goalStep.bold);
-  const selectedLabel = dictionary.dayEditor.itemsSelected.replace(
-    '{count}',
-    String(selectedCount),
-  );
+  const selectedLabel = formatSelectionLabel({
+    count: selectedCount,
+    plural: dictionary.dayEditor.itemsSelected,
+    singular: dictionary.dayEditor.itemSelected,
+  });
 
   return (
     <section
@@ -3078,10 +3161,11 @@ function GoalDetailCard({
         bulkDeleteDialog={{
           cancelLabel: dictionary.actions.cancel,
           confirmLabel: dictionary.actions.delete,
-          description: dictionary.dayEditor.confirmBulkDeleteItems.replace(
-            '{count}',
-            String(selectedCount),
-          ),
+          description: formatCountLabel({
+            count: selectedCount,
+            plural: dictionary.dayEditor.confirmBulkDeleteItems,
+            singular: dictionary.dayEditor.confirmBulkDeleteItem,
+          }),
           open: isBulkDeleteDialogOpen,
           title: dictionary.dayEditor.bulkDeleteItems,
           onClose: closeBulkDeleteDialog,
@@ -3158,7 +3242,7 @@ function GoalDetailCard({
             rows={displayGoalStepRows}
             onBulkAssignCategory={assignBulkCategory}
             onBulkDelete={openBulkDeleteDialog}
-            onBulkToggleChecked={async (nextChecked) => {
+            onBulkToggleChecked={async (nextValues) => {
               if (!scope) {
                 return;
               }
@@ -3166,7 +3250,8 @@ function GoalDetailCard({
               await setGoalStepsCompleted({
                 scope,
                 goalStepIds: [...selectedIds],
-                completed: nextChecked,
+                completed: nextValues.completed,
+                ignored: nextValues.ignored,
               });
             }}
             onToggleSelect={toggleSelect}
@@ -3201,7 +3286,7 @@ function GoalStepRow({
   rows: GoalStepSurfaceRow[];
   onBulkAssignCategory: (categoryTagId: string | null) => Promise<void>;
   onBulkDelete: () => void;
-  onBulkToggleChecked: (nextChecked: boolean) => Promise<void>;
+  onBulkToggleChecked: (nextValues: TaskCompletionValues) => Promise<void>;
   onToggleSelect: (id: string, shiftKey: boolean) => void;
   setDraftGoalSteps: Dispatch<SetStateAction<GoalStepDraft[]>>;
 }) {
@@ -3353,6 +3438,49 @@ function GoalStepRow({
     }
   }
 
+  function indentGoalStepItem() {
+    if (!scope) {
+      return;
+    }
+
+    if (!isDraft) {
+      return indentGoalStep({ scope, goalStepId: goalStep.id });
+    }
+
+    const currentSiblingIndex = siblingIds.indexOf(goalStep.id);
+    const previousSiblingId = siblingIds[currentSiblingIndex - 1];
+
+    if (!previousSiblingId) {
+      return;
+    }
+
+    return handleMoveGoalStepToTarget({
+      itemId: goalStep.id,
+      placement: 'child',
+      targetItemId: previousSiblingId,
+    });
+  }
+
+  function outdentGoalStepItem() {
+    if (!scope) {
+      return;
+    }
+
+    if (!isDraft) {
+      return outdentGoalStep({ scope, goalStepId: goalStep.id });
+    }
+
+    if (!goalStep.parentId) {
+      return;
+    }
+
+    return handleMoveGoalStepToTarget({
+      itemId: goalStep.id,
+      placement: 'after',
+      targetItemId: goalStep.parentId,
+    });
+  }
+
   return (
     <TaskTreeEditableRow
       bold={goalStep.bold}
@@ -3447,9 +3575,9 @@ function GoalStepRow({
               );
             })()
       }
-      onIndent={() => indentGoalStep({ scope, goalStepId: goalStep.id })}
+      onIndent={indentGoalStepItem}
       onMoveTo={handleMoveGoalStepToTarget}
-      onOutdent={() => outdentGoalStep({ scope, goalStepId: goalStep.id })}
+      onOutdent={outdentGoalStepItem}
       onSaveText={(text) =>
         isDraft
           ? persistDraftGoalStep(text)

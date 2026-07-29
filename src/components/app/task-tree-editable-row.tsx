@@ -26,6 +26,7 @@ import {
   getTaskCompletionState,
   type CategoryTagSurface,
   type TaskCompletionState,
+  type TaskCompletionValues,
 } from '@/lib/domain';
 import { TaskTreeActionGroup } from './task-tree-action-group';
 import { TaskTreeCategoryChip } from './task-tree-category-chip';
@@ -45,6 +46,10 @@ let activeTreeDrag: {
 interface TaskTreeRowLabels {
   addChild: string;
   assignCategory: string;
+  bulkBold: string;
+  bulkCategory: string;
+  bulkDelete: string;
+  bulkPriority: string;
   cancel: string;
   clearCategory: string;
   collapseItem: string;
@@ -74,7 +79,9 @@ interface TaskTreeSelection {
   isSelectionMode: boolean;
   onBulkAssignCategory: (categoryTagId: string | null) => Promise<void>;
   onBulkDelete: () => void;
-  onBulkToggleChecked: (nextChecked: boolean) => Promise<void> | void;
+  onBulkToggleChecked: (
+    nextValues: TaskCompletionValues,
+  ) => Promise<void> | void;
   onToggle: (shiftKey: boolean) => void;
 }
 
@@ -191,6 +198,7 @@ export function TaskTreeEditableRow({
     value: boolean;
   } | null>(null);
   const normalizedScheduledTime = scheduledTime ?? '';
+  const isSelectionMode = selection?.isSelectionMode === true;
   const [timeState, setTimeState] = useState({
     source: normalizedScheduledTime,
     value: normalizedScheduledTime,
@@ -257,19 +265,20 @@ export function TaskTreeEditableRow({
   }, [flushText, isDraft, resetText, text]);
 
   const toggleChecked = useCallback(async () => {
+    const nextValues = getNextTaskCompletionValues(
+      displayedChecked,
+      displayedIgnored,
+    );
+
     if (selection?.isSelectionMode) {
       if (!selection.isSelected) {
         return;
       }
 
-      await selection.onBulkToggleChecked(!displayedChecked);
+      await selection.onBulkToggleChecked(nextValues);
       return;
     }
 
-    const nextValues = getNextTaskCompletionValues(
-      displayedChecked,
-      displayedIgnored,
-    );
     setOptimisticCompletion({
       base: completionState,
       value: getTaskCompletionState(nextValues.completed, nextValues.ignored),
@@ -557,6 +566,7 @@ export function TaskTreeEditableRow({
       >
         <TaskTreeCollapseButton
           collapseLabel={labels.collapseItem}
+          disabled={isSelectionMode}
           expandLabel={labels.expandItem}
           hasChildren={hasChildren}
           isCollapsed={collapsed}
@@ -566,7 +576,8 @@ export function TaskTreeEditableRow({
         <IconButton
           aria-label={labels.dragItem}
           className="cursor-grab rounded-full hover:bg-white/[0.08] hover:text-[#fff9f2] active:cursor-grabbing focus-visible:outline-[#f0c38e]"
-          draggable
+          disabled={isSelectionMode}
+          draggable={!isSelectionMode}
           onDragEnd={() => {
             setIsDragging(false);
             setDropPosition(null);
@@ -654,6 +665,7 @@ export function TaskTreeEditableRow({
           <IconButton
             aria-label={labels.addChild}
             className="rounded-full hover:bg-white/[0.08] hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
+            disabled={isSelectionMode}
             onClick={() =>
               void (async () => {
                 await flushText();
@@ -666,7 +678,7 @@ export function TaskTreeEditableRow({
           <IconButton
             aria-label={labels.outdentItem}
             className="rounded-full hover:bg-white/[0.08] hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
-            disabled={depth === 0}
+            disabled={isSelectionMode || depth === 0}
             onClick={() => void onOutdent()}
           >
             <IndentDecrease aria-hidden="true" className="size-4" />
@@ -674,7 +686,7 @@ export function TaskTreeEditableRow({
           <IconButton
             aria-label={labels.indentItem}
             className="rounded-full hover:bg-white/[0.08] hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
-            disabled={isFirstSibling}
+            disabled={isSelectionMode || isFirstSibling}
             onClick={() => void onIndent()}
           >
             <IndentIncrease aria-hidden="true" className="size-4" />
@@ -682,7 +694,7 @@ export function TaskTreeEditableRow({
           <TaskTreeMoreActionsMenu
             bold={displayedBold}
             categoryTagMap={categoryTagMap}
-            disabled={selection?.isSelectionMode === true}
+            disabled={isSelectionMode}
             labels={labels}
             priority={displayedPriority}
             selectedCategoryTagId={categoryTagId}

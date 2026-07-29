@@ -116,12 +116,28 @@ test('aligns the goal category submenu with its hovered action', async ({
       topLeft: style.borderTopLeftRadius,
     };
   });
+  const joinedSurfaceStyles = await submenu.evaluate((element) => {
+    const panelStyle = window.getComputedStyle(element);
+    const backdropStyle = window.getComputedStyle(element, '::before');
+    const mainStyle = window.getComputedStyle(
+      document.querySelector('[data-goal-actions-menu="true"]')!,
+    );
+
+    return {
+      mainClipPath: mainStyle.clipPath,
+      panelBackdropFilter: panelStyle.backdropFilter,
+      panelZIndex: panelStyle.zIndex,
+      sampledBackdropFilter: backdropStyle.backdropFilter,
+      sampledBackdropClipPath: backdropStyle.clipPath,
+      sampledBackdropLeft: backdropStyle.left,
+    };
+  });
 
   expect(actionBox).not.toBeNull();
   expect(actionsMenuBox).not.toBeNull();
   expect(submenuBox).not.toBeNull();
   expect(submenuBox?.x).toBeCloseTo(
-    (actionsMenuBox?.x ?? 0) + (actionsMenuBox?.width ?? 0),
+    (actionsMenuBox?.x ?? 0) + (actionsMenuBox?.width ?? 0) - 1,
     0,
   );
   expect(submenuBox?.x ?? 0).toBeGreaterThanOrEqual(
@@ -132,6 +148,12 @@ test('aligns the goal category submenu with its hovered action', async ({
     0,
   );
   expect(radii).toEqual({ bottomLeft: '0px', topLeft: '0px' });
+  expect(joinedSurfaceStyles.mainClipPath).not.toBe('none');
+  expect(joinedSurfaceStyles.panelBackdropFilter).toBe('none');
+  expect(joinedSurfaceStyles.panelZIndex).toBe('50');
+  expect(joinedSurfaceStyles.sampledBackdropFilter).toBe('blur(14px)');
+  expect(joinedSurfaceStyles.sampledBackdropClipPath).not.toBe('none');
+  expect(joinedSurfaceStyles.sampledBackdropLeft).toBe('-32px');
 
   await submenu.hover();
   await expect(submenu).toBeVisible();

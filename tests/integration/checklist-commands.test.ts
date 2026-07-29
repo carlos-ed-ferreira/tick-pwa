@@ -198,6 +198,25 @@ describe('checklist commands', () => {
     await expect(db.dailyEntries.get(entry.id)).resolves.toMatchObject({
       completedCount: 2,
     });
+
+    await setChecklistItemsChecked({
+      scope,
+      itemIds: [first.id, second.id],
+      checked: false,
+      ignored: true,
+    });
+
+    await expect(db.checklistItems.get(first.id)).resolves.toMatchObject({
+      checked: false,
+      ignored: true,
+    });
+    await expect(db.checklistItems.get(second.id)).resolves.toMatchObject({
+      checked: false,
+      ignored: true,
+    });
+    await expect(db.dailyEntries.get(entry.id)).resolves.toMatchObject({
+      completedCount: 0,
+    });
   });
 
   it('supports nesting changes and cascaded soft delete', async () => {

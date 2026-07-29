@@ -4,6 +4,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ChecklistSurface } from '@/features/checklist/checklist-surface';
@@ -80,9 +81,13 @@ vi.mock('@/providers', () => ({
         confirmDeleteItem: 'Are you sure you want to delete this item?',
         selectItem: 'Select item',
         deselectItem: 'Deselect item',
+        itemSelected: '{count} item selected',
         itemsSelected: '{count} selected',
         bulkDeleteItems: 'Delete selected',
-        confirmBulkDeleteItems: 'Are you sure you want to delete this item?',
+        confirmBulkDeleteItem:
+          'You are about to delete {count} selected record.',
+        confirmBulkDeleteItems:
+          'You are about to delete {count} selected records.',
         clearSelection: 'Clear selection',
         bulkPriority: 'Priority',
         bulkBold: 'Bold',
@@ -113,7 +118,12 @@ vi.mock('@/features/checklist/use-checklist-tree', () => ({
 
 function createRow(
   text: string,
-  overrides: Partial<{ priority: boolean; categoryTagId: string | null }> = {},
+  overrides: Partial<{
+    checked: boolean;
+    ignored: boolean;
+    priority: boolean;
+    categoryTagId: string | null;
+  }> = {},
 ) {
   const now = new Date().toISOString();
 
@@ -125,7 +135,8 @@ function createRow(
       parentId: null,
       text,
       scheduledTime: null,
-      checked: false,
+      checked: overrides.checked ?? false,
+      ignored: overrides.ignored ?? false,
       priority: overrides.priority ?? false,
       collapsed: false,
       categoryTagId: overrides.categoryTagId ?? null,
@@ -331,6 +342,46 @@ describe('ChecklistSurface delete confirmation', () => {
     });
   });
 
+  it('indents and outdents an empty draft locally', async () => {
+    useChecklistTreeMock.mockReturnValue([createRow('Original task')]);
+
+    render(<ChecklistSurface dailyEntryId="entry-1" />);
+
+    fireEvent.keyDown(screen.getByDisplayValue('Original task'), {
+      key: 'Enter',
+    });
+
+    await waitFor(() => {
+      expect(screen.getAllByPlaceholderText('Write a task')).toHaveLength(2);
+    });
+    const draftInput = screen.getAllByPlaceholderText('Write a task')[1];
+    const draftRow = draftInput.closest('[data-tree-row]');
+
+    expect(draftRow).not.toBeNull();
+
+    fireEvent.click(
+      within(draftRow as HTMLElement).getByLabelText('Indent item'),
+    );
+
+    await waitFor(() => {
+      expect(draftInput.closest('[data-tree-row]')).toHaveStyle({
+        paddingLeft: '14px',
+      });
+    });
+
+    const indentedRow = draftInput.closest('[data-tree-row]');
+    fireEvent.click(
+      within(indentedRow as HTMLElement).getByLabelText('Outdent item'),
+    );
+
+    await waitFor(() => {
+      expect(draftInput.closest('[data-tree-row]')).toHaveStyle({
+        paddingLeft: '0px',
+      });
+    });
+    expect(createChecklistItemMock).not.toHaveBeenCalled();
+  });
+
   it('toggles item priority from the row controls', async () => {
     useChecklistTreeMock.mockReturnValue([createRow('Important task')]);
 
@@ -466,6 +517,32 @@ describe('ChecklistSurface delete confirmation', () => {
     render(<ChecklistSurface dailyEntryId="entry-1" />);
 
     fireEvent.click(screen.getAllByLabelText('Select item')[0]);
+    fireEvent.click(screen.getByLabelText('Select item'));
+    fireEvent.click(screen.getAllByRole('checkbox')[0]);
+
+    await waitFor(() => {
+      expect(setChecklistItemsCheckedMock).toHaveBeenCalledWith({
+        scope: {
+          id: 'guest:test',
+          kind: 'guest',
+          ownerId: 'test',
+        },
+        itemIds: ['item-First task', 'item-Second task'],
+        checked: true,
+        ignored: false,
+      });
+    });
+  });
+
+  it('bulk advances selected completed checklist items to ignored', async () => {
+    useChecklistTreeMock.mockReturnValue([
+      createRow('First task', { checked: true }),
+      createRow('Second task'),
+    ]);
+
+    render(<ChecklistSurface dailyEntryId="entry-1" />);
+
+    fireEvent.click(screen.getAllByLabelText('Select item')[0]);
     fireEvent.click(screen.getAllByRole('checkbox')[0]);
 
     await waitFor(() => {
@@ -476,7 +553,8 @@ describe('ChecklistSurface delete confirmation', () => {
           ownerId: 'test',
         },
         itemIds: ['item-First task'],
-        checked: true,
+        checked: false,
+        ignored: true,
       });
     });
   });
@@ -528,6 +606,21 @@ describe('ChecklistSurface delete confirmation', () => {
     });
   });
 
+  it('uses the singular selection label for one selected row', () => {
+    useChecklistTreeMock.mockReturnValue([
+      createRow('First task'),
+      createRow('Second task'),
+    ]);
+
+    render(<ChecklistSurface dailyEntryId="entry-1" />);
+
+    fireEvent.click(screen.getAllByLabelText('Select item')[0]);
+
+    expect(
+      screen.getByRole('button', { name: 'Priority · 1 item selected' }),
+    ).toBeInTheDocument();
+  });
+
   it('bulk deletes a selected row from selection mode', async () => {
     useChecklistTreeMock.mockReturnValue([
       createRow('First task'),
@@ -538,11 +631,11 @@ describe('ChecklistSurface delete confirmation', () => {
 
     fireEvent.click(screen.getAllByLabelText('Select item')[0]);
     fireEvent.click(
-      screen.getByRole('button', { name: 'Delete · 1 selected' }),
+      screen.getByRole('button', { name: 'Delete · 1 item selected' }),
     );
 
     expect(
-      await screen.findByText('Are you sure you want to delete this item?'),
+      await screen.findByText('You are about to delete 1 selected record.'),
     ).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
@@ -584,7 +677,7 @@ describe('ChecklistSurface delete confirmation', () => {
     fireEvent.change(draftInput, { target: { value: 'Draft fragment' } });
     fireEvent.click(screen.getAllByLabelText('Select item')[0]);
     fireEvent.click(
-      screen.getByRole('button', { name: 'Delete · 1 selected' }),
+      screen.getByRole('button', { name: 'Delete · 1 item selected' }),
     );
     fireEvent.click(await screen.findByRole('button', { name: 'Delete' }));
 
@@ -632,7 +725,7 @@ describe('ChecklistSurface delete confirmation', () => {
     );
 
     expect(
-      await screen.findByText('Are you sure you want to delete this item?'),
+      await screen.findByText('You are about to delete 3 selected records.'),
     ).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Delete' }));

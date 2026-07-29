@@ -544,10 +544,12 @@ export async function setChecklistItemsChecked({
   scope,
   itemIds,
   checked,
+  ignored = false,
 }: {
   scope: AppScope;
   itemIds: string[];
   checked: boolean;
+  ignored?: boolean;
 }): Promise<void> {
   if (itemIds.length === 0) {
     return;
@@ -559,14 +561,17 @@ export async function setChecklistItemsChecked({
     for (const itemId of itemIds) {
       const item = await getScopedChecklistItem(scope, itemId);
 
-      if (!item || (item.checked === checked && !item.ignored)) {
+      if (
+        !item ||
+        (item.checked === checked && Boolean(item.ignored) === ignored)
+      ) {
         continue;
       }
 
       const updatedItem = touchChecklistItem(scope, {
         ...item,
         checked,
-        ignored: false,
+        ignored,
       });
       await persistChecklistItemUpdate(scope, updatedItem, [
         'checked',
