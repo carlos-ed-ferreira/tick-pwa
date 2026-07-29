@@ -4,8 +4,10 @@ import {
   Button,
   Checkbox,
   ConfirmationDialog,
+  Dialog,
   IconButton,
   Input,
+  ModalActionButton,
   Text,
   Tooltip,
 } from '@/components/ui';
@@ -71,6 +73,29 @@ describe('UI primitives', () => {
     expect(button).not.toHaveClass('shadow-sm');
   });
 
+  it('keeps modal surfaces borderless and modal actions compact', () => {
+    render(
+      <Dialog open title="Preferences" onClose={() => undefined}>
+        <ModalActionButton tone="accent">
+          <svg aria-hidden="true" />
+          Save
+        </ModalActionButton>
+      </Dialog>,
+    );
+
+    const dialog = screen.getByRole('dialog', { name: 'Preferences' });
+    const action = screen.getByRole('button', { name: 'Save' });
+    const closeButton = screen.getByRole('button', { name: 'Close' });
+
+    expect(dialog).toHaveClass('border-0', 'after:hidden');
+    expect(dialog.querySelector('.modal-header')).toHaveClass('border-0');
+    expect(closeButton).toHaveClass('size-8');
+    expect(closeButton).not.toHaveClass('size-9');
+    expect(action).toHaveClass('h-8', 'rounded-full', 'px-3', 'text-sm');
+    expect(action).toHaveClass('bg-[#f0c38e]', 'text-[#312c51]');
+    expect(action.querySelector('svg')).toBeInTheDocument();
+  });
+
   it('replaces native icon-button titles with the shared visual tooltip', () => {
     render(
       <IconButton aria-label="Configure preferences" title="Native title">
@@ -125,7 +150,20 @@ describe('UI primitives', () => {
       'bg-rose-500/90',
       'text-rose-50',
       'shadow-rose-500/20',
+      'h-8',
+      'rounded-full',
     );
+    expect(
+      screen.getByRole('button', { name: 'Delete' }).querySelector('svg'),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Delete' }).parentElement,
+    ).toHaveClass('mt-1', 'pt-2');
+    const cancelAction = screen
+      .getAllByRole('button', { name: 'Cancel' })
+      .find((button) => button.textContent === 'Cancel');
+
+    expect(cancelAction?.querySelector('svg')).toBeInTheDocument();
 
     rerender(
       <ConfirmationDialog

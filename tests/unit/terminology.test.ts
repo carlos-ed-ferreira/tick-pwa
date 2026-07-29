@@ -5,6 +5,12 @@ import { ptBRDictionary } from '@/lib/i18n/dictionaries/pt-BR';
 describe('product terminology', () => {
   it('uses tasks and subtasks throughout the daily task UI', () => {
     expect(ptBRDictionary.navigation.calendar).toBe('Tarefas do dia');
+    expect(ptBRDictionary.calendar.editCategories).toBe(
+      'Editar categorias de tarefas',
+    );
+    expect(ptBRDictionary.dayEditor.backToCalendar).toBe(
+      'Voltar para o calendário',
+    );
     expect(ptBRDictionary.dayEditor.addItem).toBe('Adicionar tarefa');
     expect(ptBRDictionary.dayEditor.addChild).toBe('Criar subtarefa');
     expect(ptBRDictionary.dayEditor.emptyChecklist).toBe(
@@ -14,6 +20,8 @@ describe('product terminology', () => {
     expect(ptBRDictionary.dayEditor.rowActionsTitle).toBe('Ações da tarefa');
 
     expect(enDictionary.navigation.calendar).toBe('Daily Tasks');
+    expect(enDictionary.calendar.editCategories).toBe('Edit task categories');
+    expect(enDictionary.dayEditor.backToCalendar).toBe('Back to calendar');
     expect(enDictionary.dayEditor.title).toBe('Daily tasks');
     expect(enDictionary.dayEditor.addItem).toBe('Add task');
     expect(enDictionary.dayEditor.addChild).toBe('Create subtask');

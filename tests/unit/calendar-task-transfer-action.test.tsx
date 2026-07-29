@@ -16,7 +16,7 @@ vi.mock('@/providers', () => ({
       },
       calendar: {
         bulkDatePlaceholder: 'DD-MM-YYYY',
-        title: 'Daily Calendar',
+        title: 'Daily Tasks',
         transferDescription:
           'Choose the destination date to move or duplicate all tasks from this day.',
         transferDialogTitle: 'Move or duplicate day tasks',
@@ -55,7 +55,19 @@ describe('CalendarTaskTransferAction', () => {
     fireEvent.click(
       screen.getByRole('button', { name: 'Move or duplicate day' }),
     );
-    fireEvent.click(screen.getByRole('button', { name: 'Move tasks' }));
+    const moveButton = screen.getByRole('button', { name: 'Move tasks' });
+    const duplicateButton = screen.getByRole('button', {
+      name: 'Duplicate tasks',
+    });
+
+    expect(moveButton).toHaveClass('h-8', 'rounded-full');
+    expect(duplicateButton).toHaveClass('h-8', 'rounded-full');
+    expect(moveButton.querySelector('svg')).toBeInTheDocument();
+    expect(duplicateButton.querySelector('svg')).toBeInTheDocument();
+    expect(screen.getByRole('dialog')).toHaveClass('sm:h-auto');
+    expect(screen.getByRole('dialog').querySelector('.modal-panel')).toBeNull();
+
+    fireEvent.click(moveButton);
 
     expect(
       await screen.findByText('Enter a valid date in DD-MM-YYYY.'),

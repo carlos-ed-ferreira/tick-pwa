@@ -1,6 +1,6 @@
 'use client';
 
-import { Clock3, Trash2 } from 'lucide-react';
+import { Clock3, Plus, Trash2, X } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
 import {
   TaskTreeBulkActions,
@@ -9,7 +9,7 @@ import {
   TreeListPanel,
   type TaskTreeRowActionPreferences,
 } from '@/components/app';
-import { Button, Dialog, IconButton, Input } from '@/components/ui';
+import { Dialog, IconButton, Input, ModalActionButton } from '@/components/ui';
 import { useCategoryTags } from '@/features/categories';
 import { useTreeSelection } from '@/hooks/use-tree-selection';
 import { useTaskTreeRowActionPreferences } from '@/hooks/use-task-tree-row-action-visibility';
@@ -232,7 +232,7 @@ export function BulkCalendarEditor({
       onClose={handleClose}
     >
       <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden p-4 sm:p-5">
-        <div className="modal-panel grid gap-4 p-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+        <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
           <label className="grid gap-2 text-sm font-medium text-[#fff9f2]">
             <span>{dictionary.calendar.bulkStartDate}</span>
             <Input
@@ -276,7 +276,7 @@ export function BulkCalendarEditor({
                     key={weekday}
                     type="button"
                     aria-pressed={isSelected}
-                    className={`h-11 rounded-full border px-3 text-sm font-medium shadow-sm transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e] ${
+                    className={`h-8 rounded-full border px-3 text-sm font-medium shadow-sm transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e] ${
                       isSelected
                         ? 'border-[#f8d7aa]/70 bg-[#f0c38e] text-[#312c51] shadow-[0_12px_24px_rgba(240,195,142,0.16)]'
                         : 'border-white/10 bg-white/[0.045] text-[#bdb4d4] hover:border-[#f0c38e]/[0.28] hover:bg-[#f0c38e]/10 hover:text-[#fff9f2]'
@@ -292,7 +292,7 @@ export function BulkCalendarEditor({
         </div>
 
         {validationMessage ? (
-          <div className="rounded-[1rem] border border-rose-300/[0.18] bg-rose-400/[0.12] px-3 py-2 text-sm font-medium text-rose-100 shadow-sm">
+          <div className="rounded-xl bg-rose-400/[0.12] px-3 py-2 text-sm font-medium text-rose-100">
             {validationMessage}
           </div>
         ) : null}
@@ -303,8 +303,8 @@ export function BulkCalendarEditor({
             setDraftItems={setDraftItems}
           />
         ) : (
-          <div className="modal-panel flex min-h-0 flex-1 items-center justify-center gap-3 bg-rose-400/[0.08] p-6 text-center text-sm font-medium leading-6 text-rose-100">
-            <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-full border border-rose-200/18 bg-rose-300/12 text-rose-100">
+          <div className="flex min-h-0 flex-1 items-center justify-center gap-3 rounded-xl bg-rose-400/[0.08] p-6 text-center text-sm font-medium leading-6 text-rose-100">
+            <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-full bg-rose-300/12 text-rose-100">
               <Trash2 aria-hidden="true" className="size-5" />
             </span>
             <span>{dictionary.calendar.bulkClearDescription}</span>
@@ -312,29 +312,26 @@ export function BulkCalendarEditor({
         )}
 
         <div className="flex flex-wrap items-center justify-end gap-2">
-          <Button
-            className="h-12 rounded-[1.15rem] border border-white/10 bg-white/5 px-5 text-[#fff9f2] hover:bg-white/[0.09] focus-visible:outline-[#f0c38e]"
-            tone="subtle"
-            onClick={handleClose}
-          >
+          <ModalActionButton onClick={handleClose}>
+            <X aria-hidden="true" className="size-3.5" />
             {dictionary.actions.cancel}
-          </Button>
-          <Button
-            className={`h-12 rounded-[1.15rem] px-5 ${
-              isCreateMode
-                ? 'border border-[#f8d7aa]/70 bg-[#f0c38e] text-[#312c51] shadow-[0_16px_32px_rgba(240,195,142,0.18)] hover:border-[#ffe0b8] hover:bg-[#f5d09f] focus-visible:outline-[#f0c38e]'
-                : 'border border-rose-300/[0.24] bg-rose-400/[0.15] text-rose-50 shadow-[0_14px_28px_rgba(244,63,94,0.14)] hover:bg-rose-400/[0.22] focus-visible:outline-rose-200'
-            }`}
+          </ModalActionButton>
+          <ModalActionButton
             tone={isCreateMode ? 'accent' : 'danger'}
             disabled={isSubmitting}
             onClick={() =>
               void (isCreateMode ? applyBulkRange() : clearBulkRange())
             }
           >
+            {isCreateMode ? (
+              <Plus aria-hidden="true" className="size-3.5" />
+            ) : (
+              <Trash2 aria-hidden="true" className="size-3.5" />
+            )}
             {isCreateMode
               ? dictionary.calendar.bulkApply
               : dictionary.calendar.bulkClearApply}
-          </Button>
+          </ModalActionButton>
         </div>
       </div>
     </Dialog>
@@ -396,6 +393,7 @@ function BulkChecklistSurface({
         emptyLabel={dictionary.calendar.bulkEmptyChecklist}
         hasRows={rows.length > 0}
         isSelectionMode={isSelectionMode}
+        surface="none"
         onAddRoot={createRootItem}
         onClearSelection={clearSelection}
         selectionActions={
@@ -453,6 +451,7 @@ function BulkChecklistSurface({
           <>
             <IconButton
               aria-label={dictionary.calendar.sortByTime}
+              size="compact"
               title={dictionary.calendar.sortByTime}
               className="rounded-full border border-white/10 bg-white/5 text-[#bdb4d4] hover:bg-white/10 hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
               onClick={() =>

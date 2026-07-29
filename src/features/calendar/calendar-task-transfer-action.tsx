@@ -1,8 +1,8 @@
 'use client';
 
-import { ArrowRightLeft } from 'lucide-react';
+import { ArrowRightLeft, Copy, MoveRight, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Button, Dialog, Input } from '@/components/ui';
+import { Button, Dialog, Input, ModalActionButton } from '@/components/ui';
 import type { LocalDateString } from '@/lib/domain';
 import { formatLocalDateLabel } from '@/lib/i18n';
 import { parseLocalDateKey } from '@/lib/time';
@@ -105,7 +105,7 @@ export function CalendarTaskTransferAction({
 
       <Dialog
         closeLabel={dictionary.actions.cancel}
-        panelClassName="sm:max-w-xl"
+        panelClassName="sm:h-auto sm:max-w-xl"
         title={dictionary.calendar.transferDialogTitle}
         open={isOpen}
         onClose={closeDialog}
@@ -115,7 +115,7 @@ export function CalendarTaskTransferAction({
             {dictionary.calendar.transferDescription}
           </p>
 
-          <div className="grid gap-1 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm">
+          <div className="grid gap-1 rounded-xl bg-white/[0.035] px-3 py-2.5 text-sm">
             <span className="text-xs font-semibold uppercase tracking-[0.14em] text-[#9f96b8]">
               {dictionary.calendar.title}
             </span>
@@ -144,31 +144,26 @@ export function CalendarTaskTransferAction({
             <p className="text-sm text-rose-200">{validationMessage}</p>
           ) : null}
 
-          <div className="mt-auto flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-            <Button
-              tone="subtle"
-              className="sm:min-w-28"
-              disabled={isSubmitting}
-              onClick={closeDialog}
-            >
+          <div className="mt-auto flex flex-wrap items-center justify-end gap-2">
+            <ModalActionButton disabled={isSubmitting} onClick={closeDialog}>
+              <X aria-hidden="true" className="size-3.5" />
               {dictionary.actions.cancel}
-            </Button>
-            <Button
-              tone="secondary"
-              className="sm:min-w-28"
+            </ModalActionButton>
+            <ModalActionButton
               disabled={isSubmitting}
               onClick={() => void handleTransfer('move')}
             >
+              <MoveRight aria-hidden="true" className="size-3.5" />
               {dictionary.calendar.transferMove}
-            </Button>
-            <Button
-              tone="primary"
-              className="sm:min-w-28"
+            </ModalActionButton>
+            <ModalActionButton
+              tone="accent"
               disabled={isSubmitting}
               onClick={() => void handleTransfer('duplicate')}
             >
+              <Copy aria-hidden="true" className="size-3.5" />
               {dictionary.calendar.transferDuplicate}
-            </Button>
+            </ModalActionButton>
           </div>
         </div>
       </Dialog>

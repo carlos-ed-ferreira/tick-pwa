@@ -136,7 +136,7 @@ export function TaskTreeRowActionsMenu({
       <Dialog
         closeLabel={labels.close}
         open={isOpen}
-        panelClassName="modal-surface--flat sm:h-auto sm:max-h-[min(92vh,760px)] sm:max-w-[52rem]"
+        panelClassName="sm:h-auto sm:max-h-[min(92vh,760px)] sm:max-w-[52rem]"
         title={labels.title}
         onClose={closeDialog}
       >

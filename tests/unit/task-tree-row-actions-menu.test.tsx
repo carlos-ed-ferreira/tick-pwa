@@ -55,7 +55,7 @@ describe('TaskTreeRowActionsMenu', () => {
 
     const dialog = screen.getByRole('dialog', { name: 'Task row actions' });
 
-    expect(dialog).toHaveClass('modal-surface--flat');
+    expect(dialog).toHaveClass('border-0', 'after:hidden');
     expect(dialog.querySelector('[data-row-action-setting]')).not.toHaveClass(
       'border',
     );

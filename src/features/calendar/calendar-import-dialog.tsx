@@ -1,7 +1,8 @@
 'use client';
 
+import { FileUp, X } from 'lucide-react';
 import { useCallback, useState } from 'react';
-import { Button, Dialog } from '@/components/ui';
+import { Dialog, ModalActionButton } from '@/components/ui';
 import { importCalendarDays } from '@/lib/db';
 import type { Dictionary } from '@/lib/i18n';
 import { useAppContext } from '@/providers';
@@ -128,7 +129,7 @@ export function CalendarImportDialog({
         </label>
 
         {errorMessages.length > 0 ? (
-          <ul className="grid gap-1 rounded-[1rem] border border-rose-300/[0.18] bg-rose-400/[0.12] px-3 py-2 text-sm font-medium text-rose-100 shadow-sm">
+          <ul className="grid gap-1 rounded-xl bg-rose-400/[0.12] px-3 py-2 text-sm font-medium text-rose-100">
             {errorMessages.map((message) => (
               <li key={message}>{message}</li>
             ))}
@@ -136,21 +137,18 @@ export function CalendarImportDialog({
         ) : null}
 
         <div className="flex flex-wrap items-center justify-end gap-2">
-          <Button
-            className="h-12 rounded-[1.15rem] border border-white/10 bg-white/5 px-5 text-[#fff9f2] hover:bg-white/[0.09] focus-visible:outline-[#f0c38e]"
-            tone="subtle"
-            onClick={handleClose}
-          >
+          <ModalActionButton onClick={handleClose}>
+            <X aria-hidden="true" className="size-3.5" />
             {dictionary.actions.cancel}
-          </Button>
-          <Button
-            className="h-12 rounded-[1.15rem] border border-[#f8d7aa]/70 bg-[#f0c38e] px-5 text-[#312c51] shadow-[0_16px_32px_rgba(240,195,142,0.18)] hover:border-[#ffe0b8] hover:bg-[#f5d09f] focus-visible:outline-[#f0c38e]"
+          </ModalActionButton>
+          <ModalActionButton
             tone="accent"
             disabled={isSubmitting}
             onClick={() => void importPayload()}
           >
+            <FileUp aria-hidden="true" className="size-3.5" />
             {dictionary.calendar.importApply}
-          </Button>
+          </ModalActionButton>
         </div>
       </div>
     </Dialog>

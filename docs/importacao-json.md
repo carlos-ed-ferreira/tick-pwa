@@ -1,7 +1,7 @@
-# Importação JSON no calendário
+# Importação JSON nas tarefas do dia
 
-Permite popular o calendário colando um JSON pronto, em vez de digitar tarefa
-por tarefa.
+Permite adicionar tarefas a vários dias colando um JSON pronto, em vez de
+digitar tarefa por tarefa.
 
 Em `/calendar`, use o botão **Importar JSON** na barra de ações (ao lado de
 "Criar em lote" e "Limpar em lote"). O modal abre com um campo de texto: cole o
@@ -70,7 +70,7 @@ A categoria é informada pelo nome e pela cor:
   e `rgb(22,163,74)` são rejeitados.
 - O nome é comparado sem diferenciar maiúsculas, minúsculas ou espaços nas
   bordas: `saúde`, `Saúde` e `  SAÚDE  ` são a mesma categoria.
-- Se a categoria **não existir**, ela é criada nas categorias do calendário com
+- Se a categoria **não existir**, ela é criada nas categorias de tarefas com
   a cor informada.
 - Se a categoria **já existir**, ela é reaproveitada e a cor do JSON é
   **ignorada** — a importação nunca troca a cor de uma categoria existente. Para

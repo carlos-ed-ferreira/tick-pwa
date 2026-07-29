@@ -100,7 +100,6 @@ export function CategoryManagerDialog({
     <Dialog
       closeLabel={dictionary.actions.cancel}
       open={open}
-      panelClassName="modal-surface--flat"
       title={title}
       onClose={onClose}
     >
@@ -181,7 +180,7 @@ function CategoryManagerRow({
   }
 
   return (
-    <div className="modal-panel modal-panel--flat grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 px-3 py-3 text-sm transition hover:border-[#f0c38e]/20 hover:bg-white/[0.055]">
+    <div className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 rounded-xl bg-white/[0.035] px-3 py-3 text-sm transition hover:bg-white/[0.055]">
       <label className="relative block size-8 shrink-0 rounded-full border border-white/10 bg-white/5 p-1 shadow-sm focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-[#f0c38e]">
         <input
           aria-label={`${dictionary.dayEditor.assignCategory}: ${tag.name}`}
@@ -231,7 +230,8 @@ function CategoryManagerRow({
       <div className="flex items-center justify-end gap-0.5">
         <IconButton
           aria-label={dictionary.dayEditor.moveCategoryUp}
-          className="size-8 rounded-full text-[#bdb4d4] hover:bg-white/[0.08] hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
+          size="compact"
+          className="rounded-full text-[#bdb4d4] hover:bg-white/[0.08] hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
           disabled={isFirst}
           onClick={() => {
             if (scope) {
@@ -250,7 +250,8 @@ function CategoryManagerRow({
 
         <IconButton
           aria-label={dictionary.dayEditor.moveCategoryDown}
-          className="size-8 rounded-full text-[#bdb4d4] hover:bg-white/[0.08] hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
+          size="compact"
+          className="rounded-full text-[#bdb4d4] hover:bg-white/[0.08] hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
           disabled={isLast}
           onClick={() => {
             if (scope) {
@@ -269,7 +270,8 @@ function CategoryManagerRow({
 
         <IconButton
           aria-label={dictionary.dayEditor.deleteCategory}
-          className="size-8 rounded-full text-[#bdb4d4] hover:bg-rose-400/[0.12] hover:text-rose-100 focus-visible:outline-[#f0c38e]"
+          size="compact"
+          className="rounded-full text-[#bdb4d4] hover:bg-rose-400/[0.12] hover:text-rose-100 focus-visible:outline-[#f0c38e]"
           onClick={() => {
             if (scope) {
               void (async () => {

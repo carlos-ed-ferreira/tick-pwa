@@ -1,7 +1,9 @@
 'use client';
 
+import { Check, Trash2, X } from 'lucide-react';
 import type { ButtonTone } from './button';
 import { Dialog } from './dialog';
+import { ModalActionButton } from './modal-action-button';
 import { Text } from './text';
 
 export function ConfirmationDialog({
@@ -27,35 +29,30 @@ export function ConfirmationDialog({
     <Dialog
       closeLabel={cancelLabel}
       open={open}
-      panelClassName="border-transparent shadow-[0_30px_80px_rgba(8,6,20,0.5)] after:hidden sm:h-auto sm:max-w-md"
+      panelClassName="sm:h-auto sm:max-w-md"
       title={title}
       onClose={onClose}
     >
-      <div className="flex flex-col gap-5 p-4 sm:p-5">
-        <div className="modal-panel px-4 py-3">
-          <Text leading="relaxed" tone="muted">
-            {description}
-          </Text>
-        </div>
-        <div className="flex items-center justify-end gap-2">
-          <button
-            type="button"
-            className="inline-flex h-10 items-center justify-center rounded-[0.75rem] bg-white/[0.06] px-4 text-sm font-semibold text-[#fff9f2] transition hover:bg-white/[0.12] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e]"
-            onClick={onClose}
-          >
+      <div className="flex flex-col gap-4 p-4 sm:p-5">
+        <Text className="px-1" leading="relaxed" tone="muted">
+          {description}
+        </Text>
+        <div className="mt-4 flex items-center justify-end gap-2">
+          <ModalActionButton onClick={onClose}>
+            <X aria-hidden="true" className="size-3.5" />
             {cancelLabel}
-          </button>
-          <button
-            type="button"
-            className={`inline-flex h-10 items-center justify-center rounded-[0.75rem] px-4 text-sm font-semibold shadow-md transition focus-visible:outline-2 focus-visible:outline-offset-2 ${
-              confirmTone === 'danger'
-                ? 'bg-rose-500/90 text-rose-50 shadow-rose-500/20 hover:bg-rose-500 focus-visible:outline-rose-200'
-                : 'border border-[#f8d7aa]/70 bg-[#f0c38e] text-[#312c51] shadow-[#f0c38e]/18 hover:border-[#ffe0b8] hover:bg-[#f5d09f] focus-visible:outline-[#f0c38e]'
-            }`}
+          </ModalActionButton>
+          <ModalActionButton
+            tone={confirmTone === 'danger' ? 'danger' : 'accent'}
             onClick={onConfirm}
           >
+            {confirmTone === 'danger' ? (
+              <Trash2 aria-hidden="true" className="size-3.5" />
+            ) : (
+              <Check aria-hidden="true" className="size-3.5" />
+            )}
             {confirmLabel}
-          </button>
+          </ModalActionButton>
         </div>
       </div>
     </Dialog>

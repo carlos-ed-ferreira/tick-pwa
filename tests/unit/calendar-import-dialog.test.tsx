@@ -76,7 +76,12 @@ describe('CalendarImportDialog', () => {
   it('requires a payload before importing', async () => {
     render(<CalendarImportDialog open onClose={vi.fn()} />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Import' }));
+    const importButton = screen.getByRole('button', { name: 'Import' });
+
+    expect(importButton).toHaveClass('h-8', 'rounded-full');
+    expect(importButton.querySelector('svg')).toBeInTheDocument();
+
+    fireEvent.click(importButton);
 
     expect(
       await screen.findByText('Paste a JSON payload before importing.'),

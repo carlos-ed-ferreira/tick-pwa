@@ -47,6 +47,7 @@ import {
   Dialog,
   IconButton,
   Input,
+  ModalActionButton,
   Tooltip,
 } from '@/components/ui';
 import {
@@ -1178,7 +1179,7 @@ function CreateGoalGroupDialog({
     <Dialog
       closeLabel={cancelLabel}
       open
-      panelClassName="border-transparent shadow-[0_30px_80px_rgba(8,6,20,0.5)] after:hidden sm:h-auto sm:max-w-md"
+      panelClassName="sm:h-auto sm:max-w-md"
       title={title}
       onClose={closeDialog}
     >
@@ -1193,17 +1194,17 @@ function CreateGoalGroupDialog({
           }
         }}
       >
-        <fieldset
-          className={`rounded-[1.15rem] border border-[#fff9f2]/80 px-6 pb-2 pt-1 transition focus-within:border-[#fff9f2] focus-within:shadow-[0_0_0_4px_rgba(255,249,242,0.08)] ${
+        <label
+          className={`grid gap-2 text-sm font-medium text-[#fff9f2] ${
             isCreatingGroup ? 'opacity-75' : ''
           }`}
         >
-          <legend className="px-2 text-[0.68rem] font-semibold uppercase leading-4 tracking-[0.24em] text-[#fff9f2]/90">
+          <span className="text-xs font-semibold uppercase tracking-[0.14em] text-[#9f96b8]">
             {groupTitleLabel}
-          </legend>
+          </span>
           <Input
             aria-label={groupTitleLabel}
-            className="h-8 w-full border-0 bg-transparent p-0 text-base font-medium leading-8 text-[#fff9f2] outline-none placeholder:text-[#fff9f2]/72 focus-visible:outline-none disabled:cursor-not-allowed disabled:text-muted/60"
+            className="h-10 w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 text-base font-medium text-[#fff9f2] outline-none placeholder:text-[#8f85aa] focus:border-[#f0c38e]/40 focus:bg-white/[0.06] disabled:cursor-not-allowed disabled:text-muted/60"
             disabled={isCreatingGroup}
             placeholder={initialTitle}
             value={groupTitle}
@@ -1211,22 +1212,20 @@ function CreateGoalGroupDialog({
               setGroupTitle(event.target.value.toUpperCase())
             }
           />
-        </fieldset>
+        </label>
         <div className="flex items-center justify-end gap-2">
-          <button
-            type="button"
-            className="inline-flex h-10 items-center justify-center rounded-[0.75rem] bg-white/[0.06] px-4 text-sm font-semibold text-[#fff9f2] transition hover:bg-white/[0.12] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e] disabled:cursor-not-allowed disabled:opacity-65"
-            onClick={closeDialog}
-          >
+          <ModalActionButton onClick={closeDialog}>
+            <X aria-hidden="true" className="size-3.5" />
             {cancelLabel}
-          </button>
-          <button
+          </ModalActionButton>
+          <ModalActionButton
             type="submit"
-            className="inline-flex h-10 items-center justify-center rounded-[0.75rem] border border-[#f8d7aa]/70 bg-[#f0c38e] px-4 text-sm font-semibold text-[#312c51] shadow-md shadow-[#f0c38e]/18 transition hover:border-[#ffe0b8] hover:bg-[#f5d09f] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e] disabled:cursor-not-allowed disabled:opacity-65"
+            tone="accent"
             disabled={normalizedTitle.length === 0 || isCreatingGroup}
           >
+            <Plus aria-hidden="true" className="size-3.5" />
             {confirmLabel}
-          </button>
+          </ModalActionButton>
         </div>
       </form>
     </Dialog>

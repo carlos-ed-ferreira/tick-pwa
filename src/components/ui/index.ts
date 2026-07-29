@@ -7,5 +7,6 @@ export * from './dialog';
 export * from './form-field';
 export * from './icon-button';
 export * from './input';
+export * from './modal-action-button';
 export * from './text';
 export * from './tooltip';

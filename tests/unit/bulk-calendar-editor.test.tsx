@@ -147,7 +147,14 @@ describe('BulkCalendarEditor', () => {
   it('validates required dates before submitting', async () => {
     render(<BulkCalendarEditor open onClose={vi.fn()} />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Create' }));
+    const dialog = screen.getByRole('dialog');
+    const createButton = screen.getByRole('button', { name: 'Create' });
+
+    expect(dialog.querySelector('.modal-panel')).toBeNull();
+    expect(createButton).toHaveClass('h-8', 'rounded-full');
+    expect(createButton.querySelector('svg')).toBeInTheDocument();
+
+    fireEvent.click(createButton);
 
     expect(
       await screen.findByText('Start and end dates are required.'),

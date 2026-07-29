@@ -63,7 +63,7 @@ export const enDictionary = {
   },
   calendar: {
     title: 'Daily Tasks',
-    editCategories: 'Edit calendar categories',
+    editCategories: 'Edit task categories',
     bulkApply: 'Create',
     bulkClear: 'Clear in bulk',
     bulkClearApply: 'Clear',

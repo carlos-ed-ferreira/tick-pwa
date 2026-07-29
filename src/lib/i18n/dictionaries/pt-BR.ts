@@ -63,7 +63,7 @@ export const ptBRDictionary = {
   },
   calendar: {
     title: 'Tarefas do dia',
-    editCategories: 'Editar categorias do calendário',
+    editCategories: 'Editar categorias de tarefas',
     bulkApply: 'Criar',
     bulkClear: 'Limpar em lote',
     bulkClearApply: 'Limpar',
