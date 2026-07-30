@@ -673,7 +673,7 @@ export function TaskTreeEditableRow({
             maxLength={5}
             placeholder="00:00"
             value={timeText}
-            className="ml-2 h-6 w-[4rem] shrink-0 rounded-lg border border-white/10 bg-white/[0.045] px-1.5 text-center text-xs font-medium tabular-nums text-[#fff9f2] outline-none transition placeholder:text-[#8f85aa] focus:border-[#f0c38e]/40 focus:bg-white/[0.065] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e]"
+            className="ml-2 h-6 w-[4rem] shrink-0 rounded-lg border border-white/10 bg-white/[0.045] px-1.5 text-center text-xs font-medium tabular-nums text-[#fff9f2] outline-none transition placeholder:text-[#7b8da0] focus:border-[#f0c38e]/40 focus:bg-white/[0.065] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e]"
             spellCheck={false}
             autoCorrect="off"
             autoCapitalize="none"
@@ -694,9 +694,9 @@ export function TaskTreeEditableRow({
             rows={1}
             value={text}
             placeholder={labels.itemPlaceholder}
-            className={`min-w-0 w-full bg-transparent px-2 py-0 text-sm leading-5 outline-none placeholder:text-[#8f85aa] ${
+            className={`min-w-0 w-full bg-transparent px-2 py-0 text-sm leading-5 outline-none placeholder:text-[#7b8da0] ${
               displayedChecked || displayedIgnored
-                ? 'text-[#8f85aa] opacity-75'
+                ? 'text-[#7b8da0] opacity-75'
                 : 'text-[#fff9f2]'
             } ${displayedBold ? 'font-bold' : 'font-normal'}`}
             onBlur={() => void flushEditableText()}

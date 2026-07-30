@@ -111,7 +111,7 @@ export function CalendarImportDialog({
       onClose={handleClose}
     >
       <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4 sm:p-5">
-        <p className="text-sm leading-6 text-[#bdb4d4]">
+        <p className="text-sm leading-6 text-[#aebac8]">
           {dictionary.calendar.importDescription}
         </p>
 
@@ -123,7 +123,7 @@ export function CalendarImportDialog({
             spellCheck={false}
             placeholder={dictionary.calendar.importPlaceholder}
             value={payload}
-            className="min-h-56 flex-1 resize-none rounded-[1rem] border border-white/10 bg-white/[0.055] p-3 font-mono text-xs leading-5 text-[#fff9f2] outline-none transition placeholder:text-[#8f85aa] hover:border-white/[0.16] focus:border-[#f0c38e]/[0.42] focus:bg-white/[0.075] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e]"
+            className="min-h-56 flex-1 resize-none rounded-[1rem] border border-white/10 bg-white/[0.055] p-3 font-mono text-xs leading-5 text-[#fff9f2] outline-none transition placeholder:text-[#7b8da0] hover:border-white/[0.16] focus:border-[#f0c38e]/[0.42] focus:bg-white/[0.075] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e]"
             onChange={(event) => setPayload(event.target.value)}
           />
         </label>

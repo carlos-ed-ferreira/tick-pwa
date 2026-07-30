@@ -118,10 +118,10 @@ function ToastCard({
     <div
       role={isError ? 'alert' : 'status'}
       aria-live={isError ? 'assertive' : 'polite'}
-      className={`pointer-events-auto grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-2xl border-0 px-3 py-3 shadow-[0_20px_56px_rgba(8,6,20,0.42)] backdrop-blur-xl motion-safe:animate-[toast-in_180ms_ease-out] ${
+      className={`pointer-events-auto grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-2xl border-0 px-3 py-3 shadow-[0_20px_56px_rgba(5,8,13,0.42)] backdrop-blur-xl motion-safe:animate-[toast-in_180ms_ease-out] ${
         isError
           ? 'bg-[#4a293d]/95 text-rose-50'
-          : 'bg-[#273f3c]/95 text-emerald-50'
+          : 'bg-[#214131]/95 text-emerald-50'
       }`}
     >
       <span

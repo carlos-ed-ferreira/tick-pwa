@@ -28,7 +28,7 @@ export function AuthShell({
         className="pointer-events-none absolute inset-0 opacity-80"
         style={{
           backgroundImage:
-            'radial-gradient(circle at top left, rgba(72,66,109,0.22), transparent 34%), radial-gradient(circle at top right, rgba(240,195,142,0.18), transparent 30%), radial-gradient(circle at 18% 86%, rgba(241,170,155,0.12), transparent 28%), linear-gradient(180deg, rgba(72,66,109,0.10) 0%, rgba(72,66,109,0.05) 28%, rgba(240,195,142,0.05) 56%, transparent 84%)',
+            'radial-gradient(circle at top left, rgba(58,73,90,0.22), transparent 34%), radial-gradient(circle at top right, rgba(240,195,142,0.18), transparent 30%), radial-gradient(circle at 18% 86%, rgba(165,190,218,0.12), transparent 28%), linear-gradient(180deg, rgba(58,73,90,0.10) 0%, rgba(58,73,90,0.05) 28%, rgba(240,195,142,0.05) 56%, transparent 84%)',
         }}
       />
       <div
@@ -53,7 +53,7 @@ export function AuthShell({
               width={44}
             />
             <div className="min-w-0">
-              <p className="truncate text-sm font-semibold uppercase tracking-[0.28em] text-[#d8d0e8]">
+              <p className="truncate text-sm font-semibold uppercase tracking-[0.28em] text-[#cbd5e0]">
                 {dictionary.app.name}
               </p>
             </div>
@@ -78,7 +78,7 @@ export function AuthShell({
                     </h1>
                     <Text
                       as="p"
-                      className="max-w-prose text-[#d8d0e8]"
+                      className="max-w-prose text-[#cbd5e0]"
                       leading="relaxed"
                       size="base"
                       tone="muted"
@@ -91,7 +91,7 @@ export function AuthShell({
                       <p className="text-sm font-semibold text-foreground">
                         {dictionary.auth.allowedOnly}
                       </p>
-                      <p className="text-sm leading-6 text-[#d8d0e8]">
+                      <p className="text-sm leading-6 text-[#cbd5e0]">
                         {dictionary.auth.noSignup}
                       </p>
                     </div>

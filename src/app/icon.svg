@@ -49,12 +49,12 @@
        y="0"
        ry="80"
        rx="80" /><ellipse
-       style="fill:none;fill-opacity:1;stroke:#312c51;stroke-width:32;stroke-dasharray:none;stroke-opacity:1"
+       style="fill:none;fill-opacity:1;stroke:#253241;stroke-width:32;stroke-dasharray:none;stroke-opacity:1"
        id="circle225"
        cx="256"
        cy="256"
        rx="180"
        ry="180.00002" /><path
-       style="fill:none;fill-opacity:1;stroke:#312c51;stroke-width:32;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1;paint-order:normal"
+       style="fill:none;fill-opacity:1;stroke:#253241;stroke-width:32;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1;paint-order:normal"
        d="m 136.509,246.99341 83.1726,83.3207 L 375.49162,181.688"
        id="path17571" /></g></svg>

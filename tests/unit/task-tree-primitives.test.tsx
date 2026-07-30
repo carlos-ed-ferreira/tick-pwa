@@ -158,7 +158,7 @@ describe('task tree primitives', () => {
 
     expect(marker).toHaveClass(
       'bg-[#f0c38e]',
-      'text-[#241735]',
+      'text-[#141e2a]',
       'shadow-[0_8px_18px_rgba(240,195,142,0.24)]',
     );
     expect(button.querySelector('svg')).toBeInTheDocument();

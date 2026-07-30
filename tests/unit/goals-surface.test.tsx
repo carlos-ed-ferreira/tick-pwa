@@ -866,7 +866,7 @@ describe('GoalsSurface', () => {
       'tracking-[0.24em]',
       'text-[#f7e8ce]',
       'shadow-sm',
-      'shadow-[#312c51]/10',
+      'shadow-[#253241]/10',
     );
     expect(badge).toHaveStyle({
       borderColor: 'rgba(249, 115, 22, 0.6)',
@@ -1281,7 +1281,7 @@ describe('GoalsSurface', () => {
       'border',
       'border-white/10',
       'bg-white/5',
-      'text-[#d8d0e8]',
+      'text-[#cbd5e0]',
     );
     expect(categoryButton.querySelector('.lucide-tag')).not.toBeNull();
     const clearCategoryButton = screen.getByRole('button', {
@@ -1791,7 +1791,7 @@ describe('GoalsSurface', () => {
       'border',
       'border-white/10',
       'bg-white/5',
-      'text-[#d8d0e8]',
+      'text-[#cbd5e0]',
     );
     expect(categoryButton.querySelector('.lucide-tag')).not.toBeNull();
     expect(categoryButton).not.toHaveTextContent('Modo local');
@@ -1842,7 +1842,7 @@ describe('GoalsSurface', () => {
       'border',
       'border-white/10',
       'bg-white/5',
-      'text-[#d8d0e8]',
+      'text-[#cbd5e0]',
     );
     expect(categoryButton.querySelector('.lucide-tag')).not.toBeNull();
     const clearCategoryButton = screen.getByRole('button', {

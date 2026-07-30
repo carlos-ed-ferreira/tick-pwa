@@ -92,7 +92,7 @@ describe('UI primitives', () => {
     expect(closeButton).toHaveClass('size-8');
     expect(closeButton).not.toHaveClass('size-9');
     expect(action).toHaveClass('h-8', 'rounded-full', 'px-3', 'text-sm');
-    expect(action).toHaveClass('bg-[#f0c38e]', 'text-[#312c51]');
+    expect(action).toHaveClass('bg-[#f0c38e]', 'text-[#253241]');
     expect(action.querySelector('svg')).toBeInTheDocument();
   });
 
@@ -181,7 +181,7 @@ describe('UI primitives', () => {
     expect(screen.getByRole('button', { name: 'Archive' })).toHaveClass(
       'border-[#f8d7aa]/70',
       'bg-[#f0c38e]',
-      'text-[#312c51]',
+      'text-[#253241]',
     );
   });
 });

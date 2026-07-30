@@ -276,8 +276,8 @@ export function BulkCalendarEditor({
                     aria-pressed={isSelected}
                     className={`h-8 rounded-full border px-3 text-sm font-medium shadow-sm transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e] ${
                       isSelected
-                        ? 'border-[#f8d7aa]/70 bg-[#f0c38e] text-[#312c51] shadow-[0_12px_24px_rgba(240,195,142,0.16)]'
-                        : 'border-white/10 bg-white/[0.045] text-[#bdb4d4] hover:border-[#f0c38e]/[0.28] hover:bg-[#f0c38e]/10 hover:text-[#fff9f2]'
+                        ? 'border-[#f8d7aa]/70 bg-[#f0c38e] text-[#253241] shadow-[0_12px_24px_rgba(240,195,142,0.16)]'
+                        : 'border-white/10 bg-white/[0.045] text-[#aebac8] hover:border-[#f0c38e]/[0.28] hover:bg-[#f0c38e]/10 hover:text-[#fff9f2]'
                     }`}
                     onClick={() => toggleWeekday(weekday)}
                   >
@@ -471,7 +471,7 @@ function BulkChecklistSurface({
               aria-label={dictionary.calendar.sortByTime}
               size="compact"
               title={dictionary.calendar.sortByTime}
-              className="rounded-full border border-white/10 bg-white/5 text-[#bdb4d4] hover:bg-white/10 hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
+              className="rounded-full border border-white/10 bg-white/5 text-[#aebac8] hover:bg-white/10 hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
               onClick={() =>
                 setDraftItems((currentItems) =>
                   reorderBulkChecklistDraftItemsByScheduledTime(currentItems),

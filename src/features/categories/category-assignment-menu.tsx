@@ -209,7 +209,7 @@ export function CategoryAssignmentMenu({
       ? createPortal(
           <div
             ref={menuRef}
-            className="modal-panel modal-panel--flat fixed z-60 grid gap-1 p-2 text-sm text-[#fff9f2] shadow-[0_24px_70px_rgba(8,6,20,0.44)]"
+            className="modal-panel modal-panel--flat fixed z-60 grid gap-1 p-2 text-sm text-[#fff9f2] shadow-[0_24px_70px_rgba(5,8,13,0.44)]"
             style={menuStyle}
           >
             {assignableCategoryTags.map((tag) => (

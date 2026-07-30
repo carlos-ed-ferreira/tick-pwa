@@ -124,7 +124,7 @@ export function TaskTreeRowActionsMenu({
       <IconButton
         aria-label={labels.configure}
         title={labels.configure}
-        className="rounded-full border border-white/10 bg-white/5 text-[#bdb4d4] hover:bg-white/10 hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
+        className="rounded-full border border-white/10 bg-white/5 text-[#aebac8] hover:bg-white/10 hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
         onClick={() => {
           setApplyToOtherSurface(false);
           setIsOpen(true);
@@ -142,7 +142,7 @@ export function TaskTreeRowActionsMenu({
       >
         <div className="min-h-0 overflow-y-auto p-3 sm:p-5">
           <div className="mb-3 flex items-center justify-between gap-3">
-            <label className="flex min-w-0 items-center gap-2 text-sm font-medium text-[#d8d0e8]">
+            <label className="flex min-w-0 items-center gap-2 text-sm font-medium text-[#cbd5e0]">
               <Checkbox
                 checked={applyToOtherSurface}
                 className="border-[#f0c38e]/55 bg-[#f0c38e]/12 focus-visible:outline-[#f0c38e]"
@@ -175,7 +175,7 @@ export function TaskTreeRowActionsMenu({
                 data-row-action-setting
                 className="grid gap-2 rounded-xl bg-white/[0.035] p-2.5 sm:grid-cols-[minmax(10rem,1fr)_24rem] sm:items-center"
               >
-                <div className="flex min-w-0 items-center gap-2 text-sm font-medium text-[#eee8f7]">
+                <div className="flex min-w-0 items-center gap-2 text-sm font-medium text-[#e5ebf3]">
                   <ActionIcon className="size-4 shrink-0" />
                   <span className="truncate">{labels.actions[key]}</span>
                 </div>
@@ -198,7 +198,7 @@ export function TaskTreeRowActionsMenu({
                         className={`${choiceClassName} ${
                           checked
                             ? 'border-[#f0c38e]/40 bg-[#f0c38e]/14 text-[#fff9f2]'
-                            : 'border-white/[0.08] bg-white/[0.025] text-[#aaa0bf] hover:bg-white/[0.07] hover:text-[#fff9f2]'
+                            : 'border-white/[0.08] bg-white/[0.025] text-[#9aa6b3] hover:bg-white/[0.07] hover:text-[#fff9f2]'
                         }`}
                         onClick={() =>
                           changePreferences({ ...value, [key]: choice.value })
@@ -220,7 +220,7 @@ export function TaskTreeRowActionsMenu({
                   data-row-action-setting
                   className="grid gap-2 rounded-xl bg-white/[0.035] p-2.5 sm:grid-cols-[minmax(10rem,1fr)_24rem] sm:items-center"
                 >
-                  <div className="flex min-w-0 items-center gap-2 text-sm font-medium text-[#eee8f7]">
+                  <div className="flex min-w-0 items-center gap-2 text-sm font-medium text-[#e5ebf3]">
                     <ActionIcon className="size-4 shrink-0" />
                     <span className="truncate">{labels.actions[key]}</span>
                   </div>
@@ -246,7 +246,7 @@ export function TaskTreeRowActionsMenu({
                           className={`${choiceClassName} ${
                             checked
                               ? 'border-[#f0c38e]/40 bg-[#f0c38e]/14 text-[#fff9f2]'
-                              : 'border-white/[0.08] bg-white/[0.025] text-[#aaa0bf] hover:bg-white/[0.07] hover:text-[#fff9f2]'
+                              : 'border-white/[0.08] bg-white/[0.025] text-[#9aa6b3] hover:bg-white/[0.07] hover:text-[#fff9f2]'
                           }`}
                           onClick={() =>
                             changePreferences({ ...value, [key]: choice.value })

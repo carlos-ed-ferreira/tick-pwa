@@ -47,7 +47,7 @@
        height="512"
        x="0"
        y="0" /><circle
-       style="fill:#312c51;fill-opacity:1;stroke-width:0.916038"
+       style="fill:#253241;fill-opacity:1;stroke-width:0.916038"
        id="circle225"
        cx="256"
        cy="256"
@@ -57,6 +57,6 @@
        cx="256"
        cy="256"
        r="120" /><path
-       style="fill:none;fill-opacity:1;stroke:#312c51;stroke-width:24;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1;paint-order:normal"
+       style="fill:none;fill-opacity:1;stroke:#253241;stroke-width:24;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1;paint-order:normal"
        d="m 179.878,250.26213 52.98551,53.07985 99.25953,-94.68298"
        id="path17571" /></g></svg>

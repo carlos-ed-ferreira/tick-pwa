@@ -53,7 +53,7 @@ export function CategoryManager({
     <section className="flex w-full flex-col">
       <div className="flex items-center justify-between gap-2">
         {label ? (
-          <h3 className="min-w-0 truncate px-1 text-sm font-semibold uppercase tracking-[0.18em] text-[#d8d0e8]">
+          <h3 className="min-w-0 truncate px-1 text-sm font-semibold uppercase tracking-[0.18em] text-[#cbd5e0]">
             {label}
           </h3>
         ) : (
@@ -214,14 +214,14 @@ function CategoryManagerRow({
         />
         <span
           aria-hidden="true"
-          className="block size-full rounded-full border border-white/30 shadow-[0_6px_14px_rgba(8,6,20,0.24)]"
+          className="block size-full rounded-full border border-white/30 shadow-[0_6px_14px_rgba(5,8,13,0.24)]"
           style={{ backgroundColor: tag.colorHex }}
         />
       </label>
 
       <Input
         aria-label={dictionary.dayEditor.categoryNamePlaceholder}
-        className="min-w-0 rounded-xl border border-transparent bg-transparent px-2 py-2 uppercase text-[#fff9f2] outline-none transition placeholder:text-[#8f85aa] focus:border-[#f0c38e]/30 focus:bg-white/[0.055] focus:shadow-sm"
+        className="min-w-0 rounded-xl border border-transparent bg-transparent px-2 py-2 uppercase text-[#fff9f2] outline-none transition placeholder:text-[#7b8da0] focus:border-[#f0c38e]/30 focus:bg-white/[0.055] focus:shadow-sm"
         placeholder={dictionary.dayEditor.categoryNamePlaceholder}
         value={draftName}
         onBlur={commitName}
@@ -244,7 +244,7 @@ function CategoryManagerRow({
         <IconButton
           aria-label={dictionary.dayEditor.moveCategoryUp}
           size="compact"
-          className="rounded-full text-[#bdb4d4] hover:bg-white/[0.08] hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
+          className="rounded-full text-[#aebac8] hover:bg-white/[0.08] hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
           disabled={isFirst}
           onClick={() => {
             if (scope) {
@@ -264,7 +264,7 @@ function CategoryManagerRow({
         <IconButton
           aria-label={dictionary.dayEditor.moveCategoryDown}
           size="compact"
-          className="rounded-full text-[#bdb4d4] hover:bg-white/[0.08] hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
+          className="rounded-full text-[#aebac8] hover:bg-white/[0.08] hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
           disabled={isLast}
           onClick={() => {
             if (scope) {
@@ -284,7 +284,7 @@ function CategoryManagerRow({
         <IconButton
           aria-label={dictionary.dayEditor.deleteCategory}
           size="compact"
-          className="rounded-full text-[#bdb4d4] hover:bg-rose-400/[0.12] hover:text-rose-100 focus-visible:outline-[#f0c38e]"
+          className="rounded-full text-[#aebac8] hover:bg-rose-400/[0.12] hover:text-rose-100 focus-visible:outline-[#f0c38e]"
           onClick={() => {
             if (scope) {
               void (async () => {

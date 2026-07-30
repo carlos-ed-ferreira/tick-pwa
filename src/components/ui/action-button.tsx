@@ -29,15 +29,15 @@ const toneClassNames: Record<
 > = {
   primary: {
     wrapper:
-      'border border-[#f8d7aa]/70 bg-[#f0c38e] text-[#312c51] shadow-md shadow-[#f0c38e]/18 hover:border-[#ffe0b8] hover:bg-[#f5d09f]',
-    icon: 'bg-[#312c51]/10 text-[#312c51]',
-    label: 'text-[#312c51]',
-    description: 'text-[#312c51]/82',
-    iconShell: 'bg-[#312c51]/10',
+      'border border-[#f8d7aa]/70 bg-[#f0c38e] text-[#253241] shadow-md shadow-[#f0c38e]/18 hover:border-[#ffe0b8] hover:bg-[#f5d09f]',
+    icon: 'bg-[#253241]/10 text-[#253241]',
+    label: 'text-[#253241]',
+    description: 'text-[#253241]/82',
+    iconShell: 'bg-[#253241]/10',
   },
   secondary: {
     wrapper:
-      'border border-[#fff9f2]/22 bg-[#fff9f2]/10 text-[#fff9f2] shadow-sm shadow-[#312c51]/8 hover:border-[#fff9f2]/34 hover:bg-[#fff9f2]/15',
+      'border border-[#fff9f2]/22 bg-[#fff9f2]/10 text-[#fff9f2] shadow-sm shadow-[#253241]/8 hover:border-[#fff9f2]/34 hover:bg-[#fff9f2]/15',
     icon: 'bg-[#fff9f2]/12 text-[#fff9f2]',
     label: 'text-[#fff9f2]',
     description: 'text-[#fff9f2]/82',

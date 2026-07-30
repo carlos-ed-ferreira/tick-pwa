@@ -66,7 +66,7 @@ export function Dialog({
 
   const dialog = (
     <div
-      className="fixed inset-0 z-50 flex items-end bg-[#090716]/70 backdrop-blur-xl sm:items-center sm:justify-center sm:p-6"
+      className="fixed inset-0 z-50 flex items-end bg-[#050a0e]/70 backdrop-blur-xl sm:items-center sm:justify-center sm:p-6"
       onMouseDown={handleBackdropMouseDown}
     >
       <div
@@ -84,7 +84,7 @@ export function Dialog({
           <IconButton
             aria-label={closeLabel}
             size="compact"
-            className="rounded-full border border-white/10 bg-white/5 text-[#d8d0e8] hover:bg-white/10 hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
+            className="rounded-full border border-white/10 bg-white/5 text-[#cbd5e0] hover:bg-white/10 hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
             onClick={onClose}
           >
             <X aria-hidden="true" className="size-4" />

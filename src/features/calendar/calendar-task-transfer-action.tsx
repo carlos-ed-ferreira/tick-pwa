@@ -100,12 +100,12 @@ export function CalendarTaskTransferAction({
         onClose={closeDialog}
       >
         <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4 sm:p-5">
-          <p className="text-sm leading-6 text-[#bdb4d4]">
+          <p className="text-sm leading-6 text-[#aebac8]">
             {dictionary.calendar.transferDescription}
           </p>
 
           <div className="grid gap-1 rounded-xl bg-white/[0.035] px-3 py-2.5 text-sm">
-            <span className="text-xs font-semibold uppercase tracking-[0.14em] text-[#9f96b8]">
+            <span className="text-xs font-semibold uppercase tracking-[0.14em] text-[#909cab]">
               {dictionary.calendar.title}
             </span>
             <span className="font-medium text-[#fff9f2]">

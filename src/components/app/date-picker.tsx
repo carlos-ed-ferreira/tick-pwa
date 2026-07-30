@@ -203,14 +203,14 @@ export function DatePicker({
       id={popoverId}
       role="dialog"
       aria-label={dictionary.calendar.selectDate}
-      className="tick-datepicker fixed z-[90] w-72 rounded-2xl bg-[#211b3b]/98 p-3 text-[#fff9f2] shadow-[0_24px_70px_rgba(8,6,20,0.56)] backdrop-blur-xl"
+      className="tick-datepicker fixed z-[90] w-72 rounded-2xl bg-[#16202c]/98 p-3 text-[#fff9f2] shadow-[0_24px_70px_rgba(5,8,13,0.56)] backdrop-blur-xl"
       style={popoverPosition}
     >
       <div className="flex items-center justify-between gap-2">
         <IconButton
           aria-label={dictionary.calendar.previousMonth}
           size="compact"
-          className="rounded-full bg-white/[0.045] text-[#bdb4d4] hover:bg-white/[0.1] hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
+          className="rounded-full bg-white/[0.045] text-[#aebac8] hover:bg-white/[0.1] hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
           onClick={() => setMonthDate((current) => moveMonth(current, -1))}
         >
           <ChevronLeft aria-hidden="true" className="size-4" />
@@ -221,7 +221,7 @@ export function DatePicker({
         <IconButton
           aria-label={dictionary.calendar.nextMonth}
           size="compact"
-          className="rounded-full bg-white/[0.045] text-[#bdb4d4] hover:bg-white/[0.1] hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
+          className="rounded-full bg-white/[0.045] text-[#aebac8] hover:bg-white/[0.1] hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
           onClick={() => setMonthDate((current) => moveMonth(current, 1))}
         >
           <ChevronRight aria-hidden="true" className="size-4" />
@@ -230,7 +230,7 @@ export function DatePicker({
 
       <div
         aria-hidden="true"
-        className="mt-2 grid grid-cols-7 gap-1 text-center text-[0.65rem] font-semibold uppercase tracking-[0.08em] text-[#8f85aa]"
+        className="mt-2 grid grid-cols-7 gap-1 text-center text-[0.65rem] font-semibold uppercase tracking-[0.08em] text-[#7b8da0]"
       >
         {dictionary.calendar.weekdays.map((weekday) => (
           <span key={weekday} className="leading-8">
@@ -253,10 +253,10 @@ export function DatePicker({
               aria-pressed={isSelected}
               className={`inline-flex size-8 items-center justify-center rounded-full text-xs font-medium tabular-nums transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e] ${
                 isSelected
-                  ? 'bg-[#f0c38e] text-[#312c51] shadow-sm shadow-[#f0c38e]/20'
+                  ? 'bg-[#f0c38e] text-[#253241] shadow-sm shadow-[#f0c38e]/20'
                   : isToday
                     ? 'bg-[#f0c38e]/12 text-[#f7d7ad] ring-1 ring-inset ring-[#f0c38e]/35 hover:bg-[#f0c38e]/20'
-                    : 'text-[#d8d0e8] hover:bg-white/[0.08] hover:text-[#fff9f2]'
+                    : 'text-[#cbd5e0] hover:bg-white/[0.08] hover:text-[#fff9f2]'
               } ${dayDate.getMonth() === monthNumber ? '' : 'opacity-35'}`}
               onClick={() => selectDate(day.date)}
             >
@@ -289,7 +289,7 @@ export function DatePicker({
           maxLength={10}
           placeholder={placeholder}
           value={value}
-          className="h-11 w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 pr-11 text-sm text-[#fff9f2] outline-none transition placeholder:text-[#8f85aa] hover:border-white/[0.16] focus:border-[#f0c38e]/40 focus:bg-white/[0.06] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e]"
+          className="h-11 w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 pr-11 text-sm text-[#fff9f2] outline-none transition placeholder:text-[#7b8da0] hover:border-white/[0.16] focus:border-[#f0c38e]/40 focus:bg-white/[0.06] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e]"
           disabled={disabled}
           onChange={(event) => {
             const nextValue = maskDateInput(event.target.value);

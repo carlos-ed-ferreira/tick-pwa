@@ -324,7 +324,7 @@ export function TaskTreeMoreActionsMenu({
   }
 
   const itemClassName =
-    'flex min-h-10 w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm text-[#eee8f7] transition hover:bg-white/[0.08] hover:text-[#fff9f2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e] disabled:cursor-not-allowed disabled:opacity-40';
+    'flex min-h-10 w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm text-[#e5ebf3] transition hover:bg-white/[0.08] hover:text-[#fff9f2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e] disabled:cursor-not-allowed disabled:opacity-40';
 
   const categorySubmenu =
     isCategoryExpanded &&
@@ -334,7 +334,7 @@ export function TaskTreeMoreActionsMenu({
           <div
             ref={categorySubmenuRef}
             data-task-category-submenu="true"
-            className={`dropdown-extension-panel modal-panel modal-panel--flat fixed z-50 min-w-52 text-sm shadow-[0_24px_70px_rgba(8,6,20,0.44)] ${
+            className={`dropdown-extension-panel modal-panel modal-panel--flat fixed z-50 min-w-52 text-sm shadow-[0_24px_70px_rgba(5,8,13,0.44)] ${
               categoryJoinShape === 'extension-taller'
                 ? 'dropdown-extension-panel--rounded-left'
                 : 'rounded-l-none'
@@ -386,7 +386,7 @@ export function TaskTreeMoreActionsMenu({
           <div
             ref={menuRef}
             data-task-actions-menu="true"
-            className={`modal-panel modal-panel--flat fixed z-60 grid max-h-[min(28rem,calc(100vh-1.5rem))] gap-1 overflow-y-auto p-2 shadow-[0_24px_70px_rgba(8,6,20,0.44)] ${
+            className={`modal-panel modal-panel--flat fixed z-60 grid max-h-[min(28rem,calc(100vh-1.5rem))] gap-1 overflow-y-auto p-2 shadow-[0_24px_70px_rgba(5,8,13,0.44)] ${
               isCategoryExpanded ? 'dropdown-joined-main' : ''
             } ${
               categoryJoinShape && categoryJoinShape !== 'main-taller'

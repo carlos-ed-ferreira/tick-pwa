@@ -12,7 +12,7 @@ export function TaskTreeClearCategoryIcon({
       data-clear-category-icon
     >
       <Tag className="size-full" />
-      <span className="absolute h-px w-[125%] -rotate-45 rounded-full bg-current ring-1 ring-[#272137]" />
+      <span className="absolute h-px w-[125%] -rotate-45 rounded-full bg-current ring-1 ring-[#1d252f]" />
     </span>
   );
 }

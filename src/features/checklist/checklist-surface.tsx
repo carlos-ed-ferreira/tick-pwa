@@ -580,7 +580,7 @@ export function ChecklistSurface({ dailyEntryId }: { dailyEntryId: string }) {
             <IconButton
               aria-label={dictionary.calendar.sortByTime}
               title={dictionary.calendar.sortByTime}
-              className="rounded-full border border-white/10 bg-white/5 text-[#bdb4d4] hover:bg-white/10 hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
+              className="rounded-full border border-white/10 bg-white/5 text-[#aebac8] hover:bg-white/10 hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
               onClick={() =>
                 void reorderChecklistItemsByScheduledTime({
                   scope,

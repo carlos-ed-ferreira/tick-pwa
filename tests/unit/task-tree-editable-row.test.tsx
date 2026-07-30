@@ -158,7 +158,7 @@ describe('TaskTreeEditableRow', () => {
       'mixed',
     );
     expect(screen.getByDisplayValue('Existing item')).toHaveClass(
-      'text-[#8f85aa]',
+      'text-[#7b8da0]',
       'opacity-75',
     );
   });

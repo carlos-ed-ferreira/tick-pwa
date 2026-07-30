@@ -71,7 +71,7 @@ describe('DatePicker', () => {
     expect(calendar).toHaveClass('tick-datepicker');
     expect(screen.getByText('July 2026')).toBeInTheDocument();
     expect(selectedDate).toHaveAttribute('aria-pressed', 'true');
-    expect(selectedDate).toHaveClass('bg-[#f0c38e]', 'text-[#312c51]');
+    expect(selectedDate).toHaveClass('bg-[#f0c38e]', 'text-[#253241]');
 
     fireEvent.click(screen.getByRole('button', { name: 'July 20, 2026' }));
 

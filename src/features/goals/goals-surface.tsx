@@ -124,7 +124,7 @@ import { useGoals } from './use-goals';
 const goalStepInputSelector = '[data-goal-step-input="true"]';
 const visibleCategoryLimit = 4;
 const goalMenuItemClassName =
-  'flex min-h-10 w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-medium text-[#eee8f7] transition hover:bg-white/[0.08] hover:text-[#fff9f2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e]';
+  'flex min-h-10 w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-medium text-[#e5ebf3] transition hover:bg-white/[0.08] hover:text-[#fff9f2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e]';
 const goalMenuDangerItemClassName =
   'flex min-h-10 w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-medium text-rose-300 transition hover:bg-rose-400/15 hover:text-rose-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-200';
 
@@ -777,7 +777,7 @@ export function GoalsSurface() {
       preview.style.pointerEvents = 'none';
       preview.style.transform = `translate3d(${rect.left}px, ${rect.top}px, 0)`;
       preview.style.transition = 'none';
-      preview.style.boxShadow = '0 24px 56px rgba(8, 6, 20, 0.35)';
+      preview.style.boxShadow = '0 24px 56px rgba(5, 8, 13, 0.35)';
       document.body.appendChild(preview);
 
       pointerDragRef.current = {
@@ -1134,7 +1134,7 @@ export function GoalsSurface() {
                           style={{ backgroundColor: groupCategory.colorHex }}
                         />
                       ) : null}
-                      <h2 className="truncate text-sm font-semibold text-[#d8d0e8]">
+                      <h2 className="truncate text-sm font-semibold text-[#cbd5e0]">
                         {group?.title || dictionary.goals.noGroup}
                       </h2>
                       {groupCategory && groupCategory.name.trim().length > 0 ? (
@@ -1178,7 +1178,7 @@ export function GoalsSurface() {
               })}
             </div>
           ) : (
-            <p className="py-10 text-center text-sm text-[#9f96b8]">
+            <p className="py-10 text-center text-sm text-[#909cab]">
               {dictionary.goals.emptyArchivedGoals}
             </p>
           )
@@ -1243,7 +1243,7 @@ export function GoalsSurface() {
             <div className="grid gap-3">
               <div aria-hidden="true" className="h-px w-full bg-white/10" />
               <Button
-                className="min-h-10 w-fit rounded-full border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-[#f8f3ea] shadow-sm shadow-[#312c51]/10 hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/10 hover:shadow-md focus-visible:outline-[#f7d9b0]"
+                className="min-h-10 w-fit rounded-full border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-[#f8f3ea] shadow-sm shadow-[#253241]/10 hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/10 hover:shadow-md focus-visible:outline-[#f7d9b0]"
                 tone="subtle"
                 onClick={() => setView('archived')}
               >
@@ -1258,7 +1258,7 @@ export function GoalsSurface() {
           <div className="grid gap-3">
             <div aria-hidden="true" className="h-px w-full bg-white/10" />
             <Button
-              className="min-h-10 w-fit rounded-full border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-[#f8f3ea] shadow-sm shadow-[#312c51]/10 hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/10 hover:shadow-md focus-visible:outline-[#f7d9b0]"
+              className="min-h-10 w-fit rounded-full border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-[#f8f3ea] shadow-sm shadow-[#253241]/10 hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/10 hover:shadow-md focus-visible:outline-[#f7d9b0]"
               tone="subtle"
               onClick={() => setView('active')}
             >
@@ -1338,12 +1338,12 @@ function CreateGoalGroupDialog({
             isCreatingGroup ? 'opacity-75' : ''
           }`}
         >
-          <span className="text-xs font-semibold uppercase tracking-[0.14em] text-[#9f96b8]">
+          <span className="text-xs font-semibold uppercase tracking-[0.14em] text-[#909cab]">
             {groupTitleLabel}
           </span>
           <Input
             aria-label={groupTitleLabel}
-            className="h-10 w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 text-base font-medium text-[#fff9f2] outline-none placeholder:text-[#8f85aa] focus:border-[#f0c38e]/40 focus:bg-white/[0.06] disabled:cursor-not-allowed disabled:text-muted/60"
+            className="h-10 w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 text-base font-medium text-[#fff9f2] outline-none placeholder:text-[#7b8da0] focus:border-[#f0c38e]/40 focus:bg-white/[0.06] disabled:cursor-not-allowed disabled:text-muted/60"
             disabled={isCreatingGroup}
             placeholder={initialTitle}
             value={groupTitle}
@@ -1381,7 +1381,7 @@ function NewEntityCard({
   return (
     <button
       type="button"
-      className="group relative flex h-32 flex-col items-center justify-center gap-3 rounded-[1.35rem] border border-dashed border-[#9f96b8]/30 bg-transparent p-4 text-center text-[#d8d0e8] transition hover:-translate-y-0.5 hover:border-[#f0c38e]/40 hover:bg-white/[0.02] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0]"
+      className="group relative flex h-32 flex-col items-center justify-center gap-3 rounded-[1.35rem] border border-dashed border-[#909cab]/30 bg-transparent p-4 text-center text-[#cbd5e0] transition hover:-translate-y-0.5 hover:border-[#f0c38e]/40 hover:bg-white/[0.02] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0]"
       onClick={onClick}
     >
       <div className="flex size-11 items-center justify-center rounded-full bg-[#f0c38e]/10 text-[#f0c38e] transition transform group-hover:bg-[#f0c38e]/20 group-hover:scale-105">
@@ -1398,7 +1398,7 @@ function DropTargetOverlay() {
   return (
     <span
       aria-hidden="true"
-      className="pointer-events-none absolute inset-0 z-10 rounded-[inherit] border border-dashed border-[#f0c38e]/80 bg-[#f0c38e]/10 shadow-[inset_0_0_0_1px_rgba(240,195,142,0.2),0_18px_34px_rgba(8,6,20,0.12)]"
+      className="pointer-events-none absolute inset-0 z-10 rounded-[inherit] border border-dashed border-[#f0c38e]/80 bg-[#f0c38e]/10 shadow-[inset_0_0_0_1px_rgba(240,195,142,0.2),0_18px_34px_rgba(5,8,13,0.12)]"
     />
   );
 }
@@ -1452,10 +1452,10 @@ function CategoryAccent({
   return (
     <span
       aria-hidden="true"
-      className={`relative block shrink-0 rounded-full border border-white/10 bg-white/5 p-1 shadow-sm shadow-[#312c51]/10 ${size === 'sm' ? 'size-6' : 'size-8'}`}
+      className={`relative block shrink-0 rounded-full border border-white/10 bg-white/5 p-1 shadow-sm shadow-[#253241]/10 ${size === 'sm' ? 'size-6' : 'size-8'}`}
     >
       <span
-        className="block size-full rounded-full border border-white/30 shadow-[0_6px_14px_rgba(8,6,20,0.24)]"
+        className="block size-full rounded-full border border-white/30 shadow-[0_6px_14px_rgba(5,8,13,0.24)]"
         style={{ backgroundColor: category.colorHex }}
       />
     </span>
@@ -1540,7 +1540,7 @@ function CategoryColorButton({
 
   return (
     <Tooltip content={colorLabel}>
-      <span className="relative inline-flex size-10 shrink-0 items-center justify-center rounded-md border border-white/10 bg-white/5 shadow-sm shadow-[#312c51]/10 transition hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/10 focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-[#f7d9b0]">
+      <span className="relative inline-flex size-10 shrink-0 items-center justify-center rounded-md border border-white/10 bg-white/5 shadow-sm shadow-[#253241]/10 transition hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/10 focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-[#f7d9b0]">
         <input
           aria-label={colorLabel}
           className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
@@ -1550,7 +1550,7 @@ function CategoryColorButton({
         />
         <span
           aria-hidden="true"
-          className={`block size-5 rounded-full shadow-[0_6px_14px_rgba(8,6,20,0.24)] ${
+          className={`block size-5 rounded-full shadow-[0_6px_14px_rgba(5,8,13,0.24)] ${
             ownColorHex
               ? 'border border-white/30'
               : 'border border-dashed border-white/25'
@@ -1713,7 +1713,7 @@ function GoalGroupCard({
           <div
             ref={menuRef}
             data-card-actions-menu="true"
-            className={`modal-panel fixed z-60 grid max-h-[min(20rem,calc(100vh-2rem))] min-w-52 gap-1 overflow-y-auto border-0 p-2 text-sm shadow-[0_24px_70px_rgba(8,6,20,0.44)] ${
+            className={`modal-panel fixed z-60 grid max-h-[min(20rem,calc(100vh-2rem))] min-w-52 gap-1 overflow-y-auto border-0 p-2 text-sm shadow-[0_24px_70px_rgba(5,8,13,0.44)] ${
               categoryJoinShape ? 'dropdown-joined-main' : ''
             } ${
               categoryJoinShape && categoryJoinShape !== 'main-taller'
@@ -1811,7 +1811,7 @@ function GoalGroupCard({
         role="button"
         tabIndex={0}
         aria-label={groupCardLabel}
-        className={`group relative grid h-32 cursor-pointer content-start gap-2 rounded-[1.35rem] bg-white/[0.05] px-4 pb-5 pt-3.5 text-left shadow-[0_14px_34px_rgba(8,6,20,0.12)] ring-1 ring-white/[0.08] transition hover:-translate-y-0.5 hover:bg-white/[0.075] hover:ring-[#f0c38e]/25 active:translate-y-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0] ${
+        className={`group relative grid h-32 cursor-pointer content-start gap-2 rounded-[1.35rem] bg-white/[0.05] px-4 pb-5 pt-3.5 text-left shadow-[0_14px_34px_rgba(5,8,13,0.12)] ring-1 ring-white/[0.08] transition hover:-translate-y-0.5 hover:bg-white/[0.075] hover:ring-[#f0c38e]/25 active:translate-y-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0] ${
           isDragging ? 'invisible' : ''
         }`}
         data-drag-card="true"
@@ -1837,7 +1837,7 @@ function GoalGroupCard({
             <button
               type="button"
               aria-label={dictionary.goals.dragGoal}
-              className="inline-flex size-7 shrink-0 touch-none cursor-grab items-center justify-center rounded-full border border-white/10 bg-white/[0.045] text-[#bdb4d4] transition hover:-translate-y-0.5 hover:border-[#f0c38e]/50 hover:bg-[#f0c38e]/14 hover:text-[#fff9f2] hover:shadow-[0_10px_22px_rgba(240,195,142,0.16)] active:translate-y-0 active:cursor-grabbing focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0]"
+              className="inline-flex size-7 shrink-0 touch-none cursor-grab items-center justify-center rounded-full border border-white/10 bg-white/[0.045] text-[#aebac8] transition hover:-translate-y-0.5 hover:border-[#f0c38e]/50 hover:bg-[#f0c38e]/14 hover:text-[#fff9f2] hover:shadow-[0_10px_22px_rgba(240,195,142,0.16)] active:translate-y-0 active:cursor-grabbing focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0]"
               onClick={(event) => event.stopPropagation()}
               onPointerDown={(event) => onBeginPointerDrag(groupPayload, event)}
             >
@@ -1846,7 +1846,7 @@ function GoalGroupCard({
           </Tooltip>
           {category?.useOwnName ? (
             <span
-              className="inline-flex min-h-7 min-w-0 items-center rounded-full border px-3 py-1 shadow-sm shadow-[#312c51]/10"
+              className="inline-flex min-h-7 min-w-0 items-center rounded-full border px-3 py-1 shadow-sm shadow-[#253241]/10"
               style={{
                 borderColor: toAlphaColor(category.colorHex, 0.6),
                 backgroundColor: toAlphaColor(category.colorHex, 0.14),
@@ -1863,7 +1863,7 @@ function GoalGroupCard({
           )}
           {category && !category.useOwnName ? (
             <span
-              className="inline-flex min-h-7 shrink-0 items-center gap-2 rounded-full border px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.24em] text-[#f7e8ce] shadow-sm shadow-[#312c51]/10"
+              className="inline-flex min-h-7 shrink-0 items-center gap-2 rounded-full border px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.24em] text-[#f7e8ce] shadow-sm shadow-[#253241]/10"
               style={{
                 borderColor: toAlphaColor(category.colorHex, 0.6),
                 backgroundColor: toAlphaColor(category.colorHex, 0.14),
@@ -1878,7 +1878,7 @@ function GoalGroupCard({
             ref={triggerRef}
             aria-expanded={isMenuOpen}
             aria-label={dictionary.goals.groupMenu}
-            className="size-8 rounded-full text-[#bdb4d4] hover:bg-white/[0.08] hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
+            className="size-8 rounded-full text-[#aebac8] hover:bg-white/[0.08] hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
             onClick={(event) => {
               event.stopPropagation();
 
@@ -2218,7 +2218,7 @@ function GoalCard({
             ref={menuRef}
             data-card-actions-menu="true"
             data-goal-actions-menu="true"
-            className={`modal-panel modal-panel--flat fixed z-60 grid max-h-[min(20rem,calc(100vh-2rem))] gap-1 overflow-y-auto border-0 p-2 text-sm text-[#fff9f2] shadow-[0_24px_70px_rgba(8,6,20,0.44)] ${
+            className={`modal-panel modal-panel--flat fixed z-60 grid max-h-[min(20rem,calc(100vh-2rem))] gap-1 overflow-y-auto border-0 p-2 text-sm text-[#fff9f2] shadow-[0_24px_70px_rgba(5,8,13,0.44)] ${
               categoryJoinShape ? 'dropdown-joined-main' : ''
             } ${
               categoryJoinShape && categoryJoinShape !== 'main-taller'
@@ -2392,7 +2392,7 @@ function GoalCard({
     <>
       <article
         aria-label={goal.title || dictionary.goals.newGoalTitle}
-        className={`group relative grid h-32 cursor-pointer content-start gap-3 rounded-[1.35rem] bg-white/[0.055] p-4 text-left shadow-[0_14px_34px_rgba(8,6,20,0.12)] ring-1 ring-white/[0.08] transition hover:-translate-y-0.5 hover:bg-white/[0.08] hover:ring-[#f0c38e]/25 ${
+        className={`group relative grid h-32 cursor-pointer content-start gap-3 rounded-[1.35rem] bg-white/[0.055] p-4 text-left shadow-[0_14px_34px_rgba(5,8,13,0.12)] ring-1 ring-white/[0.08] transition hover:-translate-y-0.5 hover:bg-white/[0.08] hover:ring-[#f0c38e]/25 ${
           archived ? 'opacity-95' : ''
         } ${isDragging ? 'invisible' : ''}`}
         data-drag-card="true"
@@ -2434,7 +2434,7 @@ function GoalCard({
               <button
                 type="button"
                 aria-label={dictionary.goals.dragGoal}
-                className="inline-flex size-7 shrink-0 touch-none cursor-grab items-center justify-center rounded-full border border-white/10 bg-white/[0.045] text-[#bdb4d4] transition hover:-translate-y-0.5 hover:border-[#f0c38e]/50 hover:bg-[#f0c38e]/14 hover:text-[#fff9f2] hover:shadow-[0_10px_22px_rgba(240,195,142,0.16)] active:translate-y-0 active:cursor-grabbing focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0]"
+                className="inline-flex size-7 shrink-0 touch-none cursor-grab items-center justify-center rounded-full border border-white/10 bg-white/[0.045] text-[#aebac8] transition hover:-translate-y-0.5 hover:border-[#f0c38e]/50 hover:bg-[#f0c38e]/14 hover:text-[#fff9f2] hover:shadow-[0_10px_22px_rgba(240,195,142,0.16)] active:translate-y-0 active:cursor-grabbing focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0]"
                 onClick={(event) => event.stopPropagation()}
                 onPointerDown={(event) =>
                   onBeginPointerDrag?.(goalPayload, event)
@@ -2463,7 +2463,7 @@ function GoalCard({
             ref={triggerRef}
             aria-expanded={isMenuOpen}
             aria-label={dictionary.goals.goalMenu}
-            className="size-8 rounded-full text-[#bdb4d4] hover:bg-white/[0.08] hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
+            className="size-8 rounded-full text-[#aebac8] hover:bg-white/[0.08] hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
             onClick={(event) => {
               event.stopPropagation();
               if (isMenuOpen) {
@@ -2678,7 +2678,7 @@ function CategoryMenuSection({
           <div
             ref={submenuRef}
             data-goal-category-submenu="true"
-            className={`dropdown-extension-panel modal-panel fixed z-50 min-w-52 border-0 text-sm shadow-[0_24px_70px_rgba(8,6,20,0.44)] ${
+            className={`dropdown-extension-panel modal-panel fixed z-50 min-w-52 border-0 text-sm shadow-[0_24px_70px_rgba(5,8,13,0.44)] ${
               joinShape === 'extension-taller'
                 ? 'dropdown-extension-panel--rounded-left'
                 : 'rounded-l-none'
@@ -2774,7 +2774,7 @@ function MoveGoalMenu({
 
   return (
     <div className="grid gap-1 border-t border-white/10 pt-1">
-      <span className="px-2 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-[#bdb4d4]">
+      <span className="px-2 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-[#aebac8]">
         {dictionary.goals.moveTo}
       </span>
       {movableGroups.map((group) => (
@@ -2850,7 +2850,7 @@ function GoalPreview({
             );
           })}
           {hiddenCount > 0 ? (
-            <span className="text-[11px] font-semibold text-[#bdb4d4]">
+            <span className="text-[11px] font-semibold text-[#aebac8]">
               +{hiddenCount}
             </span>
           ) : null}
@@ -2951,7 +2951,7 @@ function GoalGroupDetailHeader({
           <GoalGroupTitleEditor autoFocus={false} group={group} />
           {groupCategory && !groupCategory.useOwnName ? (
             <span
-              className="inline-flex min-h-10 max-w-full shrink-0 items-center rounded-full border px-3 py-1 text-sm font-medium text-[#f7e8ce] shadow-sm shadow-[#312c51]/10"
+              className="inline-flex min-h-10 max-w-full shrink-0 items-center rounded-full border px-3 py-1 text-sm font-medium text-[#f7e8ce] shadow-sm shadow-[#253241]/10"
               style={{
                 borderColor: toAlphaColor(groupCategory.colorHex, 0.6),
                 backgroundColor: toAlphaColor(groupCategory.colorHex, 0.14),
@@ -2976,7 +2976,7 @@ function GoalGroupDetailHeader({
           />
           <CategoryAssignmentMenu
             assignLabel={dictionary.goals.assignGroupCategory}
-            clearClassName="inline-flex size-10 shrink-0 items-center justify-center rounded-md border border-white/10 bg-white/5 text-[#d8d0e8] shadow-sm shadow-[#312c51]/10 transition hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/10 hover:text-[#fff9f2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0]"
+            clearClassName="inline-flex size-10 shrink-0 items-center justify-center rounded-md border border-white/10 bg-white/5 text-[#cbd5e0] shadow-sm shadow-[#253241]/10 transition hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/10 hover:text-[#fff9f2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0]"
             clearLabel={dictionary.goals.clearGroupCategory}
             renderClearContent={() => (
               <TaskTreeClearCategoryIcon className="size-4" />
@@ -2986,7 +2986,7 @@ function GoalGroupDetailHeader({
             )}
             selectedCategoryTagId={group.categoryTagId}
             surface="goal_group"
-            triggerClassName="inline-flex size-10 shrink-0 items-center justify-center rounded-md border border-white/10 bg-white/5 text-[#d8d0e8] shadow-sm shadow-[#312c51]/10 hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/10 hover:text-[#fff9f2] focus-visible:outline-[#f7d9b0] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0 disabled:hover:border-white/10 disabled:hover:bg-white/5 disabled:hover:text-[#d8d0e8]"
+            triggerClassName="inline-flex size-10 shrink-0 items-center justify-center rounded-md border border-white/10 bg-white/5 text-[#cbd5e0] shadow-sm shadow-[#253241]/10 hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/10 hover:text-[#fff9f2] focus-visible:outline-[#f7d9b0] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0 disabled:hover:border-white/10 disabled:hover:bg-white/5 disabled:hover:text-[#cbd5e0]"
             onAssign={(categoryTagId) => {
               if (!scope) return;
 
@@ -3007,7 +3007,7 @@ function GoalGroupDetailHeader({
         </div>
         <button
           type="button"
-          className="inline-flex min-h-10 w-fit shrink-0 items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-[#f8f3ea] shadow-sm shadow-[#312c51]/10 transition hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/10 active:translate-y-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0]"
+          className="inline-flex min-h-10 w-fit shrink-0 items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-[#f8f3ea] shadow-sm shadow-[#253241]/10 transition hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/10 active:translate-y-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0]"
           onClick={onBack}
         >
           <ArrowLeft aria-hidden="true" className="size-4" />
@@ -3087,7 +3087,7 @@ function GoalDetailHeader({
           <GoalTitleEditor goal={goal} />
           {goalCategory && !goalCategory.useOwnName ? (
             <span
-              className="inline-flex min-h-10 max-w-full shrink-0 items-center rounded-full border px-3 py-1 text-sm font-medium text-[#f7e8ce] shadow-sm shadow-[#312c51]/10"
+              className="inline-flex min-h-10 max-w-full shrink-0 items-center rounded-full border px-3 py-1 text-sm font-medium text-[#f7e8ce] shadow-sm shadow-[#253241]/10"
               style={{
                 borderColor: toAlphaColor(goalCategory.colorHex, 0.6),
                 backgroundColor: toAlphaColor(goalCategory.colorHex, 0.14),
@@ -3114,7 +3114,7 @@ function GoalDetailHeader({
               />
               <CategoryAssignmentMenu
                 assignLabel={dictionary.goals.assignGoalCategory}
-                clearClassName="inline-flex size-10 shrink-0 items-center justify-center rounded-md border border-white/10 bg-white/5 text-[#d8d0e8] shadow-sm shadow-[#312c51]/10 transition hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/10 hover:text-[#fff9f2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0]"
+                clearClassName="inline-flex size-10 shrink-0 items-center justify-center rounded-md border border-white/10 bg-white/5 text-[#cbd5e0] shadow-sm shadow-[#253241]/10 transition hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/10 hover:text-[#fff9f2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0]"
                 clearLabel={dictionary.goals.clearGoalCategory}
                 renderClearContent={() => (
                   <TaskTreeClearCategoryIcon className="size-4" />
@@ -3124,7 +3124,7 @@ function GoalDetailHeader({
                 )}
                 selectedCategoryTagId={goal.categoryTagId}
                 surface="goal"
-                triggerClassName="inline-flex size-10 shrink-0 items-center justify-center rounded-md border border-white/10 bg-white/5 text-[#d8d0e8] shadow-sm shadow-[#312c51]/10 hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/10 hover:text-[#fff9f2] focus-visible:outline-[#f7d9b0] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0 disabled:hover:border-white/10 disabled:hover:bg-white/5 disabled:hover:text-[#d8d0e8]"
+                triggerClassName="inline-flex size-10 shrink-0 items-center justify-center rounded-md border border-white/10 bg-white/5 text-[#cbd5e0] shadow-sm shadow-[#253241]/10 hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/10 hover:text-[#fff9f2] focus-visible:outline-[#f7d9b0] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0 disabled:hover:border-white/10 disabled:hover:bg-white/5 disabled:hover:text-[#cbd5e0]"
                 onAssign={(categoryTagId) => {
                   if (!scope) return;
                   return assignGoalCategory({
@@ -3165,7 +3165,7 @@ function GoalDetailHeader({
         </div>
         <button
           type="button"
-          className="inline-flex min-h-10 w-fit shrink-0 items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-[#f8f3ea] shadow-sm shadow-[#312c51]/10 transition hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/10 active:translate-y-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0]"
+          className="inline-flex min-h-10 w-fit shrink-0 items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-[#f8f3ea] shadow-sm shadow-[#253241]/10 transition hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/10 active:translate-y-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0]"
           onClick={onBack}
         >
           <ArrowLeft aria-hidden="true" className="size-4" />
@@ -3265,7 +3265,7 @@ function ArchivedGoalDetailCard({
   return (
     <section
       aria-label={goal.title}
-      className="flex min-h-0 flex-col rounded-[1.25rem] bg-white/[0.035] p-3 shadow-[0_18px_44px_rgba(8,6,20,0.16)] ring-1 ring-white/[0.07] sm:p-4"
+      className="flex min-h-0 flex-col rounded-[1.25rem] bg-white/[0.035] p-3 shadow-[0_18px_44px_rgba(5,8,13,0.16)] ring-1 ring-white/[0.07] sm:p-4"
       data-archived-goal-read-only="true"
     >
       {goalStepRows.length > 0 ? (
@@ -3290,7 +3290,7 @@ function ArchivedGoalDetailCard({
               >
                 <span
                   aria-hidden="true"
-                  className="inline-flex size-9 shrink-0 items-center justify-center text-[#8f85aa]"
+                  className="inline-flex size-9 shrink-0 items-center justify-center text-[#7b8da0]"
                 >
                   {hasChildren ? <ChevronRight className="size-4" /> : null}
                 </span>
@@ -3304,7 +3304,7 @@ function ArchivedGoalDetailCard({
                 <span
                   className={`min-w-0 flex-1 px-2 text-sm leading-5 ${
                     goalStep.completed || goalStep.ignored
-                      ? 'text-[#8f85aa] opacity-75'
+                      ? 'text-[#7b8da0] opacity-75'
                       : 'text-[#fff9f2]'
                   } ${goalStep.bold ? 'font-bold' : 'font-normal'}`}
                 >
@@ -3321,7 +3321,7 @@ function ArchivedGoalDetailCard({
           })}
         </div>
       ) : (
-        <p className="flex min-h-36 items-center justify-center px-4 text-center text-sm text-[#9f96b8]">
+        <p className="flex min-h-36 items-center justify-center px-4 text-center text-sm text-[#909cab]">
           {dictionary.goals.emptyGoal}
         </p>
       )}
@@ -3519,7 +3519,7 @@ function GoalDetailCard({
   return (
     <section
       aria-label={goal.title}
-      className="flex min-h-0 flex-col rounded-[1.25rem] bg-white/[0.035] p-3 shadow-[0_18px_44px_rgba(8,6,20,0.16)] ring-1 ring-white/[0.07] sm:p-4"
+      className="flex min-h-0 flex-col rounded-[1.25rem] bg-white/[0.035] p-3 shadow-[0_18px_44px_rgba(5,8,13,0.16)] ring-1 ring-white/[0.07] sm:p-4"
     >
       <TreeListPanel
         addLabel={dictionary.goals.addStep}
