@@ -1,3 +1,4 @@
+import type { Table } from 'dexie';
 import type { AppScope, SyncEntityType } from '@/lib/domain';
 import { db } from '@/lib/db/database';
 import { getSupabaseBrowserClient } from './client';
@@ -57,11 +58,13 @@ export async function persistAccountEntity({
 export async function restoreAccountEntity({
   entityId,
   entityType,
+  expectedClientUpdatedAt,
   scope,
 }: {
   scope: AppScope;
   entityType: SyncEntityType;
   entityId: string;
+  expectedClientUpdatedAt?: string;
 }): Promise<void> {
   if (scope.kind !== 'user') {
     return;
@@ -83,68 +86,99 @@ export async function restoreAccountEntity({
     throw error;
   }
 
+  async function replaceCurrentEntity<
+    TEntity extends { clientUpdatedAt: string; id: string },
+  >(table: Table<TEntity, string>, restoredEntity: TEntity | null) {
+    await db.transaction('rw', table, async () => {
+      const currentEntity = await table.get(entityId);
+
+      if (
+        expectedClientUpdatedAt &&
+        currentEntity?.clientUpdatedAt !== expectedClientUpdatedAt
+      ) {
+        return;
+      }
+
+      if (restoredEntity) {
+        await table.put(restoredEntity);
+      } else {
+        await table.delete(entityId);
+      }
+    });
+  }
+
   if (!data) {
     if (entityType === 'categoryTag') {
-      await db.categoryTags.delete(entityId);
+      await replaceCurrentEntity(db.categoryTags, null);
       return;
     }
 
     if (entityType === 'dailyEntry') {
-      await db.dailyEntries.delete(entityId);
+      await replaceCurrentEntity(db.dailyEntries, null);
       return;
     }
 
     if (entityType === 'checklistItem') {
-      await db.checklistItems.delete(entityId);
+      await replaceCurrentEntity(db.checklistItems, null);
       return;
     }
 
     if (entityType === 'goal') {
-      await db.goals.delete(entityId);
+      await replaceCurrentEntity(db.goals, null);
       return;
     }
 
     if (entityType === 'goalGroup') {
-      await db.goalGroups.delete(entityId);
+      await replaceCurrentEntity(db.goalGroups, null);
       return;
     }
 
-    await db.goalSteps.delete(entityId);
+    await replaceCurrentEntity(db.goalSteps, null);
     return;
   }
 
   if (entityType === 'categoryTag') {
-    await db.categoryTags.put(
+    await replaceCurrentEntity(
+      db.categoryTags,
       categoryTagFromRemote(scope, data as RemoteCategoryTag),
     );
     return;
   }
 
   if (entityType === 'dailyEntry') {
-    await db.dailyEntries.put(
+    await replaceCurrentEntity(
+      db.dailyEntries,
       dailyEntryFromRemote(scope, data as RemoteDailyEntry),
     );
     return;
   }
 
   if (entityType === 'checklistItem') {
-    await db.checklistItems.put(
+    await replaceCurrentEntity(
+      db.checklistItems,
       checklistItemFromRemote(scope, data as RemoteChecklistItem),
     );
     return;
   }
 
   if (entityType === 'goal') {
-    await db.goals.put(goalFromRemote(scope, data as RemoteGoal));
+    await replaceCurrentEntity(
+      db.goals,
+      goalFromRemote(scope, data as RemoteGoal),
+    );
     return;
   }
 
   if (entityType === 'goalGroup') {
-    await db.goalGroups.put(
+    await replaceCurrentEntity(
+      db.goalGroups,
       goalGroupFromRemote(scope, data as RemoteGoalGroup),
     );
     return;
   }
 
-  await db.goalSteps.put(goalStepFromRemote(scope, data as RemoteGoalStep));
+  await replaceCurrentEntity(
+    db.goalSteps,
+    goalStepFromRemote(scope, data as RemoteGoalStep),
+  );
 }

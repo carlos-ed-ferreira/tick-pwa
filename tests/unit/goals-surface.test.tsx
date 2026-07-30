@@ -31,6 +31,7 @@ const {
   softDeleteGoalMock,
   softDeleteGoalStepMock,
   softDeleteGoalGroupMock,
+  toggleGoalStepCollapsedMock,
   updateCategoryTagMock,
   updateGoalStepTextMock,
   updateGoalTitleMock,
@@ -54,6 +55,7 @@ const {
   softDeleteGoalMock: vi.fn().mockResolvedValue(undefined),
   softDeleteGoalStepMock: vi.fn().mockResolvedValue(undefined),
   softDeleteGoalGroupMock: vi.fn().mockResolvedValue(undefined),
+  toggleGoalStepCollapsedMock: vi.fn().mockResolvedValue(undefined),
   updateCategoryTagMock: vi.fn().mockResolvedValue(undefined),
   updateGoalStepTextMock: vi.fn().mockResolvedValue(undefined),
   updateGoalTitleMock: vi.fn().mockResolvedValue(undefined),
@@ -97,7 +99,7 @@ vi.mock('@/lib/db', () => ({
   softDeleteGoalGroup: softDeleteGoalGroupMock,
   softDeleteGoalStep: softDeleteGoalStepMock,
   toggleGoalStepChecked: vi.fn().mockResolvedValue(undefined),
-  toggleGoalStepCollapsed: vi.fn().mockResolvedValue(undefined),
+  toggleGoalStepCollapsed: toggleGoalStepCollapsedMock,
   toggleGoalStepPriority: vi.fn().mockResolvedValue(undefined),
   updateCategoryTag: updateCategoryTagMock,
   updateGoalGroupTitle: vi.fn().mockResolvedValue(undefined),
@@ -315,6 +317,7 @@ describe('GoalsSurface', () => {
     softDeleteGoalStepMock.mockClear();
     softDeleteGoalMock.mockClear();
     softDeleteGoalGroupMock.mockClear();
+    toggleGoalStepCollapsedMock.mockClear();
     updateGoalStepTextMock.mockClear();
     updateGoalTitleMock.mockClear();
     useCategoryTagsMock.mockImplementation((_scope, surface) => {
@@ -1545,6 +1548,70 @@ describe('GoalsSurface', () => {
       expect(screen.getAllByPlaceholderText('Write a step')).toHaveLength(2);
     });
     expect(createGoalStepMock).not.toHaveBeenCalled();
+  });
+
+  it('hides a deleted goal step while the local delete is still pending', async () => {
+    let resolveDelete!: () => void;
+    softDeleteGoalStepMock.mockReturnValueOnce(
+      new Promise<void>((resolve) => {
+        resolveDelete = resolve;
+      }),
+    );
+    useGoalStepTreeMock.mockReturnValue([goalStep()]);
+
+    render(<GoalsSurface />);
+    fireEvent.click(screen.getByRole('button', { name: 'Focus' }));
+    const stepRow = screen
+      .getByDisplayValue('Existing step')
+      .closest('[data-tree-row]');
+
+    fireEvent.click(
+      within(stepRow as HTMLElement).getByLabelText('More actions'),
+    );
+    fireEvent.click(screen.getByLabelText('Delete step'));
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete' }));
+
+    await waitFor(() => {
+      expect(
+        screen.queryByDisplayValue('Existing step'),
+      ).not.toBeInTheDocument();
+    });
+
+    resolveDelete();
+  });
+
+  it('keeps a goal-step parent visible while optimistically collapsing children', async () => {
+    let resolveCollapse!: () => void;
+    toggleGoalStepCollapsedMock.mockReturnValueOnce(
+      new Promise<void>((resolve) => {
+        resolveCollapse = resolve;
+      }),
+    );
+    const parent = goalStep({ text: 'Parent step' });
+    parent.childCount = 1;
+    parent.hasChildren = true;
+    const child = goalStep({
+      id: 'goal-step-child',
+      parentId: 'goal-step-1',
+      text: 'Child step',
+    });
+    child.depth = 1;
+    useGoalStepTreeMock.mockReturnValue([parent, child]);
+
+    render(<GoalsSurface />);
+    fireEvent.click(screen.getByRole('button', { name: 'Focus' }));
+    fireEvent.click(
+      screen
+        .getAllByLabelText('Collapse step')
+        .find((button) => !button.hasAttribute('disabled'))!,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('Parent step')).toBeInTheDocument();
+      expect(screen.queryByDisplayValue('Child step')).not.toBeInTheDocument();
+    });
+
+    resolveCollapse();
   });
 
   it('bulk toggles selected goal steps from the checkbox', async () => {

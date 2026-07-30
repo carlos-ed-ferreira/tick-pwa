@@ -1,5 +1,7 @@
 import type { AppScope, EntitySyncStatus, SyncMetadata } from '@/lib/domain';
 
+let lastTimestampMilliseconds = 0;
+
 export function getEntitySyncStatus(scope: AppScope): EntitySyncStatus {
   return scope.kind === 'guest' ? 'local' : 'pending';
 }
@@ -16,5 +18,11 @@ export function createSyncMetadata(
 }
 
 export function createTimestamp(): string {
-  return new Date().toISOString();
+  const timestampMilliseconds = Math.max(
+    Date.now(),
+    lastTimestampMilliseconds + 1,
+  );
+  lastTimestampMilliseconds = timestampMilliseconds;
+
+  return new Date(timestampMilliseconds).toISOString();
 }

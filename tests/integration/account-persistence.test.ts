@@ -11,8 +11,10 @@ import {
   openOrCreateDailyEntry,
   toggleChecklistItemBold,
   toggleChecklistItemChecked,
+  toggleChecklistItemCollapsed,
   toggleGoalStepBold,
   toggleGoalStepChecked,
+  softDeleteChecklistItem,
 } from '@/lib/db';
 import { waitForAccountPersistence } from '@/lib/db/account-persistence';
 import { refreshAccountCache } from '@/lib/supabase/account-cache';
@@ -267,6 +269,157 @@ describe('account persistence boundaries', () => {
       syncStatus: 'synced',
       remoteRevision: 1,
     });
+  });
+
+  it('does not let an older successful write mark a newer local change as synced', async () => {
+    const scope = createUserScope('concurrent-success-user');
+    const pendingWrites: Array<
+      (value: { data: { revision: number }; error: null }) => void
+    > = [];
+    let delayChecklistWrites = false;
+    const from = vi.fn(() => ({
+      upsert: vi.fn(() => ({
+        select: vi.fn(() => ({
+          maybeSingle: vi.fn(() => {
+            if (!delayChecklistWrites) {
+              return Promise.resolve({
+                data: { revision: 1 },
+                error: null,
+              });
+            }
+
+            return new Promise<{
+              data: { revision: number };
+              error: null;
+            }>((resolve) => pendingWrites.push(resolve));
+          }),
+        })),
+      })),
+    }));
+    supabaseMocks.getSupabaseBrowserClient.mockReturnValue({ from });
+
+    const entry = await openOrCreateDailyEntry({
+      scope,
+      date: '2026-05-21',
+      timezone: 'America/Sao_Paulo',
+    });
+    const item = await createChecklistItem({
+      scope,
+      dailyEntryId: entry.id,
+      text: 'Concurrent item',
+    });
+    await waitForAccountPersistence(scope.id);
+    delayChecklistWrites = true;
+
+    await toggleChecklistItemCollapsed({ scope, itemId: item.id });
+    await vi.waitFor(() => expect(pendingWrites).toHaveLength(1));
+    await toggleChecklistItemBold({ scope, itemId: item.id });
+
+    pendingWrites[0]({ data: { revision: 2 }, error: null });
+    await vi.waitFor(() => expect(pendingWrites).toHaveLength(2));
+    await expect(db.checklistItems.get(item.id)).resolves.toMatchObject({
+      bold: true,
+      collapsed: true,
+      syncStatus: 'pending',
+    });
+    pendingWrites[1]({ data: { revision: 3 }, error: null });
+    await waitForAccountPersistence(scope.id);
+
+    await expect(db.checklistItems.get(item.id)).resolves.toMatchObject({
+      bold: true,
+      collapsed: true,
+      remoteRevision: 3,
+      syncStatus: 'synced',
+    });
+  });
+
+  it('does not restore an older failed write over a queued deletion', async () => {
+    const scope = createUserScope('concurrent-delete-user');
+    let failNextChecklistWrite = false;
+    let resolveFailedWrite!: (value: {
+      data: null;
+      error: { message: string };
+    }) => void;
+    const failedWrite = new Promise<{
+      data: null;
+      error: { message: string };
+    }>((resolve) => {
+      resolveFailedWrite = resolve;
+    });
+    const selectRemote = vi.fn(() => ({
+      eq: vi.fn(() => ({
+        maybeSingle: vi.fn().mockResolvedValue({
+          data: {
+            id: 'item-concurrent-delete',
+            user_id: scope.ownerId,
+            daily_entry_id: 'unused',
+            parent_id: null,
+            text: 'Remote stale item',
+            scheduled_time: null,
+            checked: false,
+            ignored: false,
+            bold: false,
+            priority: false,
+            collapsed: false,
+            category_tag_id: null,
+            sort_rank: 'U',
+            created_at: '2026-05-21T10:00:00.000Z',
+            updated_at: '2026-05-21T10:00:00.000Z',
+            deleted_at: null,
+            client_updated_at: '2026-05-21T10:00:00.000Z',
+            revision: 1,
+          },
+          error: null,
+        }),
+      })),
+    }));
+    const from = vi.fn((table: string) => ({
+      upsert: vi.fn(() => ({
+        select: vi.fn(() => ({
+          maybeSingle: vi.fn(() => {
+            if (table === 'checklist_items' && failNextChecklistWrite) {
+              failNextChecklistWrite = false;
+              return failedWrite;
+            }
+
+            return Promise.resolve({
+              data: { revision: 3 },
+              error: null,
+            });
+          }),
+        })),
+      })),
+      select: selectRemote,
+    }));
+    supabaseMocks.getSupabaseBrowserClient.mockReturnValue({ from });
+
+    const entry = await openOrCreateDailyEntry({
+      scope,
+      date: '2026-05-21',
+      timezone: 'America/Sao_Paulo',
+    });
+    const item = await createChecklistItem({
+      scope,
+      dailyEntryId: entry.id,
+      id: 'item-concurrent-delete',
+      text: 'Delete me',
+    });
+    await waitForAccountPersistence(scope.id);
+    failNextChecklistWrite = true;
+
+    await toggleChecklistItemCollapsed({ scope, itemId: item.id });
+    await softDeleteChecklistItem({ scope, itemId: item.id });
+    resolveFailedWrite({
+      data: null,
+      error: { message: 'older write failed' },
+    });
+    await waitForAccountPersistence(scope.id);
+
+    await expect(db.checklistItems.get(item.id)).resolves.toMatchObject({
+      deletedAt: expect.any(String),
+      syncStatus: 'synced',
+    });
+    expect(selectRemote).not.toHaveBeenCalled();
   });
 
   it('preserves pending authenticated goals during account cache refresh', async () => {

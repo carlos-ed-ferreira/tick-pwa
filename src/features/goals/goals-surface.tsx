@@ -377,6 +377,41 @@ function collectPrunedGoalStepDraftIds(
   );
 }
 
+function applyPendingGoalStepRowState(
+  rows: GoalStepSurfaceRow[],
+  pendingDeletedGoalStepIds: ReadonlySet<string>,
+  pendingCollapsedGoalStepIds: ReadonlySet<string>,
+): GoalStepSurfaceRow[] {
+  const nextRows: GoalStepSurfaceRow[] = [];
+  let hiddenBelowDepth: number | null = null;
+
+  for (const row of rows) {
+    if (hiddenBelowDepth !== null && row.depth > hiddenBelowDepth) {
+      continue;
+    }
+
+    hiddenBelowDepth = null;
+
+    if (pendingDeletedGoalStepIds.has(row.goalStep.id)) {
+      hiddenBelowDepth = row.depth;
+      continue;
+    }
+
+    if (pendingCollapsedGoalStepIds.has(row.goalStep.id)) {
+      nextRows.push({
+        ...row,
+        goalStep: { ...row.goalStep, collapsed: true },
+      });
+      hiddenBelowDepth = row.depth;
+      continue;
+    }
+
+    nextRows.push(row);
+  }
+
+  return nextRows;
+}
+
 type DragPayload = { id: string; type: 'goal' } | { id: string; type: 'group' };
 type PositionSide = 'before' | 'after';
 type DragTarget =
@@ -3311,9 +3346,27 @@ function GoalDetailCard({
     setActionPreferences,
   } = useTaskTreeRowActionPreferences('goal_step');
   const deletedDraftGoalStepIdsRef = useRef(new Set<string>());
-  const displayGoalStepRows = useMemo(
+  const [pendingCollapsedGoalStepIds, setPendingCollapsedGoalStepIds] =
+    useState(() => new Set<string>());
+  const [pendingDeletedGoalStepIds, setPendingDeletedGoalStepIds] = useState(
+    () => new Set<string>(),
+  );
+  const goalStepRowsWithDrafts = useMemo(
     () => insertGoalStepDraftRows(goalStepRows, draftGoalSteps),
     [draftGoalSteps, goalStepRows],
+  );
+  const displayGoalStepRows = useMemo(
+    () =>
+      applyPendingGoalStepRowState(
+        goalStepRowsWithDrafts,
+        pendingDeletedGoalStepIds,
+        pendingCollapsedGoalStepIds,
+      ),
+    [
+      goalStepRowsWithDrafts,
+      pendingCollapsedGoalStepIds,
+      pendingDeletedGoalStepIds,
+    ],
   );
   const visibleGoalStepIds = useMemo(
     () => goalStepRows.map((row) => row.goalStep.id),
@@ -3332,7 +3385,7 @@ function GoalDetailCard({
     async (goalStepId: string) => {
       if (!scope) return;
       const deletedIds = collectDeletedGoalStepRowIds(
-        displayGoalStepRows,
+        goalStepRowsWithDrafts,
         goalStepId,
       );
       const prunedDraftIds = collectPrunedGoalStepDraftIds(
@@ -3343,17 +3396,77 @@ function GoalDetailCard({
         deletedDraftGoalStepIdsRef.current.add(draftId);
       }
 
-      await softDeleteGoalStep({ scope, goalStepId });
-      await Promise.all(
-        [...prunedDraftIds].map((draftId) =>
-          softDeleteGoalStep({ scope, goalStepId: draftId }),
-        ),
-      );
-      setDraftGoalSteps((currentDrafts) =>
-        pruneGoalStepDrafts(currentDrafts, deletedIds),
-      );
+      setPendingDeletedGoalStepIds((currentIds) => {
+        const nextIds = new Set(currentIds);
+        deletedIds.forEach((id) => nextIds.add(id));
+        return nextIds;
+      });
+
+      try {
+        await softDeleteGoalStep({ scope, goalStepId });
+        await Promise.all(
+          [...prunedDraftIds].map((draftId) =>
+            softDeleteGoalStep({ scope, goalStepId: draftId }),
+          ),
+        );
+        setDraftGoalSteps((currentDrafts) =>
+          pruneGoalStepDrafts(currentDrafts, deletedIds),
+        );
+        window.setTimeout(() => {
+          setPendingDeletedGoalStepIds((currentIds) => {
+            const nextIds = new Set(currentIds);
+            deletedIds.forEach((id) => nextIds.delete(id));
+            return nextIds;
+          });
+        }, 0);
+      } catch (error) {
+        prunedDraftIds.forEach((id) =>
+          deletedDraftGoalStepIdsRef.current.delete(id),
+        );
+        setPendingDeletedGoalStepIds((currentIds) => {
+          const nextIds = new Set(currentIds);
+          deletedIds.forEach((id) => nextIds.delete(id));
+          return nextIds;
+        });
+        throw error;
+      }
     },
-    [displayGoalStepRows, draftGoalSteps, scope],
+    [draftGoalSteps, goalStepRowsWithDrafts, scope],
+  );
+  const toggleCollapsedGoalStep = useCallback(
+    async (goalStep: GoalStep) => {
+      if (!scope) return;
+
+      if (!goalStep.collapsed) {
+        setPendingCollapsedGoalStepIds((currentIds) => {
+          const nextIds = new Set(currentIds);
+          nextIds.add(goalStep.id);
+          return nextIds;
+        });
+      }
+
+      try {
+        await toggleGoalStepCollapsed({
+          scope,
+          goalStepId: goalStep.id,
+        });
+        window.setTimeout(() => {
+          setPendingCollapsedGoalStepIds((currentIds) => {
+            const nextIds = new Set(currentIds);
+            nextIds.delete(goalStep.id);
+            return nextIds;
+          });
+        }, 0);
+      } catch (error) {
+        setPendingCollapsedGoalStepIds((currentIds) => {
+          const nextIds = new Set(currentIds);
+          nextIds.delete(goalStep.id);
+          return nextIds;
+        });
+        throw error;
+      }
+    },
+    [scope],
   );
   const assignSelectedGoalStepCategory = useCallback(
     async (goalStepId: string, categoryTagId: string | null) => {
@@ -3544,6 +3657,8 @@ function GoalDetailCard({
                 ignored: nextValues.ignored,
               });
             }}
+            onDeleteGoalStep={deleteSelectedGoalStep}
+            onToggleCollapsedGoalStep={toggleCollapsedGoalStep}
             onToggleSelect={toggleSelect}
             setDraftGoalSteps={setDraftGoalSteps}
           />
@@ -3565,6 +3680,8 @@ function GoalStepRow({
   onBulkAssignCategory,
   onBulkDelete,
   onBulkToggleChecked,
+  onDeleteGoalStep,
+  onToggleCollapsedGoalStep,
   onToggleSelect,
   setDraftGoalSteps,
 }: {
@@ -3579,6 +3696,8 @@ function GoalStepRow({
   onBulkAssignCategory: (categoryTagId: string | null) => Promise<void>;
   onBulkDelete: () => void;
   onBulkToggleChecked: (nextValues: TaskCompletionValues) => Promise<void>;
+  onDeleteGoalStep: (goalStepId: string) => Promise<void>;
+  onToggleCollapsedGoalStep: (goalStep: GoalStep) => Promise<void>;
   onToggleSelect: (id: string, shiftKey: boolean) => void;
   setDraftGoalSteps: Dispatch<SetStateAction<GoalStepDraft[]>>;
 }) {
@@ -3821,7 +3940,7 @@ function GoalStepRow({
     }
 
     if (!isDraft) {
-      return toggleGoalStepCollapsed({ scope, goalStepId: goalStep.id });
+      return onToggleCollapsedGoalStep(goalStep);
     }
 
     setDraftGoalSteps((currentDrafts) =>
@@ -3899,34 +4018,7 @@ function GoalStepRow({
           ? setDraftGoalSteps((currentDrafts) =>
               currentDrafts.filter((draft) => draft.id !== goalStep.id),
             )
-          : (async () => {
-              const deletedIds = collectDeletedGoalStepRowIds(
-                rows,
-                goalStep.id,
-              );
-              const prunedDraftIds = collectPrunedGoalStepDraftIds(
-                rows
-                  .map((currentRow) => currentRow.goalStep)
-                  .filter(
-                    (currentGoalStep): currentGoalStep is GoalStepDraft =>
-                      'isDraft' in currentGoalStep && currentGoalStep.isDraft,
-                  ),
-                deletedIds,
-              );
-              for (const draftId of prunedDraftIds) {
-                deletedDraftGoalStepIdsRef.current.add(draftId);
-              }
-
-              await softDeleteGoalStep({ scope, goalStepId: goalStep.id });
-              await Promise.all(
-                [...prunedDraftIds].map((draftId) =>
-                  softDeleteGoalStep({ scope, goalStepId: draftId }),
-                ),
-              );
-              setDraftGoalSteps((currentDrafts) =>
-                pruneGoalStepDrafts(currentDrafts, deletedIds),
-              );
-            })()
+          : onDeleteGoalStep(goalStep.id)
       }
       onIndent={indentGoalStepItem}
       onMoveTo={handleMoveGoalStepToTarget}

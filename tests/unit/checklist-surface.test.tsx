@@ -18,6 +18,7 @@ const {
   setChecklistItemsCheckedMock,
   softDeleteChecklistItemMock,
   toggleChecklistItemBoldMock,
+  toggleChecklistItemCollapsedMock,
   toggleChecklistItemPriorityMock,
   updateChecklistItemScheduledTimeMock,
   updateChecklistItemTextMock,
@@ -32,6 +33,7 @@ const {
   setChecklistItemsCheckedMock: vi.fn().mockResolvedValue(undefined),
   softDeleteChecklistItemMock: vi.fn().mockResolvedValue(undefined),
   toggleChecklistItemBoldMock: vi.fn().mockResolvedValue(undefined),
+  toggleChecklistItemCollapsedMock: vi.fn().mockResolvedValue(undefined),
   toggleChecklistItemPriorityMock: vi.fn().mockResolvedValue(undefined),
   updateChecklistItemScheduledTimeMock: vi.fn().mockResolvedValue(undefined),
   updateChecklistItemTextMock: vi.fn().mockResolvedValue(undefined),
@@ -52,7 +54,7 @@ vi.mock('@/lib/db', () => ({
   softDeleteChecklistItem: softDeleteChecklistItemMock,
   toggleChecklistItemChecked: vi.fn().mockResolvedValue(undefined),
   toggleChecklistItemBold: toggleChecklistItemBoldMock,
-  toggleChecklistItemCollapsed: vi.fn().mockResolvedValue(undefined),
+  toggleChecklistItemCollapsed: toggleChecklistItemCollapsedMock,
   toggleChecklistItemPriority: toggleChecklistItemPriorityMock,
   updateChecklistItemScheduledTime: updateChecklistItemScheduledTimeMock,
   updateChecklistItemText: updateChecklistItemTextMock,
@@ -187,6 +189,7 @@ describe('ChecklistSurface delete confirmation', () => {
     setChecklistItemsCheckedMock.mockClear();
     softDeleteChecklistItemMock.mockClear();
     toggleChecklistItemBoldMock.mockClear();
+    toggleChecklistItemCollapsedMock.mockClear();
     toggleChecklistItemPriorityMock.mockClear();
     updateChecklistItemTextMock.mockClear();
   });
@@ -244,6 +247,61 @@ describe('ChecklistSurface delete confirmation', () => {
     expect(
       screen.queryByText('Are you sure you want to delete this task?'),
     ).not.toBeInTheDocument();
+  });
+
+  it('hides a deleted row while the local delete is still pending', async () => {
+    let resolveDelete!: () => void;
+    softDeleteChecklistItemMock.mockReturnValueOnce(
+      new Promise<void>((resolve) => {
+        resolveDelete = resolve;
+      }),
+    );
+    useChecklistTreeMock.mockReturnValue([createRow('Important task')]);
+
+    render(<ChecklistSurface dailyEntryId="entry-1" />);
+
+    fireEvent.click(screen.getByLabelText('More actions'));
+    fireEvent.click(screen.getAllByLabelText('Delete task')[0]);
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete' }));
+
+    await waitFor(() => {
+      expect(
+        screen.queryByDisplayValue('Important task'),
+      ).not.toBeInTheDocument();
+    });
+
+    resolveDelete();
+  });
+
+  it('keeps the parent visible while optimistically collapsing its children', async () => {
+    let resolveCollapse!: () => void;
+    toggleChecklistItemCollapsedMock.mockReturnValueOnce(
+      new Promise<void>((resolve) => {
+        resolveCollapse = resolve;
+      }),
+    );
+    const parent = createRow('Parent task');
+    parent.childCount = 1;
+    parent.hasChildren = true;
+    const child = createRow('Child task');
+    (child.item as { parentId: string | null }).parentId = parent.item.id;
+    child.depth = 1;
+    useChecklistTreeMock.mockReturnValue([parent, child]);
+
+    render(<ChecklistSurface dailyEntryId="entry-1" />);
+
+    fireEvent.click(
+      screen
+        .getAllByLabelText('Collapse task')
+        .find((button) => !button.hasAttribute('disabled'))!,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('Parent task')).toBeInTheDocument();
+      expect(screen.queryByDisplayValue('Child task')).not.toBeInTheDocument();
+    });
+
+    resolveCollapse();
   });
 
   it('reorders a row with drag and drop', async () => {
