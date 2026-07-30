@@ -2986,7 +2986,7 @@ function GoalGroupDetailHeader({
             )}
             selectedCategoryTagId={group.categoryTagId}
             surface="goal_group"
-            triggerClassName="inline-flex size-10 shrink-0 items-center justify-center rounded-md border border-white/10 bg-white/5 text-[#d8d0e8] shadow-sm shadow-[#312c51]/10 hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/10 hover:text-[#fff9f2] focus-visible:outline-[#f7d9b0]"
+            triggerClassName="inline-flex size-10 shrink-0 items-center justify-center rounded-md border border-white/10 bg-white/5 text-[#d8d0e8] shadow-sm shadow-[#312c51]/10 hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/10 hover:text-[#fff9f2] focus-visible:outline-[#f7d9b0] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0 disabled:hover:border-white/10 disabled:hover:bg-white/5 disabled:hover:text-[#d8d0e8]"
             onAssign={(categoryTagId) => {
               if (!scope) return;
 
@@ -3124,7 +3124,7 @@ function GoalDetailHeader({
                 )}
                 selectedCategoryTagId={goal.categoryTagId}
                 surface="goal"
-                triggerClassName="inline-flex size-10 shrink-0 items-center justify-center rounded-md border border-white/10 bg-white/5 text-[#d8d0e8] shadow-sm shadow-[#312c51]/10 hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/10 hover:text-[#fff9f2] focus-visible:outline-[#f7d9b0]"
+                triggerClassName="inline-flex size-10 shrink-0 items-center justify-center rounded-md border border-white/10 bg-white/5 text-[#d8d0e8] shadow-sm shadow-[#312c51]/10 hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/10 hover:text-[#fff9f2] focus-visible:outline-[#f7d9b0] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0 disabled:hover:border-white/10 disabled:hover:bg-white/5 disabled:hover:text-[#d8d0e8]"
                 onAssign={(categoryTagId) => {
                   if (!scope) return;
                   return assignGoalCategory({

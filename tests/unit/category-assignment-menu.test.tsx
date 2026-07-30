@@ -174,6 +174,54 @@ describe('CategoryAssignmentMenu', () => {
     expect(menu?.querySelectorAll('button').length).toBe(1); // single named category
   });
 
+  it('disables the trigger when there is no category to assign', () => {
+    useCategoryTagsMock.mockReturnValue([
+      {
+        id: 'category-own',
+        name: '',
+        colorHex: '#f59e0b',
+        useOwnName: true,
+      },
+    ]);
+
+    render(
+      <CategoryAssignmentMenu
+        assignLabel="Assign category"
+        clearLabel="Clear category"
+        selectedCategoryTagId={null}
+        surface="goal"
+        onAssign={vi.fn()}
+      />,
+    );
+
+    const trigger = screen.getByRole('button', { name: 'Assign category' });
+
+    expect(trigger).toBeDisabled();
+
+    fireEvent.click(trigger);
+
+    expect(trigger).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  it('keeps the trigger enabled when clear is the only menu action', () => {
+    useCategoryTagsMock.mockReturnValue([]);
+
+    render(
+      <CategoryAssignmentMenu
+        assignLabel="Assign category to selected"
+        clearLabel="Clear category"
+        selectedCategoryTagId={null}
+        showClearInMenu
+        surface="goal"
+        onAssign={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByRole('button', { name: 'Assign category to selected' }),
+    ).toBeEnabled();
+  });
+
   it('keeps the portal menu inside a narrow viewport', async () => {
     Object.defineProperty(window, 'innerHeight', {
       configurable: true,
