@@ -33,6 +33,52 @@ test('persists a goal step in local mode', async ({ page }) => {
   ).toBeVisible();
 });
 
+test('navigates between goal lists and keeps archived steps read-only', async ({
+  page,
+}) => {
+  await enterLocalMode(page);
+  await page.goto('/goals');
+  await page.getByRole('button', { name: labels.createGoal }).click();
+  await page.waitForURL(/\/goals\?goal=.+/);
+
+  await page.getByRole('button', { name: labels.goalStepEmpty }).click();
+  await firstGoalStepInput(page).fill('Archived reference step');
+
+  await page
+    .getByRole('button', { name: /archive goal|arquivar meta/i })
+    .click();
+  await page
+    .getByRole('dialog')
+    .getByRole('button', { name: /archive goal|arquivar meta/i })
+    .click();
+
+  await page.waitForURL(/\/goals$/);
+  await expect(
+    page.getByRole('button', { name: /^active$|^ativas$/i }),
+  ).toBeVisible();
+  await page.getByRole('button', { name: labels.createGoal }).click();
+
+  await expect(page.getByText('Archived reference step')).toBeVisible();
+  await expect(page.locator('[data-goal-step-input="true"]')).toHaveCount(0);
+  await expect(
+    page.getByRole('button', { name: /add step|adicionar etapa/i }),
+  ).toHaveCount(0);
+  await expect(page.getByRole('checkbox')).toBeDisabled();
+
+  await page
+    .getByRole('button', { name: /restore goal|restaurar meta/i })
+    .click();
+  await page
+    .getByRole('dialog')
+    .getByRole('button', { name: /restore goal|restaurar meta/i })
+    .click();
+
+  await page.waitForURL(/\/goals$/);
+  await expect(
+    page.getByRole('button', { name: /^archived$|^arquivadas$/i }),
+  ).toBeVisible();
+});
+
 test('caps a long goal title without deforming the back button or overflowing the page', async ({
   page,
 }) => {

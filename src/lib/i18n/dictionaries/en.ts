@@ -298,6 +298,7 @@ export const enDictionary = {
     addGoalAfter: 'Add goal below',
     addStep: 'Add step',
     emptyGroup: 'This group has no goals yet. Create the first goal.',
+    emptyArchivedGoals: 'There are no archived goals.',
     emptyCategory: 'Start this section by adding a step',
     emptyGoal: 'Start this goal by adding a step',
     goalPlaceholder: 'Write a goal',

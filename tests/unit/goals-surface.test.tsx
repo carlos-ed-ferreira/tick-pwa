@@ -28,6 +28,7 @@ const {
   reopenGoalMock,
   routerPushMock,
   setGoalStepsCompletedMock,
+  softDeleteGoalMock,
   softDeleteGoalStepMock,
   softDeleteGoalGroupMock,
   updateCategoryTagMock,
@@ -50,6 +51,7 @@ const {
   reopenGoalMock: vi.fn().mockResolvedValue(undefined),
   routerPushMock: vi.fn(),
   setGoalStepsCompletedMock: vi.fn().mockResolvedValue(undefined),
+  softDeleteGoalMock: vi.fn().mockResolvedValue(undefined),
   softDeleteGoalStepMock: vi.fn().mockResolvedValue(undefined),
   softDeleteGoalGroupMock: vi.fn().mockResolvedValue(undefined),
   updateCategoryTagMock: vi.fn().mockResolvedValue(undefined),
@@ -91,7 +93,7 @@ vi.mock('@/lib/db', () => ({
   reorderGoalGroup: vi.fn().mockResolvedValue(undefined),
   reorderGoalStep: vi.fn().mockResolvedValue(undefined),
   setGoalStepsCompleted: setGoalStepsCompletedMock,
-  softDeleteGoal: vi.fn().mockResolvedValue(undefined),
+  softDeleteGoal: softDeleteGoalMock,
   softDeleteGoalGroup: softDeleteGoalGroupMock,
   softDeleteGoalStep: softDeleteGoalStepMock,
   toggleGoalStepChecked: vi.fn().mockResolvedValue(undefined),
@@ -181,6 +183,7 @@ vi.mock('@/providers', () => ({
         clearGroupCategory: 'Clear group color/category',
         deleteGroup: 'Delete group',
         confirmDeleteGroup: 'Delete this group?',
+        emptyArchivedGoals: 'There are no archived goals.',
         noGroup: 'No group',
         originGroup: 'Original group',
         renameGoal: 'Rename goal',
@@ -310,6 +313,7 @@ describe('GoalsSurface', () => {
     routerPushMock.mockClear();
     setGoalStepsCompletedMock.mockClear();
     softDeleteGoalStepMock.mockClear();
+    softDeleteGoalMock.mockClear();
     softDeleteGoalGroupMock.mockClear();
     updateGoalStepTextMock.mockClear();
     updateGoalTitleMock.mockClear();
@@ -399,6 +403,214 @@ describe('GoalsSurface', () => {
       });
     });
     expect(routerPushMock).toHaveBeenCalledWith('/goals?goal=goal-new');
+  });
+
+  it('uses the same button pattern to enter and leave archived goals', () => {
+    render(<GoalsSurface />);
+
+    const archivedButton = screen.getByRole('button', { name: 'Archived' });
+
+    expect(archivedButton).toHaveClass(
+      'min-h-10',
+      'w-fit',
+      'rounded-full',
+      'border-white/10',
+      'bg-white/5',
+      'px-4',
+      'py-2',
+      'text-sm',
+      'font-semibold',
+    );
+
+    fireEvent.click(archivedButton);
+
+    const activeButton = screen.getByRole('button', { name: 'Active' });
+
+    expect(activeButton).toHaveClass(
+      'min-h-10',
+      'w-fit',
+      'rounded-full',
+      'border-white/10',
+      'bg-white/5',
+      'px-4',
+      'py-2',
+      'text-sm',
+      'font-semibold',
+    );
+    expect(activeButton.querySelector('.lucide-target')).not.toBeNull();
+  });
+
+  it('groups archived goals in flat sections and omits origin from cards', () => {
+    useCategoryTagsMock.mockImplementation((_scope, surface) =>
+      surface === 'goal_group'
+        ? [
+            {
+              id: 'category-personal',
+              name: 'Personal',
+              colorHex: '#8b5cf6',
+              position: '1',
+              surface: 'goal_group',
+            },
+          ]
+        : [],
+    );
+    useGoalGroupsMock.mockReturnValue([
+      group({
+        id: 'group-life',
+        title: 'Life',
+        sortRank: 'A',
+        categoryTagId: 'category-personal',
+      }),
+      group({ id: 'group-work', title: 'Work', sortRank: 'B' }),
+    ]);
+    useGoalsMock.mockImplementation((_scope, options = {}) => {
+      if (!options.archived) return [];
+
+      return [
+        goal({
+          id: 'goal-health',
+          title: 'Health',
+          groupId: 'group-life',
+          completedAt: '2026-06-20T12:00:00.000Z',
+        }),
+        goal({
+          id: 'goal-family',
+          title: 'Family',
+          groupId: 'group-life',
+          completedAt: '2026-06-21T12:00:00.000Z',
+        }),
+        goal({
+          id: 'goal-career',
+          title: 'Career',
+          groupId: 'group-work',
+          completedAt: '2026-06-22T12:00:00.000Z',
+        }),
+        goal({
+          id: 'goal-loose',
+          title: 'Loose',
+          groupId: null,
+          completedAt: '2026-06-23T12:00:00.000Z',
+        }),
+      ];
+    });
+
+    render(<GoalsSurface />);
+    fireEvent.click(screen.getByRole('button', { name: 'Archived' }));
+
+    const lifeSection = screen.getByTestId('archived-goal-group-group-life');
+    const workSection = screen.getByTestId('archived-goal-group-group-work');
+    const noGroupSection = screen.getByTestId('archived-goal-group-none');
+    const activeButton = screen.getByRole('button', { name: 'Active' });
+
+    expect(lifeSection).not.toHaveClass('border', 'bg-white/[0.035]');
+    expect(within(lifeSection).getByText('Life')).toBeVisible();
+    expect(within(lifeSection).getByText('Personal')).toBeVisible();
+    expect(
+      within(lifeSection).getByRole('button', { name: 'Health' }),
+    ).toBeVisible();
+    expect(
+      within(lifeSection).getByRole('button', { name: 'Family' }),
+    ).toBeVisible();
+    expect(
+      within(lifeSection).getByRole('button', { name: 'Health' }).parentElement,
+    ).toHaveClass('lg:grid-cols-3', 'xl:grid-cols-4');
+    expect(
+      within(workSection).getByRole('button', { name: 'Career' }),
+    ).toBeVisible();
+    expect(
+      within(noGroupSection).getByRole('button', { name: 'Loose' }),
+    ).toBeVisible();
+    expect(screen.queryByText(/Original group:/)).not.toBeInTheDocument();
+    expect(
+      screen
+        .getAllByTestId(/^archived-goal-group-/)
+        .map((section) => within(section).getByRole('heading').textContent),
+    ).toEqual(['Life', 'Work', 'No group']);
+    expect(
+      lifeSection.compareDocumentPosition(activeButton) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).not.toBe(0);
+  });
+
+  it('uses the standard dropdown and allows deleting an archived goal', async () => {
+    useGoalsMock.mockImplementation((_scope, options = {}) =>
+      options.archived
+        ? [
+            goal({
+              id: 'goal-archived',
+              title: 'Done',
+              completedAt: '2026-06-23T12:00:00.000Z',
+            }),
+          ]
+        : [],
+    );
+
+    render(<GoalsSurface />);
+    fireEvent.click(screen.getByRole('button', { name: 'Archived' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Goal actions' }));
+
+    const menu = document.querySelector('[data-goal-actions-menu="true"]');
+    const deleteButton = screen.getByRole('button', { name: 'Delete goal' });
+
+    expect(menu).toHaveClass('modal-panel', 'modal-panel--flat');
+    expect(deleteButton).toHaveClass('min-h-10', 'w-full', 'gap-3', 'px-3');
+
+    fireEvent.click(deleteButton);
+
+    await waitFor(() => {
+      expect(softDeleteGoalMock).toHaveBeenCalledWith({
+        scope,
+        goalId: 'goal-archived',
+      });
+    });
+  });
+
+  it('renders archived goal steps as read-only content', () => {
+    useGoalsMock.mockImplementation((_scope, options = {}) => {
+      if (options.archived) {
+        return [
+          goal({
+            id: 'goal-archived',
+            title: 'Done',
+            completedAt: '2026-06-23T12:00:00.000Z',
+          }),
+        ];
+      }
+
+      return [];
+    });
+    useGoalStepTreeMock.mockReturnValue([
+      goalStep({
+        goalId: 'goal-archived',
+        text: 'Archived step',
+        completed: true,
+      }),
+    ]);
+
+    render(<GoalsSurface />);
+    fireEvent.click(screen.getByRole('button', { name: 'Archived' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+
+    expect(screen.getByText('Archived step')).toBeVisible();
+    expect(screen.queryByDisplayValue('Archived step')).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Add step' }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'More actions' }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole('checkbox')).toBeDisabled();
+    expect(
+      screen.queryByLabelText('Assign independent color'),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Assign goal category' }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Clear goal color/category' }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Restore goal' })).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Delete goal' })).toBeVisible();
   });
 
   it('asks for the initial group name before combining two ungrouped goals', async () => {
@@ -1465,6 +1677,11 @@ describe('GoalsSurface', () => {
         goalId: 'goal-archived',
       });
     });
+    expect(routerPushMock).toHaveBeenCalledWith('/goals');
+    expect(screen.getByRole('button', { name: 'Archived' })).toBeVisible();
+    expect(
+      screen.queryByRole('button', { name: 'Active' }),
+    ).not.toBeInTheDocument();
   });
 
   it('asks for confirmation before archiving a goal from the card menu', async () => {
@@ -1484,6 +1701,8 @@ describe('GoalsSurface', () => {
         goalId: 'goal-1',
       });
     });
+    expect(routerPushMock).toHaveBeenCalledWith('/goals');
+    expect(screen.getByRole('button', { name: 'Active' })).toBeVisible();
   });
 
   it('renders the uncategorized goal trigger as an action box in the goal header', () => {
@@ -1690,6 +1909,8 @@ describe('GoalsSurface', () => {
         goalId: 'goal-1',
       });
     });
+    expect(routerPushMock).toHaveBeenCalledWith('/goals');
+    expect(screen.getByRole('button', { name: 'Active' })).toBeVisible();
   });
 
   it('asks for confirmation before restoring an archived goal from the detail header', async () => {
@@ -1725,5 +1946,7 @@ describe('GoalsSurface', () => {
         goalId: 'goal-archived',
       });
     });
+    expect(routerPushMock).toHaveBeenCalledWith('/goals');
+    expect(screen.getByRole('button', { name: 'Archived' })).toBeVisible();
   });
 });

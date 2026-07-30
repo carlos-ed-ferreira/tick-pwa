@@ -227,6 +227,7 @@ export interface Dictionary {
     addGoalAfter: string;
     addStep: string;
     emptyGroup: string;
+    emptyArchivedGoals: string;
     emptyCategory: string;
     emptyGoal: string;
     goalPlaceholder: string;

@@ -307,6 +307,7 @@ export const ptBRDictionary = {
     addGoalAfter: 'Adicionar meta abaixo',
     addStep: 'Adicionar etapa',
     emptyGroup: 'Este grupo ainda não tem metas. Crie a primeira meta.',
+    emptyArchivedGoals: 'Não há metas arquivadas.',
     emptyCategory: 'Comece esta seção adicionando uma etapa',
     emptyGoal: 'Comece esta meta adicionando uma etapa',
     goalPlaceholder: 'Escreva uma meta',
