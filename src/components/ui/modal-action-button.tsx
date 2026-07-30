@@ -1,10 +1,16 @@
 import type { ButtonHTMLAttributes, ReactNode } from 'react';
 
-export type ModalActionButtonTone = 'neutral' | 'accent' | 'danger';
+export type ModalActionButtonTone =
+  | 'neutral'
+  | 'secondary'
+  | 'accent'
+  | 'danger';
 
 const toneClassNames: Record<ModalActionButtonTone, string> = {
   neutral:
     'border border-white/10 bg-white/[0.055] text-[#d8d0e8] hover:border-white/20 hover:bg-white/[0.1] hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]',
+  secondary:
+    'border border-[#b8add6]/30 bg-[#756a9b]/32 text-[#fff9f2] hover:border-[#c7bce4]/45 hover:bg-[#8175aa]/42 focus-visible:outline-[#c7bce4]',
   accent:
     'border border-[#f8d7aa]/70 bg-[#f0c38e] text-[#312c51] shadow-[#f0c38e]/18 hover:border-[#ffe0b8] hover:bg-[#f5d09f] focus-visible:outline-[#f0c38e]',
   danger:

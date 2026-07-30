@@ -16,6 +16,11 @@ vi.mock('@/providers', () => ({
       },
       calendar: {
         bulkDatePlaceholder: 'DD-MM-YYYY',
+        nextMonth: 'Next month',
+        openDatePicker: 'Open date picker for {label}',
+        previousMonth: 'Previous month',
+        selectDate: 'Select date',
+        today: 'Today',
         title: 'Daily Tasks',
         transferDescription:
           'Choose the destination date to move or duplicate all tasks from this day.',
@@ -26,6 +31,7 @@ vi.mock('@/providers', () => ({
         transferMove: 'Move tasks',
         transferSameDate: 'Choose a different date for this day.',
         transferTargetDate: 'Destination date',
+        weekdays: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
       },
     },
     locale: 'en',
@@ -61,11 +67,18 @@ describe('CalendarTaskTransferAction', () => {
     });
 
     expect(moveButton).toHaveClass('h-8', 'rounded-full');
+    expect(moveButton).toHaveClass('bg-[#756a9b]/32');
+    expect(moveButton).not.toHaveClass('bg-white/[0.055]');
     expect(duplicateButton).toHaveClass('h-8', 'rounded-full');
     expect(moveButton.querySelector('svg')).toBeInTheDocument();
     expect(duplicateButton.querySelector('svg')).toBeInTheDocument();
     expect(screen.getByRole('dialog')).toHaveClass('sm:h-auto');
     expect(screen.getByRole('dialog').querySelector('.modal-panel')).toBeNull();
+    expect(
+      screen.getByRole('button', {
+        name: 'Open date picker for Destination date',
+      }),
+    ).toBeInTheDocument();
 
     fireEvent.click(moveButton);
 

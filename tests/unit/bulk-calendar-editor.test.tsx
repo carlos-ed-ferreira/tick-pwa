@@ -35,9 +35,13 @@ vi.mock('@/providers', () => ({
       },
       calendar: {
         bulkApply: 'Create',
+        bulkApplyAndClose: 'Create and close',
+        bulkAllWeekdaysHint: 'No selection means every day.',
         bulkClear: 'Clear in bulk',
         bulkClearApply: 'Clear',
         bulkClearDescription: 'All tasks on the selected days will be removed.',
+        bulkClearTasks: 'Clear tasks',
+        bulkCreated: 'Tasks created.',
         bulkClearEditorTitle: 'Clear in bulk',
         bulkCreate: 'Create in bulk',
         bulkDatePlaceholder: 'DD-MM-YYYY',
@@ -50,14 +54,15 @@ vi.mock('@/providers', () => ({
           'No dates in this range match the selected weekdays.',
         bulkRequireItems: 'Add at least one task before creating in bulk.',
         bulkRequiredDates: 'Start and end dates are required.',
-        bulkSelectWeekdays: 'Select at least one weekday.',
         bulkStartDate: 'Start date',
         bulkWeekdays: 'Weekdays',
         sortByTime: 'Sort by time',
         today: 'Today',
         previousMonth: 'Previous month',
         nextMonth: 'Next month',
+        openDatePicker: 'Open date picker for {label}',
         previousYear: 'Previous year',
+        selectDate: 'Select date',
         nextYear: 'Next year',
         emptyDay: 'No tasks',
         weekdays: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
@@ -153,6 +158,16 @@ describe('BulkCalendarEditor', () => {
     expect(dialog.querySelector('.modal-panel')).toBeNull();
     expect(createButton).toHaveClass('h-8', 'rounded-full');
     expect(createButton.querySelector('svg')).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', {
+        name: 'Open date picker for Start date',
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', {
+        name: 'Open date picker for End date',
+      }),
+    ).toBeInTheDocument();
 
     fireEvent.click(createButton);
 
@@ -162,7 +177,7 @@ describe('BulkCalendarEditor', () => {
     expect(applyChecklistTemplateToDateRangeMock).not.toHaveBeenCalled();
   });
 
-  it('masks dates and submits the drafted checklist to the selected weekdays', async () => {
+  it('creates without closing and preserves the editor state', async () => {
     const onClose = vi.fn();
 
     render(<BulkCalendarEditor open onClose={onClose} />);
@@ -210,7 +225,111 @@ describe('BulkCalendarEditor', () => {
         timezone: 'America/Sao_Paulo',
       });
     });
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByText('Tasks created.')).toBeInTheDocument();
+    expect(screen.getByLabelText('Start date')).toHaveValue('01-01-2026');
+    expect(screen.getByLabelText('End date')).toHaveValue('10-01-2026');
+    expect(screen.getByPlaceholderText('Write a task')).toHaveValue(
+      'My recurring task',
+    );
+  });
+
+  it('creates and closes when explicitly requested', async () => {
+    const onClose = vi.fn();
+
+    render(<BulkCalendarEditor open onClose={onClose} />);
+
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: 'Start by adding tasks for this range',
+      }),
+    );
+    fireEvent.change(screen.getByPlaceholderText('Write a task'), {
+      target: { value: 'Close after creating' },
+    });
+    fireEvent.change(screen.getByLabelText('Start date'), {
+      target: { value: '01012026' },
+    });
+    fireEvent.change(screen.getByLabelText('End date'), {
+      target: { value: '02012026' },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Create and close' }));
+
+    await waitFor(() => {
+      expect(applyChecklistTemplateToDateRangeMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          selectedWeekdays: [],
+          templateItems: [
+            expect.objectContaining({ text: 'Close after creating' }),
+          ],
+        }),
+      );
+    });
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('uses every day when no weekday is selected', async () => {
+    render(<BulkCalendarEditor open onClose={vi.fn()} />);
+
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: 'Start by adding tasks for this range',
+      }),
+    );
+    fireEvent.change(screen.getByPlaceholderText('Write a task'), {
+      target: { value: 'Every day' },
+    });
+    fireEvent.change(screen.getByLabelText('Start date'), {
+      target: { value: '01012026' },
+    });
+    fireEvent.change(screen.getByLabelText('End date'), {
+      target: { value: '03012026' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Create' }));
+
+    await waitFor(() => {
+      expect(applyChecklistTemplateToDateRangeMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          selectedWeekdays: [],
+        }),
+      );
+    });
+    expect(screen.getByText('No selection means every day.')).toBeVisible();
+  });
+
+  it('clears only the drafted tasks', () => {
+    render(<BulkCalendarEditor open onClose={vi.fn()} />);
+
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: 'Start by adding tasks for this range',
+      }),
+    );
+    fireEvent.change(screen.getByPlaceholderText('Write a task'), {
+      target: { value: 'Temporary task' },
+    });
+    fireEvent.change(screen.getByLabelText('Start date'), {
+      target: { value: '01012026' },
+    });
+    fireEvent.change(screen.getByLabelText('End date'), {
+      target: { value: '10012026' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Mon' }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Clear tasks' }));
+
+    expect(
+      screen.getByRole('button', {
+        name: 'Start by adding tasks for this range',
+      }),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText('Start date')).toHaveValue('01-01-2026');
+    expect(screen.getByLabelText('End date')).toHaveValue('10-01-2026');
+    expect(screen.getByRole('button', { name: 'Mon' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
   });
 
   it('ignores whitespace-only draft rows when validating bulk creation', async () => {
@@ -266,7 +385,7 @@ describe('BulkCalendarEditor', () => {
     ).toBeInTheDocument();
   });
 
-  it('clears the selected weekdays in clear mode', async () => {
+  it('clears every weekday in clear mode when none are selected', async () => {
     const onClose = vi.fn();
 
     render(<BulkCalendarEditor mode="clear" open onClose={onClose} />);
@@ -279,7 +398,6 @@ describe('BulkCalendarEditor', () => {
     fireEvent.change(screen.getByLabelText('End date'), {
       target: { value: '10012026' },
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Mon' }));
     fireEvent.click(screen.getByRole('button', { name: 'Clear' }));
 
     await waitFor(() => {
@@ -291,7 +409,7 @@ describe('BulkCalendarEditor', () => {
         },
         startDate: '2026-01-01',
         endDate: '2026-01-10',
-        selectedWeekdays: [1],
+        selectedWeekdays: [],
       });
     });
     expect(applyChecklistTemplateToDateRangeMock).not.toHaveBeenCalled();

@@ -1,12 +1,13 @@
 'use client';
 
 import { ArrowRightLeft, Copy, MoveRight, X } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Button, Dialog, Input, ModalActionButton } from '@/components/ui';
+import { useCallback, useMemo, useState } from 'react';
+import { DatePicker } from '@/components/app';
+import { Button, Dialog, ModalActionButton } from '@/components/ui';
 import type { LocalDateString } from '@/lib/domain';
 import { formatLocalDateLabel } from '@/lib/i18n';
 import { parseLocalDateKey } from '@/lib/time';
-import { maskDateInput, parseDateInputValue } from '@/lib/time';
+import { parseDateInputValue } from '@/lib/time';
 import { useAppContext } from '@/providers';
 
 function createDateLabelDate(date: LocalDateString): Date {
@@ -36,7 +37,6 @@ export function CalendarTaskTransferAction({
   const [targetDateInput, setTargetDateInput] = useState('');
   const [validationMessage, setValidationMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const targetDateInputRef = useRef<HTMLInputElement | null>(null);
   const sourceDateLabel = useMemo(
     () =>
       formatLocalDateLabel(
@@ -46,14 +46,6 @@ export function CalendarTaskTransferAction({
       ),
     [locale, sourceDate, timezonePreference.timezone],
   );
-
-  useEffect(() => {
-    if (!isOpen) {
-      return;
-    }
-
-    targetDateInputRef.current?.focus();
-  }, [isOpen]);
 
   const closeDialog = useCallback(() => {
     setIsOpen(false);
@@ -124,21 +116,13 @@ export function CalendarTaskTransferAction({
             </span>
           </div>
 
-          <label className="grid gap-2">
-            <span className="text-xs font-semibold uppercase tracking-[0.14em] text-[#9f96b8]">
-              {dictionary.calendar.transferTargetDate}
-            </span>
-            <Input
-              ref={targetDateInputRef}
-              aria-label={dictionary.calendar.transferTargetDate}
-              className="h-11 rounded-xl border border-white/10 bg-white/[0.04] px-3 text-sm text-[#fff9f2] outline-none transition placeholder:text-[#8f85aa] focus:border-[#f0c38e]/40 focus:bg-white/[0.06]"
-              placeholder={dictionary.calendar.bulkDatePlaceholder}
-              value={targetDateInput}
-              onChange={(event) =>
-                setTargetDateInput(maskDateInput(event.target.value))
-              }
-            />
-          </label>
+          <DatePicker
+            autoFocus
+            label={dictionary.calendar.transferTargetDate}
+            placeholder={dictionary.calendar.bulkDatePlaceholder}
+            value={targetDateInput}
+            onChange={setTargetDateInput}
+          />
 
           {validationMessage ? (
             <p className="text-sm text-rose-200">{validationMessage}</p>
@@ -150,6 +134,7 @@ export function CalendarTaskTransferAction({
               {dictionary.actions.cancel}
             </ModalActionButton>
             <ModalActionButton
+              tone="secondary"
               disabled={isSubmitting}
               onClick={() => void handleTransfer('move')}
             >

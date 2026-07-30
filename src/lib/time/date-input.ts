@@ -82,11 +82,15 @@ export function getDatesInRangeForWeekdays({
   selectedWeekdays: readonly WeekdayIndex[];
   startDate: LocalDateString;
 }): LocalDateString[] {
-  if (startDate > endDate || selectedWeekdays.length === 0) {
+  if (startDate > endDate) {
     return [];
   }
 
-  const selectedWeekdaySet = new Set(selectedWeekdays);
+  const selectedWeekdaySet = new Set<WeekdayIndex>(
+    selectedWeekdays.length > 0
+      ? selectedWeekdays
+      : ([0, 1, 2, 3, 4, 5, 6] satisfies WeekdayIndex[]),
+  );
   const dates: LocalDateString[] = [];
   let cursor = startDate;
 

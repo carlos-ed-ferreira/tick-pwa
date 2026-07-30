@@ -44,4 +44,14 @@ describe('date input helpers', () => {
       '2026-01-09',
     ]);
   });
+
+  it('treats an empty weekday selection as every day', () => {
+    expect(
+      getDatesInRangeForWeekdays({
+        startDate: '2026-01-01',
+        endDate: '2026-01-04',
+        selectedWeekdays: [],
+      }),
+    ).toEqual(['2026-01-01', '2026-01-02', '2026-01-03', '2026-01-04']);
+  });
 });

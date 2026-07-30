@@ -158,7 +158,7 @@ describe('UI primitives', () => {
     ).toBeInTheDocument();
     expect(
       screen.getByRole('button', { name: 'Delete' }).parentElement,
-    ).toHaveClass('mt-1', 'pt-2');
+    ).toHaveClass('mt-4');
     const cancelAction = screen
       .getAllByRole('button', { name: 'Cancel' })
       .find((button) => button.textContent === 'Cancel');

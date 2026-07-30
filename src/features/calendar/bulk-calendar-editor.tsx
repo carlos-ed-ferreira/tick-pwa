@@ -1,15 +1,16 @@
 'use client';
 
-import { Clock3, Plus, Trash2, X } from 'lucide-react';
+import { CheckCheck, Clock3, Eraser, Plus, Trash2, X } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
 import {
+  DatePicker,
   TaskTreeBulkActions,
   TaskTreeEditableRow,
   TaskTreeRowActionsMenu,
   TreeListPanel,
   type TaskTreeRowActionPreferences,
 } from '@/components/app';
-import { Dialog, IconButton, Input, ModalActionButton } from '@/components/ui';
+import { Dialog, IconButton, ModalActionButton } from '@/components/ui';
 import { useCategoryTags } from '@/features/categories';
 import { useTreeSelection } from '@/hooks/use-tree-selection';
 import { useTaskTreeRowActionPreferences } from '@/hooks/use-task-tree-row-action-visibility';
@@ -20,11 +21,7 @@ import {
 import { createId, type TaskCompletionValues } from '@/lib/domain';
 import { formatSelectionLabel } from '@/lib/i18n';
 import type { WeekdayIndex } from '@/lib/time';
-import {
-  getDatesInRangeForWeekdays,
-  maskDateInput,
-  parseDateInputValue,
-} from '@/lib/time';
+import { getDatesInRangeForWeekdays, parseDateInputValue } from '@/lib/time';
 import { useAppContext } from '@/providers';
 import {
   assignBulkChecklistDraftItemCategory,
@@ -71,6 +68,7 @@ export function BulkCalendarEditor({
   const [validationMessage, setValidationMessage] = useState<string | null>(
     null,
   );
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const sanitizedDraftItems = useMemo(
     () => filterBulkChecklistDraftItems(draftItems),
@@ -83,6 +81,7 @@ export function BulkCalendarEditor({
     setEndDateInput('');
     setSelectedWeekdays([]);
     setValidationMessage(null);
+    setSuccessMessage(null);
     setIsSubmitting(false);
   }, []);
 
@@ -120,11 +119,6 @@ export function BulkCalendarEditor({
       return null;
     }
 
-    if (selectedWeekdays.length === 0) {
-      setValidationMessage(dictionary.calendar.bulkSelectWeekdays);
-      return null;
-    }
-
     if (
       getDatesInRangeForWeekdays({
         startDate,
@@ -146,52 +140,66 @@ export function BulkCalendarEditor({
     dictionary.calendar.bulkInvalidRange,
     dictionary.calendar.bulkNoMatchingDates,
     dictionary.calendar.bulkRequiredDates,
-    dictionary.calendar.bulkSelectWeekdays,
     endDateInput,
     selectedWeekdays,
     startDateInput,
   ]);
 
-  const applyBulkRange = useCallback(async () => {
-    if (!scope) {
-      return;
-    }
+  const applyBulkRange = useCallback(
+    async (closeAfterApply = false) => {
+      if (!scope) {
+        return;
+      }
 
-    const rangeSelection = validateBulkDateRange();
+      const rangeSelection = validateBulkDateRange();
 
-    if (!rangeSelection) {
-      return;
-    }
+      if (!rangeSelection) {
+        return;
+      }
 
-    if (sanitizedDraftItems.length === 0) {
-      setValidationMessage(dictionary.calendar.bulkRequireItems);
-      return;
-    }
+      if (sanitizedDraftItems.length === 0) {
+        setValidationMessage(dictionary.calendar.bulkRequireItems);
+        return;
+      }
 
+      setValidationMessage(null);
+      setSuccessMessage(null);
+      setIsSubmitting(true);
+
+      try {
+        await applyChecklistTemplateToDateRange({
+          scope,
+          startDate: rangeSelection.startDate,
+          endDate: rangeSelection.endDate,
+          selectedWeekdays: rangeSelection.selectedWeekdays,
+          templateItems: sanitizedDraftItems,
+          timezone: timezonePreference.timezone,
+        });
+        if (closeAfterApply) {
+          handleClose();
+        } else {
+          setSuccessMessage(dictionary.calendar.bulkCreated);
+        }
+      } finally {
+        setIsSubmitting(false);
+      }
+    },
+    [
+      dictionary.calendar.bulkCreated,
+      dictionary.calendar.bulkRequireItems,
+      handleClose,
+      sanitizedDraftItems,
+      scope,
+      timezonePreference.timezone,
+      validateBulkDateRange,
+    ],
+  );
+
+  const clearDraftTasks = useCallback(() => {
+    setDraftItems([]);
     setValidationMessage(null);
-    setIsSubmitting(true);
-
-    try {
-      await applyChecklistTemplateToDateRange({
-        scope,
-        startDate: rangeSelection.startDate,
-        endDate: rangeSelection.endDate,
-        selectedWeekdays: rangeSelection.selectedWeekdays,
-        templateItems: sanitizedDraftItems,
-        timezone: timezonePreference.timezone,
-      });
-      handleClose();
-    } finally {
-      setIsSubmitting(false);
-    }
-  }, [
-    dictionary.calendar.bulkRequireItems,
-    handleClose,
-    sanitizedDraftItems,
-    scope,
-    timezonePreference.timezone,
-    validateBulkDateRange,
-  ]);
+    setSuccessMessage(null);
+  }, []);
 
   const clearBulkRange = useCallback(async () => {
     if (!scope) {
@@ -233,40 +241,29 @@ export function BulkCalendarEditor({
     >
       <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden p-4 sm:p-5">
         <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-          <label className="grid gap-2 text-sm font-medium text-[#fff9f2]">
-            <span>{dictionary.calendar.bulkStartDate}</span>
-            <Input
-              aria-label={dictionary.calendar.bulkStartDate}
-              inputMode="numeric"
-              maxLength={10}
-              placeholder={dictionary.calendar.bulkDatePlaceholder}
-              value={startDateInput}
-              className="h-12 rounded-[1rem] border border-white/10 bg-white/[0.055] px-3 text-sm text-[#fff9f2] outline-none transition placeholder:text-[#8f85aa] hover:border-white/[0.16] focus:border-[#f0c38e]/[0.42] focus:bg-white/[0.075] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e]"
-              onChange={(event) =>
-                setStartDateInput(maskDateInput(event.target.value))
-              }
-            />
-          </label>
+          <DatePicker
+            label={dictionary.calendar.bulkStartDate}
+            placeholder={dictionary.calendar.bulkDatePlaceholder}
+            value={startDateInput}
+            onChange={setStartDateInput}
+          />
 
-          <label className="grid gap-2 text-sm font-medium text-[#fff9f2]">
-            <span>{dictionary.calendar.bulkEndDate}</span>
-            <Input
-              aria-label={dictionary.calendar.bulkEndDate}
-              inputMode="numeric"
-              maxLength={10}
-              placeholder={dictionary.calendar.bulkDatePlaceholder}
-              value={endDateInput}
-              className="h-12 rounded-[1rem] border border-white/10 bg-white/[0.055] px-3 text-sm text-[#fff9f2] outline-none transition placeholder:text-[#8f85aa] hover:border-white/[0.16] focus:border-[#f0c38e]/[0.42] focus:bg-white/[0.075] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e]"
-              onChange={(event) =>
-                setEndDateInput(maskDateInput(event.target.value))
-              }
-            />
-          </label>
+          <DatePicker
+            label={dictionary.calendar.bulkEndDate}
+            placeholder={dictionary.calendar.bulkDatePlaceholder}
+            value={endDateInput}
+            onChange={setEndDateInput}
+          />
 
           <div className="grid gap-2 sm:col-span-2">
-            <span className="text-sm font-medium text-[#fff9f2]">
-              {dictionary.calendar.bulkWeekdays}
-            </span>
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+              <span className="text-sm font-medium text-[#fff9f2]">
+                {dictionary.calendar.bulkWeekdays}
+              </span>
+              <span className="text-xs text-[#9f95b8]">
+                {dictionary.calendar.bulkAllWeekdaysHint}
+              </span>
+            </div>
             <div className="grid grid-cols-4 gap-2 sm:grid-cols-7">
               {weekdayOptions.map((weekday) => {
                 const isSelected = selectedWeekdays.includes(weekday);
@@ -297,6 +294,15 @@ export function BulkCalendarEditor({
           </div>
         ) : null}
 
+        {successMessage ? (
+          <div
+            role="status"
+            className="rounded-xl bg-emerald-400/[0.1] px-3 py-2 text-sm font-medium text-emerald-100"
+          >
+            {successMessage}
+          </div>
+        ) : null}
+
         {isCreateMode ? (
           <BulkChecklistSurface
             draftItems={draftItems}
@@ -311,27 +317,53 @@ export function BulkCalendarEditor({
           </div>
         )}
 
-        <div className="flex flex-wrap items-center justify-end gap-2">
-          <ModalActionButton onClick={handleClose}>
-            <X aria-hidden="true" className="size-3.5" />
-            {dictionary.actions.cancel}
-          </ModalActionButton>
-          <ModalActionButton
-            tone={isCreateMode ? 'accent' : 'danger'}
-            disabled={isSubmitting}
-            onClick={() =>
-              void (isCreateMode ? applyBulkRange() : clearBulkRange())
-            }
-          >
+        <div
+          className={`flex flex-wrap items-center gap-2 ${
+            isCreateMode ? 'justify-between' : 'justify-end'
+          }`}
+        >
+          {isCreateMode ? (
+            <ModalActionButton
+              disabled={draftItems.length === 0 || isSubmitting}
+              onClick={clearDraftTasks}
+            >
+              <Eraser aria-hidden="true" className="size-3.5" />
+              {dictionary.calendar.bulkClearTasks}
+            </ModalActionButton>
+          ) : null}
+
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <ModalActionButton onClick={handleClose}>
+              <X aria-hidden="true" className="size-3.5" />
+              {dictionary.actions.cancel}
+            </ModalActionButton>
             {isCreateMode ? (
-              <Plus aria-hidden="true" className="size-3.5" />
-            ) : (
-              <Trash2 aria-hidden="true" className="size-3.5" />
-            )}
-            {isCreateMode
-              ? dictionary.calendar.bulkApply
-              : dictionary.calendar.bulkClearApply}
-          </ModalActionButton>
+              <ModalActionButton
+                tone="secondary"
+                disabled={isSubmitting}
+                onClick={() => void applyBulkRange(true)}
+              >
+                <CheckCheck aria-hidden="true" className="size-3.5" />
+                {dictionary.calendar.bulkApplyAndClose}
+              </ModalActionButton>
+            ) : null}
+            <ModalActionButton
+              tone={isCreateMode ? 'accent' : 'danger'}
+              disabled={isSubmitting}
+              onClick={() =>
+                void (isCreateMode ? applyBulkRange() : clearBulkRange())
+              }
+            >
+              {isCreateMode ? (
+                <Plus aria-hidden="true" className="size-3.5" />
+              ) : (
+                <Trash2 aria-hidden="true" className="size-3.5" />
+              )}
+              {isCreateMode
+                ? dictionary.calendar.bulkApply
+                : dictionary.calendar.bulkClearApply}
+            </ModalActionButton>
+          </div>
         </div>
       </div>
     </Dialog>

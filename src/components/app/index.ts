@@ -1,4 +1,5 @@
 export * from './language-switcher';
+export * from './date-picker';
 export * from './dropdown-join-shape';
 export * from './move-tree-item-to-target';
 export * from './task-tree-action-group';

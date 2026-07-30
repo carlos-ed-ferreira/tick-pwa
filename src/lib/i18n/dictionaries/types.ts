@@ -113,9 +113,13 @@ export interface Dictionary {
     title: string;
     editCategories: string;
     bulkApply: string;
+    bulkApplyAndClose: string;
+    bulkAllWeekdaysHint: string;
     bulkClear: string;
     bulkClearApply: string;
     bulkClearDescription: string;
+    bulkClearTasks: string;
+    bulkCreated: string;
     bulkClearEditorTitle: string;
     bulkCreate: string;
     bulkDatePlaceholder: string;
@@ -127,7 +131,6 @@ export interface Dictionary {
     bulkNoMatchingDates: string;
     bulkRequireItems: string;
     bulkRequiredDates: string;
-    bulkSelectWeekdays: string;
     bulkStartDate: string;
     bulkWeekdays: string;
     importApply: string;
@@ -163,8 +166,10 @@ export interface Dictionary {
     today: string;
     previousMonth: string;
     nextMonth: string;
+    openDatePicker: string;
     previousYear: string;
     nextYear: string;
+    selectDate: string;
     emptyDay: string;
     weekdays: readonly [string, string, string, string, string, string, string];
   };

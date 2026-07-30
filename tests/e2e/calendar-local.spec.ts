@@ -54,3 +54,32 @@ test('fits the month calendar in the viewport without page scroll on desktop', a
 
   expect(hasPageScroll).toBe(false);
 });
+
+test('uses the shared date picker in calendar forms', async ({ page }) => {
+  await enterLocalMode(page);
+  await page
+    .getByRole('button', { name: /create in bulk|criar em lote/i })
+    .click();
+
+  const startDateInput = page.getByRole('textbox', {
+    name: /start date|data inicial/i,
+  });
+  await startDateInput.fill('15072026');
+  await expect(startDateInput).toHaveValue('15-07-2026');
+
+  await page
+    .getByRole('button', {
+      name: /open date picker for start date|abrir seletor de data para data inicial/i,
+    })
+    .click();
+
+  await expect(
+    page.getByRole('dialog', { name: /select date|selecionar data/i }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: 'July 15, 2026' }),
+  ).toHaveAttribute('aria-pressed', 'true');
+
+  await page.getByRole('button', { name: 'July 20, 2026' }).click();
+  await expect(startDateInput).toHaveValue('20-07-2026');
+});
