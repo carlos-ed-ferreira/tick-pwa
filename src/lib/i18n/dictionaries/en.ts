@@ -11,6 +11,7 @@ export const enDictionary = {
   actions: {
     cancel: 'Cancel',
     delete: 'Delete',
+    dismissNotification: 'Dismiss notification',
     editCategories: 'Edit categories',
   },
   auth: {
@@ -66,7 +67,7 @@ export const enDictionary = {
     editCategories: 'Edit task categories',
     bulkApply: 'Create',
     bulkApplyAndClose: 'Create and close',
-    bulkAllWeekdaysHint: 'No selection means every day.',
+    bulkAllWeekdaysHint: 'Rule: no selection means every day.',
     bulkClear: 'Clear in bulk',
     bulkClearApply: 'Clear',
     bulkClearDescription: 'All tasks on the selected days will be removed.',

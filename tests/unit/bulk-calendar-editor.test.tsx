@@ -12,6 +12,8 @@ import { BulkCalendarEditor } from '@/features/calendar/bulk-calendar-editor';
 const {
   applyChecklistTemplateToDateRangeMock,
   clearChecklistItemsFromDateRangeMock,
+  toastErrorMock,
+  toastSuccessMock,
 } = vi.hoisted(() => ({
   applyChecklistTemplateToDateRangeMock: vi
     .fn()
@@ -19,11 +21,20 @@ const {
   clearChecklistItemsFromDateRangeMock: vi
     .fn()
     .mockResolvedValue(['2026-01-05']),
+  toastErrorMock: vi.fn(),
+  toastSuccessMock: vi.fn(),
 }));
 
 vi.mock('@/lib/db', () => ({
   applyChecklistTemplateToDateRange: applyChecklistTemplateToDateRangeMock,
   clearChecklistItemsFromDateRange: clearChecklistItemsFromDateRangeMock,
+}));
+
+vi.mock('@/components/ui/toast', () => ({
+  toast: {
+    error: toastErrorMock,
+    success: toastSuccessMock,
+  },
 }));
 
 vi.mock('@/providers', () => ({
@@ -36,7 +47,7 @@ vi.mock('@/providers', () => ({
       calendar: {
         bulkApply: 'Create',
         bulkApplyAndClose: 'Create and close',
-        bulkAllWeekdaysHint: 'No selection means every day.',
+        bulkAllWeekdaysHint: 'Rule: no selection means every day.',
         bulkClear: 'Clear in bulk',
         bulkClearApply: 'Clear',
         bulkClearDescription: 'All tasks on the selected days will be removed.',
@@ -143,6 +154,8 @@ describe('BulkCalendarEditor', () => {
   beforeEach(() => {
     applyChecklistTemplateToDateRangeMock.mockClear();
     clearChecklistItemsFromDateRangeMock.mockClear();
+    toastErrorMock.mockClear();
+    toastSuccessMock.mockClear();
   });
 
   afterEach(() => {
@@ -171,9 +184,9 @@ describe('BulkCalendarEditor', () => {
 
     fireEvent.click(createButton);
 
-    expect(
-      await screen.findByText('Start and end dates are required.'),
-    ).toBeInTheDocument();
+    expect(toastErrorMock).toHaveBeenCalledWith(
+      'Start and end dates are required.',
+    );
     expect(applyChecklistTemplateToDateRangeMock).not.toHaveBeenCalled();
   });
 
@@ -226,7 +239,7 @@ describe('BulkCalendarEditor', () => {
       });
     });
     expect(onClose).not.toHaveBeenCalled();
-    expect(screen.getByText('Tasks created.')).toBeInTheDocument();
+    expect(toastSuccessMock).toHaveBeenCalledWith('Tasks created.');
     expect(screen.getByLabelText('Start date')).toHaveValue('01-01-2026');
     expect(screen.getByLabelText('End date')).toHaveValue('10-01-2026');
     expect(screen.getByPlaceholderText('Write a task')).toHaveValue(
@@ -295,7 +308,10 @@ describe('BulkCalendarEditor', () => {
         }),
       );
     });
-    expect(screen.getByText('No selection means every day.')).toBeVisible();
+    expect(screen.getByRole('note')).toHaveTextContent(
+      'Rule: no selection means every day.',
+    );
+    expect(screen.getByRole('note').querySelector('svg')).toBeInTheDocument();
   });
 
   it('clears only the drafted tasks', () => {
@@ -352,9 +368,9 @@ describe('BulkCalendarEditor', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Mon' }));
     fireEvent.click(screen.getByRole('button', { name: 'Create' }));
 
-    expect(
-      await screen.findByText('Add at least one task before creating in bulk.'),
-    ).toBeInTheDocument();
+    expect(toastErrorMock).toHaveBeenCalledWith(
+      'Add at least one task before creating in bulk.',
+    );
     expect(applyChecklistTemplateToDateRangeMock).not.toHaveBeenCalled();
   });
 

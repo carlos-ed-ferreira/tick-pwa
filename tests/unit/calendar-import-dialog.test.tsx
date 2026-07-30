@@ -8,12 +8,19 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CalendarImportDialog } from '@/features/calendar/calendar-import-dialog';
 
-const { importCalendarDaysMock } = vi.hoisted(() => ({
+const { importCalendarDaysMock, toastErrorMock } = vi.hoisted(() => ({
   importCalendarDaysMock: vi.fn(),
+  toastErrorMock: vi.fn(),
 }));
 
 vi.mock('@/lib/db', () => ({
   importCalendarDays: importCalendarDaysMock,
+}));
+
+vi.mock('@/components/ui/toast', () => ({
+  toast: {
+    error: toastErrorMock,
+  },
 }));
 
 vi.mock('@/providers', () => ({
@@ -62,6 +69,7 @@ function typePayload(value: string) {
 describe('CalendarImportDialog', () => {
   beforeEach(() => {
     importCalendarDaysMock.mockReset();
+    toastErrorMock.mockReset();
     importCalendarDaysMock.mockResolvedValue({
       dates: ['2026-07-26'],
       createdCategoryCount: 1,
@@ -83,9 +91,9 @@ describe('CalendarImportDialog', () => {
 
     fireEvent.click(importButton);
 
-    expect(
-      await screen.findByText('Paste a JSON payload before importing.'),
-    ).toBeInTheDocument();
+    expect(toastErrorMock).toHaveBeenCalledWith(
+      'Paste a JSON payload before importing.',
+    );
     expect(importCalendarDaysMock).not.toHaveBeenCalled();
   });
 
@@ -99,11 +107,13 @@ describe('CalendarImportDialog', () => {
     );
     fireEvent.click(screen.getByRole('button', { name: 'Import' }));
 
-    expect(
-      await screen.findByText(
-        'days[0].items[0].text: "text" is required and cannot be empty.',
-      ),
-    ).toBeInTheDocument();
+    expect(toastErrorMock).toHaveBeenCalledWith(
+      'days[0].items[0].text: "text" is required and cannot be empty.',
+      {
+        details: [],
+        durationMs: 10_000,
+      },
+    );
     expect(importCalendarDaysMock).not.toHaveBeenCalled();
   });
 
@@ -113,7 +123,13 @@ describe('CalendarImportDialog', () => {
     typePayload('{ days: [');
     fireEvent.click(screen.getByRole('button', { name: 'Import' }));
 
-    expect(await screen.findByText(/^Invalid JSON: /)).toBeInTheDocument();
+    expect(toastErrorMock).toHaveBeenCalledWith(
+      expect.stringMatching(/^Invalid JSON: /),
+      {
+        details: [],
+        durationMs: 10_000,
+      },
+    );
     expect(importCalendarDaysMock).not.toHaveBeenCalled();
   });
 

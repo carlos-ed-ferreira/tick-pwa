@@ -2,7 +2,7 @@
 
 import { FileUp, X } from 'lucide-react';
 import { useCallback, useState } from 'react';
-import { Dialog, ModalActionButton } from '@/components/ui';
+import { Dialog, ModalActionButton, toast } from '@/components/ui';
 import { importCalendarDays } from '@/lib/db';
 import type { Dictionary } from '@/lib/i18n';
 import { useAppContext } from '@/providers';
@@ -55,12 +55,10 @@ export function CalendarImportDialog({
 }) {
   const { dictionary, scope, timezonePreference } = useAppContext();
   const [payload, setPayload] = useState('');
-  const [errorMessages, setErrorMessages] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleClose = useCallback(() => {
     setPayload('');
-    setErrorMessages([]);
     setIsSubmitting(false);
     onClose();
   }, [onClose]);
@@ -71,22 +69,24 @@ export function CalendarImportDialog({
     }
 
     if (!payload.trim()) {
-      setErrorMessages([dictionary.calendar.importRequirePayload]);
+      toast.error(dictionary.calendar.importRequirePayload);
       return;
     }
 
     const parseResult = parseCalendarImportPayload(payload);
 
     if (!parseResult.ok) {
-      setErrorMessages(
-        parseResult.errors
-          .slice(0, maxVisibleErrors)
-          .map((error) => formatImportError(error, dictionary)),
-      );
+      const messages = parseResult.errors
+        .slice(0, maxVisibleErrors)
+        .map((error) => formatImportError(error, dictionary));
+
+      toast.error(messages[0], {
+        details: messages.slice(1),
+        durationMs: 10_000,
+      });
       return;
     }
 
-    setErrorMessages([]);
     setIsSubmitting(true);
 
     try {
@@ -127,14 +127,6 @@ export function CalendarImportDialog({
             onChange={(event) => setPayload(event.target.value)}
           />
         </label>
-
-        {errorMessages.length > 0 ? (
-          <ul className="grid gap-1 rounded-xl bg-rose-400/[0.12] px-3 py-2 text-sm font-medium text-rose-100">
-            {errorMessages.map((message) => (
-              <li key={message}>{message}</li>
-            ))}
-          </ul>
-        ) : null}
 
         <div className="flex flex-wrap items-center justify-end gap-2">
           <ModalActionButton onClick={handleClose}>

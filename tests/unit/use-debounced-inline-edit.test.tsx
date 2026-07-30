@@ -85,4 +85,19 @@ describe('useDebouncedInlineEdit', () => {
 
     expect(screen.getByLabelText('Text')).toHaveValue('Remote');
   });
+
+  it('saves the pending text when the editor unmounts before the delay', () => {
+    const onSave = vi.fn();
+    const { unmount } = render(
+      <InlineEditHarness value="Original" onSave={onSave} />,
+    );
+
+    fireEvent.change(screen.getByLabelText('Text'), {
+      target: { value: 'Edited right before closing' },
+    });
+    unmount();
+
+    expect(onSave).toHaveBeenCalledTimes(1);
+    expect(onSave).toHaveBeenCalledWith('Edited right before closing');
+  });
 });

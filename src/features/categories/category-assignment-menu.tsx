@@ -25,6 +25,7 @@ export function CategoryAssignmentMenu({
   clearLabel,
   disabled,
   menuPreferredWidth = defaultMenuPreferredWidth,
+  renderClearContent,
   renderTriggerContent,
   selectedCategoryTagId,
   showClearButton = true,
@@ -39,6 +40,7 @@ export function CategoryAssignmentMenu({
   clearLabel: string;
   disabled?: boolean;
   menuPreferredWidth?: number;
+  renderClearContent?: () => ReactNode;
   renderTriggerContent?: (args: {
     isOpen: boolean;
     selectedCategory: {
@@ -306,7 +308,11 @@ export function CategoryAssignmentMenu({
               void onAssign(null);
             }}
           >
-            <X aria-hidden="true" className="size-4" />
+            {renderClearContent ? (
+              renderClearContent()
+            ) : (
+              <X aria-hidden="true" className="size-4" />
+            )}
           </button>
         </Tooltip>
       ) : null}

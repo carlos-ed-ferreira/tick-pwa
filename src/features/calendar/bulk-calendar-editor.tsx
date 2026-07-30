@@ -1,6 +1,14 @@
 'use client';
 
-import { CheckCheck, Clock3, Eraser, Plus, Trash2, X } from 'lucide-react';
+import {
+  CheckCheck,
+  CircleHelp,
+  Clock3,
+  Eraser,
+  Plus,
+  Trash2,
+  X,
+} from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
 import {
   DatePicker,
@@ -10,7 +18,7 @@ import {
   TreeListPanel,
   type TaskTreeRowActionPreferences,
 } from '@/components/app';
-import { Dialog, IconButton, ModalActionButton } from '@/components/ui';
+import { Dialog, IconButton, ModalActionButton, toast } from '@/components/ui';
 import { useCategoryTags } from '@/features/categories';
 import { useTreeSelection } from '@/hooks/use-tree-selection';
 import { useTaskTreeRowActionPreferences } from '@/hooks/use-task-tree-row-action-visibility';
@@ -65,10 +73,6 @@ export function BulkCalendarEditor({
   const [startDateInput, setStartDateInput] = useState('');
   const [endDateInput, setEndDateInput] = useState('');
   const [selectedWeekdays, setSelectedWeekdays] = useState<WeekdayIndex[]>([]);
-  const [validationMessage, setValidationMessage] = useState<string | null>(
-    null,
-  );
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const sanitizedDraftItems = useMemo(
     () => filterBulkChecklistDraftItems(draftItems),
@@ -80,8 +84,6 @@ export function BulkCalendarEditor({
     setStartDateInput('');
     setEndDateInput('');
     setSelectedWeekdays([]);
-    setValidationMessage(null);
-    setSuccessMessage(null);
     setIsSubmitting(false);
   }, []);
 
@@ -102,7 +104,7 @@ export function BulkCalendarEditor({
 
   const validateBulkDateRange = useCallback(() => {
     if (!startDateInput.trim() || !endDateInput.trim()) {
-      setValidationMessage(dictionary.calendar.bulkRequiredDates);
+      toast.error(dictionary.calendar.bulkRequiredDates);
       return null;
     }
 
@@ -110,12 +112,12 @@ export function BulkCalendarEditor({
     const endDate = parseDateInputValue(endDateInput);
 
     if (!startDate || !endDate) {
-      setValidationMessage(dictionary.calendar.bulkInvalidDates);
+      toast.error(dictionary.calendar.bulkInvalidDates);
       return null;
     }
 
     if (startDate > endDate) {
-      setValidationMessage(dictionary.calendar.bulkInvalidRange);
+      toast.error(dictionary.calendar.bulkInvalidRange);
       return null;
     }
 
@@ -126,7 +128,7 @@ export function BulkCalendarEditor({
         selectedWeekdays,
       }).length === 0
     ) {
-      setValidationMessage(dictionary.calendar.bulkNoMatchingDates);
+      toast.error(dictionary.calendar.bulkNoMatchingDates);
       return null;
     }
 
@@ -158,12 +160,10 @@ export function BulkCalendarEditor({
       }
 
       if (sanitizedDraftItems.length === 0) {
-        setValidationMessage(dictionary.calendar.bulkRequireItems);
+        toast.error(dictionary.calendar.bulkRequireItems);
         return;
       }
 
-      setValidationMessage(null);
-      setSuccessMessage(null);
       setIsSubmitting(true);
 
       try {
@@ -178,7 +178,7 @@ export function BulkCalendarEditor({
         if (closeAfterApply) {
           handleClose();
         } else {
-          setSuccessMessage(dictionary.calendar.bulkCreated);
+          toast.success(dictionary.calendar.bulkCreated);
         }
       } finally {
         setIsSubmitting(false);
@@ -197,8 +197,6 @@ export function BulkCalendarEditor({
 
   const clearDraftTasks = useCallback(() => {
     setDraftItems([]);
-    setValidationMessage(null);
-    setSuccessMessage(null);
   }, []);
 
   const clearBulkRange = useCallback(async () => {
@@ -212,7 +210,6 @@ export function BulkCalendarEditor({
       return;
     }
 
-    setValidationMessage(null);
     setIsSubmitting(true);
 
     try {
@@ -256,11 +253,15 @@ export function BulkCalendarEditor({
           />
 
           <div className="grid gap-2 sm:col-span-2">
-            <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <span className="text-sm font-medium text-[#fff9f2]">
                 {dictionary.calendar.bulkWeekdays}
               </span>
-              <span className="text-xs text-[#9f95b8]">
+              <span
+                role="note"
+                className="inline-flex w-fit items-center gap-1.5 rounded-lg bg-[#f0c38e]/10 px-2 py-1 text-xs font-medium text-[#f7d7ad]"
+              >
+                <CircleHelp aria-hidden="true" className="size-3.5 shrink-0" />
                 {dictionary.calendar.bulkAllWeekdaysHint}
               </span>
             </div>
@@ -287,21 +288,6 @@ export function BulkCalendarEditor({
             </div>
           </div>
         </div>
-
-        {validationMessage ? (
-          <div className="rounded-xl bg-rose-400/[0.12] px-3 py-2 text-sm font-medium text-rose-100">
-            {validationMessage}
-          </div>
-        ) : null}
-
-        {successMessage ? (
-          <div
-            role="status"
-            className="rounded-xl bg-emerald-400/[0.1] px-3 py-2 text-sm font-medium text-emerald-100"
-          >
-            {successMessage}
-          </div>
-        ) : null}
 
         {isCreateMode ? (
           <BulkChecklistSurface

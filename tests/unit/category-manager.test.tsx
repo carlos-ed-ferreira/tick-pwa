@@ -134,6 +134,27 @@ describe('CategoryManager', () => {
     expect(input).toHaveValue('SAUDE');
   });
 
+  it('saves the current category name when the modal closes immediately', async () => {
+    const { unmount } = render(<CategoryManager surface="calendar" />);
+
+    fireEvent.change(screen.getByLabelText('Category name'), {
+      target: { value: 'trabalho' },
+    });
+    unmount();
+
+    await waitFor(() => {
+      expect(updateCategoryTagMock).toHaveBeenCalledWith({
+        scope: {
+          id: 'guest:test',
+          kind: 'guest',
+          ownerId: 'test',
+        },
+        categoryTagId: 'category-1',
+        name: 'TRABALHO',
+      });
+    });
+  });
+
   it('renders the section label and the add button on the same row', () => {
     render(<CategoryManager label="Grupos" surface="goal_group" />);
 

@@ -13,6 +13,8 @@ import {
 } from 'lucide-react';
 import {
   useCallback,
+  useEffect,
+  useRef,
   useState,
   type DragEvent,
   type KeyboardEvent,
@@ -222,6 +224,7 @@ export function TaskTreeEditableRow({
     source: normalizedScheduledTime,
     value: normalizedScheduledTime,
   });
+  const lastRequestedTimeRef = useRef<string | null | undefined>(undefined);
   const focusAfterCreate = useFocusAfterCreate();
   const selectedCategory = categoryTagId
     ? (categoryTagMap.get(categoryTagId) ?? null)
@@ -264,6 +267,12 @@ export function TaskTreeEditableRow({
     timeState.source === normalizedScheduledTime
       ? timeState.value
       : normalizedScheduledTime;
+
+  useEffect(() => {
+    if (lastRequestedTimeRef.current === (scheduledTime ?? null)) {
+      lastRequestedTimeRef.current = undefined;
+    }
+  }, [scheduledTime]);
 
   const handleTextHeightChange = useCallback((height: number) => {
     setIsTextMultiline(height > 24);
@@ -444,11 +453,49 @@ export function TaskTreeEditableRow({
 
     const nextTime = timeText.length === 5 ? timeText : null;
 
-    if ((scheduledTime ?? null) === nextTime) {
+    if (
+      (scheduledTime ?? null) === nextTime ||
+      lastRequestedTimeRef.current === nextTime
+    ) {
       return;
     }
 
-    await onSaveTime(nextTime);
+    lastRequestedTimeRef.current = nextTime;
+
+    try {
+      await onSaveTime(nextTime);
+    } catch (error) {
+      lastRequestedTimeRef.current = undefined;
+      throw error;
+    }
+  }
+
+  function updateScheduledTime(value: string) {
+    const nextValue = maskScheduledTimeInput(value);
+
+    setTimeState({
+      source: normalizedScheduledTime,
+      value: nextValue,
+    });
+
+    if (nextValue.length !== 0 && nextValue.length !== 5) {
+      return;
+    }
+
+    const nextTime = nextValue.length === 5 ? nextValue : null;
+
+    if (
+      !onSaveTime ||
+      (scheduledTime ?? null) === nextTime ||
+      lastRequestedTimeRef.current === nextTime
+    ) {
+      return;
+    }
+
+    lastRequestedTimeRef.current = nextTime;
+    void Promise.resolve(onSaveTime(nextTime)).catch(() => {
+      lastRequestedTimeRef.current = undefined;
+    });
   }
 
   function getDropPosition(
@@ -631,12 +678,7 @@ export function TaskTreeEditableRow({
             autoCorrect="off"
             autoCapitalize="none"
             onBlur={() => void saveScheduledTime()}
-            onChange={(event) =>
-              setTimeState({
-                source: normalizedScheduledTime,
-                value: maskScheduledTimeInput(event.target.value),
-              })
-            }
+            onChange={(event) => updateScheduledTime(event.target.value)}
           />
         ) : null}
 

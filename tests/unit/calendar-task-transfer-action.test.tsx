@@ -8,6 +8,16 @@ import {
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { CalendarTaskTransferAction } from '@/features/calendar/calendar-task-transfer-action';
 
+const { toastErrorMock } = vi.hoisted(() => ({
+  toastErrorMock: vi.fn(),
+}));
+
+vi.mock('@/components/ui/toast', () => ({
+  toast: {
+    error: toastErrorMock,
+  },
+}));
+
 vi.mock('@/providers', () => ({
   useAppContext: () => ({
     dictionary: {
@@ -44,6 +54,7 @@ vi.mock('@/providers', () => ({
 describe('CalendarTaskTransferAction', () => {
   afterEach(() => {
     cleanup();
+    toastErrorMock.mockClear();
   });
 
   it('validates the destination date before transferring', async () => {
@@ -82,9 +93,9 @@ describe('CalendarTaskTransferAction', () => {
 
     fireEvent.click(moveButton);
 
-    expect(
-      await screen.findByText('Enter a valid date in DD-MM-YYYY.'),
-    ).toBeInTheDocument();
+    expect(toastErrorMock).toHaveBeenCalledWith(
+      'Enter a valid date in DD-MM-YYYY.',
+    );
     expect(onMoveToDate).not.toHaveBeenCalled();
     expect(onDuplicateToDate).not.toHaveBeenCalled();
   });

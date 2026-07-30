@@ -64,6 +64,7 @@ export interface Dictionary {
   actions: {
     cancel: string;
     delete: string;
+    dismissNotification: string;
     editCategories: string;
   };
   auth: {

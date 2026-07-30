@@ -18,7 +18,15 @@ export function useDebouncedInlineEdit({
     text: value,
   });
   const timeoutRef = useRef<number | null>(null);
+  const pendingTextRef = useRef<string | null>(null);
+  const onSaveRef = useRef(onSave);
+  const enabledRef = useRef(enabled);
   const text = draftState.sourceValue === value ? draftState.text : value;
+
+  useEffect(() => {
+    onSaveRef.current = onSave;
+    enabledRef.current = enabled;
+  }, [enabled, onSave]);
 
   const clearPendingSave = useCallback(() => {
     if (timeoutRef.current === null) {
@@ -31,40 +39,67 @@ export function useDebouncedInlineEdit({
 
   const setText = useCallback(
     (nextText: string) => {
+      pendingTextRef.current = enabled && nextText !== value ? nextText : null;
       setDraftState({ sourceValue: value, text: nextText });
     },
-    [value],
+    [enabled, value],
   );
 
   const reset = useCallback(() => {
     clearPendingSave();
+    pendingTextRef.current = null;
     setDraftState({ sourceValue: value, text: value });
   }, [clearPendingSave, value]);
 
-  const flush = useCallback(async () => {
+  const savePendingText = useCallback(async () => {
     clearPendingSave();
+    const pendingText = pendingTextRef.current;
 
-    if (!enabled || text === value) {
+    if (!enabledRef.current || pendingText === null) {
       return;
     }
 
-    await onSave(text);
-  }, [clearPendingSave, enabled, onSave, text, value]);
+    pendingTextRef.current = null;
+
+    try {
+      await onSaveRef.current(pendingText);
+    } catch (error) {
+      pendingTextRef.current = pendingText;
+      throw error;
+    }
+  }, [clearPendingSave]);
+
+  const flush = useCallback(async () => {
+    await savePendingText();
+  }, [savePendingText]);
 
   useEffect(() => {
     clearPendingSave();
 
     if (!enabled || text === value) {
+      pendingTextRef.current = null;
       return;
     }
 
+    pendingTextRef.current = text;
     timeoutRef.current = window.setTimeout(() => {
       timeoutRef.current = null;
-      void onSave(text);
+      void savePendingText();
     }, delayMs);
 
     return clearPendingSave;
-  }, [clearPendingSave, delayMs, enabled, onSave, text, value]);
+  }, [clearPendingSave, delayMs, enabled, savePendingText, text, value]);
+
+  useEffect(
+    () => () => {
+      clearPendingSave();
+
+      if (enabledRef.current && pendingTextRef.current !== null) {
+        void savePendingText();
+      }
+    },
+    [clearPendingSave, savePendingText],
+  );
 
   return { flush, reset, setText, text };
 }

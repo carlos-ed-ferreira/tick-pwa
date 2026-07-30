@@ -3,6 +3,7 @@
 import { ArrowDown, ArrowUp, Plus, Trash2 } from 'lucide-react';
 import { useState, type KeyboardEvent } from 'react';
 import { Dialog, IconButton, Input } from '@/components/ui';
+import { useDebouncedInlineEdit } from '@/hooks/use-debounced-inline-edit';
 import type { CategoryTag, CategoryTagSurface } from '@/lib/domain';
 import {
   createCategoryTag,
@@ -137,32 +138,44 @@ function CategoryManagerRow({
   tag: CategoryTag;
 }) {
   const { dictionary, scope } = useAppContext();
-  const [draftName, setDraftName] = useState(tag.name);
   const [isComposing, setIsComposing] = useState(false);
+  const {
+    flush: flushName,
+    reset: resetName,
+    setText: setDraftName,
+    text: draftName,
+  } = useDebouncedInlineEdit({
+    enabled: Boolean(scope) && !isComposing,
+    onSave: async (nextName) => {
+      if (!scope) {
+        return;
+      }
 
-  async function commitName() {
-    if (!scope) {
-      return;
-    }
+      const normalizedName = normalizeCategoryDraftName(nextName).trim();
 
+      if (!normalizedName || normalizedName === tag.name) {
+        return;
+      }
+
+      await updateCategoryTag({
+        scope,
+        categoryTagId: tag.id,
+        name: normalizedName,
+      });
+    },
+    value: tag.name,
+  });
+
+  function commitName() {
     const normalizedName = normalizeCategoryDraftName(draftName).trim();
 
     if (!normalizedName) {
-      setDraftName(tag.name);
+      resetName();
       return;
     }
 
     setDraftName(normalizedName);
-
-    if (normalizedName === tag.name) {
-      return;
-    }
-
-    await updateCategoryTag({
-      scope,
-      categoryTagId: tag.id,
-      name: normalizedName,
-    });
+    void flushName();
   }
 
   function handleKeyDown(event: KeyboardEvent<HTMLInputElement>) {
@@ -174,7 +187,7 @@ function CategoryManagerRow({
 
     if (event.key === 'Escape') {
       event.preventDefault();
-      setDraftName(tag.name);
+      resetName();
       event.currentTarget.blur();
     }
   }
@@ -211,7 +224,7 @@ function CategoryManagerRow({
         className="min-w-0 rounded-xl border border-transparent bg-transparent px-2 py-2 uppercase text-[#fff9f2] outline-none transition placeholder:text-[#8f85aa] focus:border-[#f0c38e]/30 focus:bg-white/[0.055] focus:shadow-sm"
         placeholder={dictionary.dayEditor.categoryNamePlaceholder}
         value={draftName}
-        onBlur={() => void commitName()}
+        onBlur={commitName}
         onChange={(event) => {
           const nextValue = event.target.value;
 

@@ -801,8 +801,6 @@ describe('TaskTreeEditableRow', () => {
     fireEvent.change(timeInput, { target: { value: '2961abc' } });
     expect(timeInput).toHaveValue('23:59');
 
-    fireEvent.blur(timeInput);
-
     await waitFor(() => {
       expect(callbacks.onSaveTime).toHaveBeenCalledWith('23:59');
     });

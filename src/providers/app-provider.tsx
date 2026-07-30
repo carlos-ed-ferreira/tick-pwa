@@ -12,6 +12,7 @@ import {
   type ReactNode,
 } from 'react';
 import type { AppScope, LocalePreference, SupportedLocale } from '@/lib/domain';
+import { ToastViewport } from '@/components/ui';
 import { createGuestScope, createUserScope } from '@/lib/domain';
 import { shouldUseCloudSync } from '@/lib/environment';
 import {
@@ -559,7 +560,12 @@ export function AppProvider({
     ],
   );
 
-  return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
+  return (
+    <AppContext.Provider value={value}>
+      {children}
+      <ToastViewport closeLabel={dictionary.actions.dismissNotification} />
+    </AppContext.Provider>
+  );
 }
 
 export function useAppContext(): AppContextValue {

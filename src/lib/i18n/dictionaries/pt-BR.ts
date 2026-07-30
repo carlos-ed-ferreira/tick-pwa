@@ -11,6 +11,7 @@ export const ptBRDictionary = {
   actions: {
     cancel: 'Cancelar',
     delete: 'Excluir',
+    dismissNotification: 'Fechar notificação',
     editCategories: 'Editar categorias',
   },
   auth: {
@@ -66,7 +67,8 @@ export const ptBRDictionary = {
     editCategories: 'Editar categorias de tarefas',
     bulkApply: 'Criar',
     bulkApplyAndClose: 'Criar e fechar',
-    bulkAllWeekdaysHint: 'Sem seleção, todos os dias serão considerados.',
+    bulkAllWeekdaysHint:
+      'Regra: sem seleção, todos os dias serão considerados.',
     bulkClear: 'Limpar em lote',
     bulkClearApply: 'Limpar',
     bulkClearDescription:

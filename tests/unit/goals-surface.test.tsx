@@ -564,8 +564,18 @@ describe('GoalsSurface', () => {
       screen.getByRole('button', { name: 'Assign category' }),
     ).toBeVisible();
     expect(
-      screen.getByRole('button', { name: 'Clear group color/category' }),
-    ).toBeVisible();
+      screen
+        .getByRole('button', { name: 'Assign category' })
+        .querySelector('.lucide-tag'),
+    ).not.toBeNull();
+    const clearCategoryButton = screen.getByRole('button', {
+      name: 'Clear group color/category',
+    });
+    expect(clearCategoryButton).toBeVisible();
+    expect(
+      clearCategoryButton.querySelector('[data-clear-category-icon]'),
+    ).not.toBeNull();
+    expect(clearCategoryButton.querySelector('.lucide-x')).toBeNull();
     expect(screen.getByRole('button', { name: 'Delete group' })).toHaveClass(
       'text-rose-300',
     );
@@ -916,9 +926,19 @@ describe('GoalsSurface', () => {
     render(<GoalsSurface />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Goal actions' }));
-    fireEvent.click(
-      screen.getByRole('button', { name: 'Clear goal color/category' }),
-    );
+    expect(
+      screen
+        .getByRole('button', { name: 'Assign category' })
+        .querySelector('.lucide-tag'),
+    ).not.toBeNull();
+    const clearCategoryButton = screen.getByRole('button', {
+      name: 'Clear goal color/category',
+    });
+    expect(
+      clearCategoryButton.querySelector('[data-clear-category-icon]'),
+    ).not.toBeNull();
+    expect(clearCategoryButton.querySelector('.lucide-x')).toBeNull();
+    fireEvent.click(clearCategoryButton);
 
     await waitFor(() => {
       expect(assignGoalCategoryMock).toHaveBeenCalledWith({
@@ -971,8 +991,25 @@ describe('GoalsSurface', () => {
   });
 
   it('renders the group detail header using the same input and back-button pattern as goal detail', () => {
+    useCategoryTagsMock.mockImplementation((_scope, surface) =>
+      surface === 'goal_group'
+        ? [
+            {
+              id: 'group-category',
+              name: 'Personal',
+              colorHex: '#8b5cf6',
+              position: '1',
+              surface: 'goal_group',
+            },
+          ]
+        : [],
+    );
     useGoalGroupsMock.mockReturnValue([
-      group({ id: 'group-1', title: 'Life' }),
+      group({
+        id: 'group-1',
+        title: 'Life',
+        categoryTagId: 'group-category',
+      }),
     ]);
     useGoalsMock.mockImplementation((_scope, options = {}) => {
       if (options.archived) return [];
@@ -1021,12 +1058,73 @@ describe('GoalsSurface', () => {
       'align-middle',
     );
     expect(categoryButton).toHaveClass(
+      'inline-flex',
+      'items-center',
+      'justify-center',
       'size-10',
       'rounded-md',
       'border',
       'border-white/10',
       'bg-white/5',
       'text-[#d8d0e8]',
+    );
+    expect(categoryButton.querySelector('.lucide-tag')).not.toBeNull();
+    const clearCategoryButton = screen.getByRole('button', {
+      name: 'Clear group color/category',
+    });
+    expect(
+      clearCategoryButton.querySelector('[data-clear-category-icon]'),
+    ).not.toBeNull();
+    expect(clearCategoryButton.querySelector('.lucide-x')).toBeNull();
+    expect(
+      screen.getByRole('button', { name: 'Delete group' }),
+    ).toBeInTheDocument();
+  });
+
+  it('deletes a group from its detail and returns goals to the ungrouped list', async () => {
+    useGoalGroupsMock.mockReturnValue([
+      group({ id: 'group-1', title: 'Life' }),
+    ]);
+    useGoalsMock.mockImplementation((_scope, options = {}) => {
+      if (options.archived) return [];
+
+      return [goal({ id: 'goal-1', title: 'Health', groupId: 'group-1' })];
+    });
+
+    render(<GoalsSurface />);
+    fireEvent.click(screen.getByRole('button', { name: /LifeHealth/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'Delete group' }));
+
+    expect(screen.getByText('Delete this group?')).toBeInTheDocument();
+    fireEvent.click(
+      screen.getAllByRole('button', { name: 'Delete group' }).at(-1)!,
+    );
+
+    await waitFor(() => {
+      expect(softDeleteGoalGroupMock).toHaveBeenCalledWith({
+        scope,
+        goalGroupId: 'group-1',
+      });
+      expect(routerPushMock).toHaveBeenCalledWith('/goals');
+    });
+  });
+
+  it('shows a tooltip on the independent group color selector', async () => {
+    useGoalGroupsMock.mockReturnValue([
+      group({ id: 'group-1', title: 'Life' }),
+    ]);
+    useGoalsMock.mockImplementation((_scope, options = {}) => {
+      if (options.archived) return [];
+
+      return [goal({ id: 'goal-1', title: 'Health', groupId: 'group-1' })];
+    });
+
+    render(<GoalsSurface />);
+    fireEvent.click(screen.getByRole('button', { name: /LifeHealth/i }));
+    fireEvent.focus(screen.getByLabelText('Assign independent color'));
+
+    expect(await screen.findByRole('tooltip')).toHaveTextContent(
+      'Assign independent color',
     );
   });
 
@@ -1399,6 +1497,9 @@ describe('GoalsSurface', () => {
     });
 
     expect(categoryButton).toHaveClass(
+      'inline-flex',
+      'items-center',
+      'justify-center',
       'size-10',
       'rounded-md',
       'border',
@@ -1406,7 +1507,20 @@ describe('GoalsSurface', () => {
       'bg-white/5',
       'text-[#d8d0e8]',
     );
+    expect(categoryButton.querySelector('.lucide-tag')).not.toBeNull();
     expect(categoryButton).not.toHaveTextContent('Modo local');
+  });
+
+  it('shows a tooltip on the independent goal color selector', async () => {
+    useGoalStepTreeMock.mockReturnValue([goalStep()]);
+
+    render(<GoalsSurface />);
+    fireEvent.click(screen.getByRole('button', { name: 'Focus' }));
+    fireEvent.focus(screen.getByLabelText('Assign independent color'));
+
+    expect(await screen.findByRole('tooltip')).toHaveTextContent(
+      'Assign independent color',
+    );
   });
 
   it('renders the selected goal category as a pill badge in the goal header', () => {
@@ -1434,6 +1548,9 @@ describe('GoalsSurface', () => {
     const categoryBadge = screen.getByText('Modo local').parentElement;
 
     expect(categoryButton).toHaveClass(
+      'inline-flex',
+      'items-center',
+      'justify-center',
       'size-10',
       'rounded-md',
       'border',
@@ -1441,6 +1558,14 @@ describe('GoalsSurface', () => {
       'bg-white/5',
       'text-[#d8d0e8]',
     );
+    expect(categoryButton.querySelector('.lucide-tag')).not.toBeNull();
+    const clearCategoryButton = screen.getByRole('button', {
+      name: 'Clear goal color/category',
+    });
+    expect(
+      clearCategoryButton.querySelector('[data-clear-category-icon]'),
+    ).not.toBeNull();
+    expect(clearCategoryButton.querySelector('.lucide-x')).toBeNull();
     expect(categoryBadge).toHaveClass(
       'inline-flex',
       'min-h-10',

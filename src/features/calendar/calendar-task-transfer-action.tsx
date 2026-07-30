@@ -3,7 +3,7 @@
 import { ArrowRightLeft, Copy, MoveRight, X } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
 import { DatePicker } from '@/components/app';
-import { Button, Dialog, ModalActionButton } from '@/components/ui';
+import { Button, Dialog, ModalActionButton, toast } from '@/components/ui';
 import type { LocalDateString } from '@/lib/domain';
 import { formatLocalDateLabel } from '@/lib/i18n';
 import { parseLocalDateKey } from '@/lib/time';
@@ -35,7 +35,6 @@ export function CalendarTaskTransferAction({
   const { dictionary, locale, timezonePreference } = useAppContext();
   const [isOpen, setIsOpen] = useState(false);
   const [targetDateInput, setTargetDateInput] = useState('');
-  const [validationMessage, setValidationMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const sourceDateLabel = useMemo(
     () =>
@@ -50,7 +49,6 @@ export function CalendarTaskTransferAction({
   const closeDialog = useCallback(() => {
     setIsOpen(false);
     setTargetDateInput('');
-    setValidationMessage('');
     setIsSubmitting(false);
   }, []);
 
@@ -58,16 +56,15 @@ export function CalendarTaskTransferAction({
     const targetDate = parseDateInputValue(targetDateInput);
 
     if (!targetDate) {
-      setValidationMessage(dictionary.calendar.transferInvalidDate);
+      toast.error(dictionary.calendar.transferInvalidDate);
       return;
     }
 
     if (targetDate === sourceDate) {
-      setValidationMessage(dictionary.calendar.transferSameDate);
+      toast.error(dictionary.calendar.transferSameDate);
       return;
     }
 
-    setValidationMessage('');
     setIsSubmitting(true);
 
     try {
@@ -123,10 +120,6 @@ export function CalendarTaskTransferAction({
             value={targetDateInput}
             onChange={setTargetDateInput}
           />
-
-          {validationMessage ? (
-            <p className="text-sm text-rose-200">{validationMessage}</p>
-          ) : null}
 
           <div className="mt-auto flex flex-wrap items-center justify-end gap-2">
             <ModalActionButton disabled={isSubmitting} onClick={closeDialog}>

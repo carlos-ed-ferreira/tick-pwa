@@ -35,6 +35,7 @@ import {
   getDropdownJoinShape,
   moveTreeItemToTarget,
   TaskTreeBulkActions,
+  TaskTreeClearCategoryIcon,
   TaskTreeEditableRow,
   TaskTreeRowActionsMenu,
   TreeListPanel,
@@ -994,6 +995,7 @@ export function GoalsSurface() {
           goalGroupCategoryMap={groupCategoryMap}
           group={selectedGroup}
           onBack={closeNestedView}
+          onDelete={closeNestedView}
         />
         <GoalGrid
           activeDragPayload={activeDragPayload}
@@ -1404,6 +1406,10 @@ function CategoryColorButton({
   const ownColorHex = selectedCategory?.useOwnName
     ? selectedCategory.colorHex
     : null;
+  const colorLabel =
+    surface === 'goal_group'
+      ? dictionary.goals.assignGroupColor
+      : dictionary.goals.assignGoalColor;
 
   async function handleColorChange(colorHex: string) {
     if (!scope) {
@@ -1420,24 +1426,26 @@ function CategoryColorButton({
   }
 
   return (
-    <span className="relative inline-flex size-10 shrink-0 items-center justify-center rounded-md border border-white/10 bg-white/5 shadow-sm shadow-[#312c51]/10 transition hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/10 focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-[#f7d9b0]">
-      <input
-        aria-label={dictionary.goalStepEditor.createOwnCategory}
-        className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-        type="color"
-        value={ownColorHex ?? '#71717a'}
-        onChange={(event) => void handleColorChange(event.target.value)}
-      />
-      <span
-        aria-hidden="true"
-        className={`block size-5 rounded-full shadow-[0_6px_14px_rgba(8,6,20,0.24)] ${
-          ownColorHex
-            ? 'border border-white/30'
-            : 'border border-dashed border-white/25'
-        }`}
-        style={ownColorHex ? { backgroundColor: ownColorHex } : undefined}
-      />
-    </span>
+    <Tooltip content={colorLabel}>
+      <span className="relative inline-flex size-10 shrink-0 items-center justify-center rounded-md border border-white/10 bg-white/5 shadow-sm shadow-[#312c51]/10 transition hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/10 focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-[#f7d9b0]">
+        <input
+          aria-label={colorLabel}
+          className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+          type="color"
+          value={ownColorHex ?? '#71717a'}
+          onChange={(event) => void handleColorChange(event.target.value)}
+        />
+        <span
+          aria-hidden="true"
+          className={`block size-5 rounded-full shadow-[0_6px_14px_rgba(8,6,20,0.24)] ${
+            ownColorHex
+              ? 'border border-white/30'
+              : 'border border-dashed border-white/25'
+          }`}
+          style={ownColorHex ? { backgroundColor: ownColorHex } : undefined}
+        />
+      </span>
+    </Tooltip>
   );
 }
 
@@ -1665,7 +1673,7 @@ function GoalGroupCard({
                 });
               }}
             >
-              <X aria-hidden="true" className="size-4" />
+              <TaskTreeClearCategoryIcon className="size-4" />
               {dictionary.goals.clearGroupCategory}
             </button>
             <button
@@ -2163,7 +2171,7 @@ function GoalCard({
                   });
                 }}
               >
-                <X aria-hidden="true" className="size-4" />
+                <TaskTreeClearCategoryIcon className="size-4" />
                 {dictionary.goals.clearGoalCategory}
               </button>
             ) : null}
@@ -2781,74 +2789,107 @@ function GoalGroupDetailHeader({
   goalGroupCategoryMap,
   group,
   onBack,
+  onDelete,
 }: {
   goalGroupCategoryMap: Map<string, CategoryTag>;
   group: GoalGroup;
   onBack: () => void;
+  onDelete: () => void;
 }) {
   const { dictionary, scope } = useAppContext();
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const groupCategory =
     goalGroupCategoryMap.get(group.categoryTagId ?? '') ?? null;
+  const deleteGroup = useCallback(async () => {
+    if (!scope) {
+      return;
+    }
+
+    setIsDeleteDialogOpen(false);
+    await softDeleteGoalGroup({ scope, goalGroupId: group.id });
+    onDelete();
+  }, [group.id, onDelete, scope]);
 
   return (
-    <header className="flex flex-col gap-3 px-1 sm:grid sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-2 sm:px-0">
-      <div className="flex min-w-0 flex-wrap items-center gap-2 sm:flex-nowrap">
-        <GoalGroupTitleEditor autoFocus={false} group={group} />
-        {groupCategory && !groupCategory.useOwnName ? (
-          <span
-            className="inline-flex min-h-10 max-w-full shrink-0 items-center rounded-full border px-3 py-1 text-sm font-medium text-[#f7e8ce] shadow-sm shadow-[#312c51]/10"
-            style={{
-              borderColor: toAlphaColor(groupCategory.colorHex, 0.6),
-              backgroundColor: toAlphaColor(groupCategory.colorHex, 0.14),
-            }}
-          >
-            <span className="truncate">{groupCategory.name}</span>
-          </span>
-        ) : null}
-        <CategoryColorButton
-          onAssign={(categoryTagId) =>
-            scope
-              ? assignGoalGroupCategory({
-                  scope,
-                  goalGroupId: group.id,
-                  categoryTagId,
-                })
-              : undefined
-          }
-          scope={scope}
-          selectedCategory={groupCategory}
-          surface="goal_group"
-        />
-        <CategoryAssignmentMenu
-          assignLabel={dictionary.goals.assignGroupCategory}
-          clearClassName="inline-flex size-10 shrink-0 items-center justify-center rounded-md border border-white/10 bg-white/5 text-[#d8d0e8] shadow-sm shadow-[#312c51]/10 transition hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/10 hover:text-[#fff9f2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0]"
-          clearLabel={dictionary.goalStepEditor.clearCategory}
-          renderTriggerContent={() => (
-            <Palette aria-hidden="true" className="size-4" />
-          )}
-          selectedCategoryTagId={group.categoryTagId}
-          surface="goal_group"
-          triggerClassName="size-10 shrink-0 rounded-md border border-white/10 bg-white/5 text-[#d8d0e8] shadow-sm shadow-[#312c51]/10 hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/10 hover:text-[#fff9f2] focus-visible:outline-[#f7d9b0]"
-          onAssign={(categoryTagId) => {
-            if (!scope) return;
+    <>
+      <header className="flex flex-col gap-3 px-1 sm:grid sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-2 sm:px-0">
+        <div className="flex min-w-0 flex-wrap items-center gap-2 sm:flex-nowrap">
+          <GoalGroupTitleEditor autoFocus={false} group={group} />
+          {groupCategory && !groupCategory.useOwnName ? (
+            <span
+              className="inline-flex min-h-10 max-w-full shrink-0 items-center rounded-full border px-3 py-1 text-sm font-medium text-[#f7e8ce] shadow-sm shadow-[#312c51]/10"
+              style={{
+                borderColor: toAlphaColor(groupCategory.colorHex, 0.6),
+                backgroundColor: toAlphaColor(groupCategory.colorHex, 0.14),
+              }}
+            >
+              <span className="truncate">{groupCategory.name}</span>
+            </span>
+          ) : null}
+          <CategoryColorButton
+            onAssign={(categoryTagId) =>
+              scope
+                ? assignGoalGroupCategory({
+                    scope,
+                    goalGroupId: group.id,
+                    categoryTagId,
+                  })
+                : undefined
+            }
+            scope={scope}
+            selectedCategory={groupCategory}
+            surface="goal_group"
+          />
+          <CategoryAssignmentMenu
+            assignLabel={dictionary.goals.assignGroupCategory}
+            clearClassName="inline-flex size-10 shrink-0 items-center justify-center rounded-md border border-white/10 bg-white/5 text-[#d8d0e8] shadow-sm shadow-[#312c51]/10 transition hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/10 hover:text-[#fff9f2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0]"
+            clearLabel={dictionary.goals.clearGroupCategory}
+            renderClearContent={() => (
+              <TaskTreeClearCategoryIcon className="size-4" />
+            )}
+            renderTriggerContent={() => (
+              <Tag aria-hidden="true" className="size-4" />
+            )}
+            selectedCategoryTagId={group.categoryTagId}
+            surface="goal_group"
+            triggerClassName="inline-flex size-10 shrink-0 items-center justify-center rounded-md border border-white/10 bg-white/5 text-[#d8d0e8] shadow-sm shadow-[#312c51]/10 hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/10 hover:text-[#fff9f2] focus-visible:outline-[#f7d9b0]"
+            onAssign={(categoryTagId) => {
+              if (!scope) return;
 
-            return assignGoalGroupCategory({
-              scope,
-              goalGroupId: group.id,
-              categoryTagId,
-            });
-          }}
-        />
-      </div>
-      <button
-        type="button"
-        className="inline-flex min-h-10 w-fit shrink-0 items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-[#f8f3ea] shadow-sm shadow-[#312c51]/10 transition hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/10 active:translate-y-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0]"
-        onClick={onBack}
-      >
-        <ArrowLeft aria-hidden="true" className="size-4" />
-        {dictionary.goals.backToGoalGroups}
-      </button>
-    </header>
+              return assignGoalGroupCategory({
+                scope,
+                goalGroupId: group.id,
+                categoryTagId,
+              });
+            }}
+          />
+          <IconButton
+            aria-label={dictionary.goals.deleteGroup}
+            className="size-10 rounded-md border border-rose-300/20 bg-rose-400/10 text-rose-100 hover:bg-rose-400/18 hover:text-rose-50 focus-visible:outline-rose-200"
+            onClick={() => setIsDeleteDialogOpen(true)}
+          >
+            <Trash2 aria-hidden="true" className="size-4" />
+          </IconButton>
+        </div>
+        <button
+          type="button"
+          className="inline-flex min-h-10 w-fit shrink-0 items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-[#f8f3ea] shadow-sm shadow-[#312c51]/10 transition hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/10 active:translate-y-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0]"
+          onClick={onBack}
+        >
+          <ArrowLeft aria-hidden="true" className="size-4" />
+          {dictionary.goals.backToGoalGroups}
+        </button>
+      </header>
+      <ConfirmationDialog
+        cancelLabel={dictionary.actions.cancel}
+        confirmLabel={dictionary.goals.deleteGroup}
+        description={dictionary.goals.confirmDeleteGroup}
+        open={isDeleteDialogOpen}
+        title={dictionary.goals.deleteGroup}
+        onClose={() => setIsDeleteDialogOpen(false)}
+        onConfirm={() => void deleteGroup()}
+      />
+    </>
   );
 }
 
@@ -2934,13 +2975,16 @@ function GoalDetailHeader({
           <CategoryAssignmentMenu
             assignLabel={dictionary.goals.assignGoalCategory}
             clearClassName="inline-flex size-10 shrink-0 items-center justify-center rounded-md border border-white/10 bg-white/5 text-[#d8d0e8] shadow-sm shadow-[#312c51]/10 transition hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/10 hover:text-[#fff9f2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0]"
-            clearLabel={dictionary.goalStepEditor.clearCategory}
+            clearLabel={dictionary.goals.clearGoalCategory}
+            renderClearContent={() => (
+              <TaskTreeClearCategoryIcon className="size-4" />
+            )}
             renderTriggerContent={() => (
-              <Palette aria-hidden="true" className="size-4" />
+              <Tag aria-hidden="true" className="size-4" />
             )}
             selectedCategoryTagId={goal.categoryTagId}
             surface="goal"
-            triggerClassName="size-10 shrink-0 rounded-md border border-white/10 bg-white/5 text-[#d8d0e8] shadow-sm shadow-[#312c51]/10 hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/10 hover:text-[#fff9f2] focus-visible:outline-[#f7d9b0]"
+            triggerClassName="inline-flex size-10 shrink-0 items-center justify-center rounded-md border border-white/10 bg-white/5 text-[#d8d0e8] shadow-sm shadow-[#312c51]/10 hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/10 hover:text-[#fff9f2] focus-visible:outline-[#f7d9b0]"
             onAssign={(categoryTagId) => {
               if (!scope) return;
               return assignGoalCategory({

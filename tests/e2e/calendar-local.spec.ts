@@ -83,3 +83,45 @@ test('uses the shared date picker in calendar forms', async ({ page }) => {
   await page.getByRole('button', { name: 'July 20, 2026' }).click();
   await expect(startDateInput).toHaveValue('20-07-2026');
 });
+
+test('shows modal feedback as a toast notification', async ({ page }) => {
+  await enterLocalMode(page);
+  await page
+    .getByRole('button', { name: /create in bulk|criar em lote/i })
+    .click();
+
+  await page.getByRole('button', { name: /^create$|^criar$/i }).click();
+
+  await expect(
+    page.getByRole('alert').filter({
+      hasText:
+        /start and end dates are required|data inicial e data final são obrigatórias/i,
+    }),
+  ).toBeVisible();
+});
+
+test('saves a category name even when its modal closes before blur', async ({
+  page,
+}) => {
+  await enterLocalMode(page);
+  await page
+    .getByRole('button', { name: /^categories$|^categorias$/i })
+    .click();
+
+  const categoryName = page
+    .getByRole('textbox', { name: /category name|nome da categoria/i })
+    .first();
+
+  await categoryName.fill('FOCO IMEDIATO');
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+
+  await page
+    .getByRole('button', { name: /^categories$|^categorias$/i })
+    .click();
+  await expect(
+    page
+      .getByRole('textbox', { name: /category name|nome da categoria/i })
+      .first(),
+  ).toHaveValue('FOCO IMEDIATO');
+});

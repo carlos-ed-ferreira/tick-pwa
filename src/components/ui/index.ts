@@ -9,4 +9,5 @@ export * from './icon-button';
 export * from './input';
 export * from './modal-action-button';
 export * from './text';
+export * from './toast';
 export * from './tooltip';
