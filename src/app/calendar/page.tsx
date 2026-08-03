@@ -16,9 +16,9 @@ export default function CalendarPage() {
   const { dictionary } = useAppContext();
   const [isCategoryManagerOpen, setIsCategoryManagerOpen] = useState(false);
   const activeNavigationItemClassName =
-    'inline-flex min-h-9 items-center gap-2 rounded-[0.875rem] border border-[#f8d7aa]/70 bg-[#f0c38e] px-3.5 text-sm font-semibold text-[#253241] shadow-[0_12px_28px_rgba(240,195,142,0.16)] transition hover:-translate-y-0.5 hover:border-[#ffe0b8] hover:bg-[#f5d09f] hover:shadow-[0_16px_34px_rgba(240,195,142,0.22)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0]';
+    'inline-flex min-h-9 items-center gap-2 rounded-[0.875rem] inset-ring-hairline inset-ring-[#f8d7aa]/70 bg-[#f0c38e] px-3.5 text-sm font-semibold text-[#253241] shadow-[0_12px_28px_rgba(240,195,142,0.16)] transition hover:-translate-y-0.5 hover:inset-ring-[#ffe0b8] hover:bg-[#f5d09f] hover:shadow-[0_16px_34px_rgba(240,195,142,0.22)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0]';
   const navigationItemClassName =
-    'inline-flex min-h-9 items-center gap-2 rounded-[0.875rem] border border-transparent px-3.5 text-sm font-medium text-[#b4c1ce] transition hover:border-white/10 hover:bg-white/8 hover:text-[#fff9f2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0]';
+    'inline-flex min-h-9 items-center gap-2 rounded-[0.875rem] inset-ring-hairline inset-ring-transparent px-3.5 text-sm font-medium text-[#b4c1ce] transition hover:inset-ring-white/10 hover:bg-white/8 hover:text-[#fff9f2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0]';
 
   return (
     <AuthGate>
@@ -53,7 +53,7 @@ export default function CalendarPage() {
               <AccountStatus />
             </div>
 
-            <nav className="flex w-full flex-wrap items-center justify-start gap-1 rounded-[1rem] border border-white/10 bg-white/6 p-1.5 shadow-sm shadow-[#253241]/10 backdrop-blur-md sm:w-fit lg:justify-self-center">
+            <nav className="flex w-full flex-wrap items-center justify-start gap-1 rounded-[1rem] inset-ring-hairline inset-ring-white/10 bg-white/6 p-1.5 shadow-sm shadow-[#253241]/10 backdrop-blur-md sm:w-fit lg:justify-self-center">
               <Link
                 href="/calendar"
                 aria-current="page"
@@ -70,7 +70,7 @@ export default function CalendarPage() {
 
             <div className="flex flex-wrap items-center gap-2 lg:justify-between">
               <Button
-                className="min-h-9 rounded-full border-white/10 bg-white/5 px-4 py-2 text-xs font-medium text-[#f8f3ea] shadow-sm shadow-[#253241]/10 hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/10 hover:shadow-md focus-visible:outline-[#f7d9b0] sm:text-sm"
+                className="min-h-9 rounded-full inset-ring-white/10 bg-white/5 px-4 py-2 text-xs font-medium text-[#f8f3ea] shadow-sm shadow-[#253241]/10 hover:-translate-y-0.5 hover:inset-ring-white/20 hover:bg-white/10 hover:shadow-md focus-visible:outline-[#f7d9b0] sm:text-sm"
                 tone="subtle"
                 onClick={() => setIsCategoryManagerOpen(true)}
               >

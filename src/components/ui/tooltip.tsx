@@ -160,7 +160,7 @@ export function Tooltip({
               ref={tooltipRef}
               id={tooltipId}
               role="tooltip"
-              className="tick-tooltip pointer-events-none fixed z-[100] max-w-72 rounded-xl border border-[#f0c38e]/25 bg-[#16202c]/96 px-3 py-2 text-center text-xs font-medium leading-4 text-[#fff9f2] shadow-[0_14px_36px_rgba(5,8,13,0.48)] backdrop-blur-xl"
+              className="tick-tooltip pointer-events-none fixed z-[100] max-w-72 rounded-xl inset-ring-hairline inset-ring-[#f0c38e]/25 bg-[#16202c]/96 px-3 py-2 text-center text-xs font-medium leading-4 text-[#fff9f2] shadow-[0_14px_36px_rgba(5,8,13,0.48)] backdrop-blur-xl"
               style={{
                 left: position?.left ?? 0,
                 top: position?.top ?? 0,

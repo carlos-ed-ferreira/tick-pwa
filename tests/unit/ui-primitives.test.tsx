@@ -4,6 +4,7 @@ import {
   Button,
   Checkbox,
   ConfirmationDialog,
+  DashedRing,
   Dialog,
   IconButton,
   Input,
@@ -96,6 +97,22 @@ describe('UI primitives', () => {
     expect(action.querySelector('svg')).toBeInTheDocument();
   });
 
+  it('draws dashed edges as a vector ring so the color survives the curves', () => {
+    const { container } = render(<DashedRing radius={21.6} />);
+
+    const svg = container.querySelector('svg');
+    const rect = container.querySelector('rect');
+
+    expect(svg).toHaveAttribute('aria-hidden', 'true');
+    expect(svg).toHaveClass('pointer-events-none', 'absolute');
+    expect(rect).toHaveAttribute('rx', '21.6');
+    expect(rect).toHaveAttribute('width', '100%');
+    expect(rect).toHaveAttribute('height', '100%');
+    expect(rect?.style.strokeWidth).toBe('var(--hairline)');
+    expect(rect?.style.strokeDasharray).toBe('7 6');
+    expect(rect?.style.stroke).toContain('--dashed-ring-color');
+  });
+
   it('replaces native icon-button titles with the shared visual tooltip', () => {
     render(
       <IconButton aria-label="Configure preferences" title="Native title">
@@ -179,7 +196,7 @@ describe('UI primitives', () => {
     );
 
     expect(screen.getByRole('button', { name: 'Archive' })).toHaveClass(
-      'border-[#f8d7aa]/70',
+      'inset-ring-[#f8d7aa]/70',
       'bg-[#f0c38e]',
       'text-[#253241]',
     );

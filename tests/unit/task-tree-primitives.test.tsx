@@ -27,11 +27,11 @@ describe('task tree primitives', () => {
       'gap-1',
       'min-h-11',
       'rounded-lg',
-      'border',
-      'border-transparent',
+      'inset-ring-hairline',
+      'inset-ring-transparent',
       'p-0',
       'transition',
-      'hover:border-white/[0.08]',
+      'hover:inset-ring-white/[0.08]',
       'hover:bg-white/[0.055]',
     );
     expect(row).toHaveStyle({
@@ -93,7 +93,7 @@ describe('task tree primitives', () => {
     expect(chip).toHaveClass(
       'shrink-0',
       'rounded-full',
-      'border',
+      'inset-ring-hairline',
       'px-2',
       'py-1',
       'text-[11px]',
@@ -101,7 +101,7 @@ describe('task tree primitives', () => {
       'leading-none',
     );
     expect(chip).toHaveStyle({
-      borderColor: '#f97316',
+      '--chip-edge': '#f97316',
       backgroundColor: 'rgba(249, 115, 22, 0.18)',
       color: '#f97316',
     });

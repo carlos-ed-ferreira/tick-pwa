@@ -29,7 +29,7 @@ const toneClassNames: Record<
 > = {
   primary: {
     wrapper:
-      'border border-[#f8d7aa]/70 bg-[#f0c38e] text-[#253241] shadow-md shadow-[#f0c38e]/18 hover:border-[#ffe0b8] hover:bg-[#f5d09f]',
+      'inset-ring-hairline inset-ring-[#f8d7aa]/70 bg-[#f0c38e] text-[#253241] shadow-md shadow-[#f0c38e]/18 hover:inset-ring-[#ffe0b8] hover:bg-[#f5d09f]',
     icon: 'bg-[#253241]/10 text-[#253241]',
     label: 'text-[#253241]',
     description: 'text-[#253241]/82',
@@ -37,7 +37,7 @@ const toneClassNames: Record<
   },
   secondary: {
     wrapper:
-      'border border-[#fff9f2]/22 bg-[#fff9f2]/10 text-[#fff9f2] shadow-sm shadow-[#253241]/8 hover:border-[#fff9f2]/34 hover:bg-[#fff9f2]/15',
+      'inset-ring-hairline inset-ring-[#fff9f2]/22 bg-[#fff9f2]/10 text-[#fff9f2] shadow-sm shadow-[#253241]/8 hover:inset-ring-[#fff9f2]/34 hover:bg-[#fff9f2]/15',
     icon: 'bg-[#fff9f2]/12 text-[#fff9f2]',
     label: 'text-[#fff9f2]',
     description: 'text-[#fff9f2]/82',
@@ -45,7 +45,7 @@ const toneClassNames: Record<
   },
   accent: {
     wrapper:
-      'border border-[#fff9f2]/18 bg-transparent text-[#fff9f2] shadow-none hover:border-[#fff9f2]/34 hover:bg-[#fff9f2]/8',
+      'inset-ring-hairline inset-ring-[#fff9f2]/18 bg-transparent text-[#fff9f2] shadow-none hover:inset-ring-[#fff9f2]/34 hover:bg-[#fff9f2]/8',
     icon: 'bg-[#fff9f2]/8 text-[#fff9f2]/90',
     label: 'text-[#fff9f2]/92',
     description: 'text-[#fff9f2]/76',

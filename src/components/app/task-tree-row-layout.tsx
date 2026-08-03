@@ -39,11 +39,11 @@ export function TaskTreeRowLayout({
 
   return (
     <div
-      className={`group relative flex min-h-11 min-w-0 items-center gap-1 rounded-lg border border-transparent p-0 transition hover:border-white/[0.08] hover:bg-white/[0.055] ${
+      className={`group relative flex min-h-11 min-w-0 items-center gap-1 rounded-lg inset-ring-hairline inset-ring-transparent p-0 transition hover:inset-ring-white/[0.08] hover:bg-white/[0.055] ${
         isDragging ? 'opacity-45' : ''
       } ${
         dropPosition === 'child'
-          ? 'border-[#f0c38e]/50 bg-[#f0c38e]/[0.12] shadow-[inset_0_0_0_1px_rgba(240,195,142,0.14)]'
+          ? 'inset-ring-[#f0c38e]/50 bg-[#f0c38e]/[0.12] shadow-[inset_0_0_0_1px_rgba(240,195,142,0.14)]'
           : dropPosition
             ? 'bg-[#f0c38e]/[0.055]'
             : ''

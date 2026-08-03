@@ -57,7 +57,7 @@ describe('TaskTreeRowActionsMenu', () => {
 
     expect(dialog).toHaveClass('border-0', 'after:hidden');
     expect(dialog.querySelector('[data-row-action-setting]')).not.toHaveClass(
-      'border',
+      'inset-ring-hairline',
     );
 
     for (const action of [
@@ -189,10 +189,10 @@ describe('TaskTreeRowActionsMenu', () => {
     });
 
     expect(resetButton).toHaveClass(
-      'border-[#f0c38e]/22',
+      'inset-ring-[#f0c38e]/22',
       'bg-[#f0c38e]/10',
       'text-[#f7d7ad]',
-      'hover:border-[#f0c38e]/36',
+      'hover:inset-ring-[#f0c38e]/36',
       'hover:bg-[#f0c38e]/16',
     );
     fireEvent.click(resetButton);
@@ -225,7 +225,7 @@ describe('TaskTreeRowActionsMenu', () => {
     });
 
     expect(checkbox).not.toBeChecked();
-    expect(checkbox).toHaveClass('border-[#f0c38e]/55', 'bg-[#f0c38e]/12');
+    expect(checkbox).toHaveClass('inset-ring-[#f0c38e]/55', 'bg-[#f0c38e]/12');
     expect(extraOptions).toHaveClass('whitespace-nowrap');
     expect(extraOptions.parentElement).toHaveClass('sm:w-[24rem]');
 

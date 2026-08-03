@@ -286,7 +286,7 @@ export function CategoryAssignmentMenu({
               {selectedCategory ? (
                 <span
                   aria-hidden="true"
-                  className="size-4 rounded-full border border-white/25"
+                  className="size-4 rounded-full inset-ring-hairline inset-ring-white/25"
                   style={{ backgroundColor: selectedCategory.colorHex }}
                 />
               ) : (

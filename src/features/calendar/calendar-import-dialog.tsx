@@ -123,7 +123,7 @@ export function CalendarImportDialog({
             spellCheck={false}
             placeholder={dictionary.calendar.importPlaceholder}
             value={payload}
-            className="min-h-56 flex-1 resize-none rounded-[1rem] border border-white/10 bg-white/[0.055] p-3 font-mono text-xs leading-5 text-[#fff9f2] outline-none transition placeholder:text-[#7b8da0] hover:border-white/[0.16] focus:border-[#f0c38e]/[0.42] focus:bg-white/[0.075] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e]"
+            className="min-h-56 flex-1 resize-none rounded-[1rem] inset-ring-hairline inset-ring-white/10 bg-white/[0.055] p-3 font-mono text-xs leading-5 text-[#fff9f2] outline-none transition placeholder:text-[#7b8da0] hover:inset-ring-white/[0.16] focus:inset-ring-[#f0c38e]/[0.42] focus:bg-white/[0.075] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e]"
             onChange={(event) => setPayload(event.target.value)}
           />
         </label>

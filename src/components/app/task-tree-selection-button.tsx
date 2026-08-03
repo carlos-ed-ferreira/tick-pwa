@@ -22,7 +22,7 @@ export function TaskTreeSelectionButton({
         className={`flex size-3.5 items-center justify-center rounded-full shadow-sm transition ${
           isSelected
             ? 'bg-[#f0c38e] text-[#141e2a] shadow-[0_8px_18px_rgba(240,195,142,0.24)]'
-            : 'border border-white/15 bg-white/[0.08] text-[#aebac8]'
+            : 'inset-ring-hairline inset-ring-white/15 bg-white/[0.08] text-[#aebac8]'
         }`}
       >
         {isSelected && <Check aria-hidden="true" className="size-2" />}

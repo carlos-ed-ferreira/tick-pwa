@@ -44,7 +44,7 @@ export const FormField = forwardRef<HTMLInputElement, FormFieldProps>(
             {label}
           </label>
           <div
-            className={`rounded-[0.75rem] py-2 shadow-sm ring-1 transition ${
+            className={`rounded-[0.75rem] py-2 shadow-sm ring-hairline transition ${
               error
                 ? 'ring-rose-500/35 focus-within:ring-2 focus-within:ring-rose-500/55 focus-within:shadow-[0_0_0_4px_rgba(244,63,94,0.08)]'
                 : 'ring-2 ring-[#fff9f2]/88 focus-within:ring-2 focus-within:ring-[#fff9f2] focus-within:shadow-[0_0_0_4px_rgba(255,249,242,0.12)]'

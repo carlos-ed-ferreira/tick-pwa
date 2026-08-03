@@ -30,7 +30,7 @@ describe('LanguageSwitcher', () => {
     });
 
     expect(button).toHaveTextContent('English');
-    expect(button).toHaveClass('border');
+    expect(button).toHaveClass('inset-ring-hairline');
 
     fireEvent.click(button);
 

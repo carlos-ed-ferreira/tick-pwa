@@ -117,6 +117,29 @@ describe('CalendarMonth', () => {
     expect(screen.queryByTestId('checklist-surface')).not.toBeInTheDocument();
   });
 
+  it('marks today with a hairline ring instead of a fading 1px ring', () => {
+    const { container } = render(<CalendarMonth />);
+
+    // today starts selected, so pick another day to expose the today marker
+    const otherDay = getDayCells(container).find(
+      (cell) => cell.getAttribute('aria-pressed') === 'false',
+    ) as HTMLButtonElement;
+    fireEvent.click(otherDay);
+
+    const dayNumbers = Array.from(
+      container.querySelectorAll('.calendar-day-number'),
+    );
+    const todayNumbers = dayNumbers.filter((dayNumber) =>
+      dayNumber.classList.contains('inset-ring-hairline'),
+    );
+
+    expect(todayNumbers).toHaveLength(1);
+    expect(todayNumbers[0]).toHaveClass('inset-ring-[#f7e1bc]/35');
+    expect(
+      dayNumbers.some((dayNumber) => dayNumber.classList.contains('ring-1')),
+    ).toBe(false);
+  });
+
   it('selects a day on single click without opening it', () => {
     const { container } = render(<CalendarMonth />);
     const dayCell = getDayCells(container)[10] as HTMLButtonElement;

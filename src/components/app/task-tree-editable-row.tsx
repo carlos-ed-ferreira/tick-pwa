@@ -673,7 +673,7 @@ export function TaskTreeEditableRow({
             maxLength={5}
             placeholder="00:00"
             value={timeText}
-            className="ml-2 h-6 w-[4rem] shrink-0 rounded-lg border border-white/10 bg-white/[0.045] px-1.5 text-center text-xs font-medium tabular-nums text-[#fff9f2] outline-none transition placeholder:text-[#7b8da0] focus:border-[#f0c38e]/40 focus:bg-white/[0.065] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e]"
+            className="ml-2 h-6 w-[4rem] shrink-0 rounded-lg inset-ring-hairline inset-ring-white/10 bg-white/[0.045] px-1.5 text-center text-xs font-medium tabular-nums text-[#fff9f2] outline-none transition placeholder:text-[#7b8da0] focus:inset-ring-[#f0c38e]/40 focus:bg-white/[0.065] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e]"
             spellCheck={false}
             autoCorrect="off"
             autoCapitalize="none"
@@ -684,7 +684,7 @@ export function TaskTreeEditableRow({
 
         <div
           data-task-text-field
-          className={`flex min-w-0 flex-1 rounded-xl border border-transparent bg-transparent transition focus-within:border-[#f0c38e]/28 focus-within:bg-white/[0.055] focus-within:shadow-sm ${
+          className={`flex min-w-0 flex-1 rounded-xl inset-ring-hairline inset-ring-transparent bg-transparent transition focus-within:inset-ring-[#f0c38e]/28 focus-within:bg-white/[0.055] focus-within:shadow-sm ${
             isTextMultiline ? 'items-start pt-0.5 pb-0' : 'min-h-9 items-center'
           }`}
         >

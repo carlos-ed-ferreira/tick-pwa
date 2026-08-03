@@ -61,7 +61,7 @@ export function CategoryManager({
         )}
         <button
           type="button"
-          className="flex shrink-0 items-center gap-1.5 rounded-full border border-[#f0c38e]/22 bg-[#f0c38e]/10 px-3 py-1.5 text-sm font-medium text-[#f7d7ad] shadow-sm transition hover:border-[#f0c38e]/36 hover:bg-[#f0c38e]/16 hover:text-[#fff9f2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e]"
+          className="flex shrink-0 items-center gap-1.5 rounded-full inset-ring-hairline inset-ring-[#f0c38e]/22 bg-[#f0c38e]/10 px-3 py-1.5 text-sm font-medium text-[#f7d7ad] shadow-sm transition hover:inset-ring-[#f0c38e]/36 hover:bg-[#f0c38e]/16 hover:text-[#fff9f2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e]"
           onClick={() => void addCategory()}
         >
           <Plus aria-hidden="true" className="size-3.5" />
@@ -194,7 +194,7 @@ function CategoryManagerRow({
 
   return (
     <div className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 rounded-xl bg-white/[0.035] px-3 py-3 text-sm transition hover:bg-white/[0.055]">
-      <label className="relative block size-8 shrink-0 rounded-full border border-white/10 bg-white/5 p-1 shadow-sm focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-[#f0c38e]">
+      <label className="relative block size-8 shrink-0 rounded-full inset-ring-hairline inset-ring-white/10 bg-white/5 p-1 shadow-sm focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-[#f0c38e]">
         <input
           aria-label={`${dictionary.dayEditor.assignCategory}: ${tag.name}`}
           className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
@@ -214,14 +214,14 @@ function CategoryManagerRow({
         />
         <span
           aria-hidden="true"
-          className="block size-full rounded-full border border-white/30 shadow-[0_6px_14px_rgba(5,8,13,0.24)]"
+          className="block size-full rounded-full inset-ring-hairline inset-ring-white/30 shadow-[0_6px_14px_rgba(5,8,13,0.24)]"
           style={{ backgroundColor: tag.colorHex }}
         />
       </label>
 
       <Input
         aria-label={dictionary.dayEditor.categoryNamePlaceholder}
-        className="min-w-0 rounded-xl border border-transparent bg-transparent px-2 py-2 uppercase text-[#fff9f2] outline-none transition placeholder:text-[#7b8da0] focus:border-[#f0c38e]/30 focus:bg-white/[0.055] focus:shadow-sm"
+        className="min-w-0 rounded-xl inset-ring-hairline inset-ring-transparent bg-transparent px-2 py-2 uppercase text-[#fff9f2] outline-none transition placeholder:text-[#7b8da0] focus:inset-ring-[#f0c38e]/30 focus:bg-white/[0.055] focus:shadow-sm"
         placeholder={dictionary.dayEditor.categoryNamePlaceholder}
         value={draftName}
         onBlur={commitName}

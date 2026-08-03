@@ -3,6 +3,7 @@ export * from './auto-resize-textarea';
 export * from './button';
 export * from './checkbox';
 export * from './confirmation-dialog';
+export * from './dashed-ring';
 export * from './dialog';
 export * from './form-field';
 export * from './icon-button';

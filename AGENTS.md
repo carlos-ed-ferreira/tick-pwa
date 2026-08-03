@@ -123,6 +123,19 @@ Use superfícies compartilhadas (`card-surface`, `card-surface-soft`,
 `card-surface-strong`) quando fizer sentido. Evite abstrações visuais sem ganho
 real e evite cards aninhados desnecessários.
 
+Cards que servem de container — tarefas do dia, etapas de meta, cartões de meta
+e de grupo — não levam borda. A separação vem do fundo e da sombra; borda só
+onde ela comunica algo, como estado de hover, seleção ou destino de drop.
+
+Quando a borda for necessária, desenhe com `inset-ring-hairline` em vez de
+`border`, e use `inset-ring-(--alguma-var)` quando a cor for dinâmica. O token
+`--hairline` vale 1.5px em telas de 1x e 1px acima disso, porque um traço de
+1 pixel físico numa curva não cobre um pixel inteiro e a quina arredondada
+renderiza mais fraca que a reta. `border-width` é arredondado para pixels
+inteiros pelo navegador e não resolve isso; o spread de `box-shadow` resolve.
+Para borda tracejada use o primitivo `DashedRing`, que desenha o traço em SVG e
+mantém cor e ritmo constantes ao longo da curva.
+
 ## Formulários e feedback
 
 Formulários React controlados pela aplicação devem usar `noValidate`.

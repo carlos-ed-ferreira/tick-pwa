@@ -12,7 +12,7 @@ export function Checkbox({
       type="checkbox"
       aria-checked={indeterminate ? 'mixed' : props.checked}
       data-ignored={indeterminate ? 'true' : undefined}
-      className={`tick-checkbox size-5 shrink-0 appearance-none rounded-lg border border-border bg-accent-soft shadow-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${className}`}
+      className={`tick-checkbox size-5 shrink-0 appearance-none rounded-lg bg-accent-soft shadow-none inset-ring-hairline inset-ring-(--checkbox-edge) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${className}`}
       {...props}
     />
   );

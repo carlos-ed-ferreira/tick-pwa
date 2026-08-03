@@ -417,7 +417,7 @@ describe('GoalsSurface', () => {
       'min-h-10',
       'w-fit',
       'rounded-full',
-      'border-white/10',
+      'inset-ring-white/10',
       'bg-white/5',
       'px-4',
       'py-2',
@@ -433,7 +433,7 @@ describe('GoalsSurface', () => {
       'min-h-10',
       'w-fit',
       'rounded-full',
-      'border-white/10',
+      'inset-ring-white/10',
       'bg-white/5',
       'px-4',
       'py-2',
@@ -505,7 +505,10 @@ describe('GoalsSurface', () => {
     const noGroupSection = screen.getByTestId('archived-goal-group-none');
     const activeButton = screen.getByRole('button', { name: 'Active' });
 
-    expect(lifeSection).not.toHaveClass('border', 'bg-white/[0.035]');
+    expect(lifeSection).not.toHaveClass(
+      'inset-ring-hairline',
+      'bg-white/[0.035]',
+    );
     expect(within(lifeSection).getByText('Life')).toBeVisible();
     expect(within(lifeSection).getByText('Personal')).toBeVisible();
     expect(
@@ -741,6 +744,51 @@ describe('GoalsSurface', () => {
     expect(screen.queryByText('2/3')).not.toBeInTheDocument();
   });
 
+  it('keeps goal and group cards borderless at rest and draws the hover edge as a hairline', () => {
+    useGoalGroupsMock.mockReturnValue([
+      group({ id: 'group-1', title: 'Life' }),
+    ]);
+    useGoalsMock.mockImplementation((_scope, options = {}) => {
+      if (options.archived) return [];
+
+      return [
+        goal({ id: 'goal-1', title: 'Health', groupId: 'group-1' }),
+        goal({ id: 'goal-2', title: 'Work' }),
+      ];
+    });
+
+    render(<GoalsSurface />);
+
+    const groupCard = screen.getByRole('button', { name: /LifeHealth/ });
+    const goalCard = screen.getByRole('button', { name: 'Work' });
+
+    for (const card of [groupCard, goalCard]) {
+      expect(card).not.toHaveClass('ring-1');
+      expect(card).toHaveClass(
+        'inset-ring-hairline',
+        'inset-ring-transparent',
+        'hover:inset-ring-[#f0c38e]/25',
+      );
+    }
+  });
+
+  it('renders the goal step surface without a border around the container', () => {
+    useGoalsMock.mockImplementation((_scope, options = {}) => {
+      if (options.archived) return [];
+
+      return [goal({ id: 'goal-1', title: 'Health' })];
+    });
+
+    const { container } = render(<GoalsSurface />);
+    fireEvent.click(screen.getByRole('button', { name: 'Health' }));
+
+    const stepSurface = container.querySelector('section[aria-label="Health"]');
+
+    expect(stepSurface).toBeInTheDocument();
+    expect(stepSurface).not.toHaveClass('ring-1');
+    expect(stepSurface).toHaveClass('rounded-[1.25rem]', 'bg-white/[0.035]');
+  });
+
   it('opens group actions from a three-dot button without opening the group card', async () => {
     useCategoryTagsMock.mockImplementation((_scope, surface) => {
       if (surface === 'goal_group') {
@@ -773,7 +821,7 @@ describe('GoalsSurface', () => {
       screen
         .getByLabelText('Assign independent color')
         .closest('[data-card-actions-menu="true"]'),
-    ).toHaveClass('border-0');
+    ).toHaveClass('modal-panel--flat');
     expect(screen.getByLabelText('Assign independent color')).toBeVisible();
     expect(
       screen.getByRole('button', { name: 'Assign category' }),
@@ -857,7 +905,7 @@ describe('GoalsSurface', () => {
       'items-center',
       'gap-2',
       'rounded-full',
-      'border',
+      'inset-ring-hairline',
       'px-3',
       'py-1',
       'text-[0.68rem]',
@@ -869,7 +917,7 @@ describe('GoalsSurface', () => {
       'shadow-[#253241]/10',
     );
     expect(badge).toHaveStyle({
-      borderColor: 'rgba(249, 115, 22, 0.6)',
+      '--chip-edge': 'rgba(249, 115, 22, 0.6)',
       backgroundColor: 'rgba(249, 115, 22, 0.14)',
     });
   });
@@ -899,15 +947,15 @@ describe('GoalsSurface', () => {
 
     const pill = screen.getByText('Life').parentElement;
 
-    expect(pill).toHaveClass('rounded-full', 'border');
+    expect(pill).toHaveClass('rounded-full', 'inset-ring-hairline');
     expect(pill).toHaveStyle({
-      borderColor: 'rgba(249, 115, 22, 0.6)',
+      '--chip-edge': 'rgba(249, 115, 22, 0.6)',
       backgroundColor: 'rgba(249, 115, 22, 0.14)',
     });
 
     const dot = Array.from(container.querySelectorAll('span')).find(
       (element) =>
-        element.className.includes('border-white/30') &&
+        element.className.includes('inset-ring-white/30') &&
         element.className.includes('rounded-full'),
     );
 
@@ -935,7 +983,7 @@ describe('GoalsSurface', () => {
 
     expect(
       completeButton.closest('[data-goal-actions-menu="true"]'),
-    ).toHaveClass('border-0');
+    ).toHaveClass('modal-panel--flat');
     expect(completeButton.closest('article')).toBeNull();
     expect(
       screen.queryByRole('button', { name: 'New group' }),
@@ -1044,7 +1092,7 @@ describe('GoalsSurface', () => {
     expect(extension).toHaveClass(
       'dropdown-extension-panel',
       'rounded-l-none',
-      'border-0',
+      'modal-panel--flat',
       'z-50',
     );
     expect(extension).not.toHaveClass('z-70');
@@ -1246,8 +1294,8 @@ describe('GoalsSurface', () => {
     expect(backButton).toHaveClass(
       'min-h-10',
       'rounded-full',
-      'border',
-      'border-white/10',
+      'inset-ring-hairline',
+      'inset-ring-white/10',
       'bg-white/5',
       'px-4',
       'py-2',
@@ -1278,8 +1326,8 @@ describe('GoalsSurface', () => {
       'justify-center',
       'size-10',
       'rounded-md',
-      'border',
-      'border-white/10',
+      'inset-ring-hairline',
+      'inset-ring-white/10',
       'bg-white/5',
       'text-[#cbd5e0]',
     );
@@ -1360,9 +1408,11 @@ describe('GoalsSurface', () => {
 
     expect(newGoalCard).toHaveClass(
       'h-32',
-      'border-dashed',
       'justify-center',
       'rounded-[1.35rem]',
+    );
+    expect(newGoalCard.querySelector('rect')?.style.strokeDasharray).toBe(
+      '7 6',
     );
     expect(
       screen.queryByRole('heading', { name: 'Life' }),
@@ -1788,8 +1838,8 @@ describe('GoalsSurface', () => {
       'justify-center',
       'size-10',
       'rounded-md',
-      'border',
-      'border-white/10',
+      'inset-ring-hairline',
+      'inset-ring-white/10',
       'bg-white/5',
       'text-[#cbd5e0]',
     );
@@ -1839,8 +1889,8 @@ describe('GoalsSurface', () => {
       'justify-center',
       'size-10',
       'rounded-md',
-      'border',
-      'border-white/10',
+      'inset-ring-hairline',
+      'inset-ring-white/10',
       'bg-white/5',
       'text-[#cbd5e0]',
     );
@@ -1857,7 +1907,7 @@ describe('GoalsSurface', () => {
       'min-h-10',
       'max-w-full',
       'rounded-full',
-      'border',
+      'inset-ring-hairline',
       'px-3',
       'py-1',
       'text-sm',
@@ -1867,7 +1917,7 @@ describe('GoalsSurface', () => {
     expect(categoryBadge).toHaveTextContent('Modo local');
     expect(categoryBadge?.querySelector('.rounded-full')).toBeNull();
     expect(categoryBadge).toHaveStyle({
-      borderColor: 'rgba(249, 115, 22, 0.6)',
+      '--chip-edge': 'rgba(249, 115, 22, 0.6)',
       backgroundColor: 'rgba(249, 115, 22, 0.14)',
     });
   });
@@ -1911,7 +1961,7 @@ describe('GoalsSurface', () => {
 
     const dot = Array.from(container.querySelectorAll('span')).find(
       (element) =>
-        element.className.includes('border-white/30') &&
+        element.className.includes('inset-ring-white/30') &&
         element.className.includes('rounded-full'),
     );
 

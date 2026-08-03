@@ -66,7 +66,7 @@ export function AuthShell({
           <div className="grid gap-0 lg:grid-cols-[minmax(0,1.1fr)_minmax(22rem,0.9fr)]">
             <div className="flex h-full flex-col px-5 py-6 sm:px-6 sm:py-7 md:px-7 md:py-7 lg:min-h-[38rem] lg:px-8 lg:py-8">
               <div className="mt-6 flex items-center gap-3">
-                <span className="inline-flex items-center rounded-full border border-[#f0c38e]/60 bg-[#f0c38e]/14 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.24em] text-[#f7e8ce] shadow-sm shadow-[#f0c38e]/10">
+                <span className="inline-flex items-center rounded-full inset-ring-hairline inset-ring-[#f0c38e]/60 bg-[#f0c38e]/14 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.24em] text-[#f7e8ce] shadow-sm shadow-[#f0c38e]/10">
                   {badge}
                 </span>
               </div>

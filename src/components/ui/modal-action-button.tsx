@@ -8,13 +8,13 @@ export type ModalActionButtonTone =
 
 const toneClassNames: Record<ModalActionButtonTone, string> = {
   neutral:
-    'border border-white/10 bg-white/[0.055] text-[#cbd5e0] hover:border-white/20 hover:bg-white/[0.1] hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]',
+    'inset-ring-hairline inset-ring-white/10 bg-white/[0.055] text-[#cbd5e0] hover:inset-ring-white/20 hover:bg-white/[0.1] hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]',
   secondary:
-    'border border-[#a4b5c7]/30 bg-[#5f7388]/32 text-[#fff9f2] hover:border-[#b3c3d7]/45 hover:bg-[#657f9b]/42 focus-visible:outline-[#b3c3d7]',
+    'inset-ring-hairline inset-ring-[#a4b5c7]/30 bg-[#5f7388]/32 text-[#fff9f2] hover:inset-ring-[#b3c3d7]/45 hover:bg-[#657f9b]/42 focus-visible:outline-[#b3c3d7]',
   accent:
-    'border border-[#f8d7aa]/70 bg-[#f0c38e] text-[#253241] shadow-[#f0c38e]/18 hover:border-[#ffe0b8] hover:bg-[#f5d09f] focus-visible:outline-[#f0c38e]',
+    'inset-ring-hairline inset-ring-[#f8d7aa]/70 bg-[#f0c38e] text-[#253241] shadow-[#f0c38e]/18 hover:inset-ring-[#ffe0b8] hover:bg-[#f5d09f] focus-visible:outline-[#f0c38e]',
   danger:
-    'border border-rose-300/20 bg-rose-500/90 text-rose-50 shadow-rose-500/20 hover:border-rose-200/30 hover:bg-rose-500 focus-visible:outline-rose-200',
+    'inset-ring-hairline inset-ring-rose-300/20 bg-rose-500/90 text-rose-50 shadow-rose-500/20 hover:inset-ring-rose-200/30 hover:bg-rose-500 focus-visible:outline-rose-200',
 };
 
 export function ModalActionButton({

@@ -45,7 +45,7 @@ export function TaskTreeBulkActions({
   onTogglePriority: () => Promise<void> | void;
 }) {
   const buttonClassName =
-    'inline-flex min-h-8 items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-xs font-medium text-[#cbd5e0] shadow-sm transition hover:bg-white/10 hover:text-[#fff9f2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e] disabled:cursor-not-allowed disabled:opacity-40';
+    'inline-flex min-h-8 items-center gap-1.5 rounded-full inset-ring-hairline inset-ring-white/10 bg-white/5 px-2.5 py-1 text-xs font-medium text-[#cbd5e0] shadow-sm transition hover:bg-white/10 hover:text-[#fff9f2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e] disabled:cursor-not-allowed disabled:opacity-40';
 
   return (
     <div

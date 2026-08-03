@@ -82,7 +82,7 @@ function getProgressTone(completedRatio: number) {
       badgeStyle: {
         color: '#15803d',
         backgroundColor: 'rgba(34, 197, 94, 0.14)',
-        borderColor: 'rgba(34, 197, 94, 0.22)',
+        '--calendar-chip-edge': 'rgba(34, 197, 94, 0.22)',
       },
       trackStyle: {
         backgroundColor: 'rgba(34, 197, 94, 0.16)',
@@ -99,7 +99,7 @@ function getProgressTone(completedRatio: number) {
       badgeStyle: {
         color: '#b45309',
         backgroundColor: 'rgba(245, 158, 11, 0.14)',
-        borderColor: 'rgba(245, 158, 11, 0.24)',
+        '--calendar-chip-edge': 'rgba(245, 158, 11, 0.24)',
       },
       trackStyle: {
         backgroundColor: 'rgba(245, 158, 11, 0.16)',
@@ -115,7 +115,7 @@ function getProgressTone(completedRatio: number) {
     badgeStyle: {
       color: 'var(--muted)',
       backgroundColor: 'rgba(113, 113, 122, 0.12)',
-      borderColor: 'rgba(113, 113, 122, 0.18)',
+      '--calendar-chip-edge': 'rgba(113, 113, 122, 0.18)',
     },
     trackStyle: {
       backgroundColor: 'rgba(113, 113, 122, 0.14)',
@@ -242,7 +242,7 @@ export function CalendarMonth() {
         <header className="calendar-header-panel flex flex-col gap-2.5 px-4 py-2.5 sm:px-5 lg:px-6">
           <div className="flex flex-col gap-2.5 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex min-w-0 items-center gap-3">
-              <span className="inline-flex size-8 shrink-0 items-center justify-center rounded-full border border-[#f0c38e]/24 bg-[#f0c38e]/10 text-[#f0c38e] shadow-sm shadow-[#253241]/10">
+              <span className="inline-flex size-8 shrink-0 items-center justify-center rounded-full inset-ring-hairline inset-ring-[#f0c38e]/24 bg-[#f0c38e]/10 text-[#f0c38e] shadow-sm shadow-[#253241]/10">
                 <CalendarDays aria-hidden="true" className="size-4" />
               </span>
               <div className="min-w-0">
@@ -254,7 +254,7 @@ export function CalendarMonth() {
 
             <div
               aria-label={dictionary.calendar.today}
-              className="flex h-8 w-fit items-center gap-1 rounded-full border border-white/10 bg-white/4 px-1 shadow-sm shadow-[#253241]/10"
+              className="flex h-8 w-fit items-center gap-1 rounded-full inset-ring-hairline inset-ring-white/10 bg-white/4 px-1 shadow-sm shadow-[#253241]/10"
             >
               <button
                 type="button"
@@ -292,7 +292,7 @@ export function CalendarMonth() {
             <div
               role="tablist"
               aria-label={periodLabel}
-              className="calendar-month-strip flex flex-1 items-center gap-1 overflow-x-auto rounded-full border border-white/8 bg-white/[0.025] p-0.5 sm:justify-between"
+              className="calendar-month-strip flex flex-1 items-center gap-1 overflow-x-auto rounded-full inset-ring-hairline inset-ring-white/8 bg-white/[0.025] p-0.5 sm:justify-between"
             >
               {monthOptions.map((monthOption) => (
                 <button
@@ -300,10 +300,10 @@ export function CalendarMonth() {
                   type="button"
                   role="tab"
                   aria-selected={visibleMonthIndex === monthOption.monthIndex}
-                  className={`inline-flex h-8 shrink-0 items-center justify-center rounded-full border px-2.5 text-xs font-medium uppercase leading-none tracking-[0.16em] transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0] ${
+                  className={`inline-flex h-8 shrink-0 items-center justify-center rounded-full inset-ring-hairline px-2.5 text-xs font-medium uppercase leading-none tracking-[0.16em] transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0] ${
                     visibleMonthIndex === monthOption.monthIndex
-                      ? 'border-[#f3d2aa] bg-[#f0c38e] text-[#253241] shadow-[0_12px_30px_rgba(240,195,142,0.16)]'
-                      : 'border-transparent bg-transparent text-[#98a6b5] hover:border-white/10 hover:bg-white/6 hover:text-[#fff9f2] active:bg-white/10'
+                      ? 'inset-ring-[#f3d2aa] bg-[#f0c38e] text-[#253241] shadow-[0_12px_30px_rgba(240,195,142,0.16)]'
+                      : 'inset-ring-transparent bg-transparent text-[#98a6b5] hover:inset-ring-white/10 hover:bg-white/6 hover:text-[#fff9f2] active:bg-white/10'
                   }`}
                   onClick={() => setVisibleMonthIndex(monthOption.monthIndex)}
                 >
@@ -315,7 +315,7 @@ export function CalendarMonth() {
             <div className="flex shrink-0 flex-wrap items-center gap-2">
               <button
                 type="button"
-                className="group inline-flex h-9 items-center gap-2 rounded-[0.75rem] border border-[#f8d7aa]/70 bg-[#f0c38e] pl-1.5 pr-3 text-left text-[#253241] shadow-md shadow-[#f0c38e]/18 transition hover:border-[#ffe0b8] hover:bg-[#f5d09f] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e] disabled:cursor-not-allowed disabled:opacity-65"
+                className="group inline-flex h-9 items-center gap-2 rounded-[0.75rem] inset-ring-hairline inset-ring-[#f8d7aa]/70 bg-[#f0c38e] pl-1.5 pr-3 text-left text-[#253241] shadow-md shadow-[#f0c38e]/18 transition hover:inset-ring-[#ffe0b8] hover:bg-[#f5d09f] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e] disabled:cursor-not-allowed disabled:opacity-65"
                 onClick={() => setBulkEditorMode('create')}
               >
                 <span className="grid size-6 shrink-0 place-items-center rounded-[0.5rem] bg-[#253241]/10 text-[#253241]">
@@ -327,7 +327,7 @@ export function CalendarMonth() {
               </button>
               <button
                 type="button"
-                className="group inline-flex h-9 items-center gap-2 rounded-[0.75rem] border border-[#fff9f2]/22 bg-[#fff9f2]/10 pl-1.5 pr-3 text-left text-[#fff9f2] shadow-sm shadow-[#253241]/8 transition hover:border-[#fff9f2]/34 hover:bg-[#fff9f2]/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e] disabled:cursor-not-allowed disabled:opacity-65"
+                className="group inline-flex h-9 items-center gap-2 rounded-[0.75rem] inset-ring-hairline inset-ring-[#fff9f2]/22 bg-[#fff9f2]/10 pl-1.5 pr-3 text-left text-[#fff9f2] shadow-sm shadow-[#253241]/8 transition hover:inset-ring-[#fff9f2]/34 hover:bg-[#fff9f2]/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e] disabled:cursor-not-allowed disabled:opacity-65"
                 onClick={() => setIsImportOpen(true)}
               >
                 <span className="grid size-6 shrink-0 place-items-center rounded-[0.5rem] bg-[#fff9f2]/12 text-[#fff9f2]">
@@ -339,7 +339,7 @@ export function CalendarMonth() {
               </button>
               <button
                 type="button"
-                className="group inline-flex h-9 items-center gap-2 rounded-[0.75rem] border border-[#fff9f2]/22 bg-[#fff9f2]/10 pl-1.5 pr-3 text-left text-[#fff9f2] shadow-sm shadow-[#253241]/8 transition hover:border-[#fff9f2]/34 hover:bg-[#fff9f2]/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e] disabled:cursor-not-allowed disabled:opacity-65"
+                className="group inline-flex h-9 items-center gap-2 rounded-[0.75rem] inset-ring-hairline inset-ring-[#fff9f2]/22 bg-[#fff9f2]/10 pl-1.5 pr-3 text-left text-[#fff9f2] shadow-sm shadow-[#253241]/8 transition hover:inset-ring-[#fff9f2]/34 hover:bg-[#fff9f2]/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e] disabled:cursor-not-allowed disabled:opacity-65"
                 onClick={() => setBulkEditorMode('clear')}
               >
                 <span className="grid size-6 shrink-0 place-items-center rounded-[0.5rem] bg-[#fff9f2]/12 text-[#fff9f2]">
@@ -449,7 +449,7 @@ function DayCell({
           isSelected
             ? 'bg-[#f7e1bc] text-[#253241] shadow-[0_8px_18px_rgba(240,195,142,0.2)]'
             : isToday
-              ? 'bg-white/10 text-[#f7e1bc] ring-1 ring-inset ring-[#f7e1bc]/35'
+              ? 'bg-white/10 text-[#f7e1bc] inset-ring-hairline inset-ring-[#f7e1bc]/35'
               : 'bg-transparent text-inherit'
         }`}
       >
@@ -492,7 +492,7 @@ function DayCell({
                 return (
                   <span
                     key={categoryTagId}
-                    className="size-2.5 rounded-full border border-white/35 transition-opacity"
+                    className="size-2.5 rounded-full inset-ring-hairline inset-ring-white/35 transition-opacity"
                     style={{
                       backgroundColor: colorHex,
                       opacity: completed ? 1 : 0.28,

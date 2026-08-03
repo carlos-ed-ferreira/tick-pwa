@@ -93,7 +93,7 @@ export function DayDetail({
         </div>
         <button
           type="button"
-          className="inline-flex min-h-10 w-fit shrink-0 items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-[#f8f3ea] shadow-sm shadow-[#253241]/10 transition hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/10 active:translate-y-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0]"
+          className="inline-flex min-h-10 w-fit shrink-0 items-center gap-2 rounded-full inset-ring-hairline inset-ring-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-[#f8f3ea] shadow-sm shadow-[#253241]/10 transition hover:-translate-y-0.5 hover:inset-ring-white/20 hover:bg-white/10 active:translate-y-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0]"
           onClick={onBack}
         >
           <ArrowLeft aria-hidden="true" className="size-4" />
@@ -103,7 +103,7 @@ export function DayDetail({
 
       <section
         aria-label={title}
-        className="flex min-h-0 flex-col rounded-[1.25rem] bg-white/[0.035] p-3 shadow-[0_18px_44px_rgba(5,8,13,0.16)] ring-1 ring-white/[0.07] sm:p-4"
+        className="flex min-h-0 flex-col rounded-[1.25rem] bg-white/[0.035] p-3 shadow-[0_18px_44px_rgba(5,8,13,0.16)] sm:p-4"
       >
         {entry ? (
           <ChecklistSurface dailyEntryId={entry.id} />

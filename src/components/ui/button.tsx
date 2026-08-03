@@ -15,7 +15,7 @@ export const buttonToneClassNames: Record<ButtonTone, string> = {
   accent:
     'bg-accent text-accent-foreground hover:bg-accent/90 focus-visible:outline-accent',
   subtle:
-    'border border-border/70 bg-background/45 text-foreground hover:bg-background/72 focus-visible:outline-foreground',
+    'inset-ring-hairline inset-ring-border/70 bg-background/45 text-foreground hover:bg-background/72 focus-visible:outline-foreground',
   danger:
     'bg-rose-600 text-white hover:bg-rose-500 focus-visible:outline-rose-600',
 };

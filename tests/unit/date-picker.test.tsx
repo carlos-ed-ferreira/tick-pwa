@@ -81,6 +81,31 @@ describe('DatePicker', () => {
     ).not.toBeInTheDocument();
   });
 
+  it('marks today with a hairline ring instead of a fading 1px ring', () => {
+    const onChange = vi.fn();
+    render(
+      <DatePicker
+        label="Start date"
+        placeholder="DD-MM-YYYY"
+        value=""
+        onChange={onChange}
+      />,
+    );
+
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: 'Open date picker for Start date',
+      }),
+    );
+
+    const calendar = screen.getByRole('dialog', { name: 'Select date' });
+    const today = calendar.querySelector('button.inset-ring-hairline');
+
+    expect(today).toBeInTheDocument();
+    expect(today).toHaveClass('inset-ring-[#f0c38e]/35', 'rounded-full');
+    expect(calendar.querySelector('.ring-1')).not.toBeInTheDocument();
+  });
+
   it('navigates between months without changing the value', () => {
     const onChange = vi.fn();
 

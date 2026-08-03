@@ -104,7 +104,7 @@ export function TaskTreeRowActionsMenu({
     { label: labels.hidden, value: 'hidden' },
   ];
   const choiceClassName =
-    'min-h-8 w-full whitespace-nowrap rounded-lg border px-2 py-1 text-xs font-medium transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e]';
+    'min-h-8 w-full whitespace-nowrap rounded-lg inset-ring-hairline px-2 py-1 text-xs font-medium transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e]';
 
   function changePreferences(nextValue: TaskTreeRowActionPreferences) {
     onChange(nextValue);
@@ -124,7 +124,7 @@ export function TaskTreeRowActionsMenu({
       <IconButton
         aria-label={labels.configure}
         title={labels.configure}
-        className="rounded-full border border-white/10 bg-white/5 text-[#aebac8] hover:bg-white/10 hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
+        className="rounded-full inset-ring-hairline inset-ring-white/10 bg-white/5 text-[#aebac8] hover:bg-white/10 hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
         onClick={() => {
           setApplyToOtherSurface(false);
           setIsOpen(true);
@@ -145,7 +145,7 @@ export function TaskTreeRowActionsMenu({
             <label className="flex min-w-0 items-center gap-2 text-sm font-medium text-[#cbd5e0]">
               <Checkbox
                 checked={applyToOtherSurface}
-                className="border-[#f0c38e]/55 bg-[#f0c38e]/12 focus-visible:outline-[#f0c38e]"
+                className="inset-ring-[#f0c38e]/55 bg-[#f0c38e]/12 focus-visible:outline-[#f0c38e]"
                 onChange={(event) => {
                   const checked = event.currentTarget.checked;
                   setApplyToOtherSurface(checked);
@@ -159,7 +159,7 @@ export function TaskTreeRowActionsMenu({
             </label>
             <button
               type="button"
-              className="flex items-center gap-1.5 rounded-full border border-[#f0c38e]/22 bg-[#f0c38e]/10 px-3 py-1.5 text-sm font-medium text-[#f7d7ad] shadow-sm transition hover:border-[#f0c38e]/36 hover:bg-[#f0c38e]/16 hover:text-[#fff9f2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e]"
+              className="flex items-center gap-1.5 rounded-full inset-ring-hairline inset-ring-[#f0c38e]/22 bg-[#f0c38e]/10 px-3 py-1.5 text-sm font-medium text-[#f7d7ad] shadow-sm transition hover:inset-ring-[#f0c38e]/36 hover:bg-[#f0c38e]/16 hover:text-[#fff9f2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e]"
               onClick={() =>
                 changePreferences({ ...defaultTaskTreeRowActionPreferences })
               }
@@ -197,8 +197,8 @@ export function TaskTreeRowActionsMenu({
                         aria-label={`${labels.actions[key]}: ${choice.label}`}
                         className={`${choiceClassName} ${
                           checked
-                            ? 'border-[#f0c38e]/40 bg-[#f0c38e]/14 text-[#fff9f2]'
-                            : 'border-white/[0.08] bg-white/[0.025] text-[#9aa6b3] hover:bg-white/[0.07] hover:text-[#fff9f2]'
+                            ? 'inset-ring-[#f0c38e]/40 bg-[#f0c38e]/14 text-[#fff9f2]'
+                            : 'inset-ring-white/[0.08] bg-white/[0.025] text-[#9aa6b3] hover:bg-white/[0.07] hover:text-[#fff9f2]'
                         }`}
                         onClick={() =>
                           changePreferences({ ...value, [key]: choice.value })
@@ -245,8 +245,8 @@ export function TaskTreeRowActionsMenu({
                           aria-label={`${labels.actions[key]}: ${choice.label}`}
                           className={`${choiceClassName} ${
                             checked
-                              ? 'border-[#f0c38e]/40 bg-[#f0c38e]/14 text-[#fff9f2]'
-                              : 'border-white/[0.08] bg-white/[0.025] text-[#9aa6b3] hover:bg-white/[0.07] hover:text-[#fff9f2]'
+                              ? 'inset-ring-[#f0c38e]/40 bg-[#f0c38e]/14 text-[#fff9f2]'
+                              : 'inset-ring-white/[0.08] bg-white/[0.025] text-[#9aa6b3] hover:bg-white/[0.07] hover:text-[#fff9f2]'
                           }`}
                           onClick={() =>
                             changePreferences({ ...value, [key]: choice.value })

@@ -25,6 +25,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
   type Dispatch,
   type MutableRefObject,
   type SetStateAction,
@@ -48,6 +49,7 @@ import {
   Button,
   Checkbox,
   ConfirmationDialog,
+  DashedRing,
   Dialog,
   IconButton,
   Input,
@@ -440,7 +442,7 @@ function getProgressTone(summary: GoalStepSummary) {
       badgeStyle: {
         color: '#15803d',
         backgroundColor: 'rgba(34, 197, 94, 0.14)',
-        borderColor: 'rgba(34, 197, 94, 0.22)',
+        '--chip-edge': 'rgba(34, 197, 94, 0.22)',
       },
       fillStyle: {
         background: 'linear-gradient(90deg, #4ade80 0%, #22c55e 100%)',
@@ -455,7 +457,7 @@ function getProgressTone(summary: GoalStepSummary) {
       badgeStyle: {
         color: '#b45309',
         backgroundColor: 'rgba(245, 158, 11, 0.14)',
-        borderColor: 'rgba(245, 158, 11, 0.24)',
+        '--chip-edge': 'rgba(245, 158, 11, 0.24)',
       },
       fillStyle: {
         background: 'linear-gradient(90deg, #fcd34d 0%, #f59e0b 100%)',
@@ -469,7 +471,7 @@ function getProgressTone(summary: GoalStepSummary) {
     badgeStyle: {
       color: 'var(--muted)',
       backgroundColor: 'rgba(113, 113, 122, 0.12)',
-      borderColor: 'rgba(113, 113, 122, 0.18)',
+      '--chip-edge': 'rgba(113, 113, 122, 0.18)',
     },
     fillStyle: {
       background: 'linear-gradient(90deg, #a1a1aa 0%, #71717a 100%)',
@@ -1139,17 +1141,19 @@ export function GoalsSurface() {
                       </h2>
                       {groupCategory && groupCategory.name.trim().length > 0 ? (
                         <span
-                          className="max-w-[40%] shrink-0 truncate rounded-full border px-2 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-[#f7e8ce]"
-                          style={{
-                            borderColor: toAlphaColor(
-                              groupCategory.colorHex,
-                              0.6,
-                            ),
-                            backgroundColor: toAlphaColor(
-                              groupCategory.colorHex,
-                              0.14,
-                            ),
-                          }}
+                          className="max-w-[40%] shrink-0 truncate rounded-full inset-ring-hairline inset-ring-(--chip-edge) px-2 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-[#f7e8ce]"
+                          style={
+                            {
+                              '--chip-edge': toAlphaColor(
+                                groupCategory.colorHex,
+                                0.6,
+                              ),
+                              backgroundColor: toAlphaColor(
+                                groupCategory.colorHex,
+                                0.14,
+                              ),
+                            } as CSSProperties
+                          }
                         >
                           {groupCategory.name}
                         </span>
@@ -1188,7 +1192,7 @@ export function GoalsSurface() {
               className={`grid gap-3 rounded-[1.35rem] md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 ${
                 dragTarget?.type === 'ungrouped' &&
                 activeDragPayload?.type === 'goal'
-                  ? 'ring-1 ring-[#f0c38e]/45'
+                  ? 'inset-ring-hairline inset-ring-[#f0c38e]/45'
                   : ''
               }`}
               data-ungrouped-drop-zone="true"
@@ -1243,7 +1247,7 @@ export function GoalsSurface() {
             <div className="grid gap-3">
               <div aria-hidden="true" className="h-px w-full bg-white/10" />
               <Button
-                className="min-h-10 w-fit rounded-full border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-[#f8f3ea] shadow-sm shadow-[#253241]/10 hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/10 hover:shadow-md focus-visible:outline-[#f7d9b0]"
+                className="min-h-10 w-fit rounded-full inset-ring-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-[#f8f3ea] shadow-sm shadow-[#253241]/10 hover:-translate-y-0.5 hover:inset-ring-white/20 hover:bg-white/10 hover:shadow-md focus-visible:outline-[#f7d9b0]"
                 tone="subtle"
                 onClick={() => setView('archived')}
               >
@@ -1258,7 +1262,7 @@ export function GoalsSurface() {
           <div className="grid gap-3">
             <div aria-hidden="true" className="h-px w-full bg-white/10" />
             <Button
-              className="min-h-10 w-fit rounded-full border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-[#f8f3ea] shadow-sm shadow-[#253241]/10 hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/10 hover:shadow-md focus-visible:outline-[#f7d9b0]"
+              className="min-h-10 w-fit rounded-full inset-ring-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-[#f8f3ea] shadow-sm shadow-[#253241]/10 hover:-translate-y-0.5 hover:inset-ring-white/20 hover:bg-white/10 hover:shadow-md focus-visible:outline-[#f7d9b0]"
               tone="subtle"
               onClick={() => setView('active')}
             >
@@ -1343,7 +1347,7 @@ function CreateGoalGroupDialog({
           </span>
           <Input
             aria-label={groupTitleLabel}
-            className="h-10 w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 text-base font-medium text-[#fff9f2] outline-none placeholder:text-[#7b8da0] focus:border-[#f0c38e]/40 focus:bg-white/[0.06] disabled:cursor-not-allowed disabled:text-muted/60"
+            className="h-10 w-full rounded-xl inset-ring-hairline inset-ring-white/10 bg-white/[0.04] px-3 text-base font-medium text-[#fff9f2] outline-none placeholder:text-[#7b8da0] focus:inset-ring-[#f0c38e]/40 focus:bg-white/[0.06] disabled:cursor-not-allowed disabled:text-muted/60"
             disabled={isCreatingGroup}
             placeholder={initialTitle}
             value={groupTitle}
@@ -1381,9 +1385,10 @@ function NewEntityCard({
   return (
     <button
       type="button"
-      className="group relative flex h-32 flex-col items-center justify-center gap-3 rounded-[1.35rem] border border-dashed border-[#909cab]/30 bg-transparent p-4 text-center text-[#cbd5e0] transition hover:-translate-y-0.5 hover:border-[#f0c38e]/40 hover:bg-white/[0.02] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0]"
+      className="group relative flex h-32 flex-col items-center justify-center gap-3 rounded-[1.35rem] bg-transparent p-4 text-center text-[#cbd5e0] transition [--dashed-ring-color:rgba(144,156,171,0.3)] hover:-translate-y-0.5 hover:bg-white/[0.02] hover:[--dashed-ring-color:rgba(240,195,142,0.4)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0]"
       onClick={onClick}
     >
+      <DashedRing radius={21.6} />
       <div className="flex size-11 items-center justify-center rounded-full bg-[#f0c38e]/10 text-[#f0c38e] transition transform group-hover:bg-[#f0c38e]/20 group-hover:scale-105">
         <Plus aria-hidden="true" className="size-5" />
       </div>
@@ -1398,8 +1403,10 @@ function DropTargetOverlay() {
   return (
     <span
       aria-hidden="true"
-      className="pointer-events-none absolute inset-0 z-10 rounded-[inherit] border border-dashed border-[#f0c38e]/80 bg-[#f0c38e]/10 shadow-[inset_0_0_0_1px_rgba(240,195,142,0.2),0_18px_34px_rgba(5,8,13,0.12)]"
-    />
+      className="pointer-events-none absolute inset-0 z-10 rounded-[inherit] bg-[#f0c38e]/10 shadow-[0_18px_34px_rgba(5,8,13,0.12)] [--dashed-ring-color:rgba(240,195,142,0.8)]"
+    >
+      <DashedRing radius={21.6} />
+    </span>
   );
 }
 
@@ -1452,10 +1459,10 @@ function CategoryAccent({
   return (
     <span
       aria-hidden="true"
-      className={`relative block shrink-0 rounded-full border border-white/10 bg-white/5 p-1 shadow-sm shadow-[#253241]/10 ${size === 'sm' ? 'size-6' : 'size-8'}`}
+      className={`relative block shrink-0 rounded-full inset-ring-hairline inset-ring-white/10 bg-white/5 p-1 shadow-sm shadow-[#253241]/10 ${size === 'sm' ? 'size-6' : 'size-8'}`}
     >
       <span
-        className="block size-full rounded-full border border-white/30 shadow-[0_6px_14px_rgba(5,8,13,0.24)]"
+        className="block size-full rounded-full inset-ring-hairline inset-ring-white/30 shadow-[0_6px_14px_rgba(5,8,13,0.24)]"
         style={{ backgroundColor: category.colorHex }}
       />
     </span>
@@ -1540,7 +1547,7 @@ function CategoryColorButton({
 
   return (
     <Tooltip content={colorLabel}>
-      <span className="relative inline-flex size-10 shrink-0 items-center justify-center rounded-md border border-white/10 bg-white/5 shadow-sm shadow-[#253241]/10 transition hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/10 focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-[#f7d9b0]">
+      <span className="relative inline-flex size-10 shrink-0 items-center justify-center rounded-md inset-ring-hairline inset-ring-white/10 bg-white/5 shadow-sm shadow-[#253241]/10 transition hover:-translate-y-0.5 hover:inset-ring-white/20 hover:bg-white/10 focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-[#f7d9b0]">
         <input
           aria-label={colorLabel}
           className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
@@ -1550,13 +1557,15 @@ function CategoryColorButton({
         />
         <span
           aria-hidden="true"
-          className={`block size-5 rounded-full shadow-[0_6px_14px_rgba(5,8,13,0.24)] ${
+          className={`relative block size-5 rounded-full shadow-[0_6px_14px_rgba(5,8,13,0.24)] ${
             ownColorHex
-              ? 'border border-white/30'
-              : 'border border-dashed border-white/25'
+              ? 'inset-ring-hairline inset-ring-white/30'
+              : '[--dashed-ring-color:rgba(255,255,255,0.25)]'
           }`}
           style={ownColorHex ? { backgroundColor: ownColorHex } : undefined}
-        />
+        >
+          {ownColorHex ? null : <DashedRing radius={10} />}
+        </span>
       </span>
     </Tooltip>
   );
@@ -1713,7 +1722,7 @@ function GoalGroupCard({
           <div
             ref={menuRef}
             data-card-actions-menu="true"
-            className={`modal-panel fixed z-60 grid max-h-[min(20rem,calc(100vh-2rem))] min-w-52 gap-1 overflow-y-auto border-0 p-2 text-sm shadow-[0_24px_70px_rgba(5,8,13,0.44)] ${
+            className={`modal-panel modal-panel--flat fixed z-60 grid max-h-[min(20rem,calc(100vh-2rem))] min-w-52 gap-1 overflow-y-auto p-2 text-sm shadow-[0_24px_70px_rgba(5,8,13,0.44)] ${
               categoryJoinShape ? 'dropdown-joined-main' : ''
             } ${
               categoryJoinShape && categoryJoinShape !== 'main-taller'
@@ -1728,7 +1737,7 @@ function GoalGroupCard({
                 {category?.useOwnName ? (
                   <span
                     aria-hidden="true"
-                    className="size-4 shrink-0 rounded-full border border-white/30"
+                    className="size-4 shrink-0 rounded-full inset-ring-hairline inset-ring-white/30"
                     style={{ backgroundColor: category.colorHex }}
                   />
                 ) : (
@@ -1811,7 +1820,7 @@ function GoalGroupCard({
         role="button"
         tabIndex={0}
         aria-label={groupCardLabel}
-        className={`group relative grid h-32 cursor-pointer content-start gap-2 rounded-[1.35rem] bg-white/[0.05] px-4 pb-5 pt-3.5 text-left shadow-[0_14px_34px_rgba(5,8,13,0.12)] ring-1 ring-white/[0.08] transition hover:-translate-y-0.5 hover:bg-white/[0.075] hover:ring-[#f0c38e]/25 active:translate-y-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0] ${
+        className={`group relative grid h-32 cursor-pointer content-start gap-2 rounded-[1.35rem] bg-white/[0.05] px-4 pb-5 pt-3.5 text-left shadow-[0_14px_34px_rgba(5,8,13,0.12)] inset-ring-hairline inset-ring-transparent transition hover:-translate-y-0.5 hover:bg-white/[0.075] hover:inset-ring-[#f0c38e]/25 active:translate-y-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0] ${
           isDragging ? 'invisible' : ''
         }`}
         data-drag-card="true"
@@ -1837,7 +1846,7 @@ function GoalGroupCard({
             <button
               type="button"
               aria-label={dictionary.goals.dragGoal}
-              className="inline-flex size-7 shrink-0 touch-none cursor-grab items-center justify-center rounded-full border border-white/10 bg-white/[0.045] text-[#aebac8] transition hover:-translate-y-0.5 hover:border-[#f0c38e]/50 hover:bg-[#f0c38e]/14 hover:text-[#fff9f2] hover:shadow-[0_10px_22px_rgba(240,195,142,0.16)] active:translate-y-0 active:cursor-grabbing focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0]"
+              className="inline-flex size-7 shrink-0 touch-none cursor-grab items-center justify-center rounded-full inset-ring-hairline inset-ring-white/10 bg-white/[0.045] text-[#aebac8] transition hover:-translate-y-0.5 hover:inset-ring-[#f0c38e]/50 hover:bg-[#f0c38e]/14 hover:text-[#fff9f2] hover:shadow-[0_10px_22px_rgba(240,195,142,0.16)] active:translate-y-0 active:cursor-grabbing focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0]"
               onClick={(event) => event.stopPropagation()}
               onPointerDown={(event) => onBeginPointerDrag(groupPayload, event)}
             >
@@ -1846,11 +1855,13 @@ function GoalGroupCard({
           </Tooltip>
           {category?.useOwnName ? (
             <span
-              className="inline-flex min-h-7 min-w-0 items-center rounded-full border px-3 py-1 shadow-sm shadow-[#253241]/10"
-              style={{
-                borderColor: toAlphaColor(category.colorHex, 0.6),
-                backgroundColor: toAlphaColor(category.colorHex, 0.14),
-              }}
+              className="inline-flex min-h-7 min-w-0 items-center rounded-full inset-ring-hairline inset-ring-(--chip-edge) px-3 py-1 shadow-sm shadow-[#253241]/10"
+              style={
+                {
+                  '--chip-edge': toAlphaColor(category.colorHex, 0.6),
+                  backgroundColor: toAlphaColor(category.colorHex, 0.14),
+                } as CSSProperties
+              }
             >
               <span className="truncate text-base font-semibold leading-tight text-[#fff9f2]">
                 {group.title || dictionary.goals.newGroupName}
@@ -1863,11 +1874,13 @@ function GoalGroupCard({
           )}
           {category && !category.useOwnName ? (
             <span
-              className="inline-flex min-h-7 shrink-0 items-center gap-2 rounded-full border px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.24em] text-[#f7e8ce] shadow-sm shadow-[#253241]/10"
-              style={{
-                borderColor: toAlphaColor(category.colorHex, 0.6),
-                backgroundColor: toAlphaColor(category.colorHex, 0.14),
-              }}
+              className="inline-flex min-h-7 shrink-0 items-center gap-2 rounded-full inset-ring-hairline inset-ring-(--chip-edge) px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.24em] text-[#f7e8ce] shadow-sm shadow-[#253241]/10"
+              style={
+                {
+                  '--chip-edge': toAlphaColor(category.colorHex, 0.6),
+                  backgroundColor: toAlphaColor(category.colorHex, 0.14),
+                } as CSSProperties
+              }
             >
               <span className="truncate">{category.name}</span>
             </span>
@@ -1904,7 +1917,7 @@ function GoalGroupCard({
             return (
               <span
                 key={goal.id}
-                className="relative flex min-h-0 flex-col justify-center overflow-hidden truncate rounded-[0.95rem] bg-white/[0.05] py-1.5 text-left ring-1 ring-white/[0.05]"
+                className="relative flex min-h-0 flex-col justify-center overflow-hidden truncate rounded-[0.95rem] bg-white/[0.05] py-1.5 text-left"
               >
                 <CategoryAccent category={cat} position="vertical" />
                 <span
@@ -1918,7 +1931,7 @@ function GoalGroupCard({
             );
           })}
           {goals.length > 4 ? (
-            <span className="flex items-center justify-center truncate rounded-[0.95rem] bg-white/[0.05] px-3 py-1.5 text-center text-xs font-medium text-[#f8f3ea] ring-1 ring-white/[0.05]">
+            <span className="flex items-center justify-center truncate rounded-[0.95rem] bg-white/[0.05] px-3 py-1.5 text-center text-xs font-medium text-[#f8f3ea]">
               +{goals.length - 3}
             </span>
           ) : null}
@@ -2218,7 +2231,7 @@ function GoalCard({
             ref={menuRef}
             data-card-actions-menu="true"
             data-goal-actions-menu="true"
-            className={`modal-panel modal-panel--flat fixed z-60 grid max-h-[min(20rem,calc(100vh-2rem))] gap-1 overflow-y-auto border-0 p-2 text-sm text-[#fff9f2] shadow-[0_24px_70px_rgba(5,8,13,0.44)] ${
+            className={`modal-panel modal-panel--flat fixed z-60 grid max-h-[min(20rem,calc(100vh-2rem))] gap-1 overflow-y-auto p-2 text-sm text-[#fff9f2] shadow-[0_24px_70px_rgba(5,8,13,0.44)] ${
               categoryJoinShape ? 'dropdown-joined-main' : ''
             } ${
               categoryJoinShape && categoryJoinShape !== 'main-taller'
@@ -2250,7 +2263,7 @@ function GoalCard({
                 {goalCategory?.useOwnName ? (
                   <span
                     aria-hidden="true"
-                    className="size-4 shrink-0 rounded-full border border-white/30"
+                    className="size-4 shrink-0 rounded-full inset-ring-hairline inset-ring-white/30"
                     style={{ backgroundColor: goalCategory.colorHex }}
                   />
                 ) : (
@@ -2392,7 +2405,7 @@ function GoalCard({
     <>
       <article
         aria-label={goal.title || dictionary.goals.newGoalTitle}
-        className={`group relative grid h-32 cursor-pointer content-start gap-3 rounded-[1.35rem] bg-white/[0.055] p-4 text-left shadow-[0_14px_34px_rgba(5,8,13,0.12)] ring-1 ring-white/[0.08] transition hover:-translate-y-0.5 hover:bg-white/[0.08] hover:ring-[#f0c38e]/25 ${
+        className={`group relative grid h-32 cursor-pointer content-start gap-3 rounded-[1.35rem] bg-white/[0.055] p-4 text-left shadow-[0_14px_34px_rgba(5,8,13,0.12)] inset-ring-hairline inset-ring-transparent transition hover:-translate-y-0.5 hover:bg-white/[0.08] hover:inset-ring-[#f0c38e]/25 ${
           archived ? 'opacity-95' : ''
         } ${isDragging ? 'invisible' : ''}`}
         data-drag-card="true"
@@ -2434,7 +2447,7 @@ function GoalCard({
               <button
                 type="button"
                 aria-label={dictionary.goals.dragGoal}
-                className="inline-flex size-7 shrink-0 touch-none cursor-grab items-center justify-center rounded-full border border-white/10 bg-white/[0.045] text-[#aebac8] transition hover:-translate-y-0.5 hover:border-[#f0c38e]/50 hover:bg-[#f0c38e]/14 hover:text-[#fff9f2] hover:shadow-[0_10px_22px_rgba(240,195,142,0.16)] active:translate-y-0 active:cursor-grabbing focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0]"
+                className="inline-flex size-7 shrink-0 touch-none cursor-grab items-center justify-center rounded-full inset-ring-hairline inset-ring-white/10 bg-white/[0.045] text-[#aebac8] transition hover:-translate-y-0.5 hover:inset-ring-[#f0c38e]/50 hover:bg-[#f0c38e]/14 hover:text-[#fff9f2] hover:shadow-[0_10px_22px_rgba(240,195,142,0.16)] active:translate-y-0 active:cursor-grabbing focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0]"
                 onClick={(event) => event.stopPropagation()}
                 onPointerDown={(event) =>
                   onBeginPointerDrag?.(goalPayload, event)
@@ -2678,7 +2691,7 @@ function CategoryMenuSection({
           <div
             ref={submenuRef}
             data-goal-category-submenu="true"
-            className={`dropdown-extension-panel modal-panel fixed z-50 min-w-52 border-0 text-sm shadow-[0_24px_70px_rgba(5,8,13,0.44)] ${
+            className={`dropdown-extension-panel modal-panel modal-panel--flat fixed z-50 min-w-52 text-sm shadow-[0_24px_70px_rgba(5,8,13,0.44)] ${
               joinShape === 'extension-taller'
                 ? 'dropdown-extension-panel--rounded-left'
                 : 'rounded-l-none'
@@ -2812,7 +2825,7 @@ function GoalPreview({
   return (
     <div className="mt-auto grid gap-2">
       <span
-        className="w-fit rounded-full border px-2 py-1 text-[11px] font-semibold leading-none tabular-nums text-[#f7e8ce]"
+        className="w-fit rounded-full inset-ring-hairline inset-ring-(--chip-edge) px-2 py-1 text-[11px] font-semibold leading-none tabular-nums text-[#f7e8ce]"
         style={tone.badgeStyle}
       >
         {summary.completedCount}/{summary.itemCount}
@@ -2837,7 +2850,7 @@ function GoalPreview({
             return (
               <span
                 key={id}
-                className="size-3 rounded-full border border-white/35 transition-opacity"
+                className="size-3 rounded-full inset-ring-hairline inset-ring-white/35 transition-opacity"
                 style={{
                   backgroundColor: colorHex,
                   opacity: isCategoryComplete(summary, id) ? 1 : 0.28,
@@ -2910,7 +2923,7 @@ function GoalGroupTitleEditor({
       <Input
         ref={inputRef}
         aria-label={dictionary.goals.renameGroup}
-        className="absolute inset-0 h-full w-full rounded-md bg-transparent px-2 py-1 text-2xl font-semibold text-[#fff9f2] outline-none transition focus:bg-white/[0.04] focus:ring-1 focus:ring-[#f0c38e]/35"
+        className="absolute inset-0 h-full w-full rounded-md bg-transparent px-2 py-1 text-2xl font-semibold text-[#fff9f2] outline-none transition focus:bg-white/[0.04] focus:inset-ring-hairline focus:inset-ring-[#f0c38e]/35"
         value={editableTitle}
         onBlur={() => void flushTitle()}
         onChange={(event) => setTitle(event.target.value.toUpperCase())}
@@ -2951,11 +2964,13 @@ function GoalGroupDetailHeader({
           <GoalGroupTitleEditor autoFocus={false} group={group} />
           {groupCategory && !groupCategory.useOwnName ? (
             <span
-              className="inline-flex min-h-10 max-w-full shrink-0 items-center rounded-full border px-3 py-1 text-sm font-medium text-[#f7e8ce] shadow-sm shadow-[#253241]/10"
-              style={{
-                borderColor: toAlphaColor(groupCategory.colorHex, 0.6),
-                backgroundColor: toAlphaColor(groupCategory.colorHex, 0.14),
-              }}
+              className="inline-flex min-h-10 max-w-full shrink-0 items-center rounded-full inset-ring-hairline inset-ring-(--chip-edge) px-3 py-1 text-sm font-medium text-[#f7e8ce] shadow-sm shadow-[#253241]/10"
+              style={
+                {
+                  '--chip-edge': toAlphaColor(groupCategory.colorHex, 0.6),
+                  backgroundColor: toAlphaColor(groupCategory.colorHex, 0.14),
+                } as CSSProperties
+              }
             >
               <span className="truncate">{groupCategory.name}</span>
             </span>
@@ -2976,7 +2991,7 @@ function GoalGroupDetailHeader({
           />
           <CategoryAssignmentMenu
             assignLabel={dictionary.goals.assignGroupCategory}
-            clearClassName="inline-flex size-10 shrink-0 items-center justify-center rounded-md border border-white/10 bg-white/5 text-[#cbd5e0] shadow-sm shadow-[#253241]/10 transition hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/10 hover:text-[#fff9f2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0]"
+            clearClassName="inline-flex size-10 shrink-0 items-center justify-center rounded-md inset-ring-hairline inset-ring-white/10 bg-white/5 text-[#cbd5e0] shadow-sm shadow-[#253241]/10 transition hover:-translate-y-0.5 hover:inset-ring-white/20 hover:bg-white/10 hover:text-[#fff9f2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0]"
             clearLabel={dictionary.goals.clearGroupCategory}
             renderClearContent={() => (
               <TaskTreeClearCategoryIcon className="size-4" />
@@ -2986,7 +3001,7 @@ function GoalGroupDetailHeader({
             )}
             selectedCategoryTagId={group.categoryTagId}
             surface="goal_group"
-            triggerClassName="inline-flex size-10 shrink-0 items-center justify-center rounded-md border border-white/10 bg-white/5 text-[#cbd5e0] shadow-sm shadow-[#253241]/10 hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/10 hover:text-[#fff9f2] focus-visible:outline-[#f7d9b0] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0 disabled:hover:border-white/10 disabled:hover:bg-white/5 disabled:hover:text-[#cbd5e0]"
+            triggerClassName="inline-flex size-10 shrink-0 items-center justify-center rounded-md inset-ring-hairline inset-ring-white/10 bg-white/5 text-[#cbd5e0] shadow-sm shadow-[#253241]/10 hover:-translate-y-0.5 hover:inset-ring-white/20 hover:bg-white/10 hover:text-[#fff9f2] focus-visible:outline-[#f7d9b0] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0 disabled:hover:inset-ring-white/10 disabled:hover:bg-white/5 disabled:hover:text-[#cbd5e0]"
             onAssign={(categoryTagId) => {
               if (!scope) return;
 
@@ -2999,7 +3014,7 @@ function GoalGroupDetailHeader({
           />
           <IconButton
             aria-label={dictionary.goals.deleteGroup}
-            className="size-10 rounded-md border border-rose-300/20 bg-rose-400/10 text-rose-100 hover:bg-rose-400/18 hover:text-rose-50 focus-visible:outline-rose-200"
+            className="size-10 rounded-md inset-ring-hairline inset-ring-rose-300/20 bg-rose-400/10 text-rose-100 hover:bg-rose-400/18 hover:text-rose-50 focus-visible:outline-rose-200"
             onClick={() => setIsDeleteDialogOpen(true)}
           >
             <Trash2 aria-hidden="true" className="size-4" />
@@ -3007,7 +3022,7 @@ function GoalGroupDetailHeader({
         </div>
         <button
           type="button"
-          className="inline-flex min-h-10 w-fit shrink-0 items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-[#f8f3ea] shadow-sm shadow-[#253241]/10 transition hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/10 active:translate-y-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0]"
+          className="inline-flex min-h-10 w-fit shrink-0 items-center gap-2 rounded-full inset-ring-hairline inset-ring-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-[#f8f3ea] shadow-sm shadow-[#253241]/10 transition hover:-translate-y-0.5 hover:inset-ring-white/20 hover:bg-white/10 active:translate-y-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0]"
           onClick={onBack}
         >
           <ArrowLeft aria-hidden="true" className="size-4" />
@@ -3087,11 +3102,13 @@ function GoalDetailHeader({
           <GoalTitleEditor goal={goal} />
           {goalCategory && !goalCategory.useOwnName ? (
             <span
-              className="inline-flex min-h-10 max-w-full shrink-0 items-center rounded-full border px-3 py-1 text-sm font-medium text-[#f7e8ce] shadow-sm shadow-[#253241]/10"
-              style={{
-                borderColor: toAlphaColor(goalCategory.colorHex, 0.6),
-                backgroundColor: toAlphaColor(goalCategory.colorHex, 0.14),
-              }}
+              className="inline-flex min-h-10 max-w-full shrink-0 items-center rounded-full inset-ring-hairline inset-ring-(--chip-edge) px-3 py-1 text-sm font-medium text-[#f7e8ce] shadow-sm shadow-[#253241]/10"
+              style={
+                {
+                  '--chip-edge': toAlphaColor(goalCategory.colorHex, 0.6),
+                  backgroundColor: toAlphaColor(goalCategory.colorHex, 0.14),
+                } as CSSProperties
+              }
             >
               <span className="truncate">{goalCategory.name}</span>
             </span>
@@ -3114,7 +3131,7 @@ function GoalDetailHeader({
               />
               <CategoryAssignmentMenu
                 assignLabel={dictionary.goals.assignGoalCategory}
-                clearClassName="inline-flex size-10 shrink-0 items-center justify-center rounded-md border border-white/10 bg-white/5 text-[#cbd5e0] shadow-sm shadow-[#253241]/10 transition hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/10 hover:text-[#fff9f2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0]"
+                clearClassName="inline-flex size-10 shrink-0 items-center justify-center rounded-md inset-ring-hairline inset-ring-white/10 bg-white/5 text-[#cbd5e0] shadow-sm shadow-[#253241]/10 transition hover:-translate-y-0.5 hover:inset-ring-white/20 hover:bg-white/10 hover:text-[#fff9f2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0]"
                 clearLabel={dictionary.goals.clearGoalCategory}
                 renderClearContent={() => (
                   <TaskTreeClearCategoryIcon className="size-4" />
@@ -3124,7 +3141,7 @@ function GoalDetailHeader({
                 )}
                 selectedCategoryTagId={goal.categoryTagId}
                 surface="goal"
-                triggerClassName="inline-flex size-10 shrink-0 items-center justify-center rounded-md border border-white/10 bg-white/5 text-[#cbd5e0] shadow-sm shadow-[#253241]/10 hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/10 hover:text-[#fff9f2] focus-visible:outline-[#f7d9b0] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0 disabled:hover:border-white/10 disabled:hover:bg-white/5 disabled:hover:text-[#cbd5e0]"
+                triggerClassName="inline-flex size-10 shrink-0 items-center justify-center rounded-md inset-ring-hairline inset-ring-white/10 bg-white/5 text-[#cbd5e0] shadow-sm shadow-[#253241]/10 hover:-translate-y-0.5 hover:inset-ring-white/20 hover:bg-white/10 hover:text-[#fff9f2] focus-visible:outline-[#f7d9b0] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0 disabled:hover:inset-ring-white/10 disabled:hover:bg-white/5 disabled:hover:text-[#cbd5e0]"
                 onAssign={(categoryTagId) => {
                   if (!scope) return;
                   return assignGoalCategory({
@@ -3139,7 +3156,7 @@ function GoalDetailHeader({
           {!isArchived ? (
             <IconButton
               aria-label={dictionary.goals.completeGoal}
-              className="size-10 rounded-md border border-[#f0c38e]/25 bg-[#f0c38e]/10 text-[#f7d7ad] hover:bg-[#f0c38e]/18 hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
+              className="size-10 rounded-md inset-ring-hairline inset-ring-[#f0c38e]/25 bg-[#f0c38e]/10 text-[#f7d7ad] hover:bg-[#f0c38e]/18 hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
               onClick={() => setIsGoalArchiveDialogOpen(true)}
             >
               <Archive aria-hidden="true" className="size-4" />
@@ -3147,7 +3164,7 @@ function GoalDetailHeader({
           ) : (
             <IconButton
               aria-label={dictionary.goals.restoreGoal}
-              className="size-10 rounded-md border border-[#f0c38e]/25 bg-[#f0c38e]/10 text-[#f7d7ad] hover:bg-[#f0c38e]/18 hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
+              className="size-10 rounded-md inset-ring-hairline inset-ring-[#f0c38e]/25 bg-[#f0c38e]/10 text-[#f7d7ad] hover:bg-[#f0c38e]/18 hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
               onClick={() => setIsGoalRestoreDialogOpen(true)}
             >
               <RotateCcw aria-hidden="true" className="size-4" />
@@ -3155,7 +3172,7 @@ function GoalDetailHeader({
           )}
           <IconButton
             aria-label={dictionary.goals.deleteGoal}
-            className="size-10 rounded-md border border-rose-300/20 bg-rose-400/10 text-rose-100 hover:bg-rose-400/18 hover:text-rose-50 focus-visible:outline-rose-200"
+            className="size-10 rounded-md inset-ring-hairline inset-ring-rose-300/20 bg-rose-400/10 text-rose-100 hover:bg-rose-400/18 hover:text-rose-50 focus-visible:outline-rose-200"
             onClick={() =>
               hasGoalSteps ? setIsGoalDeleteDialogOpen(true) : void deleteGoal()
             }
@@ -3165,7 +3182,7 @@ function GoalDetailHeader({
         </div>
         <button
           type="button"
-          className="inline-flex min-h-10 w-fit shrink-0 items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-[#f8f3ea] shadow-sm shadow-[#253241]/10 transition hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/10 active:translate-y-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0]"
+          className="inline-flex min-h-10 w-fit shrink-0 items-center gap-2 rounded-full inset-ring-hairline inset-ring-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-[#f8f3ea] shadow-sm shadow-[#253241]/10 transition hover:-translate-y-0.5 hover:inset-ring-white/20 hover:bg-white/10 active:translate-y-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0]"
           onClick={onBack}
         >
           <ArrowLeft aria-hidden="true" className="size-4" />
@@ -3242,7 +3259,7 @@ function GoalTitleEditor({ goal }: { goal: Goal }) {
       </span>
       <Input
         aria-label={dictionary.goals.renameGoal}
-        className="absolute inset-0 h-full w-full rounded-md bg-transparent px-2 py-1 text-2xl font-semibold text-[#fff9f2] outline-none transition focus:bg-white/[0.04] focus:ring-1 focus:ring-[#f0c38e]/35"
+        className="absolute inset-0 h-full w-full rounded-md bg-transparent px-2 py-1 text-2xl font-semibold text-[#fff9f2] outline-none transition focus:bg-white/[0.04] focus:inset-ring-hairline focus:inset-ring-[#f0c38e]/35"
         value={editableTitle}
         onBlur={() => void flushTitle()}
         onChange={(event) => setTitle(event.target.value.toUpperCase())}
@@ -3265,7 +3282,7 @@ function ArchivedGoalDetailCard({
   return (
     <section
       aria-label={goal.title}
-      className="flex min-h-0 flex-col rounded-[1.25rem] bg-white/[0.035] p-3 shadow-[0_18px_44px_rgba(5,8,13,0.16)] ring-1 ring-white/[0.07] sm:p-4"
+      className="flex min-h-0 flex-col rounded-[1.25rem] bg-white/[0.035] p-3 shadow-[0_18px_44px_rgba(5,8,13,0.16)] sm:p-4"
       data-archived-goal-read-only="true"
     >
       {goalStepRows.length > 0 ? (
@@ -3519,7 +3536,7 @@ function GoalDetailCard({
   return (
     <section
       aria-label={goal.title}
-      className="flex min-h-0 flex-col rounded-[1.25rem] bg-white/[0.035] p-3 shadow-[0_18px_44px_rgba(5,8,13,0.16)] ring-1 ring-white/[0.07] sm:p-4"
+      className="flex min-h-0 flex-col rounded-[1.25rem] bg-white/[0.035] p-3 shadow-[0_18px_44px_rgba(5,8,13,0.16)] sm:p-4"
     >
       <TreeListPanel
         addLabel={dictionary.goals.addStep}

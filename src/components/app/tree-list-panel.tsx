@@ -2,7 +2,7 @@
 
 import { Plus, X } from 'lucide-react';
 import { useState, type DragEvent, type ReactNode } from 'react';
-import { ConfirmationDialog } from '@/components/ui';
+import { ConfirmationDialog, DashedRing } from '@/components/ui';
 import { useFocusAfterCreate } from '@/hooks/use-focus-after-create';
 
 interface BulkDeleteDialog {
@@ -97,9 +97,10 @@ export function TreeListPanel({
         ) : (
           <button
             type="button"
-            className="flex min-h-36 w-full items-center justify-center rounded-[1.15rem] border border-dashed border-[#f0c38e]/24 bg-[#f0c38e]/[0.045] px-4 text-sm font-medium text-[#aebac8] shadow-inner transition hover:border-[#f0c38e]/38 hover:bg-[#f0c38e]/[0.075] hover:text-[#fff9f2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e]"
+            className="relative flex min-h-36 w-full items-center justify-center rounded-[1.15rem] bg-[#f0c38e]/[0.045] px-4 text-sm font-medium text-[#aebac8] shadow-inner transition [--dashed-ring-color:rgba(240,195,142,0.24)] hover:bg-[#f0c38e]/[0.075] hover:text-[#fff9f2] hover:[--dashed-ring-color:rgba(240,195,142,0.38)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e]"
             onClick={() => void handleAddRoot()}
           >
+            <DashedRing radius={18.4} />
             {emptyLabel}
           </button>
         )}
@@ -112,7 +113,7 @@ export function TreeListPanel({
             <div className="flex items-center gap-1.5">
               <button
                 type="button"
-                className="flex items-center gap-1.5 rounded-full border border-[#f0c38e]/22 bg-[#f0c38e]/10 px-3 py-1.5 text-sm font-medium text-[#f7d7ad] shadow-sm transition hover:border-[#f0c38e]/36 hover:bg-[#f0c38e]/16 hover:text-[#fff9f2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e]"
+                className="flex items-center gap-1.5 rounded-full inset-ring-hairline inset-ring-[#f0c38e]/22 bg-[#f0c38e]/10 px-3 py-1.5 text-sm font-medium text-[#f7d7ad] shadow-sm transition hover:inset-ring-[#f0c38e]/36 hover:bg-[#f0c38e]/16 hover:text-[#fff9f2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e]"
                 onClick={() => void handleAddRoot()}
               >
                 <Plus aria-hidden="true" className="size-3.5" />
@@ -125,7 +126,7 @@ export function TreeListPanel({
                 {selectionActions}
                 <button
                   type="button"
-                  className="flex min-h-8 items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-xs font-medium text-[#aebac8] shadow-sm transition hover:bg-white/10 hover:text-[#fff9f2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e]"
+                  className="flex min-h-8 items-center gap-1.5 rounded-full inset-ring-hairline inset-ring-white/10 bg-white/5 px-2.5 py-1 text-xs font-medium text-[#aebac8] shadow-sm transition hover:bg-white/10 hover:text-[#fff9f2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e]"
                   onClick={onClearSelection}
                 >
                   <X aria-hidden="true" className="size-3.5" />

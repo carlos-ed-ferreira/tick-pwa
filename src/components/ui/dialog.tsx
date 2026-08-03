@@ -84,7 +84,7 @@ export function Dialog({
           <IconButton
             aria-label={closeLabel}
             size="compact"
-            className="rounded-full border border-white/10 bg-white/5 text-[#cbd5e0] hover:bg-white/10 hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
+            className="rounded-full inset-ring-hairline inset-ring-white/10 bg-white/5 text-[#cbd5e0] hover:bg-white/10 hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
             onClick={onClose}
           >
             <X aria-hidden="true" className="size-4" />

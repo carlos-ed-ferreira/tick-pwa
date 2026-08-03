@@ -255,7 +255,7 @@ export function DatePicker({
                 isSelected
                   ? 'bg-[#f0c38e] text-[#253241] shadow-sm shadow-[#f0c38e]/20'
                   : isToday
-                    ? 'bg-[#f0c38e]/12 text-[#f7d7ad] ring-1 ring-inset ring-[#f0c38e]/35 hover:bg-[#f0c38e]/20'
+                    ? 'bg-[#f0c38e]/12 text-[#f7d7ad] inset-ring-hairline inset-ring-[#f0c38e]/35 hover:bg-[#f0c38e]/20'
                     : 'text-[#cbd5e0] hover:bg-white/[0.08] hover:text-[#fff9f2]'
               } ${dayDate.getMonth() === monthNumber ? '' : 'opacity-35'}`}
               onClick={() => selectDate(day.date)}
@@ -289,7 +289,7 @@ export function DatePicker({
           maxLength={10}
           placeholder={placeholder}
           value={value}
-          className="h-11 w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 pr-11 text-sm text-[#fff9f2] outline-none transition placeholder:text-[#7b8da0] hover:border-white/[0.16] focus:border-[#f0c38e]/40 focus:bg-white/[0.06] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e]"
+          className="h-11 w-full rounded-xl inset-ring-hairline inset-ring-white/10 bg-white/[0.04] px-3 pr-11 text-sm text-[#fff9f2] outline-none transition placeholder:text-[#7b8da0] hover:inset-ring-white/[0.16] focus:inset-ring-[#f0c38e]/40 focus:bg-white/[0.06] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e]"
           disabled={disabled}
           onChange={(event) => {
             const nextValue = maskDateInput(event.target.value);
