@@ -1557,7 +1557,7 @@ function CategoryColorButton({
         />
         <span
           aria-hidden="true"
-          className={`relative block size-5 rounded-full shadow-[0_6px_14px_rgba(5,8,13,0.24)] ${
+          className={`pointer-events-none relative block size-5 rounded-full shadow-[0_6px_14px_rgba(5,8,13,0.24)] ${
             ownColorHex
               ? 'inset-ring-hairline inset-ring-white/30'
               : '[--dashed-ring-color:rgba(255,255,255,0.25)]'

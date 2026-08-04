@@ -293,6 +293,17 @@ body {
       100% calc(100% / 6);
   }
 
+  /* O grid encosta na base da shell, que recorta tudo no próprio
+     arredondamento. Sem repetir o raio nas células das quinas, a borda do dia
+     selecionado é cortada em linha reta em vez de acompanhar a curva. */
+  .calendar-day-grid > :nth-last-child(7) {
+    border-bottom-left-radius: 1.25rem;
+  }
+
+  .calendar-day-grid > :last-child {
+    border-bottom-right-radius: 1.25rem;
+  }
+
   .calendar-day-cell {
     min-height: 6.5rem;
     overflow: hidden;

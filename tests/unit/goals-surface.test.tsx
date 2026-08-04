@@ -1859,6 +1859,23 @@ describe('GoalsSurface', () => {
     );
   });
 
+  it('keeps the independent color swatch click-through so the whole control opens the picker', () => {
+    useGoalStepTreeMock.mockReturnValue([goalStep()]);
+
+    render(<GoalsSurface />);
+    fireEvent.click(screen.getByRole('button', { name: 'Focus' }));
+
+    const colorInput = screen.getByLabelText('Assign independent color');
+    const swatch = colorInput.parentElement?.querySelector(
+      '[aria-hidden="true"]',
+    );
+
+    // The transparent color input covers the control, so the swatch painted on
+    // top of it has to let clicks through; otherwise only the border of the
+    // button reacts and the dot itself stays dead.
+    expect(swatch).toHaveClass('pointer-events-none');
+  });
+
   it('renders the selected goal category as a pill badge in the goal header', () => {
     useGoalsMock.mockImplementation((_scope, options = {}) => {
       if (options.archived) {
