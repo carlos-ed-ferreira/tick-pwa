@@ -23,6 +23,16 @@ import {
 } from './task-tree-row-action-visibility';
 import { TaskTreeClearCategoryIcon } from './task-tree-clear-category-icon';
 
+export interface TaskTreePreferenceSetting {
+  choices: ReadonlyArray<{ label: string; value: string }>;
+  defaultValue: string;
+  icon: ComponentType<{ className?: string }>;
+  key: string;
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+}
+
 interface TaskTreeRowActionsMenuLabels {
   actions: {
     add: string;
@@ -82,12 +92,14 @@ const binaryActions = [
 
 export function TaskTreeRowActionsMenu({
   labels,
+  settings = [],
   showScheduledTime = true,
   value,
   onApplyToOtherSurface = () => undefined,
   onChange,
 }: {
   labels: TaskTreeRowActionsMenuLabels;
+  settings?: readonly TaskTreePreferenceSetting[];
   showScheduledTime?: boolean;
   value: TaskTreeRowActionPreferences;
   onApplyToOtherSurface?: (value: TaskTreeRowActionPreferences) => void;
@@ -103,14 +115,20 @@ export function TaskTreeRowActionsMenu({
     { label: labels.menu, value: 'menu' },
     { label: labels.hidden, value: 'hidden' },
   ];
-  const choiceClassName =
-    'min-h-8 w-full whitespace-nowrap rounded-lg inset-ring-hairline px-2 py-1 text-xs font-medium transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e]';
 
   function changePreferences(nextValue: TaskTreeRowActionPreferences) {
     onChange(nextValue);
 
     if (applyToOtherSurface) {
       onApplyToOtherSurface(nextValue);
+    }
+  }
+
+  function restoreDefaults() {
+    changePreferences({ ...defaultTaskTreeRowActionPreferences });
+
+    for (const setting of settings) {
+      setting.onChange(setting.defaultValue);
     }
   }
 
@@ -160,108 +178,118 @@ export function TaskTreeRowActionsMenu({
             <button
               type="button"
               className="flex items-center gap-1.5 rounded-full inset-ring-hairline inset-ring-[#f0c38e]/22 bg-[#f0c38e]/10 px-3 py-1.5 text-sm font-medium text-[#f7d7ad] shadow-sm transition hover:inset-ring-[#f0c38e]/36 hover:bg-[#f0c38e]/16 hover:text-[#fff9f2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e]"
-              onClick={() =>
-                changePreferences({ ...defaultTaskTreeRowActionPreferences })
-              }
+              onClick={restoreDefaults}
             >
               <RotateCcw aria-hidden="true" className="size-4" />
               {labels.reset}
             </button>
           </div>
           <div className="grid gap-2">
-            {placementActions.map(({ icon: ActionIcon, key }) => (
-              <div
-                key={key}
-                data-row-action-setting
-                className="grid gap-2 rounded-xl bg-white/[0.035] p-2.5 sm:grid-cols-[minmax(10rem,1fr)_24rem] sm:items-center"
-              >
-                <div className="flex min-w-0 items-center gap-2 text-sm font-medium text-[#e5ebf3]">
-                  <ActionIcon className="size-4 shrink-0" />
-                  <span className="truncate">{labels.actions[key]}</span>
-                </div>
-                <div
-                  role="radiogroup"
-                  aria-label={labels.actions[key]}
-                  className="grid w-full grid-cols-3 gap-1 sm:w-[24rem]"
-                >
-                  {choices.map((choice) => {
-                    const checked = value[key] === choice.value;
+            {settings.map((setting) => (
+              <PreferenceSettingRow
+                key={setting.key}
+                choices={setting.choices}
+                icon={setting.icon}
+                label={setting.label}
+                value={setting.value}
+                onSelect={setting.onChange}
+              />
+            ))}
 
-                    return (
-                      <button
-                        key={choice.value}
-                        type="button"
-                        role="radio"
-                        data-row-action-choice
-                        aria-checked={checked}
-                        aria-label={`${labels.actions[key]}: ${choice.label}`}
-                        className={`${choiceClassName} ${
-                          checked
-                            ? 'inset-ring-[#f0c38e]/40 bg-[#f0c38e]/14 text-[#fff9f2]'
-                            : 'inset-ring-white/[0.08] bg-white/[0.025] text-[#9aa6b3] hover:bg-white/[0.07] hover:text-[#fff9f2]'
-                        }`}
-                        onClick={() =>
-                          changePreferences({ ...value, [key]: choice.value })
-                        }
-                      >
-                        {choice.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
+            {settings.length > 0 ? (
+              <span aria-hidden="true" className="my-1 h-px bg-white/8" />
+            ) : null}
+
+            {placementActions.map(({ icon: ActionIcon, key }) => (
+              <PreferenceSettingRow
+                key={key}
+                choices={choices}
+                icon={ActionIcon}
+                label={labels.actions[key]}
+                value={value[key]}
+                onSelect={(nextValue) =>
+                  changePreferences({ ...value, [key]: nextValue })
+                }
+              />
             ))}
 
             {binaryActions
               .filter(({ key }) => key !== 'scheduledTime' || showScheduledTime)
               .map(({ icon: ActionIcon, key }) => (
-                <div
+                <PreferenceSettingRow
                   key={key}
-                  data-row-action-setting
-                  className="grid gap-2 rounded-xl bg-white/[0.035] p-2.5 sm:grid-cols-[minmax(10rem,1fr)_24rem] sm:items-center"
-                >
-                  <div className="flex min-w-0 items-center gap-2 text-sm font-medium text-[#e5ebf3]">
-                    <ActionIcon className="size-4 shrink-0" />
-                    <span className="truncate">{labels.actions[key]}</span>
-                  </div>
-                  <div
-                    role="radiogroup"
-                    aria-label={labels.actions[key]}
-                    className="grid w-full grid-cols-3 gap-1 sm:w-[24rem]"
-                  >
-                    {[
-                      { label: labels.visible, value: true },
-                      { label: labels.hidden, value: false },
-                    ].map((choice) => {
-                      const checked = value[key] === choice.value;
-
-                      return (
-                        <button
-                          key={String(choice.value)}
-                          type="button"
-                          role="radio"
-                          data-row-action-choice
-                          aria-checked={checked}
-                          aria-label={`${labels.actions[key]}: ${choice.label}`}
-                          className={`${choiceClassName} ${
-                            checked
-                              ? 'inset-ring-[#f0c38e]/40 bg-[#f0c38e]/14 text-[#fff9f2]'
-                              : 'inset-ring-white/[0.08] bg-white/[0.025] text-[#9aa6b3] hover:bg-white/[0.07] hover:text-[#fff9f2]'
-                          }`}
-                          onClick={() =>
-                            changePreferences({ ...value, [key]: choice.value })
-                          }
-                        >
-                          {choice.label}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
+                  choices={[
+                    { label: labels.visible, value: 'true' },
+                    { label: labels.hidden, value: 'false' },
+                  ]}
+                  icon={ActionIcon}
+                  label={labels.actions[key]}
+                  value={String(value[key])}
+                  onSelect={(nextValue) =>
+                    changePreferences({ ...value, [key]: nextValue === 'true' })
+                  }
+                />
               ))}
           </div>
         </div>
       </Dialog>
     </>
+  );
+}
+
+function PreferenceSettingRow({
+  choices,
+  icon: SettingIcon,
+  label,
+  value,
+  onSelect,
+}: {
+  choices: ReadonlyArray<{ label: string; value: string }>;
+  icon: ComponentType<{ className?: string }>;
+  label: string;
+  value: string;
+  onSelect: (value: string) => void;
+}) {
+  const choiceClassName =
+    'min-h-8 w-full whitespace-nowrap rounded-lg inset-ring-hairline px-2 py-1 text-xs font-medium transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e]';
+
+  return (
+    <div
+      data-row-action-setting
+      className="grid gap-2 rounded-xl bg-white/[0.035] p-2.5 sm:grid-cols-[minmax(10rem,1fr)_24rem] sm:items-center"
+    >
+      <div className="flex min-w-0 items-center gap-2 text-sm font-medium text-[#e5ebf3]">
+        <SettingIcon className="size-4 shrink-0" />
+        <span className="truncate">{label}</span>
+      </div>
+      <div
+        role="radiogroup"
+        aria-label={label}
+        className="grid w-full grid-cols-3 gap-1 sm:w-[24rem]"
+      >
+        {choices.map((choice) => {
+          const checked = value === choice.value;
+
+          return (
+            <button
+              key={choice.value}
+              type="button"
+              role="radio"
+              data-row-action-choice
+              aria-checked={checked}
+              aria-label={`${label}: ${choice.label}`}
+              className={`${choiceClassName} ${
+                checked
+                  ? 'inset-ring-[#f0c38e]/40 bg-[#f0c38e]/14 text-[#fff9f2]'
+                  : 'inset-ring-white/[0.08] bg-white/[0.025] text-[#9aa6b3] hover:bg-white/[0.07] hover:text-[#fff9f2]'
+              }`}
+              onClick={() => onSelect(choice.value)}
+            >
+              {choice.label}
+            </button>
+          );
+        })}
+      </div>
+    </div>
   );
 }

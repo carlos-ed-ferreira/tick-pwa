@@ -147,10 +147,10 @@ vi.mock('@/providers', () => ({
         actionInMenu: 'Three-dot menu',
         actionOnRow: 'On row',
         actionVisible: 'Visible',
-        configureRowActions: 'Configure step actions',
+        configurePreferences: 'Configure step actions',
         dragAndDrop: 'Drag and drop',
-        rowActionsTitle: 'Step actions',
-        resetRowActions: 'Restore defaults',
+        preferencesTitle: 'Step actions',
+        resetPreferences: 'Restore defaults',
       },
       goals: {
         activeGoals: 'Active',

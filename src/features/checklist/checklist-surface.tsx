@@ -1,11 +1,12 @@
 'use client';
 
-import { Clock3 } from 'lucide-react';
+import { Clock3, LayoutList } from 'lucide-react';
 import {
   useCallback,
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
   type Dispatch,
   type MutableRefObject,
   type SetStateAction,
@@ -48,9 +49,21 @@ import {
 } from '@/lib/db';
 import { createId } from '@/lib/domain';
 import { formatCountLabel, formatSelectionLabel } from '@/lib/i18n';
+import { toAlphaColor } from '@/lib/color';
 import { useAppContext } from '@/providers';
+import {
+  ALL_CHECKLIST_CATEGORY_TAB_ID,
+  buildChecklistCategoryTabs,
+  filterChecklistRowsByCategoryTab,
+  resolveActiveChecklistCategoryTab,
+} from './checklist-category-tabs';
 import type { VisibleChecklistRow } from './checklist-tree';
 import { useChecklistTree } from './use-checklist-tree';
+import {
+  defaultChecklistViewMode,
+  useChecklistViewMode,
+  type ChecklistViewMode,
+} from './use-checklist-view-mode';
 
 const checklistInputSelector = '[data-checklist-input="true"]';
 
@@ -66,11 +79,13 @@ type ChecklistSurfaceRow = VisibleChecklistRow & {
 };
 
 function createChecklistDraftItem({
+  categoryTagId = null,
   dailyEntryId,
   parentId,
   scopeId,
   afterItemId = null,
 }: {
+  categoryTagId?: string | null;
   dailyEntryId: string;
   parentId: string | null;
   scopeId: AppScopeId;
@@ -90,7 +105,7 @@ function createChecklistDraftItem({
     bold: false,
     priority: false,
     collapsed: false,
-    categoryTagId: null,
+    categoryTagId,
     sortRank: 'draft',
     createdAt: now,
     updatedAt: now,
@@ -372,7 +387,47 @@ export function ChecklistSurface({ dailyEntryId }: { dailyEntryId: string }) {
       ),
     [pendingCollapsedItemIds, pendingDeletedItemIds, rowsWithDrafts],
   );
-  const visibleItemIds = useMemo(() => rows.map((row) => row.item.id), [rows]);
+  const { setViewMode, viewMode } = useChecklistViewMode();
+  const [requestedCategoryTabId, setRequestedCategoryTabId] = useState(
+    ALL_CHECKLIST_CATEGORY_TAB_ID,
+  );
+  const categoryTabs = useMemo(
+    () =>
+      buildChecklistCategoryTabs({
+        allLabel: dictionary.calendar.categoryTabAll,
+        categoryTags,
+        rows: displayRows,
+        uncategorizedLabel: dictionary.calendar.categoryTabUncategorized,
+      }),
+    [
+      categoryTags,
+      dictionary.calendar.categoryTabAll,
+      dictionary.calendar.categoryTabUncategorized,
+      displayRows,
+    ],
+  );
+  const isTabView = viewMode === 'tabs' && categoryTabs.length > 1;
+  const activeCategoryTab = isTabView
+    ? resolveActiveChecklistCategoryTab(categoryTabs, requestedCategoryTabId)
+    : null;
+  const visibleRows = useMemo(
+    () =>
+      activeCategoryTab
+        ? filterChecklistRowsByCategoryTab({
+            activeTabId: activeCategoryTab.id,
+            rows: displayRows,
+            tabs: categoryTabs,
+          })
+        : displayRows,
+    [activeCategoryTab, categoryTabs, displayRows],
+  );
+  const visibleItemIds = useMemo(
+    () =>
+      visibleRows
+        .filter((row) => !('isDraft' in row.item))
+        .map((row) => row.item.id),
+    [visibleRows],
+  );
   const {
     clearSelection,
     isSelected,
@@ -489,13 +544,14 @@ export function ChecklistSurface({ dailyEntryId }: { dailyEntryId: string }) {
     }
 
     const nextDraft = createChecklistDraftItem({
+      categoryTagId: activeCategoryTab?.categoryTagId ?? null,
       dailyEntryId,
       parentId: null,
       scopeId: scope.id,
     });
     setDraftItems((currentDrafts) => [...currentDrafts, nextDraft]);
     return nextDraft.id;
-  }, [dailyEntryId, scope]);
+  }, [activeCategoryTab, dailyEntryId, scope]);
   const selectedItems = rows
     .map((row) => row.item)
     .filter((item) => selectedIds.has(item.id));
@@ -515,6 +571,46 @@ export function ChecklistSurface({ dailyEntryId }: { dailyEntryId: string }) {
 
   return (
     <section className="flex min-h-0 flex-col gap-3">
+      {isTabView ? (
+        <div
+          role="tablist"
+          aria-label={dictionary.calendar.categoryTabs}
+          className="flex shrink-0 items-center gap-1 overflow-x-auto rounded-[1rem] inset-ring-hairline inset-ring-white/10 bg-white/6 p-1 shadow-sm shadow-[#253241]/10"
+        >
+          {categoryTabs.map((tab) => {
+            const isActiveTab = tab.id === activeCategoryTab?.id;
+
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                role="tab"
+                aria-selected={isActiveTab}
+                className={`inline-flex h-8 shrink-0 items-center gap-1.5 rounded-[0.75rem] inset-ring-hairline px-3 text-xs font-medium leading-none transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0] ${
+                  isActiveTab
+                    ? 'inset-ring-[#f8d7aa]/70 bg-[#f0c38e] text-[#253241] shadow-[0_12px_28px_rgba(240,195,142,0.16)]'
+                    : 'inset-ring-transparent bg-transparent text-[#b4c1ce] hover:inset-ring-white/10 hover:bg-white/8 hover:text-[#fff9f2] active:bg-white/10'
+                }`}
+                onClick={() => setRequestedCategoryTabId(tab.id)}
+              >
+                {tab.colorHex ? (
+                  <span
+                    aria-hidden="true"
+                    className="size-2 shrink-0 rounded-full inset-ring-hairline inset-ring-(--tab-dot-edge)"
+                    style={
+                      {
+                        '--tab-dot-edge': toAlphaColor(tab.colorHex, 0.45),
+                        backgroundColor: tab.colorHex,
+                      } as CSSProperties
+                    }
+                  />
+                ) : null}
+                {tab.name}
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
       <TreeListPanel
         addLabel={dictionary.dayEditor.addItem}
         surface="none"
@@ -533,7 +629,7 @@ export function ChecklistSurface({ dailyEntryId }: { dailyEntryId: string }) {
         }}
         clearSelectionLabel={dictionary.dayEditor.clearSelection}
         emptyLabel={dictionary.dayEditor.emptyChecklist}
-        hasRows={displayRows.length > 0}
+        hasRows={visibleRows.length > 0}
         isSelectionMode={isSelectionMode}
         onAddRoot={createRootItem}
         onClearSelection={clearSelection}
@@ -608,14 +704,35 @@ export function ChecklistSurface({ dailyEntryId }: { dailyEntryId: string }) {
                 },
                 applyToOtherSurface: dictionary.dayEditor.applyToOtherSurface,
                 close: dictionary.actions.cancel,
-                configure: dictionary.dayEditor.configureRowActions,
+                configure: dictionary.dayEditor.configurePreferences,
                 hidden: dictionary.dayEditor.actionHidden,
                 inline: dictionary.dayEditor.actionOnRow,
                 menu: dictionary.dayEditor.actionInMenu,
-                reset: dictionary.dayEditor.resetRowActions,
-                title: dictionary.dayEditor.rowActionsTitle,
+                reset: dictionary.dayEditor.resetPreferences,
+                title: dictionary.dayEditor.preferencesTitle,
                 visible: dictionary.dayEditor.actionVisible,
               }}
+              settings={[
+                {
+                  choices: [
+                    {
+                      label: dictionary.calendar.viewModeList,
+                      value: 'list',
+                    },
+                    {
+                      label: dictionary.calendar.viewModeTabs,
+                      value: 'tabs',
+                    },
+                  ],
+                  defaultValue: defaultChecklistViewMode,
+                  icon: LayoutList,
+                  key: 'viewMode',
+                  label: dictionary.calendar.viewMode,
+                  value: viewMode,
+                  onChange: (nextViewMode) =>
+                    setViewMode(nextViewMode as ChecklistViewMode),
+                },
+              ]}
               value={actionPreferences}
               onApplyToOtherSurface={(nextPreferences) =>
                 void applyActionPreferencesToOtherSurface(nextPreferences)
@@ -625,7 +742,7 @@ export function ChecklistSurface({ dailyEntryId }: { dailyEntryId: string }) {
           </>
         }
       >
-        {displayRows.map((row) => (
+        {visibleRows.map((row) => (
           <ChecklistRow
             key={row.item.id}
             actionPreferences={actionPreferences}
@@ -635,7 +752,7 @@ export function ChecklistSurface({ dailyEntryId }: { dailyEntryId: string }) {
             isSelected={isSelected(row.item.id)}
             isSelectionMode={isSelectionMode}
             row={row}
-            rows={displayRows}
+            rows={visibleRows}
             onBulkAssignCategory={assignBulkCategory}
             onBulkDelete={openBulkDeleteDialog}
             onBulkToggleChecked={async (nextValues) => {
@@ -817,6 +934,14 @@ function ChecklistRow({
         text,
       });
 
+      if (item.categoryTagId) {
+        await assignChecklistItemCategory({
+          scope,
+          itemId: item.id,
+          categoryTagId: item.categoryTagId,
+        });
+      }
+
       if (item.beforeItemId) {
         await moveChecklistItemToTarget({
           scope,
@@ -898,15 +1023,14 @@ function ChecklistRow({
       (currentRow) => currentRow.item.id === targetItemId,
     )?.item;
 
-    if (isDraft) {
-      return moveItemToTarget({
-        itemId: item.id,
-        placement: direction === 'up' ? 'before' : 'after',
-        targetItemId,
-      });
-    }
-
-    if (targetItem && 'isDraft' in targetItem && targetItem.isDraft) {
+    // A draft target cannot be moved by the persisted commands, so the draft
+    // travels around this row instead.
+    if (
+      !isDraft &&
+      targetItem &&
+      'isDraft' in targetItem &&
+      targetItem.isDraft
+    ) {
       return moveItemToTarget({
         itemId: targetItem.id,
         placement: direction === 'up' ? 'after' : 'before',
@@ -914,7 +1038,11 @@ function ChecklistRow({
       });
     }
 
-    return reorderChecklistItem({ scope, itemId: item.id, direction });
+    return moveItemToTarget({
+      itemId: item.id,
+      placement: direction === 'up' ? 'before' : 'after',
+      targetItemId,
+    });
   }
 
   function toggleCollapsed() {

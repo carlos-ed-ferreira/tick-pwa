@@ -5,6 +5,7 @@ import {
 } from '@/components/app';
 import {
   ACCOUNT_PREFERENCE_KEYS,
+  CHECKLIST_VIEW_MODE_PREFERENCE_KEY,
   getTaskTreeRowActionsPreferenceKey,
   GOAL_STEP_TREE_ROW_ACTIONS_PREFERENCE_KEY,
   TASK_TREE_ROW_ACTIONS_PREFERENCE_KEY,
@@ -21,6 +22,7 @@ describe('task tree row action preference keys', () => {
     expect(ACCOUNT_PREFERENCE_KEYS).toEqual([
       TASK_TREE_ROW_ACTIONS_PREFERENCE_KEY,
       GOAL_STEP_TREE_ROW_ACTIONS_PREFERENCE_KEY,
+      CHECKLIST_VIEW_MODE_PREFERENCE_KEY,
     ]);
   });
 

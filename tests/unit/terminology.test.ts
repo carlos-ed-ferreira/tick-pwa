@@ -17,7 +17,9 @@ describe('product terminology', () => {
       'Comece este dia com uma tarefa',
     );
     expect(ptBRDictionary.dayEditor.deleteItem).toBe('Excluir tarefa');
-    expect(ptBRDictionary.dayEditor.rowActionsTitle).toBe('Ações da tarefa');
+    expect(ptBRDictionary.dayEditor.preferencesTitle).toBe(
+      'Preferências das tarefas',
+    );
 
     expect(enDictionary.navigation.calendar).toBe('Daily Tasks');
     expect(enDictionary.calendar.editCategories).toBe('Edit task categories');
@@ -28,7 +30,7 @@ describe('product terminology', () => {
     expect(enDictionary.dayEditor.emptyChecklist).toBe(
       'Start this day with a task',
     );
-    expect(enDictionary.dayEditor.rowActionsTitle).toBe('Task actions');
+    expect(enDictionary.dayEditor.preferencesTitle).toBe('Task preferences');
   });
 
   it('calls the overflow menu extra options instead of three dots', () => {
@@ -53,14 +55,16 @@ describe('product terminology', () => {
     expect(ptBRDictionary.goalStepEditor.itemPlaceholder).toBe(
       'Escreva uma etapa',
     );
-    expect(ptBRDictionary.goalStepEditor.rowActionsTitle).toBe(
-      'Ações da etapa',
+    expect(ptBRDictionary.goalStepEditor.preferencesTitle).toBe(
+      'Preferências das etapas',
     );
 
     expect(enDictionary.goals.addStep).toBe('Add step');
     expect(enDictionary.goals.itemCategories).toBe('Steps');
     expect(enDictionary.goalStepEditor.addChild).toBe('Create substep');
     expect(enDictionary.goalStepEditor.itemPlaceholder).toBe('Write a step');
-    expect(enDictionary.goalStepEditor.rowActionsTitle).toBe('Step actions');
+    expect(enDictionary.goalStepEditor.preferencesTitle).toBe(
+      'Step preferences',
+    );
   });
 });

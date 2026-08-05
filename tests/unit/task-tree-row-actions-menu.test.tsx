@@ -5,6 +5,7 @@ import {
   screen,
   within,
 } from '@testing-library/react';
+import { LayoutList } from 'lucide-react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   defaultTaskTreeRowActionPreferences,
@@ -198,6 +199,95 @@ describe('TaskTreeRowActionsMenu', () => {
     fireEvent.click(resetButton);
 
     expect(onChange).toHaveBeenCalledWith(defaultTaskTreeRowActionPreferences);
+  });
+
+  it('shows extra settings before the row actions without sharing them with the other surface', () => {
+    const onApplyToOtherSurface = vi.fn();
+    const onViewModeChange = vi.fn();
+
+    render(
+      <TaskTreeRowActionsMenu
+        labels={labels}
+        settings={[
+          {
+            choices: [
+              { label: 'List', value: 'list' },
+              { label: 'Category tabs', value: 'tabs' },
+            ],
+            defaultValue: 'list',
+            icon: LayoutList,
+            key: 'viewMode',
+            label: 'View',
+            value: 'tabs',
+            onChange: onViewModeChange,
+          },
+        ]}
+        value={defaultTaskTreeRowActionPreferences}
+        onApplyToOtherSurface={onApplyToOtherSurface}
+        onChange={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Configure row actions' }),
+    );
+
+    const dialog = screen.getByRole('dialog', { name: 'Task row actions' });
+    const settings = dialog.querySelectorAll<HTMLElement>(
+      '[data-row-action-setting]',
+    );
+
+    expect(settings[0]).toHaveTextContent('View');
+    expect(
+      within(dialog).getByRole('radio', {
+        name: 'View: Category tabs',
+        checked: true,
+      }),
+    ).toBeInTheDocument();
+
+    fireEvent.click(
+      screen.getByRole('checkbox', { name: labels.applyToOtherSurface }),
+    );
+    onApplyToOtherSurface.mockClear();
+    fireEvent.click(screen.getByRole('radio', { name: 'View: List' }));
+
+    expect(onViewModeChange).toHaveBeenCalledWith('list');
+    expect(onApplyToOtherSurface).not.toHaveBeenCalled();
+  });
+
+  it('restores the extra settings along with the row actions', () => {
+    const onChange = vi.fn();
+    const onViewModeChange = vi.fn();
+
+    render(
+      <TaskTreeRowActionsMenu
+        labels={labels}
+        settings={[
+          {
+            choices: [
+              { label: 'List', value: 'list' },
+              { label: 'Category tabs', value: 'tabs' },
+            ],
+            defaultValue: 'list',
+            icon: LayoutList,
+            key: 'viewMode',
+            label: 'View',
+            value: 'tabs',
+            onChange: onViewModeChange,
+          },
+        ]}
+        value={defaultTaskTreeRowActionPreferences}
+        onChange={onChange}
+      />,
+    );
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Configure row actions' }),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Restore defaults' }));
+
+    expect(onChange).toHaveBeenCalledWith(defaultTaskTreeRowActionPreferences);
+    expect(onViewModeChange).toHaveBeenCalledWith('list');
   });
 
   it('can apply the current and subsequent preferences to the other surface', () => {

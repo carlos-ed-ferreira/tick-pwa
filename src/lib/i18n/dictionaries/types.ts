@@ -45,11 +45,11 @@ export interface TreeEditorDictionary {
   actionInMenu: string;
   actionOnRow: string;
   actionVisible: string;
-  configureRowActions: string;
+  configurePreferences: string;
   dragAndDrop: string;
   clearSelection: string;
-  rowActionsTitle: string;
-  resetRowActions: string;
+  preferencesTitle: string;
+  resetPreferences: string;
   bulkPriority: string;
   bulkBold: string;
   bulkCategory: string;
@@ -156,6 +156,12 @@ export interface Dictionary {
     importRequirePayload: string;
     importRequireText: string;
     sortByTime: string;
+    viewMode: string;
+    viewModeList: string;
+    viewModeTabs: string;
+    categoryTabs: string;
+    categoryTabAll: string;
+    categoryTabUncategorized: string;
     transferDescription: string;
     transferDialogTitle: string;
     transferDuplicate: string;

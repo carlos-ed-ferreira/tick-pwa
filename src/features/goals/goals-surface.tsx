@@ -3632,12 +3632,12 @@ function GoalDetailCard({
               applyToOtherSurface:
                 dictionary.goalStepEditor.applyToOtherSurface,
               close: dictionary.actions.cancel,
-              configure: dictionary.goalStepEditor.configureRowActions,
+              configure: dictionary.goalStepEditor.configurePreferences,
               hidden: dictionary.goalStepEditor.actionHidden,
               inline: dictionary.goalStepEditor.actionOnRow,
               menu: dictionary.goalStepEditor.actionInMenu,
-              reset: dictionary.goalStepEditor.resetRowActions,
-              title: dictionary.goalStepEditor.rowActionsTitle,
+              reset: dictionary.goalStepEditor.resetPreferences,
+              title: dictionary.goalStepEditor.preferencesTitle,
               visible: dictionary.goalStepEditor.actionVisible,
             }}
             showScheduledTime={false}

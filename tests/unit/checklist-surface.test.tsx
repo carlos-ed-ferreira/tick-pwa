@@ -11,8 +11,10 @@ import { ChecklistSurface } from '@/features/checklist/checklist-surface';
 import { db } from '@/lib/db/database';
 
 const {
+  assignChecklistItemCategoryMock,
   createChecklistItemMock,
   moveChecklistItemToParentMock,
+  moveChecklistItemToTargetMock,
   reorderChecklistItemMock,
   reorderChecklistItemsByScheduledTimeMock,
   setChecklistItemsCheckedMock,
@@ -22,10 +24,14 @@ const {
   toggleChecklistItemPriorityMock,
   updateChecklistItemScheduledTimeMock,
   updateChecklistItemTextMock,
+  useCategoryTagsMock,
   useChecklistTreeMock,
 } = vi.hoisted(() => ({
+  assignChecklistItemCategoryMock: vi.fn().mockResolvedValue(undefined),
+  useCategoryTagsMock: vi.fn(() => [] as unknown[]),
   createChecklistItemMock: vi.fn().mockResolvedValue({ id: 'new-item' }),
   moveChecklistItemToParentMock: vi.fn().mockResolvedValue(undefined),
+  moveChecklistItemToTargetMock: vi.fn().mockResolvedValue(undefined),
   reorderChecklistItemMock: vi.fn().mockResolvedValue(undefined),
   reorderChecklistItemsByScheduledTimeMock: vi
     .fn()
@@ -41,11 +47,12 @@ const {
 }));
 
 vi.mock('@/lib/db', () => ({
-  assignChecklistItemCategory: vi.fn().mockResolvedValue(undefined),
+  assignChecklistItemCategory: assignChecklistItemCategoryMock,
   createChecklistChild: vi.fn().mockResolvedValue(undefined),
   createChecklistItem: createChecklistItemMock,
   indentChecklistItem: vi.fn().mockResolvedValue(undefined),
   moveChecklistItemToParent: moveChecklistItemToParentMock,
+  moveChecklistItemToTarget: moveChecklistItemToTargetMock,
   outdentChecklistItem: vi.fn().mockResolvedValue(undefined),
   reorderChecklistItem: reorderChecklistItemMock,
   reorderChecklistItemsByScheduledTime:
@@ -69,6 +76,12 @@ vi.mock('@/providers', () => ({
       },
       calendar: {
         sortByTime: 'Sort by time',
+        viewMode: 'Task view',
+        viewModeList: 'Single list',
+        viewModeTabs: 'Category tabs',
+        categoryTabs: 'Task categories',
+        categoryTabAll: 'All',
+        categoryTabUncategorized: 'No category',
       },
       dayEditor: {
         addItem: 'Add task',
@@ -109,10 +122,10 @@ vi.mock('@/providers', () => ({
         actionInMenu: 'Three-dot menu',
         actionOnRow: 'On row',
         actionVisible: 'Visible',
-        configureRowActions: 'Configure task actions',
+        configurePreferences: 'Configure task actions',
         dragAndDrop: 'Drag and drop',
-        rowActionsTitle: 'Task actions',
-        resetRowActions: 'Restore defaults',
+        preferencesTitle: 'Task actions',
+        resetPreferences: 'Restore defaults',
       },
     },
     scope: {
@@ -129,7 +142,7 @@ vi.mock('@/providers', () => ({
 
 vi.mock('@/features/categories', () => ({
   CategoryAssignmentMenu: () => null,
-  useCategoryTags: () => [],
+  useCategoryTags: () => useCategoryTagsMock(),
 }));
 
 vi.mock('@/features/checklist/use-checklist-tree', () => ({
@@ -180,10 +193,14 @@ describe('ChecklistSurface delete confirmation', () => {
   beforeEach(async () => {
     window.localStorage.clear();
     await db.localPreferences.clear();
+    assignChecklistItemCategoryMock.mockClear();
+    useCategoryTagsMock.mockReset();
+    useCategoryTagsMock.mockReturnValue([]);
     useChecklistTreeMock.mockReset();
     createChecklistItemMock.mockClear();
     createChecklistItemMock.mockResolvedValue({ id: 'new-item' });
     moveChecklistItemToParentMock.mockClear();
+    moveChecklistItemToTargetMock.mockClear();
     reorderChecklistItemMock.mockClear();
     reorderChecklistItemsByScheduledTimeMock.mockClear();
     setChecklistItemsCheckedMock.mockClear();
@@ -330,14 +347,15 @@ describe('ChecklistSurface delete confirmation', () => {
     });
 
     await waitFor(() => {
-      expect(reorderChecklistItemMock).toHaveBeenCalledWith({
+      expect(moveChecklistItemToTargetMock).toHaveBeenCalledWith({
         scope: {
           id: 'guest:test',
           kind: 'guest',
           ownerId: 'test',
         },
         itemId: 'item-First task',
-        direction: 'down',
+        targetItemId: 'item-Second task',
+        placement: 'after',
       });
     });
   });
@@ -360,14 +378,15 @@ describe('ChecklistSurface delete confirmation', () => {
     );
 
     await waitFor(() => {
-      expect(reorderChecklistItemMock).toHaveBeenCalledWith({
+      expect(moveChecklistItemToTargetMock).toHaveBeenCalledWith({
         scope: {
           id: 'guest:test',
           kind: 'guest',
           ownerId: 'test',
         },
         itemId: 'item-First task',
-        direction: 'down',
+        targetItemId: 'item-Second task',
+        placement: 'after',
       });
     });
   });
@@ -535,6 +554,7 @@ describe('ChecklistSurface delete confirmation', () => {
     await waitFor(() => {
       expect(reorderChecklistItemMock).not.toHaveBeenCalled();
     });
+    expect(moveChecklistItemToTargetMock).not.toHaveBeenCalled();
   });
 
   it('indents and outdents an empty draft locally', async () => {
@@ -998,5 +1018,267 @@ describe('ChecklistSurface delete confirmation', () => {
     });
     expect(row?.style.backgroundColor).toBe('');
     expect(input.className.includes('font-medium')).toBe(false);
+  });
+});
+
+describe('ChecklistSurface category tabs', () => {
+  const focusTag = {
+    id: 'focus',
+    name: 'FOCUS',
+    colorHex: '#2563eb',
+    useOwnName: false,
+  };
+  const homeTag = {
+    id: 'home',
+    name: 'HOME',
+    colorHex: '#d97706',
+    useOwnName: false,
+  };
+
+  function createChildRow(
+    text: string,
+    parentId: string,
+    overrides: Parameters<typeof createRow>[1] = {},
+  ) {
+    const row = createRow(text, overrides);
+
+    return {
+      ...row,
+      depth: 1,
+      item: { ...row.item, parentId },
+    };
+  }
+
+  async function selectTabView() {
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Configure task actions' }),
+    );
+    fireEvent.click(
+      screen.getByRole('radio', { name: 'Task view: Category tabs' }),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    await screen.findByRole('tablist', { name: 'Task categories' });
+  }
+
+  beforeEach(async () => {
+    window.localStorage.clear();
+    await db.localPreferences.clear();
+    assignChecklistItemCategoryMock.mockClear();
+    createChecklistItemMock.mockClear();
+    createChecklistItemMock.mockResolvedValue({ id: 'new-item' });
+    moveChecklistItemToTargetMock.mockClear();
+    reorderChecklistItemMock.mockClear();
+    useCategoryTagsMock.mockReset();
+    useCategoryTagsMock.mockReturnValue([focusTag, homeTag]);
+    useChecklistTreeMock.mockReset();
+  });
+
+  afterEach(() => {
+    cleanup();
+    vi.restoreAllMocks();
+  });
+
+  it('keeps a single list until the tab view is chosen in the preferences', async () => {
+    useChecklistTreeMock.mockReturnValue([
+      createRow('Focus task', { categoryTagId: 'focus' }),
+      createRow('Loose task'),
+    ]);
+
+    render(<ChecklistSurface dailyEntryId="entry-1" />);
+
+    expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
+
+    await selectTabView();
+
+    expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual([
+      'All',
+      'FOCUS',
+      'No category',
+    ]);
+  });
+
+  it('restores the tab view from the stored preference', async () => {
+    useChecklistTreeMock.mockReturnValue([
+      createRow('Focus task', { categoryTagId: 'focus' }),
+      createRow('Loose task'),
+    ]);
+
+    const { unmount } = render(<ChecklistSurface dailyEntryId="entry-1" />);
+    await selectTabView();
+    unmount();
+
+    render(<ChecklistSurface dailyEntryId="entry-1" />);
+
+    expect(
+      await screen.findByRole('tablist', { name: 'Task categories' }),
+    ).toBeInTheDocument();
+  });
+
+  it('shows the whole subtree of the root items in the selected tab', async () => {
+    useChecklistTreeMock.mockReturnValue([
+      createRow('Focus task', { categoryTagId: 'focus' }),
+      createChildRow('Focus subtask', 'item-Focus task'),
+      createRow('Home task', { categoryTagId: 'home' }),
+      createRow('Loose task'),
+    ]);
+
+    render(<ChecklistSurface dailyEntryId="entry-1" />);
+    await selectTabView();
+
+    fireEvent.click(screen.getByRole('tab', { name: 'FOCUS' }));
+
+    expect(screen.getByDisplayValue('Focus task')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('Focus subtask')).toBeInTheDocument();
+    expect(screen.queryByDisplayValue('Home task')).not.toBeInTheDocument();
+    expect(screen.queryByDisplayValue('Loose task')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('tab', { name: 'No category' }));
+
+    expect(screen.getByDisplayValue('Loose task')).toBeInTheDocument();
+    expect(screen.queryByDisplayValue('Focus task')).not.toBeInTheDocument();
+  });
+
+  it('omits the uncategorized tab when every root task has a category', async () => {
+    useChecklistTreeMock.mockReturnValue([
+      createRow('Focus task', { categoryTagId: 'focus' }),
+      createRow('Home task', { categoryTagId: 'home' }),
+    ]);
+
+    render(<ChecklistSurface dailyEntryId="entry-1" />);
+    await selectTabView();
+
+    expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual([
+      'All',
+      'FOCUS',
+      'HOME',
+    ]);
+  });
+
+  it('hides the tab strip while no root task has a category', async () => {
+    useChecklistTreeMock.mockReturnValue([createRow('Loose task')]);
+
+    render(<ChecklistSurface dailyEntryId="entry-1" />);
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Configure task actions' }),
+    );
+    fireEvent.click(
+      screen.getByRole('radio', { name: 'Task view: Category tabs' }),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('Loose task')).toBeInTheDocument();
+    });
+    expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
+  });
+
+  it('reorders against the neighbour visible in the active tab', async () => {
+    useChecklistTreeMock.mockReturnValue([
+      createRow('Focus task', { categoryTagId: 'focus' }),
+      createRow('Home task', { categoryTagId: 'home' }),
+      createRow('Second focus task', { categoryTagId: 'focus' }),
+    ]);
+
+    render(<ChecklistSurface dailyEntryId="entry-1" />);
+    await selectTabView();
+
+    fireEvent.click(screen.getByRole('tab', { name: 'FOCUS' }));
+
+    const firstRow = screen.getByDisplayValue('Focus task').closest('.group');
+
+    expect(firstRow).not.toBeNull();
+    fireEvent.click(
+      within(firstRow as HTMLElement).getByRole('button', {
+        name: 'Move task down',
+      }),
+    );
+
+    await waitFor(() => {
+      expect(moveChecklistItemToTargetMock).toHaveBeenCalledWith({
+        scope: {
+          id: 'guest:test',
+          kind: 'guest',
+          ownerId: 'test',
+        },
+        itemId: 'item-Focus task',
+        targetItemId: 'item-Second focus task',
+        placement: 'after',
+      });
+    });
+    expect(reorderChecklistItemMock).not.toHaveBeenCalled();
+  });
+
+  it('creates new root tasks inside the active category tab', async () => {
+    useChecklistTreeMock.mockReturnValue([
+      createRow('Focus task', { categoryTagId: 'focus' }),
+      createRow('Loose task'),
+    ]);
+
+    render(<ChecklistSurface dailyEntryId="entry-1" />);
+    await selectTabView();
+
+    fireEvent.click(screen.getByRole('tab', { name: 'FOCUS' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add task' }));
+
+    const draftInput = await waitFor(() => {
+      const emptyInput = screen
+        .getAllByPlaceholderText('Write a task')
+        .find((input) => (input as HTMLInputElement).value === '');
+
+      expect(emptyInput).toBeDefined();
+      return emptyInput as HTMLElement;
+    });
+    fireEvent.change(draftInput, { target: { value: 'New focus task' } });
+    fireEvent.blur(draftInput);
+
+    await waitFor(() => {
+      expect(createChecklistItemMock).toHaveBeenCalledWith(
+        expect.objectContaining({ text: 'New focus task' }),
+      );
+    });
+
+    const createdId = createChecklistItemMock.mock.calls[0]?.[0].id;
+
+    await waitFor(() => {
+      expect(assignChecklistItemCategoryMock).toHaveBeenCalledWith({
+        scope: {
+          id: 'guest:test',
+          kind: 'guest',
+          ownerId: 'test',
+        },
+        itemId: createdId,
+        categoryTagId: 'focus',
+      });
+    });
+  });
+
+  it('leaves new root tasks uncategorized on the all tab', async () => {
+    useChecklistTreeMock.mockReturnValue([
+      createRow('Focus task', { categoryTagId: 'focus' }),
+      createRow('Loose task'),
+    ]);
+
+    render(<ChecklistSurface dailyEntryId="entry-1" />);
+    await selectTabView();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add task' }));
+
+    const draftInput = await waitFor(() => {
+      const emptyInput = screen
+        .getAllByPlaceholderText('Write a task')
+        .find((input) => (input as HTMLInputElement).value === '');
+
+      expect(emptyInput).toBeDefined();
+      return emptyInput as HTMLElement;
+    });
+    fireEvent.change(draftInput, { target: { value: 'New loose task' } });
+    fireEvent.blur(draftInput);
+
+    await waitFor(() => {
+      expect(createChecklistItemMock).toHaveBeenCalledTimes(1);
+    });
+    expect(assignChecklistItemCategoryMock).not.toHaveBeenCalled();
   });
 });

@@ -9,9 +9,11 @@ import type { Json } from './database.types';
 export const TASK_TREE_ROW_ACTIONS_PREFERENCE_KEY = 'taskTreeRowActions';
 export const GOAL_STEP_TREE_ROW_ACTIONS_PREFERENCE_KEY =
   'goalStepTreeRowActions';
+export const CHECKLIST_VIEW_MODE_PREFERENCE_KEY = 'checklistViewMode';
 export const ACCOUNT_PREFERENCE_KEYS = [
   TASK_TREE_ROW_ACTIONS_PREFERENCE_KEY,
   GOAL_STEP_TREE_ROW_ACTIONS_PREFERENCE_KEY,
+  CHECKLIST_VIEW_MODE_PREFERENCE_KEY,
 ] as const;
 
 export function getTaskTreeRowActionsPreferenceKey(

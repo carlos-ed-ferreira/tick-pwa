@@ -22,6 +22,38 @@ describe('moveTreeItemToTarget', () => {
     expect(onReorder).toHaveBeenCalledWith('first', 'down');
   });
 
+  it('places the item beside a sibling target in a single move when supported', async () => {
+    const onMoveAdjacent = vi.fn().mockResolvedValue(undefined);
+    const onReorder = vi.fn().mockResolvedValue(undefined);
+
+    await moveTreeItemToTarget({
+      itemId: 'first',
+      items,
+      placement: 'after',
+      targetItemId: 'second',
+      onMoveAdjacent,
+      onReorder,
+    });
+
+    expect(onMoveAdjacent).toHaveBeenCalledWith('first', 'second', 'after');
+    expect(onReorder).not.toHaveBeenCalled();
+  });
+
+  it('keeps an item in place when the target position is the current one', async () => {
+    const onMoveAdjacent = vi.fn().mockResolvedValue(undefined);
+
+    await moveTreeItemToTarget({
+      itemId: 'second',
+      items,
+      placement: 'after',
+      targetItemId: 'first',
+      onMoveAdjacent,
+      onReorder: vi.fn(),
+    });
+
+    expect(onMoveAdjacent).not.toHaveBeenCalled();
+  });
+
   it('does not move across parents or non-persisted items', async () => {
     const onReorder = vi.fn();
 

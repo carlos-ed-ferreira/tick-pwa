@@ -498,12 +498,12 @@ function BulkChecklistSurface({
                 },
                 applyToOtherSurface: dictionary.dayEditor.applyToOtherSurface,
                 close: dictionary.actions.cancel,
-                configure: dictionary.dayEditor.configureRowActions,
+                configure: dictionary.dayEditor.configurePreferences,
                 hidden: dictionary.dayEditor.actionHidden,
                 inline: dictionary.dayEditor.actionOnRow,
                 menu: dictionary.dayEditor.actionInMenu,
-                reset: dictionary.dayEditor.resetRowActions,
-                title: dictionary.dayEditor.rowActionsTitle,
+                reset: dictionary.dayEditor.resetPreferences,
+                title: dictionary.dayEditor.preferencesTitle,
                 visible: dictionary.dayEditor.actionVisible,
               }}
               value={actionPreferences}
