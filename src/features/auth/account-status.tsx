@@ -1,7 +1,7 @@
 'use client';
 
 import { Cloud, LogOut, UserRound } from 'lucide-react';
-import { Button } from '@/components/ui';
+import { Button, Tooltip } from '@/components/ui';
 import { useAppContext } from '@/providers';
 
 export function AccountStatus() {
@@ -13,16 +13,15 @@ export function AccountStatus() {
 
     return (
       <div className="flex flex-wrap items-center gap-2">
-        <span
-          className="inline-flex min-h-10 max-w-[13rem] items-center gap-2 rounded-full inset-ring-hairline inset-ring-white/10 bg-white/6 px-3.5 text-xs font-medium text-[#cbd5e0] shadow-sm shadow-[#253241]/10"
-          title={email}
-        >
-          <UserRound
-            aria-hidden="true"
-            className="size-4 shrink-0 text-[#f0c38e]"
-          />
-          <span className="truncate">{email}</span>
-        </span>
+        <Tooltip content={email}>
+          <span className="inline-flex min-h-10 max-w-[13rem] items-center gap-2 rounded-full inset-ring-hairline inset-ring-white/10 bg-white/6 px-3.5 text-xs font-medium text-[#cbd5e0] shadow-sm shadow-[#253241]/10">
+            <UserRound
+              aria-hidden="true"
+              className="size-4 shrink-0 text-[#f0c38e]"
+            />
+            <span className="truncate">{email}</span>
+          </span>
+        </Tooltip>
         <Button
           className="min-h-10 rounded-full inset-ring-white/10 bg-white/5 px-4 text-sm text-[#f8f3ea] shadow-sm shadow-[#253241]/10 hover:-translate-y-0.5 hover:inset-ring-white/20 hover:bg-white/10 hover:shadow-md focus-visible:outline-[#f7d9b0]"
           tone="subtle"

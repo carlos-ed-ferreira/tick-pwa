@@ -1211,6 +1211,7 @@ export function GoalsSurface() {
                     goals={groupGoals}
                     group={group}
                     goalCategoryMap={goalCategoryMap}
+                    summaries={goalStepSummaries}
                     onBeginPointerDrag={beginPointerDrag}
                     onOpen={openGroup}
                   />
@@ -1574,6 +1575,7 @@ function GoalGroupCard({
   goals,
   group,
   goalCategoryMap,
+  summaries,
   onBeginPointerDrag,
   onOpen,
 }: {
@@ -1583,6 +1585,7 @@ function GoalGroupCard({
   goals: Goal[];
   group: GoalGroup;
   goalCategoryMap: Map<string, CategoryTag>;
+  summaries: Map<string, GoalStepSummary>;
   onBeginPointerDrag: (
     payload: DragPayload,
     event: ReactPointerEvent<HTMLElement>,
@@ -1619,6 +1622,21 @@ function GoalGroupCard({
     !isDragging
       ? dragTarget
       : null;
+  const taskCount = goals.reduce(
+    (count, goal) => count + getGoalStepSummary(summaries, goal.id).itemCount,
+    0,
+  );
+  const completedTaskCount = goals.reduce(
+    (count, goal) =>
+      count + getGoalStepSummary(summaries, goal.id).completedCount,
+    0,
+  );
+  const taskStatus =
+    taskCount === 0
+      ? 'empty'
+      : completedTaskCount === taskCount
+        ? 'complete'
+        : 'pending';
 
   const getMenuStyle = useCallback(() => {
     const trigger = triggerRef.current;
@@ -1837,7 +1855,7 @@ function GoalGroupCard({
         {positionTarget ? (
           <PositionIndicator side={positionTarget.side} />
         ) : null}
-        <span className="flex min-w-0 items-center justify-start gap-2 pr-10">
+        <span className="flex min-w-0 items-center justify-start gap-2">
           <Tooltip content={dictionary.goals.dragGoal}>
             <button
               type="button"
@@ -1849,40 +1867,62 @@ function GoalGroupCard({
               <GripVertical aria-hidden="true" className="size-4" />
             </button>
           </Tooltip>
-          {category?.useOwnName ? (
-            <span
-              className="inline-flex min-h-7 min-w-0 items-center rounded-full inset-ring-hairline inset-ring-(--chip-edge) px-3 py-1 shadow-sm shadow-[#253241]/10"
-              style={
-                {
-                  '--chip-edge': toAlphaColor(category.colorHex, 0.6),
-                  backgroundColor: toAlphaColor(category.colorHex, 0.14),
-                } as CSSProperties
-              }
+          <span className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden">
+            <Tooltip
+              className="min-w-0 flex-1"
+              content={group.title || dictionary.goals.newGroupName}
             >
-              <span className="truncate text-base font-semibold leading-tight text-[#fff9f2]">
-                {group.title || dictionary.goals.newGroupName}
-              </span>
-            </span>
-          ) : (
-            <span className="min-w-0 truncate text-base font-semibold leading-tight text-[#fff9f2]">
-              {group.title || dictionary.goals.newGroupName}
-            </span>
-          )}
-          {category && !category.useOwnName ? (
-            <span
-              className="inline-flex min-h-7 shrink-0 items-center gap-2 rounded-full inset-ring-hairline inset-ring-(--chip-edge) px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.24em] text-[#f7e8ce] shadow-sm shadow-[#253241]/10"
-              style={
-                {
-                  '--chip-edge': toAlphaColor(category.colorHex, 0.6),
-                  backgroundColor: toAlphaColor(category.colorHex, 0.14),
-                } as CSSProperties
-              }
-            >
-              <span className="truncate">{category.name}</span>
-            </span>
-          ) : null}
-        </span>
-        <div className="absolute right-4 top-3">
+              {category?.useOwnName ? (
+                <span
+                  className="inline-flex min-h-7 min-w-0 max-w-full items-center rounded-full inset-ring-hairline inset-ring-(--chip-edge) px-3 py-1 shadow-sm shadow-[#253241]/10"
+                  style={
+                    {
+                      '--chip-edge': toAlphaColor(category.colorHex, 0.6),
+                      backgroundColor: toAlphaColor(category.colorHex, 0.14),
+                    } as CSSProperties
+                  }
+                >
+                  <span className="truncate text-base font-semibold leading-tight text-[#fff9f2]">
+                    {group.title || dictionary.goals.newGroupName}
+                  </span>
+                </span>
+              ) : (
+                <span className="min-w-0 truncate text-base font-semibold leading-tight text-[#fff9f2]">
+                  {group.title || dictionary.goals.newGroupName}
+                </span>
+              )}
+            </Tooltip>
+            {category && !category.useOwnName ? (
+              <Tooltip
+                className="max-w-[45%] shrink"
+                content={category.name}
+              >
+                <span
+                  className="inline-flex min-h-7 min-w-0 max-w-full items-center gap-2 rounded-full inset-ring-hairline inset-ring-(--chip-edge) px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.24em] text-[#f7e8ce] shadow-sm shadow-[#253241]/10"
+                  style={
+                    {
+                      '--chip-edge': toAlphaColor(category.colorHex, 0.6),
+                      backgroundColor: toAlphaColor(category.colorHex, 0.14),
+                    } as CSSProperties
+                  }
+                >
+                  <span className="truncate">{category.name}</span>
+                </span>
+              </Tooltip>
+            ) : null}
+          </span>
+          <span
+            aria-hidden="true"
+            className={`size-2.5 shrink-0 rounded-full ${
+              taskStatus === 'pending'
+                ? 'bg-[#f0c38e]'
+                : taskStatus === 'complete'
+                  ? 'bg-emerald-400'
+                  : 'bg-[#66717f]'
+            }`}
+            data-status={taskStatus}
+            data-testid={`goal-group-task-indicator-${group.id}`}
+          />
           <IconButton
             ref={triggerRef}
             aria-expanded={isMenuOpen}
@@ -1906,7 +1946,7 @@ function GoalGroupCard({
           >
             <MoreHorizontal aria-hidden="true" className="size-4" />
           </IconButton>
-        </div>
+        </span>
         <span className="grid grid-cols-2 gap-2 self-start">
           {goals.slice(0, goals.length > 4 ? 3 : 4).map((goal) => {
             const cat = goalCategoryMap.get(goal.categoryTagId ?? '');
@@ -2435,7 +2475,7 @@ function GoalCard({
           <PositionIndicator side={positionTarget.side} />
         ) : null}
         <CategoryAccent category={goalCategory} position="vertical" />
-        <div className="flex min-w-0 items-center justify-start gap-2 pr-10">
+        <div className="flex min-w-0 items-center justify-start gap-2">
           {!archived ? (
             <Tooltip content={dictionary.goals.dragGoal}>
               <button
@@ -2451,21 +2491,29 @@ function GoalCard({
               </button>
             </Tooltip>
           ) : null}
-          <span className="min-w-0 truncate text-base font-semibold leading-tight text-[#fff9f2]">
-            {goal.title || dictionary.goals.newGoalTitle}
-          </span>
+          <Tooltip
+            className="min-w-0 flex-1"
+            content={goal.title || dictionary.goals.newGoalTitle}
+          >
+            <span className="min-w-0 truncate text-base font-semibold leading-tight text-[#fff9f2]">
+              {goal.title || dictionary.goals.newGoalTitle}
+            </span>
+          </Tooltip>
           {goalCategory &&
           !goalCategory.useOwnName &&
           goalCategory.name.trim().length > 0 ? (
-            <span
-              className="max-w-[40%] shrink-0 truncate text-xs font-semibold leading-tight"
-              style={{ color: goalCategory.colorHex }}
+            <Tooltip
+              className="max-w-[40%] shrink"
+              content={goalCategory.name}
             >
-              {goalCategory.name}
-            </span>
+              <span
+                className="min-w-0 truncate text-xs font-semibold leading-tight"
+                style={{ color: goalCategory.colorHex }}
+              >
+                {goalCategory.name}
+              </span>
+            </Tooltip>
           ) : null}
-        </div>
-        <div className="absolute right-4 top-3">
           <IconButton
             ref={triggerRef}
             aria-expanded={isMenuOpen}

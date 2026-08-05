@@ -10,7 +10,7 @@ import {
 } from '@/components/app';
 
 describe('task tree primitives', () => {
-  it('renders the row layout with the same spacing and highlight styles', () => {
+  it('keeps the category color while adding an amber priority glow', () => {
     render(
       <TaskTreeRowLayout categoryColorHex="#22c55e" depth={2} isPriority>
         <span>Checklist row</span>
@@ -37,7 +37,21 @@ describe('task tree primitives', () => {
     expect(row).toHaveStyle({
       paddingLeft: '28px',
       backgroundColor: 'rgba(34, 197, 94, 0.12)',
-      boxShadow: 'inset 4px 0 0 0 rgba(240, 195, 142, 1)',
+      boxShadow:
+        'inset 4px 0 0 0 rgba(240, 195, 142, 1), inset 0 0 18px rgba(240, 195, 142, 0.12)',
+    });
+  });
+
+  it('adds the same amber priority glow without a category color', () => {
+    render(
+      <TaskTreeRowLayout depth={0} isPriority>
+        <span>Priority row</span>
+      </TaskTreeRowLayout>,
+    );
+
+    expect(screen.getByText('Priority row').parentElement).toHaveStyle({
+      boxShadow:
+        'inset 4px 0 0 0 rgba(240, 195, 142, 1), inset 0 0 18px rgba(240, 195, 142, 0.12)',
     });
   });
 

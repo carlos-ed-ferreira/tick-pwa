@@ -33,7 +33,7 @@ export function TaskTreeRowLayout({
         ? toAlphaColor(categoryColorHex, 0.12)
         : undefined,
     boxShadow: isPriority
-      ? 'inset 4px 0 0 0 rgba(240, 195, 142, 1)'
+      ? 'inset 4px 0 0 0 rgba(240, 195, 142, 1), inset 0 0 18px rgba(240, 195, 142, 0.12)'
       : undefined,
   };
 

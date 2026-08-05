@@ -25,11 +25,13 @@ const viewportPadding = 10;
 
 export function Tooltip({
   children,
+  className,
   content,
   delay = 320,
   side = 'top',
 }: {
   children: ReactElement;
+  className?: string;
   content: ReactNode;
   delay?: number;
   side?: TooltipSide;
@@ -136,7 +138,7 @@ export function Tooltip({
   return (
     <span
       ref={containerRef}
-      className="inline-flex min-w-0 shrink-0"
+      className={`inline-flex min-w-0 ${className ?? 'shrink-0'}`}
       onBlurCapture={(event) => {
         if (!event.currentTarget.contains(event.relatedTarget)) {
           closeTooltip();
