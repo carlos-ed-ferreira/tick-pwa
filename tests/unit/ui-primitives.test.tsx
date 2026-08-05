@@ -12,6 +12,7 @@ import {
   Text,
   Tooltip,
 } from '@/components/ui';
+import { fitDashedRingPathLength } from '@/components/ui/dashed-ring';
 
 describe('UI primitives', () => {
   it('applies the Tick visual treatment to checkboxes', () => {
@@ -112,6 +113,25 @@ describe('UI primitives', () => {
     expect(rect?.style.strokeDasharray).toBe('7 6');
     expect(rect?.style.stroke).toContain('--dashed-ring-color');
   });
+
+  it.each([
+    ['the independent-color circle', 2 * Math.PI * 10],
+    ['a three-column goal card', 1054.92],
+    ['a four-column goal card', 818],
+  ])(
+    'fits a complete dash pattern around %s without a shorter closing gap',
+    (_, perimeter) => {
+      const pathLength = fitDashedRingPathLength(perimeter);
+      const scale = perimeter / pathLength;
+      const dashLength = 7 * scale;
+      const gapLength = 6 * scale;
+      const cycleCount = pathLength / 13;
+
+      expect(cycleCount).toBe(Math.round(cycleCount));
+      expect(dashLength / gapLength).toBeCloseTo(7 / 6, 10);
+      expect(gapLength).toBeGreaterThan(5);
+    },
+  );
 
   it('replaces native icon-button titles with the shared visual tooltip', () => {
     render(

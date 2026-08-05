@@ -1,5 +1,57 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Locator } from '@playwright/test';
 import { enterLocalMode, firstGoalStepInput, labels } from './helpers';
+
+async function expectEvenlyClosedDashedRing(ring: Locator) {
+  await expect
+    .poll(async () =>
+      ring.evaluate((rect: SVGRectElement) => {
+        const [dashLength, gapLength] = rect.style.strokeDasharray
+          .split(/[ ,]+/)
+          .map(Number.parseFloat);
+        const normalizedPerimeter = Number(rect.getAttribute('pathLength'));
+        const cycleCount = normalizedPerimeter / (dashLength + gapLength);
+
+        return Math.abs(cycleCount - Math.round(cycleCount));
+      }),
+    )
+    .toBeLessThan(0.000001);
+
+  const gapLength = await ring.evaluate((rect: SVGRectElement) => {
+    const normalizedGap = Number.parseFloat(
+      rect.style.strokeDasharray.split(/[ ,]+/)[1],
+    );
+    const normalizedPerimeter = Number(rect.getAttribute('pathLength'));
+
+    return (rect.getTotalLength() / normalizedPerimeter) * normalizedGap;
+  });
+  expect(gapLength).toBeGreaterThan(5);
+}
+
+test('keeps the first and last border dashes evenly spaced at every grid width', async ({
+  page,
+}) => {
+  await enterLocalMode(page);
+  await page.goto('/goals');
+
+  const newGoalRing = page
+    .getByRole('button', { name: labels.createGoal })
+    .first()
+    .locator('rect');
+
+  for (const width of [1100, 1280]) {
+    await page.setViewportSize({ width, height: 900 });
+    await expectEvenlyClosedDashedRing(newGoalRing);
+  }
+
+  await page.getByRole('button', { name: labels.createGoal }).first().click();
+  await page.waitForURL(/\/goals\?goal=.+/);
+
+  const independentColorRing = page
+    .getByLabel(/assign independent color|atribuir cor independente/i)
+    .locator('xpath=..')
+    .locator('rect');
+  await expectEvenlyClosedDashedRing(independentColorRing);
+});
 
 test('persists a goal step in local mode', async ({ page }) => {
   await enterLocalMode(page);
