@@ -55,8 +55,6 @@ export function buildChecklistCategoryTabs<
     name: allLabel,
   };
 
-  // Splitting only between "all" and "uncategorized" would show the same list
-  // twice, so the tab strip only makes sense once a category is in use.
   if (categoryTabs.length === 0) {
     return [allTab];
   }

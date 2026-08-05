@@ -1023,8 +1023,6 @@ function ChecklistRow({
       (currentRow) => currentRow.item.id === targetItemId,
     )?.item;
 
-    // A draft target cannot be moved by the persisted commands, so the draft
-    // travels around this row instead.
     if (
       !isDraft &&
       targetItem &&

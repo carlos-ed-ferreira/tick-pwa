@@ -23,8 +23,9 @@ Code. Não duplique, enfraqueça ou contradiga o guia principal.
 6. Rode primeiro as validações direcionadas à área alterada e, antes de
    concluir mudanças amplas, rode `make check`. E2E continua separado e deve ser
    executado quando o fluxo de navegador ou a responsividade forem afetados.
-7. Revise o diff final para remover código morto, logs temporários, comentários
-   de implementação, arquivos de teste descartáveis e alterações acidentais.
+7. Revise o diff final para remover código morto, logs temporários, qualquer
+   comentário de código, arquivos de teste descartáveis e alterações
+   acidentais.
 
 ## Planejamento e execução
 

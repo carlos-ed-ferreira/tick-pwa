@@ -120,7 +120,6 @@ describe('CalendarMonth', () => {
   it('marks today with a hairline ring instead of a fading 1px ring', () => {
     const { container } = render(<CalendarMonth />);
 
-    // today starts selected, so pick another day to expose the today marker
     const otherDay = getDayCells(container).find(
       (cell) => cell.getAttribute('aria-pressed') === 'false',
     ) as HTMLButtonElement;

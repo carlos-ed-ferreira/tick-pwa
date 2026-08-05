@@ -88,10 +88,6 @@ export async function moveTreeItemToTarget<T extends TreeMoveItem>({
     return;
   }
 
-  // Stepping one position at a time only lands where the user aimed when the
-  // rendered list holds every sibling. Filtered views hide siblings, so the
-  // move has to be anchored to the target itself whenever the caller supports
-  // it.
   if (onMoveAdjacent) {
     await onMoveAdjacent(itemId, targetItemId, placement);
     return;

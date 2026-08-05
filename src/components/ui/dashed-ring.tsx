@@ -6,11 +6,6 @@ const DASH_LENGTH = 7;
 const GAP_LENGTH = 6;
 const PATTERN_LENGTH = DASH_LENGTH + GAP_LENGTH;
 
-/**
- * Normaliza o comprimento do SVG para que o perímetro contenha apenas ciclos
- * completos. O navegador escala o padrão ao tamanho real sem criar uma sobra
- * no fechamento entre o primeiro e o último traço.
- */
 export function fitDashedRingPathLength(perimeter: number) {
   if (!Number.isFinite(perimeter) || perimeter <= 0) {
     return PATTERN_LENGTH;
@@ -20,17 +15,6 @@ export function fitDashedRingPathLength(perimeter: number) {
   return cycleCount * PATTERN_LENGTH;
 }
 
-/**
- * Borda tracejada desenhada como stroke de SVG.
- *
- * `border-dashed` perde cor e ritmo nas quinas arredondadas, porque cada traço
- * é rasterizado na diagonal do grid de pixels. O stroke do SVG acompanha a
- * curva do retângulo e mantém cor e espaçamento iguais em toda a extensão.
- *
- * A cor sai de `--dashed-ring-color`, então o elemento pai controla hover e
- * demais estados pelas próprias classes utilitárias. `radius` acompanha o
- * arredondamento do pai, em pixels.
- */
 export function DashedRing({
   className = '',
   radius,

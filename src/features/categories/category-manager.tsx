@@ -30,8 +30,6 @@ export function CategoryManager({
   surface: CategoryTagSurface;
 }) {
   const { dictionary, scope } = useAppContext();
-  // Own-name categories belong to a single group/goal and are edited through
-  // its color control, so they are never listed in the shared manager.
   const categoryTags = useCategoryTags(scope, surface).filter(
     (tag) => !tag.useOwnName,
   );

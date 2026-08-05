@@ -1870,9 +1870,6 @@ describe('GoalsSurface', () => {
       '[aria-hidden="true"]',
     );
 
-    // The transparent color input covers the control, so the swatch painted on
-    // top of it has to let clicks through; otherwise only the border of the
-    // button reacts and the dot itself stays dead.
     expect(swatch).toHaveClass('pointer-events-none');
   });
 

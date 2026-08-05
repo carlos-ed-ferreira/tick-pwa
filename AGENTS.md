@@ -181,6 +181,18 @@ Inclua regressões para:
 - garantia de que dados locais não vão para Supabase;
 - garantia de que dados autenticados ficam associados ao usuário correto.
 
+## Comentários de código
+
+Não adicione comentários em arquivos de código. Isso inclui comentários de
+linha, de bloco, JSDoc, observações em testes, CSS e SQL. Nomes, tipos, funções e
+estrutura devem tornar a implementação compreensível; explicações duradouras
+pertencem ao `README.md`, ao `AGENTS.md` ou a um documento em `docs/`.
+
+`npm run lint` verifica essa regra antes do ESLint. Use
+`npm run comments:remove` para remover comentários detectados. Arquivos gerados
+como `next-env.d.ts` e os service workers do Serwist ficam fora dessa validação
+e não devem ser editados manualmente.
+
 ## Validações
 
 Comandos Make:
@@ -208,6 +220,7 @@ make supabase-test-db
 make supabase-types-local
 ```
 
+`make lint` rejeita comentários de código e depois executa o ESLint. O comando
 `make check` delega para `npm run check`, que executa typecheck, lint, testes,
 format-check e build. E2E roda separadamente com `make test-e2e` ou
 `npm run test:e2e`. O cenário autenticado com latência simulada roda com

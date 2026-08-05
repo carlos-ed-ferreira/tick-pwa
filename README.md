@@ -216,6 +216,8 @@ npm run dev
 npm run build
 npm run start
 npm run lint
+npm run comments:check
+npm run comments:remove
 npm run typecheck
 npm run test
 npm run test:e2e
@@ -230,6 +232,11 @@ npm run supabase:status
 npm run supabase:db:reset
 npm run supabase:types:local
 ```
+
+O repositório não aceita comentários em arquivos de código. `npm run lint`
+verifica essa regra e depois executa o ESLint. `npm run comments:check` executa
+apenas a verificação e `npm run comments:remove` remove os comentários
+detectados; explicações devem ficar nos arquivos Markdown.
 
 `npm run check` e `make check` executam typecheck, lint, testes, format-check e
 build. E2E roda separadamente com `npm run test:e2e` ou `make test-e2e`; o

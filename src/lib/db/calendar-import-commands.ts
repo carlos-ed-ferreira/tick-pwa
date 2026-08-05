@@ -134,10 +134,6 @@ function toTemplateItems(
   }));
 }
 
-/**
- * Appends imported tasks to the given days, creating the category tags that do
- * not exist yet. Existing tags keep their current color.
- */
 export async function importCalendarDays({
   scope,
   days,

@@ -98,11 +98,6 @@ function getDaysInput(payload: unknown): unknown[] | null {
   return null;
 }
 
-/**
- * Validates a pasted JSON payload and converts it into the flat day/item shape
- * expected by `importCalendarDays`. Every error is collected so the user can
- * fix the whole payload at once; nothing is written when the result is invalid.
- */
 export function parseCalendarImportPayload(
   rawJson: string,
 ): CalendarImportParseResult {

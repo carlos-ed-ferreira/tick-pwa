@@ -26,8 +26,6 @@ function normalizeGoalTitle(title: string): string {
   return title.normalize('NFC').trim().toLocaleUpperCase();
 }
 
-// Own-name categories exist only for a single group/goal. When that entity
-// stops referencing it, the tag becomes orphaned and must be removed.
 async function resolveOrphanOwnCategoryTagId(
   scope: AppScope,
   previousCategoryTagId: string | null,

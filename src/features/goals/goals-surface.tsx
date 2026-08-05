@@ -1469,8 +1469,6 @@ function CategoryAccent({
   );
 }
 
-// Shared "own category" flow: picking a color creates (or recolors) a
-// nameless own-name category for this entity.
 async function applyOwnColorCategory({
   colorHex,
   onAssign,
@@ -1504,8 +1502,6 @@ async function applyOwnColorCategory({
   await onAssign(createdTag.id);
 }
 
-// Always-visible color control that owns the "own category" flow. Removing
-// the category lives in the clear button beside the CategoryAssignmentMenu.
 function CategoryColorButton({
   onAssign,
   scope,
@@ -2239,8 +2235,6 @@ function GoalCard({
                 : ''
             }`}
             style={menuStyle}
-            // Clicks inside the portal bubble through the React tree to the
-            // card's onClick, which would close the menu mid-interaction.
             onClick={(event) => event.stopPropagation()}
           >
             {!archived && onCreateGroup && goal.groupId === null ? (
@@ -2538,7 +2532,6 @@ function GoalCard({
   );
 }
 
-// Goal-only category submenu used by the goal card actions menu.
 function CategoryMenuSection({
   label,
   surface,

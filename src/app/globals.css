@@ -26,14 +26,6 @@
   --hairline: 1.5px;
 }
 
-/*
- * Bordas de 1px perdem cor nas quinas arredondadas: numa curva o traço fica
- * na diagonal do grid de pixels e um pixel cheio nunca é coberto, então a
- * quina renderiza mais fraca que a reta. A partir de 1.5 pixels físicos há
- * folga para o traço cobrir um pixel inteiro em qualquer ângulo, e a cor fica
- * uniforme em toda a extensão da borda. Em telas de alta densidade 1px já
- * equivale a 2+ pixels físicos e não precisa da compensação.
- */
 @media (min-resolution: 1.5dppx) {
   :root {
     --hairline: 1px;
@@ -293,9 +285,6 @@ body {
       100% calc(100% / 6);
   }
 
-  /* O grid encosta na base da shell, que recorta tudo no próprio
-     arredondamento. Sem repetir o raio nas células das quinas, a borda do dia
-     selecionado é cortada em linha reta em vez de acompanhar a curva. */
   .calendar-day-grid > :nth-last-child(7) {
     border-bottom-left-radius: 1.25rem;
   }

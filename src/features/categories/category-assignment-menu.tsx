@@ -67,11 +67,7 @@ export function CategoryAssignmentMenu({
   const selectedCategory = categoryTags.find(
     (tag) => tag.id === selectedCategoryTagId,
   );
-  // Own-name categories are managed through the dedicated color control, not
-  // this selector, so they never show up in the assignable list.
   const assignableCategoryTags = categoryTags.filter((tag) => !tag.useOwnName);
-  // Without any assignable category the menu would open empty, so the trigger
-  // stays disabled until there is something to pick.
   const hasMenuActions = assignableCategoryTags.length > 0 || showClearInMenu;
   const isTriggerDisabled = disabled || !hasMenuActions;
 

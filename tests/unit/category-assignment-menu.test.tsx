@@ -69,8 +69,6 @@ describe('CategoryAssignmentMenu', () => {
 
     expect(container.contains(optionButton)).toBe(false);
     expect(optionButton.parentElement).toHaveClass('fixed');
-    // The clear action no longer lives inside the selector menu, and it is
-    // hidden while nothing is assigned.
     expect(
       screen.queryByRole('button', { name: 'Clear category' }),
     ).not.toBeInTheDocument();
@@ -96,7 +94,6 @@ describe('CategoryAssignmentMenu', () => {
 
     const clearButton = screen.getByRole('button', { name: 'Clear category' });
 
-    // The clear button renders next to the trigger, outside any portal menu.
     expect(container.contains(clearButton)).toBe(true);
     expect(
       screen.getByRole('button', { name: 'Assign category' }).parentElement
@@ -169,9 +166,7 @@ describe('CategoryAssignmentMenu', () => {
 
     expect(menu?.className).not.toMatch(/overflow-y-auto/);
     expect(menu?.className).not.toMatch(/max-h-/);
-    // The own-name category assigned to this entity is never offered as an
-    // option in the selector, and clear lives outside the menu.
-    expect(menu?.querySelectorAll('button').length).toBe(1); // single named category
+    expect(menu?.querySelectorAll('button').length).toBe(1);
   });
 
   it('disables the trigger when there is no category to assign', () => {

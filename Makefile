@@ -9,7 +9,7 @@ help:
 	@printf "  %-26s %s\n" "make dev" "Instala dependencias, inicia o Supabase local e o Next.js"
 	@printf "  %-26s %s\n" "make build" "Gera build de producao com PWA"
 	@printf "  %-26s %s\n" "make start" "Inicia o servidor de producao apos o build"
-	@printf "  %-26s %s\n" "make lint" "Roda ESLint"
+	@printf "  %-26s %s\n" "make lint" "Proibe comentarios de codigo e roda ESLint"
 	@printf "  %-26s %s\n" "make typecheck" "Roda TypeScript sem emitir arquivos"
 	@printf "  %-26s %s\n" "make test" "Roda testes unitarios e de integracao"
 	@printf "  %-26s %s\n" "make test-e2e" "Roda testes end-to-end"
