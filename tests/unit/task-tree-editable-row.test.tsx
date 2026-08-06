@@ -13,6 +13,26 @@ import {
   TaskTreeEditableRow,
 } from '@/components/app';
 
+vi.mock('@/providers', () => ({
+  useAppContext: () => ({
+    dictionary: {
+      calendar: {
+        clearDate: 'Clear date',
+        nextMonth: 'Next month',
+        openDatePicker: 'Open date picker for {label}',
+        previousMonth: 'Previous month',
+        selectDate: 'Select date',
+        today: 'Today',
+        weekdays: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
+      },
+    },
+    locale: 'en',
+    timezonePreference: {
+      timezone: 'America/Sao_Paulo',
+    },
+  }),
+}));
+
 vi.mock('@/features/categories', () => ({
   CategoryAssignmentMenu: ({
     assignLabel,
@@ -74,6 +94,7 @@ const labels = {
   moreActions: 'More actions',
   dragItem: 'Drag item',
   itemTime: 'Task time',
+  itemDate: 'Task date',
   makeTextBold: 'Make text bold',
   makeTextNormal: 'Make text normal',
   outdentItem: 'Outdent item',
@@ -101,6 +122,7 @@ function renderRow(
     onToggleCollapsed: vi.fn(),
     onTogglePriority: vi.fn().mockResolvedValue(undefined),
     onSaveTime: vi.fn(),
+    onSaveDate: vi.fn(),
   };
 
   render(
@@ -810,6 +832,66 @@ describe('TaskTreeEditableRow', () => {
     renderRow();
 
     expect(screen.queryByLabelText('Task time')).not.toBeInTheDocument();
+  });
+
+  it('does not render the scheduled date trigger by default', () => {
+    renderRow();
+
+    expect(
+      screen.queryByRole('button', {
+        name: 'Open date picker for Task date',
+      }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('hides the scheduled date trigger when the preference is off', () => {
+    renderRow({
+      actionPreferences: {
+        ...defaultTaskTreeRowActionPreferences,
+        scheduledDate: false,
+      },
+      showScheduledDate: true,
+    });
+
+    expect(
+      screen.queryByRole('button', {
+        name: 'Open date picker for Task date',
+      }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('opens the date picker and saves the selected scheduled date', () => {
+    const callbacks = renderRow({
+      scheduledDate: '2026-07-15',
+      showScheduledDate: true,
+    });
+
+    const trigger = screen.getByRole('button', {
+      name: 'Open date picker for Task date',
+    });
+
+    expect(trigger).toHaveTextContent('15/07');
+
+    fireEvent.click(trigger);
+    fireEvent.click(screen.getByRole('button', { name: 'July 20, 2026' }));
+
+    expect(callbacks.onSaveDate).toHaveBeenCalledWith('2026-07-20');
+  });
+
+  it('clears the scheduled date from the picker popover', () => {
+    const callbacks = renderRow({
+      scheduledDate: '2026-07-15',
+      showScheduledDate: true,
+    });
+
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: 'Open date picker for Task date',
+      }),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Clear date' }));
+
+    expect(callbacks.onSaveDate).toHaveBeenCalledWith(null);
   });
 
   it('does not delete an empty row when Backspace is pressed', async () => {

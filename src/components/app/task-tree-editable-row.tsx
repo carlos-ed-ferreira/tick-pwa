@@ -3,6 +3,7 @@
 import {
   ArrowDown,
   ArrowUp,
+  CalendarDays,
   GripVertical,
   IndentDecrease,
   IndentIncrease,
@@ -33,9 +34,12 @@ import {
   getNextTaskCompletionValues,
   getTaskCompletionState,
   type CategoryTagSurface,
+  type LocalDateString,
   type TaskCompletionState,
   type TaskCompletionValues,
 } from '@/lib/domain';
+import { formatDateInputValue, parseDateInputValue } from '@/lib/time';
+import { DatePicker } from './date-picker';
 import { TaskTreeActionGroup } from './task-tree-action-group';
 import { TaskTreeCategoryChip } from './task-tree-category-chip';
 import { TaskTreeCollapseButton } from './task-tree-collapse-button';
@@ -79,6 +83,7 @@ interface TaskTreeRowLabels {
   markPriority: string;
   dragItem: string;
   itemTime: string;
+  itemDate: string;
   moveItemDown: string;
   moveItemUp: string;
   moreActions: string;
@@ -97,6 +102,11 @@ interface TaskTreeSelection {
     nextValues: TaskCompletionValues,
   ) => Promise<void> | void;
   onToggle: (shiftKey: boolean) => void;
+}
+
+function formatShortDate(date: LocalDateString): string {
+  const [, month, day] = date.split('-');
+  return `${day}/${month}`;
 }
 
 async function createAndFocusNewItem(
@@ -142,6 +152,7 @@ export function TaskTreeEditableRow({
   onMoveDown,
   onMoveUp,
   onOutdent,
+  onSaveDate,
   onSaveTime,
   onSaveText,
   onTextChange,
@@ -149,7 +160,9 @@ export function TaskTreeEditableRow({
   onToggleChecked,
   onToggleCollapsed,
   onTogglePriority,
+  scheduledDate = null,
   scheduledTime = null,
+  showScheduledDate = false,
   showScheduledTime = false,
 }: {
   actionPreferences?: TaskTreeRowActionPreferences;
@@ -190,6 +203,7 @@ export function TaskTreeEditableRow({
   onMoveDown: () => Promise<void> | void;
   onMoveUp: () => Promise<void> | void;
   onOutdent: () => Promise<void> | void;
+  onSaveDate?: (scheduledDate: LocalDateString | null) => Promise<void> | void;
   onSaveTime?: (scheduledTime: string | null) => Promise<void> | void;
   onSaveText: (text: string) => Promise<void> | void;
   onTextChange?: (text: string) => void;
@@ -197,7 +211,9 @@ export function TaskTreeEditableRow({
   onToggleChecked: () => Promise<void> | void;
   onToggleCollapsed: () => Promise<void> | void;
   onTogglePriority: () => Promise<void> | void;
+  scheduledDate?: LocalDateString | null;
   scheduledTime?: string | null;
+  showScheduledDate?: boolean;
   showScheduledTime?: boolean;
 }) {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -679,6 +695,39 @@ export function TaskTreeEditableRow({
             autoCapitalize="none"
             onBlur={() => void saveScheduledTime()}
             onChange={(event) => updateScheduledTime(event.target.value)}
+          />
+        ) : null}
+
+        {showScheduledDate && actionPreferences.scheduledDate ? (
+          <DatePicker
+            label={labels.itemDate}
+            value={scheduledDate ? formatDateInputValue(scheduledDate) : ''}
+            variant="trigger"
+            onChange={(nextValue) => {
+              const nextDate = parseDateInputValue(nextValue);
+
+              if (nextDate) {
+                void onSaveDate?.(nextDate);
+              }
+            }}
+            onClear={() => void onSaveDate?.(null)}
+            renderTrigger={({ onClick, ariaLabel }) => (
+              <button
+                type="button"
+                aria-label={ariaLabel}
+                className="ml-2 flex h-6 w-16 shrink-0 items-center justify-center gap-1 rounded-lg inset-ring-hairline inset-ring-white/10 bg-white/4.5 px-1.5 text-center text-xs font-medium tabular-nums text-[#fff9f2] outline-none transition hover:inset-ring-white/20 hover:bg-white/6.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e]"
+                onClick={onClick}
+              >
+                {scheduledDate ? (
+                  formatShortDate(scheduledDate)
+                ) : (
+                  <CalendarDays
+                    aria-hidden="true"
+                    className="size-3.5 opacity-70"
+                  />
+                )}
+              </button>
+            )}
           />
         ) : null}
 

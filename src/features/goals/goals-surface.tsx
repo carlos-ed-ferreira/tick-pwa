@@ -3,6 +3,7 @@
 import {
   Archive,
   ArrowLeft,
+  CalendarDays,
   ChevronRight,
   FolderPlus,
   GripVertical,
@@ -33,6 +34,7 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from 'react';
 import {
+  DatePicker,
   dropdownJoinOverlap,
   getDropdownJoinShape,
   moveTreeItemToTarget,
@@ -68,6 +70,11 @@ import { useTaskTreeRowActionPreferences } from '@/hooks/use-task-tree-row-actio
 import { toAlphaColor } from '@/lib/color';
 import { formatCountLabel, formatSelectionLabel } from '@/lib/i18n';
 import {
+  formatDateInputValue,
+  parseDateInputValue,
+  parseLocalDateKey,
+} from '@/lib/time';
+import {
   assignGoalCategory,
   assignGoalGroupCategory,
   assignGoalStepCategory,
@@ -97,7 +104,9 @@ import {
   toggleGoalStepCollapsed,
   toggleGoalStepPriority,
   updateCategoryTag,
+  updateGoalDueDate,
   updateGoalGroupTitle,
+  updateGoalStepScheduledDate,
   updateGoalStepText,
   updateGoalTitle,
 } from '@/lib/db';
@@ -166,6 +175,7 @@ function createGoalStepDraft({
     priority: false,
     collapsed: false,
     categoryTagId: null,
+    scheduledDate: null,
     sortRank: 'draft',
     createdAt: now,
     updatedAt: now,
@@ -1893,10 +1903,7 @@ function GoalGroupCard({
               )}
             </Tooltip>
             {category && !category.useOwnName ? (
-              <Tooltip
-                className="max-w-[45%] shrink"
-                content={category.name}
-              >
+              <Tooltip className="max-w-[45%] shrink" content={category.name}>
                 <span
                   className="inline-flex min-h-7 min-w-0 max-w-full items-center gap-2 rounded-full inset-ring-hairline inset-ring-(--chip-edge) px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.24em] text-[#f7e8ce] shadow-sm shadow-[#253241]/10"
                   style={
@@ -2502,10 +2509,7 @@ function GoalCard({
           {goalCategory &&
           !goalCategory.useOwnName &&
           goalCategory.name.trim().length > 0 ? (
-            <Tooltip
-              className="max-w-[40%] shrink"
-              content={goalCategory.name}
-            >
+            <Tooltip className="max-w-[40%] shrink" content={goalCategory.name}>
               <span
                 className="min-w-0 truncate text-xs font-semibold leading-tight"
                 style={{ color: goalCategory.colorHex }}
@@ -3102,11 +3106,15 @@ function GoalDetailHeader({
   onDelete: () => void;
   onRestore: (goalId: string) => Promise<void> | void;
 }) {
-  const { dictionary, scope } = useAppContext();
+  const { dictionary, locale, scope } = useAppContext();
   const [isGoalArchiveDialogOpen, setIsGoalArchiveDialogOpen] = useState(false);
   const [isGoalRestoreDialogOpen, setIsGoalRestoreDialogOpen] = useState(false);
   const [isGoalDeleteDialogOpen, setIsGoalDeleteDialogOpen] = useState(false);
   const goalCategory = goalCategoryMap.get(goal.categoryTagId ?? '') ?? null;
+  const goalDueDateFormatter = useMemo(
+    () => new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }),
+    [locale],
+  );
 
   const archiveSelectedGoal = useCallback(async () => {
     if (!scope) {
@@ -3154,6 +3162,17 @@ function GoalDetailHeader({
               <span className="truncate">{goalCategory.name}</span>
             </span>
           ) : null}
+          {goal.dueDate ? (
+            <span className="inline-flex min-h-10 max-w-full shrink-0 items-center gap-1.5 rounded-full inset-ring-hairline inset-ring-white/15 bg-white/5 px-3 py-1 text-sm font-medium text-[#f8f3ea] shadow-sm shadow-[#253241]/10">
+              <CalendarDays
+                aria-hidden="true"
+                className="size-3.5 opacity-70"
+              />
+              <span className="truncate">
+                {goalDueDateFormatter.format(parseLocalDateKey(goal.dueDate))}
+              </span>
+            </span>
+          ) : null}
           {!isArchived ? (
             <>
               <CategoryColorButton
@@ -3193,6 +3212,43 @@ function GoalDetailHeader({
                 }}
               />
             </>
+          ) : null}
+          {!isArchived ? (
+            <DatePicker
+              label={dictionary.goals.dueDateLabel}
+              value={goal.dueDate ? formatDateInputValue(goal.dueDate) : ''}
+              variant="trigger"
+              onChange={(nextValue) => {
+                if (!scope) return;
+                const nextDate = parseDateInputValue(nextValue);
+
+                if (nextDate) {
+                  void updateGoalDueDate({
+                    scope,
+                    goalId: goal.id,
+                    dueDate: nextDate,
+                  });
+                }
+              }}
+              onClear={() => {
+                if (!scope) return;
+                void updateGoalDueDate({
+                  scope,
+                  goalId: goal.id,
+                  dueDate: null,
+                });
+              }}
+              renderTrigger={({ onClick, ariaLabel }) => (
+                <IconButton
+                  aria-label={ariaLabel}
+                  title={dictionary.goals.assignGoalDueDate}
+                  className="size-10 rounded-md inset-ring-hairline inset-ring-white/10 bg-white/5 text-[#cbd5e0] shadow-sm shadow-[#253241]/10 transition hover:-translate-y-0.5 hover:inset-ring-white/20 hover:bg-white/10 hover:text-[#fff9f2] focus-visible:outline-[#f7d9b0]"
+                  onClick={onClick}
+                >
+                  <CalendarDays aria-hidden="true" className="size-4" />
+                </IconButton>
+              )}
+            />
           ) : null}
           {!isArchived ? (
             <IconButton
@@ -3669,6 +3725,7 @@ function GoalDetailCard({
                 outdent: dictionary.goalStepEditor.outdentItem,
                 priority: dictionary.goalStepEditor.bulkPriority,
                 scheduledTime: dictionary.goalStepEditor.itemTime,
+                scheduledDate: dictionary.goalStepEditor.itemDate,
               },
               applyToOtherSurface:
                 dictionary.goalStepEditor.applyToOtherSurface,
@@ -3682,6 +3739,7 @@ function GoalDetailCard({
               visible: dictionary.goalStepEditor.actionVisible,
             }}
             showScheduledTime={false}
+            showScheduledDate={true}
             value={actionPreferences}
             onApplyToOtherSurface={(nextPreferences) =>
               void applyActionPreferencesToOtherSurface(nextPreferences)
@@ -3885,6 +3943,7 @@ function GoalStepRow({
         parentId: goalStep.parentId,
         afterGoalStepId: goalStep.afterGoalStepId,
         bold: goalStep.bold,
+        scheduledDate: goalStep.scheduledDate,
         text,
       });
 
@@ -4033,6 +4092,8 @@ function GoalStepRow({
       }}
       parentId={goalStep.parentId}
       priority={goalStep.priority}
+      scheduledDate={goalStep.scheduledDate}
+      showScheduledDate
       selection={{
         isSelected,
         isSelectionMode,
@@ -4083,6 +4144,19 @@ function GoalStepRow({
       onMoveDown={() => moveGoalStepItem('down')}
       onMoveUp={() => moveGoalStepItem('up')}
       onOutdent={outdentGoalStepItem}
+      onSaveDate={(scheduledDate) =>
+        isDraft
+          ? setDraftGoalSteps((currentDrafts) =>
+              currentDrafts.map((draft) =>
+                draft.id === goalStep.id ? { ...draft, scheduledDate } : draft,
+              ),
+            )
+          : updateGoalStepScheduledDate({
+              scope,
+              goalStepId: goalStep.id,
+              scheduledDate,
+            })
+      }
       onSaveText={(text) =>
         isDraft
           ? persistDraftGoalStep(text)

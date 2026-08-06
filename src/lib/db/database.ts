@@ -46,14 +46,21 @@ type LegacyChecklistItem = Omit<
   bold?: boolean;
 };
 
-type LegacyGoal = Omit<Goal, 'categoryTagId'> & {
+type LegacyGoal = Omit<Goal, 'categoryTagId' | 'dueDate'> & {
   categoryTagId?: string | null;
   colorTagId?: string | null;
+  dueDate?: Goal['dueDate'];
 };
 
 type LegacyGoalStep = Omit<
   GoalStep,
-  'parentId' | 'collapsed' | 'categoryTagId' | 'priority' | 'ignored' | 'bold'
+  | 'parentId'
+  | 'collapsed'
+  | 'categoryTagId'
+  | 'priority'
+  | 'ignored'
+  | 'bold'
+  | 'scheduledDate'
 > & {
   parentId?: string | null;
   collapsed?: boolean;
@@ -62,6 +69,7 @@ type LegacyGoalStep = Omit<
   colorTagId?: string | null;
   ignored?: boolean;
   bold?: boolean;
+  scheduledDate?: GoalStep['scheduledDate'];
 };
 
 type LegacyCategoryTag = Omit<CategoryTag, 'colorHex'> & {
@@ -127,11 +135,12 @@ function migrateChecklistItem(item: LegacyChecklistItem): ChecklistItem {
 }
 
 function migrateGoal(goal: LegacyGoal): Goal {
-  const { categoryTagId, colorTagId, ...rest } = goal;
+  const { categoryTagId, colorTagId, dueDate, ...rest } = goal;
 
   return {
     ...rest,
     categoryTagId: categoryTagId ?? colorTagId ?? null,
+    dueDate: dueDate ?? null,
   };
 }
 
@@ -154,6 +163,7 @@ function migrateGoalStep(goalStep: LegacyGoalStep): GoalStep {
     priority,
     ignored,
     bold,
+    scheduledDate,
     ...rest
   } = goalStep;
 
@@ -165,6 +175,7 @@ function migrateGoalStep(goalStep: LegacyGoalStep): GoalStep {
     ignored: ignored ?? false,
     bold: bold ?? false,
     categoryTagId: categoryTagId ?? colorTagId ?? null,
+    scheduledDate: scheduledDate ?? null,
   };
 }
 
@@ -1018,6 +1029,25 @@ export class TickDatabase extends Dexie {
         await checklistItemsTable.put(
           migrateChecklistItem(item) as LegacyChecklistItem,
         );
+      }
+
+      for (const goalStep of await goalStepsTable.toArray()) {
+        await goalStepsTable.put(migrateGoalStep(goalStep) as LegacyGoalStep);
+      }
+    });
+
+    this.version(15).upgrade(async (transaction) => {
+      const goalsTable = transaction.table('goals') as Table<
+        LegacyGoal,
+        string
+      >;
+      const goalStepsTable = transaction.table('goalSteps') as Table<
+        LegacyGoalStep,
+        string
+      >;
+
+      for (const goal of await goalsTable.toArray()) {
+        await goalsTable.put(migrateGoal(goal) as LegacyGoal);
       }
 
       for (const goalStep of await goalStepsTable.toArray()) {

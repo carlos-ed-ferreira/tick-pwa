@@ -26,24 +26,31 @@ describe('task tree row action preference keys', () => {
     ]);
   });
 
-  it('preserves the target time visibility when copying between surfaces', () => {
+  it('preserves the target time and date visibility when copying between surfaces', () => {
     expect(
       copyTaskTreeRowActionPreferences({
         source: {
           ...defaultTaskTreeRowActionPreferences,
           priority: 'hidden',
           scheduledTime: false,
+          scheduledDate: false,
         },
         target: {
           ...defaultTaskTreeRowActionPreferences,
           priority: 'inline',
           scheduledTime: true,
+          scheduledDate: true,
         },
       }),
     ).toEqual({
       ...defaultTaskTreeRowActionPreferences,
       priority: 'hidden',
       scheduledTime: true,
+      scheduledDate: true,
     });
+  });
+
+  it('defaults the scheduled date field to visible', () => {
+    expect(defaultTaskTreeRowActionPreferences.scheduledDate).toBe(true);
   });
 });

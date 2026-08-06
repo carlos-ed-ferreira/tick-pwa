@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { createUserScope } from '@/lib/domain';
 import {
   categoryTagFromRemote,
+  goalFromRemote,
+  goalStepFromRemote,
   toRemotePayload,
 } from '@/lib/supabase/entity-mappers';
 
@@ -155,5 +157,85 @@ describe('new functional schema payloads', () => {
         sortRank: 'n',
       }),
     ).toMatchObject({ completed: false, ignored: true, bold: true });
+  });
+
+  it('round-trips the goal due date and the goal step scheduled date', () => {
+    const goalPayload = toRemotePayload(scope, 'goal', {
+      ...base,
+      id: 'goal-1',
+      groupId: null,
+      title: 'RUN',
+      categoryTagId: null,
+      sortRank: 'n',
+      completedAt: null,
+      category: 'now',
+      description: '',
+      status: 'active',
+      progressMode: 'steps',
+      progressValue: 0,
+      dueDate: '2026-08-20',
+      archivedAt: null,
+    });
+
+    expect(goalPayload).toMatchObject({ due_date: '2026-08-20' });
+
+    const goal = goalFromRemote(scope, {
+      id: 'goal-1',
+      user_id: 'user-1',
+      created_at: base.createdAt,
+      updated_at: base.updatedAt,
+      deleted_at: null,
+      client_updated_at: base.clientUpdatedAt,
+      revision: 1,
+      group_id: null,
+      title: 'RUN',
+      due_date: '2026-08-20',
+      category_tag_id: null,
+      sort_rank: 'n',
+      completed_at: null,
+    });
+
+    expect(goal.dueDate).toBe('2026-08-20');
+
+    const goalStepPayload = toRemotePayload(scope, 'goalStep', {
+      ...base,
+      id: 'step-1',
+      goalId: 'goal-1',
+      parentId: null,
+      text: 'Optional step',
+      completed: false,
+      ignored: false,
+      bold: false,
+      priority: false,
+      collapsed: false,
+      categoryTagId: null,
+      scheduledDate: '2026-08-20',
+      sortRank: 'n',
+    });
+
+    expect(goalStepPayload).toMatchObject({ scheduled_date: '2026-08-20' });
+
+    const goalStep = goalStepFromRemote(scope, {
+      id: 'step-1',
+      user_id: 'user-1',
+      created_at: base.createdAt,
+      updated_at: base.updatedAt,
+      deleted_at: null,
+      client_updated_at: base.clientUpdatedAt,
+      revision: 1,
+      goal_id: 'goal-1',
+      parent_id: null,
+      text: 'Optional step',
+      completed: false,
+      ignored: false,
+      bold: false,
+      priority: false,
+      collapsed: false,
+      category_tag_id: null,
+      scheduled_date: '2026-08-20',
+      sort_rank: 'n',
+    });
+
+    expect(goalStep.scheduledDate).toBe('2026-08-20');
   });
 });

@@ -42,6 +42,7 @@ export type Database = {
           revision: number;
           surface: string;
           updated_at: string;
+          use_own_name: boolean;
           user_id: string;
         };
         Insert: {
@@ -55,6 +56,7 @@ export type Database = {
           revision?: number;
           surface: string;
           updated_at?: string;
+          use_own_name?: boolean;
           user_id: string;
         };
         Update: {
@@ -68,14 +70,15 @@ export type Database = {
           revision?: number;
           surface?: string;
           updated_at?: string;
+          use_own_name?: boolean;
           user_id?: string;
         };
         Relationships: [];
       };
       checklist_items: {
         Row: {
-          category_tag_id: string | null;
           bold: boolean;
+          category_tag_id: string | null;
           checked: boolean;
           client_updated_at: string;
           collapsed: boolean;
@@ -94,8 +97,8 @@ export type Database = {
           user_id: string;
         };
         Insert: {
-          category_tag_id?: string | null;
           bold?: boolean;
+          category_tag_id?: string | null;
           checked?: boolean;
           client_updated_at?: string;
           collapsed?: boolean;
@@ -114,8 +117,8 @@ export type Database = {
           user_id: string;
         };
         Update: {
-          category_tag_id?: string | null;
           bold?: boolean;
+          category_tag_id?: string | null;
           checked?: boolean;
           client_updated_at?: string;
           collapsed?: boolean;
@@ -208,7 +211,6 @@ export type Database = {
       goal_groups: {
         Row: {
           category_tag_id: string | null;
-          bold: boolean;
           client_updated_at: string;
           created_at: string;
           deleted_at: string | null;
@@ -221,7 +223,6 @@ export type Database = {
         };
         Insert: {
           category_tag_id?: string | null;
-          bold?: boolean;
           client_updated_at?: string;
           created_at?: string;
           deleted_at?: string | null;
@@ -234,7 +235,6 @@ export type Database = {
         };
         Update: {
           category_tag_id?: string | null;
-          bold?: boolean;
           client_updated_at?: string;
           created_at?: string;
           deleted_at?: string | null;
@@ -257,6 +257,7 @@ export type Database = {
       };
       goal_steps: {
         Row: {
+          bold: boolean;
           category_tag_id: string | null;
           client_updated_at: string;
           collapsed: boolean;
@@ -269,12 +270,14 @@ export type Database = {
           parent_id: string | null;
           priority: boolean;
           revision: number;
+          scheduled_date: string | null;
           sort_rank: string;
           text: string;
           updated_at: string;
           user_id: string;
         };
         Insert: {
+          bold?: boolean;
           category_tag_id?: string | null;
           client_updated_at?: string;
           collapsed?: boolean;
@@ -287,12 +290,14 @@ export type Database = {
           parent_id?: string | null;
           priority?: boolean;
           revision?: number;
+          scheduled_date?: string | null;
           sort_rank: string;
           text?: string;
           updated_at?: string;
           user_id: string;
         };
         Update: {
+          bold?: boolean;
           category_tag_id?: string | null;
           client_updated_at?: string;
           collapsed?: boolean;
@@ -305,6 +310,7 @@ export type Database = {
           parent_id?: string | null;
           priority?: boolean;
           revision?: number;
+          scheduled_date?: string | null;
           sort_rank?: string;
           text?: string;
           updated_at?: string;
@@ -341,6 +347,7 @@ export type Database = {
           completed_at: string | null;
           created_at: string;
           deleted_at: string | null;
+          due_date: string | null;
           group_id: string | null;
           id: string;
           revision: number;
@@ -355,6 +362,7 @@ export type Database = {
           completed_at?: string | null;
           created_at?: string;
           deleted_at?: string | null;
+          due_date?: string | null;
           group_id?: string | null;
           id: string;
           revision?: number;
@@ -369,6 +377,7 @@ export type Database = {
           completed_at?: string | null;
           created_at?: string;
           deleted_at?: string | null;
+          due_date?: string | null;
           group_id?: string | null;
           id?: string;
           revision?: number;

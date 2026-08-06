@@ -1,6 +1,6 @@
 'use client';
 
-import { CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react';
+import { CalendarDays, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import {
   useCallback,
@@ -10,6 +10,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type ReactNode,
 } from 'react';
 import { IconButton, Input, ModalActionButton } from '@/components/ui';
 import type { LocalDateString } from '@/lib/domain';
@@ -47,14 +48,24 @@ export function DatePicker({
   label,
   placeholder,
   value,
+  variant = 'field',
+  renderTrigger,
   onChange,
+  onClear,
 }: {
   autoFocus?: boolean;
   disabled?: boolean;
   label: string;
-  placeholder: string;
+  placeholder?: string;
   value: string;
+  variant?: 'field' | 'trigger';
+  renderTrigger?: (args: {
+    isOpen: boolean;
+    onClick: () => void;
+    ariaLabel: string;
+  }) => ReactNode;
   onChange: (value: string) => void;
+  onClear?: () => void;
 }) {
   const { dictionary, locale, timezonePreference } = useAppContext();
   const fieldRef = useRef<HTMLDivElement | null>(null);
@@ -193,6 +204,17 @@ export function DatePicker({
     inputRef.current?.focus();
   }
 
+  function clearDate() {
+    onClear?.();
+    setIsOpen(false);
+    inputRef.current?.focus();
+  }
+
+  function toggleOpen() {
+    setMonthDate(selectedDate ?? today);
+    setIsOpen((current) => !current);
+  }
+
   const openDatePickerLabel = dictionary.calendar.openDatePicker.replace(
     '{label}',
     label,
@@ -266,7 +288,15 @@ export function DatePicker({
         })}
       </div>
 
-      <div className="mt-3 flex justify-end">
+      <div className="mt-3 flex items-center justify-between gap-2">
+        {onClear && value ? (
+          <ModalActionButton onClick={clearDate}>
+            <X aria-hidden="true" className="size-3.5" />
+            {dictionary.calendar.clearDate}
+          </ModalActionButton>
+        ) : (
+          <span />
+        )}
         <ModalActionButton onClick={() => selectDate(today)}>
           <CalendarDays aria-hidden="true" className="size-3.5" />
           {dictionary.calendar.today}
@@ -274,6 +304,21 @@ export function DatePicker({
       </div>
     </div>
   ) : null;
+
+  if (variant === 'trigger') {
+    return (
+      <div ref={fieldRef} className="relative inline-flex">
+        {renderTrigger?.({
+          isOpen,
+          onClick: toggleOpen,
+          ariaLabel: openDatePickerLabel,
+        })}
+        {typeof document === 'undefined' || !calendar
+          ? calendar
+          : createPortal(calendar, document.body)}
+      </div>
+    );
+  }
 
   return (
     <div
@@ -309,10 +354,7 @@ export function DatePicker({
           size="compact"
           className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded-full bg-[#f0c38e]/10 text-[#f7d7ad] hover:bg-[#f0c38e]/18 hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
           disabled={disabled}
-          onClick={() => {
-            setMonthDate(selectedDate ?? today);
-            setIsOpen((current) => !current);
-          }}
+          onClick={toggleOpen}
         >
           <CalendarDays aria-hidden="true" className="size-4" />
         </IconButton>

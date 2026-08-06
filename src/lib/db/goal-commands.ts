@@ -4,6 +4,7 @@ import type {
   GoalCategory,
   GoalGroup,
   GoalStep,
+  LocalDateString,
 } from '@/lib/domain';
 import {
   createRankAfter,
@@ -24,6 +25,18 @@ import { persistAccountEntityChange } from './account-persistence';
 
 function normalizeGoalTitle(title: string): string {
   return title.normalize('NFC').trim().toLocaleUpperCase();
+}
+
+function normalizeLocalDate(date: string | null): LocalDateString | null {
+  if (!date) {
+    return null;
+  }
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    return null;
+  }
+
+  return date as LocalDateString;
 }
 
 async function resolveOrphanOwnCategoryTagId(
@@ -973,6 +986,31 @@ export async function updateGoalTitle({
   });
 }
 
+export async function updateGoalDueDate({
+  scope,
+  goalId,
+  dueDate,
+}: {
+  scope: AppScope;
+  goalId: string;
+  dueDate: string | null;
+}): Promise<void> {
+  await db.transaction('rw', db.goals, async () => {
+    const goal = await getScopedGoal(scope, goalId);
+    const normalizedDueDate = normalizeLocalDate(dueDate);
+
+    if (!goal || goal.dueDate === normalizedDueDate) {
+      return;
+    }
+
+    const updatedGoal = touchGoal(scope, {
+      ...goal,
+      dueDate: normalizedDueDate,
+    });
+    await persistGoalUpdate(scope, updatedGoal, ['dueDate']);
+  });
+}
+
 export async function assignGoalCategory({
   scope,
   goalId,
@@ -1038,6 +1076,7 @@ export async function createGoalStep({
   parentId = null,
   afterGoalStepId = null,
   bold = false,
+  scheduledDate = null,
   text = '',
 }: {
   scope: AppScope;
@@ -1046,6 +1085,7 @@ export async function createGoalStep({
   parentId?: string | null;
   afterGoalStepId?: string | null;
   bold?: boolean;
+  scheduledDate?: string | null;
   text?: string;
 }): Promise<GoalStep> {
   if (!hasMeaningfulGoalStepText(text)) {
@@ -1080,6 +1120,7 @@ export async function createGoalStep({
       priority: false,
       collapsed: false,
       categoryTagId: null,
+      scheduledDate: normalizeLocalDate(scheduledDate),
       sortRank: createGoalStepInsertRank({ siblings, afterGoalStepId }),
       createdAt: now,
       updatedAt: now,
@@ -1151,6 +1192,31 @@ export async function updateGoalStepText({
 
     const updatedGoalStep = touchGoalStep(scope, { ...goalStep, text });
     await persistGoalStepUpdate(scope, updatedGoalStep, ['text']);
+  });
+}
+
+export async function updateGoalStepScheduledDate({
+  scope,
+  goalStepId,
+  scheduledDate,
+}: {
+  scope: AppScope;
+  goalStepId: string;
+  scheduledDate: string | null;
+}): Promise<void> {
+  await db.transaction('rw', db.goalSteps, async () => {
+    const goalStep = await getScopedGoalStep(scope, goalStepId);
+    const normalizedScheduledDate = normalizeLocalDate(scheduledDate);
+
+    if (!goalStep || goalStep.scheduledDate === normalizedScheduledDate) {
+      return;
+    }
+
+    const updatedGoalStep = touchGoalStep(scope, {
+      ...goalStep,
+      scheduledDate: normalizedScheduledDate,
+    });
+    await persistGoalStepUpdate(scope, updatedGoalStep, ['scheduledDate']);
   });
 }
 

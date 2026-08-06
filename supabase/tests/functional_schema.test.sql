@@ -1,5 +1,5 @@
 begin;
-select plan(21);
+select plan(22);
 
 select has_table('public', 'user_preferences', 'user_preferences exists');
 select has_table('public', 'goal_groups', 'goal_groups exists');
@@ -16,8 +16,9 @@ select hasnt_column('public', 'goals', 'category', 'goals.category was removed')
 select hasnt_column('public', 'goals', 'status', 'goals.status was removed');
 select hasnt_column('public', 'goals', 'progress_mode', 'goals.progress_mode was removed');
 select hasnt_column('public', 'goals', 'progress_value', 'goals.progress_value was removed');
-select hasnt_column('public', 'goals', 'due_date', 'goals.due_date was removed');
+select has_column('public', 'goals', 'due_date', 'goals.due_date exists');
 select hasnt_column('public', 'goals', 'archived_at', 'goals.archived_at was removed');
+select has_column('public', 'goal_steps', 'scheduled_date', 'goal_steps.scheduled_date exists');
 
 select ok(
   (

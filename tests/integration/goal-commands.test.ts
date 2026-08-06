@@ -24,6 +24,8 @@ import {
   toggleGoalStepBold,
   toggleGoalStepCollapsed,
   toggleGoalStepPriority,
+  updateGoalDueDate,
+  updateGoalStepScheduledDate,
   updateGoalStepText,
   updateGoalTitle,
 } from '@/lib/db';
@@ -556,5 +558,101 @@ describe('goal commands', () => {
     expect(activeGoalSteps).toHaveLength(0);
     expect(deletedRootGoalStep?.deletedAt).not.toBeNull();
     expect(deletedChildGoalStep?.deletedAt).not.toBeNull();
+  });
+
+  it('sets, normalizes, and clears a goal due date', async () => {
+    const scope = createGuestScope('goal-due-date-test');
+    const goal = await createGoal({ scope, title: 'Ship feature' });
+
+    await updateGoalDueDate({
+      scope,
+      goalId: goal.id,
+      dueDate: '2026-08-20',
+    });
+
+    expect((await db.goals.get(goal.id))?.dueDate).toBe('2026-08-20');
+
+    await updateGoalDueDate({
+      scope,
+      goalId: goal.id,
+      dueDate: 'not-a-date',
+    });
+
+    expect((await db.goals.get(goal.id))?.dueDate).toBeNull();
+
+    await updateGoalDueDate({
+      scope,
+      goalId: goal.id,
+      dueDate: '2026-08-20',
+    });
+    await updateGoalDueDate({
+      scope,
+      goalId: goal.id,
+      dueDate: null,
+    });
+
+    expect((await db.goals.get(goal.id))?.dueDate).toBeNull();
+  });
+
+  it('sets, normalizes, and clears a goal step scheduled date', async () => {
+    const scope = createGuestScope('goal-step-date-test');
+    const goal = await createGoal({ scope, title: 'Ship feature' });
+    const step = await createGoalStep({
+      scope,
+      goalId: goal.id,
+      text: 'Plan work',
+    });
+
+    await updateGoalStepScheduledDate({
+      scope,
+      goalStepId: step.id,
+      scheduledDate: '2026-08-20',
+    });
+
+    expect((await db.goalSteps.get(step.id))?.scheduledDate).toBe('2026-08-20');
+
+    await updateGoalStepScheduledDate({
+      scope,
+      goalStepId: step.id,
+      scheduledDate: 'not-a-date',
+    });
+
+    expect((await db.goalSteps.get(step.id))?.scheduledDate).toBeNull();
+
+    await updateGoalStepScheduledDate({
+      scope,
+      goalStepId: step.id,
+      scheduledDate: '2026-08-20',
+    });
+    await updateGoalStepScheduledDate({
+      scope,
+      goalStepId: step.id,
+      scheduledDate: null,
+    });
+
+    expect((await db.goalSteps.get(step.id))?.scheduledDate).toBeNull();
+  });
+
+  it('accepts and normalizes a scheduled date at creation time', async () => {
+    const scope = createGuestScope('goal-step-create-date-test');
+    const goal = await createGoal({ scope, title: 'Ship feature' });
+
+    const validStep = await createGoalStep({
+      scope,
+      goalId: goal.id,
+      text: 'Plan work',
+      scheduledDate: '2026-08-20',
+    });
+
+    expect(validStep.scheduledDate).toBe('2026-08-20');
+
+    const invalidStep = await createGoalStep({
+      scope,
+      goalId: goal.id,
+      text: 'Plan more work',
+      scheduledDate: 'not-a-date',
+    });
+
+    expect(invalidStep.scheduledDate).toBeNull();
   });
 });

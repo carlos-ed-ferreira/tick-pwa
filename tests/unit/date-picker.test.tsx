@@ -6,6 +6,7 @@ vi.mock('@/providers', () => ({
   useAppContext: () => ({
     dictionary: {
       calendar: {
+        clearDate: 'Clear date',
         nextMonth: 'Next month',
         openDatePicker: 'Open date picker for {label}',
         previousMonth: 'Previous month',
@@ -127,5 +128,84 @@ describe('DatePicker', () => {
 
     expect(screen.getByText('August 2026')).toBeInTheDocument();
     expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it('renders a compact trigger instead of the labeled field in trigger variant', () => {
+    const onChange = vi.fn();
+
+    render(
+      <DatePicker
+        label="Step date"
+        value="15-07-2026"
+        variant="trigger"
+        onChange={onChange}
+        renderTrigger={({ onClick, ariaLabel }) => (
+          <button type="button" aria-label={ariaLabel} onClick={onClick}>
+            Pick date
+          </button>
+        )}
+      />,
+    );
+
+    expect(screen.queryByText('Step date')).not.toBeInTheDocument();
+
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: 'Open date picker for Step date',
+      }),
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'July 20, 2026' }));
+
+    expect(onChange).toHaveBeenCalledWith('20-07-2026');
+  });
+
+  it('does not show a clear action when no value is set', () => {
+    render(
+      <DatePicker
+        label="Start date"
+        placeholder="DD-MM-YYYY"
+        value=""
+        onChange={vi.fn()}
+        onClear={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: 'Open date picker for Start date',
+      }),
+    );
+
+    expect(
+      screen.queryByRole('button', { name: 'Clear date' }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('calls onClear and closes the calendar when clearing a set value', () => {
+    const onClear = vi.fn();
+
+    render(
+      <DatePicker
+        label="Start date"
+        placeholder="DD-MM-YYYY"
+        value="15-07-2026"
+        onChange={vi.fn()}
+        onClear={onClear}
+      />,
+    );
+
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: 'Open date picker for Start date',
+      }),
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Clear date' }));
+
+    expect(onClear).toHaveBeenCalledOnce();
+    expect(
+      screen.queryByRole('dialog', { name: 'Select date' }),
+    ).not.toBeInTheDocument();
   });
 });

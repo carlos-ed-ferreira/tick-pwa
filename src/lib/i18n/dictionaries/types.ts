@@ -16,6 +16,7 @@ export interface TreeEditorDictionary {
   indentItem: string;
   dragItem: string;
   itemTime: string;
+  itemDate: string;
   makeTextBold: string;
   makeTextNormal: string;
   markPriority: string;
@@ -171,6 +172,7 @@ export interface Dictionary {
     transferSameDate: string;
     transferTargetDate: string;
     today: string;
+    clearDate: string;
     previousMonth: string;
     nextMonth: string;
     openDatePicker: string;
@@ -200,6 +202,8 @@ export interface Dictionary {
     assignGoalCategoryMenu: string;
     assignGoalColor: string;
     clearGoalCategory: string;
+    dueDateLabel: string;
+    assignGoalDueDate: string;
     assignGroupCategory: string;
     assignGroupCategoryMenu: string;
     assignGroupColor: string;

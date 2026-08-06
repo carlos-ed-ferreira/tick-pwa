@@ -63,6 +63,7 @@ export interface RemoteChecklistItem extends RemoteBaseRow {
 export interface RemoteGoal extends RemoteBaseRow {
   group_id: string | null;
   title: string;
+  due_date: string | null;
   category_tag_id: string | null;
   sort_rank: string;
   completed_at: string | null;
@@ -84,6 +85,7 @@ export interface RemoteGoalStep extends RemoteBaseRow {
   priority: boolean;
   collapsed: boolean;
   category_tag_id: string | null;
+  scheduled_date: string | null;
   sort_rank: string;
 }
 
@@ -242,6 +244,7 @@ export function toRemotePayload(
       ...serializeBaseEntity(scope, goal),
       group_id: goal.groupId,
       title: goal.title,
+      due_date: goal.dueDate,
       category_tag_id: goal.categoryTagId,
       sort_rank: goal.sortRank,
       completed_at: goal.completedAt,
@@ -261,6 +264,7 @@ export function toRemotePayload(
     priority: goalStep.priority,
     collapsed: goalStep.collapsed,
     category_tag_id: goalStep.categoryTagId,
+    scheduled_date: goalStep.scheduledDate,
     sort_rank: goalStep.sortRank,
   };
 }
@@ -353,7 +357,7 @@ export function goalFromRemote(scope: AppScope, row: RemoteGoal): Goal {
     status: row.completed_at ? 'completed' : 'active',
     progressMode: 'steps',
     progressValue: 0,
-    dueDate: null,
+    dueDate: (row.due_date as Goal['dueDate']) ?? null,
     categoryTagId: row.category_tag_id,
     sortRank: row.sort_rank,
     archivedAt: row.completed_at,
@@ -375,6 +379,7 @@ export function goalStepFromRemote(
     priority: row.priority ?? false,
     collapsed: row.collapsed,
     categoryTagId: row.category_tag_id,
+    scheduledDate: (row.scheduled_date as GoalStep['scheduledDate']) ?? null,
     sortRank: row.sort_rank,
   };
 }

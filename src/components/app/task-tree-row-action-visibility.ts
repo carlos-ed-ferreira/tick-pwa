@@ -13,6 +13,7 @@ export interface TaskTreeRowActionPreferences {
   outdent: TaskTreeRowActionPlacement;
   priority: TaskTreeRowActionPlacement;
   scheduledTime: boolean;
+  scheduledDate: boolean;
 }
 
 export const defaultTaskTreeRowActionPreferences: TaskTreeRowActionPreferences =
@@ -29,6 +30,7 @@ export const defaultTaskTreeRowActionPreferences: TaskTreeRowActionPreferences =
     outdent: 'inline',
     priority: 'menu',
     scheduledTime: true,
+    scheduledDate: true,
   };
 
 export function copyTaskTreeRowActionPreferences({
@@ -41,6 +43,7 @@ export function copyTaskTreeRowActionPreferences({
   return {
     ...source,
     scheduledTime: target.scheduledTime,
+    scheduledDate: target.scheduledDate,
   };
 }
 

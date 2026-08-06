@@ -3,6 +3,7 @@
 import {
   ArrowDown,
   ArrowUp,
+  CalendarDays,
   Clock3,
   GripVertical,
   IndentDecrease,
@@ -47,6 +48,7 @@ interface TaskTreeRowActionsMenuLabels {
     outdent: string;
     priority: string;
     scheduledTime: string;
+    scheduledDate: string;
   };
   applyToOtherSurface: string;
   close: string;
@@ -88,12 +90,14 @@ const placementActions: Array<{
 const binaryActions = [
   { icon: GripVertical, key: 'drag' },
   { icon: Clock3, key: 'scheduledTime' },
+  { icon: CalendarDays, key: 'scheduledDate' },
 ] as const;
 
 export function TaskTreeRowActionsMenu({
   labels,
   settings = [],
   showScheduledTime = true,
+  showScheduledDate = false,
   value,
   onApplyToOtherSurface = () => undefined,
   onChange,
@@ -101,6 +105,7 @@ export function TaskTreeRowActionsMenu({
   labels: TaskTreeRowActionsMenuLabels;
   settings?: readonly TaskTreePreferenceSetting[];
   showScheduledTime?: boolean;
+  showScheduledDate?: boolean;
   value: TaskTreeRowActionPreferences;
   onApplyToOtherSurface?: (value: TaskTreeRowActionPreferences) => void;
   onChange: (value: TaskTreeRowActionPreferences) => void;
@@ -215,6 +220,7 @@ export function TaskTreeRowActionsMenu({
 
             {binaryActions
               .filter(({ key }) => key !== 'scheduledTime' || showScheduledTime)
+              .filter(({ key }) => key !== 'scheduledDate' || showScheduledDate)
               .map(({ icon: ActionIcon, key }) => (
                 <PreferenceSettingRow
                   key={key}

@@ -146,6 +146,7 @@ export interface GoalStep extends BaseEntity {
   priority: boolean;
   collapsed: boolean;
   categoryTagId: string | null;
+  scheduledDate: LocalDateString | null;
   sortRank: string;
 }
 

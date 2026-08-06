@@ -26,6 +26,7 @@ const labels = {
     outdent: 'Outdent item',
     priority: 'Priority',
     scheduledTime: 'Task time',
+    scheduledDate: 'Task date',
   },
   applyToOtherSurface: 'Also apply to goal steps',
   close: 'Close',

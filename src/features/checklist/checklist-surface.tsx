@@ -701,6 +701,7 @@ export function ChecklistSurface({ dailyEntryId }: { dailyEntryId: string }) {
                   outdent: dictionary.dayEditor.outdentItem,
                   priority: dictionary.dayEditor.bulkPriority,
                   scheduledTime: dictionary.dayEditor.itemTime,
+                  scheduledDate: dictionary.dayEditor.itemDate,
                 },
                 applyToOtherSurface: dictionary.dayEditor.applyToOtherSurface,
                 close: dictionary.actions.cancel,

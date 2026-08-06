@@ -49,6 +49,10 @@ function normalizePreferences(
     typeof value?.scheduledTime === 'boolean'
       ? value.scheduledTime
       : normalized.scheduledTime;
+  normalized.scheduledDate =
+    typeof value?.scheduledDate === 'boolean'
+      ? value.scheduledDate
+      : normalized.scheduledDate;
 
   return normalized;
 }

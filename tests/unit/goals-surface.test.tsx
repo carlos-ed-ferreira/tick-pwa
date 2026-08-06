@@ -8,6 +8,7 @@ import {
 } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { GoalsSurface } from '@/features/goals';
+import { db } from '@/lib/db/database';
 import { ptBRDictionary } from '@/lib/i18n/dictionaries/pt-BR';
 
 const scope = {
@@ -33,6 +34,8 @@ const {
   softDeleteGoalGroupMock,
   toggleGoalStepCollapsedMock,
   updateCategoryTagMock,
+  updateGoalDueDateMock,
+  updateGoalStepScheduledDateMock,
   updateGoalStepTextMock,
   updateGoalTitleMock,
   useCategoryTagsMock,
@@ -57,6 +60,8 @@ const {
   softDeleteGoalGroupMock: vi.fn().mockResolvedValue(undefined),
   toggleGoalStepCollapsedMock: vi.fn().mockResolvedValue(undefined),
   updateCategoryTagMock: vi.fn().mockResolvedValue(undefined),
+  updateGoalDueDateMock: vi.fn().mockResolvedValue(undefined),
+  updateGoalStepScheduledDateMock: vi.fn().mockResolvedValue(undefined),
   updateGoalStepTextMock: vi.fn().mockResolvedValue(undefined),
   updateGoalTitleMock: vi.fn().mockResolvedValue(undefined),
   useCategoryTagsMock: vi.fn(),
@@ -102,7 +107,9 @@ vi.mock('@/lib/db', () => ({
   toggleGoalStepCollapsed: toggleGoalStepCollapsedMock,
   toggleGoalStepPriority: vi.fn().mockResolvedValue(undefined),
   updateCategoryTag: updateCategoryTagMock,
+  updateGoalDueDate: updateGoalDueDateMock,
   updateGoalGroupTitle: vi.fn().mockResolvedValue(undefined),
+  updateGoalStepScheduledDate: updateGoalStepScheduledDateMock,
   updateGoalStepText: updateGoalStepTextMock,
   updateGoalTitle: updateGoalTitleMock,
 }));
@@ -110,7 +117,17 @@ vi.mock('@/lib/db', () => ({
 vi.mock('@/providers', () => ({
   useAppContext: () => ({
     dictionary: {
+      calendar: {
+        clearDate: 'Clear date',
+        nextMonth: 'Next month',
+        openDatePicker: 'Open date picker for {label}',
+        previousMonth: 'Previous month',
+        selectDate: 'Select date',
+        today: 'Today',
+        weekdays: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
+      },
       goalStepEditor: {
+        itemDate: 'Step date',
         expandItem: 'Expand step',
         collapseItem: 'Collapse step',
         toggleItem: 'Change step status',
@@ -160,6 +177,8 @@ vi.mock('@/providers', () => ({
         assignGoalCategoryMenu: 'Assign category',
         assignGoalColor: 'Assign independent color',
         clearGoalCategory: 'Clear goal color/category',
+        dueDateLabel: 'Goal date',
+        assignGoalDueDate: 'Select goal date',
         assignGroupCategory: 'Assign group category',
         assignGroupCategoryMenu: 'Assign category',
         assignGroupColor: 'Assign independent color',
@@ -198,7 +217,11 @@ vi.mock('@/providers', () => ({
         delete: 'Delete',
       },
     },
+    locale: 'en',
     scope,
+    timezonePreference: {
+      timezone: 'America/Sao_Paulo',
+    },
   }),
 }));
 
@@ -238,6 +261,7 @@ function goal(overrides: Record<string, unknown>) {
     groupId: null,
     title: 'Focus',
     categoryTagId: null,
+    dueDate: null,
     completedAt: null,
     ...overrides,
   };
@@ -263,6 +287,7 @@ function goalStep(overrides: Record<string, unknown> = {}) {
       completed: false,
       collapsed: false,
       categoryTagId: null,
+      scheduledDate: null,
       priority: false,
       sortRank: 'U',
       ...overrides,
@@ -1008,7 +1033,9 @@ describe('GoalsSurface', () => {
     expect(header).toHaveClass('flex', 'items-center');
     expect(menu.parentElement?.parentElement).toBe(header);
     expect(indicator).toHaveClass('size-2.5', 'bg-[#f0c38e]');
-    expect(indicator).not.toHaveClass('shadow-[0_0_10px_rgba(240,195,142,0.55)]');
+    expect(indicator).not.toHaveClass(
+      'shadow-[0_0_10px_rgba(240,195,142,0.55)]',
+    );
     expect(indicator.querySelector('svg')).toBeNull();
     expect(categoryName).toHaveClass('truncate');
     expect(categoryName.compareDocumentPosition(indicator)).toBe(
@@ -1625,6 +1652,7 @@ describe('GoalsSurface', () => {
         parentId: null,
         afterGoalStepId: 'goal-step-1',
         bold: false,
+        scheduledDate: null,
         text: 'Draft step',
       });
     });
@@ -2079,6 +2107,160 @@ describe('GoalsSurface', () => {
       '--chip-edge': 'rgba(249, 115, 22, 0.6)',
       backgroundColor: 'rgba(249, 115, 22, 0.14)',
     });
+  });
+
+  it('renders the goal due date as a badge and updates it from the picker', () => {
+    useGoalsMock.mockImplementation((_scope, options = {}) => {
+      if (options.archived) {
+        return [];
+      }
+
+      return [
+        goal({
+          id: 'goal-1',
+          title: 'Focus',
+          dueDate: '2026-08-20',
+        }),
+      ];
+    });
+    useGoalStepTreeMock.mockReturnValue([goalStep()]);
+
+    render(<GoalsSurface />);
+    fireEvent.click(screen.getByRole('button', { name: 'Focus' }));
+
+    expect(screen.getByText('Aug 20, 2026')).toBeInTheDocument();
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Open date picker for Goal date' }),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'August 25, 2026' }));
+
+    expect(updateGoalDueDateMock).toHaveBeenCalledWith({
+      scope,
+      goalId: 'goal-1',
+      dueDate: '2026-08-25',
+    });
+  });
+
+  it('clears the goal due date from the picker popover', () => {
+    useGoalsMock.mockImplementation((_scope, options = {}) => {
+      if (options.archived) {
+        return [];
+      }
+
+      return [
+        goal({
+          id: 'goal-1',
+          title: 'Focus',
+          dueDate: '2026-08-20',
+        }),
+      ];
+    });
+    useGoalStepTreeMock.mockReturnValue([goalStep()]);
+
+    render(<GoalsSurface />);
+    fireEvent.click(screen.getByRole('button', { name: 'Focus' }));
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Open date picker for Goal date' }),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Clear date' }));
+
+    expect(updateGoalDueDateMock).toHaveBeenCalledWith({
+      scope,
+      goalId: 'goal-1',
+      dueDate: null,
+    });
+  });
+
+  it('does not render a due date badge when the goal has no due date', () => {
+    useGoalStepTreeMock.mockReturnValue([goalStep()]);
+
+    render(<GoalsSurface />);
+    fireEvent.click(screen.getByRole('button', { name: 'Focus' }));
+
+    expect(
+      screen.getByRole('button', { name: 'Open date picker for Goal date' }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/\w+ \d{1,2}, 2026/)).not.toBeInTheDocument();
+  });
+
+  describe('goal step date field visibility preference', () => {
+    afterEach(async () => {
+      await db.localPreferences.clear();
+    });
+
+    it('hides the goal step date field after toggling it off in the preferences dialog and keeps it hidden', async () => {
+      useGoalStepTreeMock.mockReturnValue([goalStep()]);
+
+      render(<GoalsSurface />);
+      fireEvent.click(screen.getByRole('button', { name: 'Focus' }));
+
+      expect(
+        screen.getByRole('button', { name: 'Open date picker for Step date' }),
+      ).toBeInTheDocument();
+
+      fireEvent.click(
+        screen.getByRole('button', { name: 'Configure step actions' }),
+      );
+      fireEvent.click(screen.getByRole('radio', { name: 'Step date: Hidden' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+
+      await waitFor(() => {
+        expect(
+          screen.queryByRole('button', {
+            name: 'Open date picker for Step date',
+          }),
+        ).not.toBeInTheDocument();
+      });
+
+      fireEvent.click(
+        screen.getByRole('button', { name: 'Configure step actions' }),
+      );
+
+      expect(
+        screen.getByRole('radio', { name: 'Step date: Hidden' }),
+      ).toHaveAttribute('aria-checked', 'true');
+    });
+  });
+
+  it('keeps a date selected on a still-draft goal step visible and carries it over once persisted', async () => {
+    useGoalStepTreeMock.mockReturnValue([]);
+
+    render(<GoalsSurface />);
+    fireEvent.click(screen.getByRole('button', { name: 'Focus' }));
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Start this goal by adding a step' }),
+    );
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Open date picker for Step date' }),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Today' }));
+
+    const trigger = screen.getByRole('button', {
+      name: 'Open date picker for Step date',
+    });
+
+    expect(trigger.textContent).toMatch(/^\d{2}\/\d{2}$/);
+    const shortLabel = trigger.textContent;
+
+    const input = screen.getByPlaceholderText('Write a step');
+    fireEvent.change(input, { target: { value: 'Buy groceries' } });
+    fireEvent.blur(input);
+
+    await waitFor(() => {
+      expect(createGoalStepMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          text: 'Buy groceries',
+          scheduledDate: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
+        }),
+      );
+    });
+
+    expect(
+      screen.getByRole('button', { name: 'Open date picker for Step date' }),
+    ).toHaveTextContent(shortLabel as string);
   });
 
   it('renders the goal category as a color dot instead of a text badge when useOwnName is true', () => {
