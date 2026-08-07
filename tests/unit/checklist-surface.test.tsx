@@ -1014,7 +1014,8 @@ describe('ChecklistSurface delete confirmation', () => {
     const row = input.closest('div[style]') as HTMLDivElement | null;
 
     expect(row).toHaveStyle({
-      boxShadow: 'inset 4px 0 0 0 rgba(240, 195, 142, 1)',
+      boxShadow:
+        'inset 4px 0 0 0 rgba(240, 195, 142, 1), inset 0 0 18px rgba(240, 195, 142, 0.12)',
     });
     expect(row?.style.backgroundColor).toBe('');
     expect(input.className.includes('font-medium')).toBe(false);
