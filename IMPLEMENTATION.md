@@ -117,7 +117,7 @@ dois dispositivos, carga de conta madura e restore/rollback da feature flag.
 
 **Evidência da Fase 0.3:** integração cobre transição `syncing`, falha, resumo
 agregado, retry com o mesmo ID e proteção por versão; teste de UI cobre a ação
-acessível. O gate `npm run check` passou com 57 arquivos e 402 testes em 11 de
+acessível. O gate `make check` passou com 57 arquivos e 402 testes em 11 de
 agosto de 2026; os E2E locais passaram em 22 cenários e os autenticados em 2,
 ambos em desktop e mobile, incluindo as transições `Syncing` e `Synced` sob
 latência remota simulada.
@@ -147,7 +147,7 @@ vulnerabilidades altas em dependências de produção.
 
 **Estado atual:** Next e `eslint-config-next` estão em 16.3.0; PostCSS, Nano ID,
 Sharp e Brace Expansion foram resolvidos em versões corrigidas. O comando
-`npm run audit:prod` reporta 0 vulnerabilidades e é obrigatório no App CI e em
+`make audit-prod` reporta 0 vulnerabilidades e é obrigatório no App CI e em
 releases manuais de migrations.
 
 **Estado desejado:** vulnerabilidades analisadas e corrigidas em PR dedicada;
@@ -166,7 +166,7 @@ advisory não alcançável e exposição enquanto não corrigido.
 **Critérios de aceite:** audit sem altas/críticas ou exceção documentada com
 prazo; suíte, build e E2E aprovados; nenhuma alteração automática destrutiva.
 
-**Validação:** `npm audit --omit=dev`, `npm run check`, dois E2E e revisão do
+**Validação:** `make audit-prod`, `make check`, dois E2E e revisão do
 grafo de dependências.
 
 ## CICD-01 — Ordenar quality gate, migrations e deploy
@@ -177,7 +177,7 @@ grafo de dependências.
 **Problema/lacuna — `P0`, CI/CD/GitHub:** migrations podem ser aplicadas por um
 workflow separado sem depender do sucesso do quality gate do mesmo commit.
 
-**Estado atual:** `app-ci.yml` roda audit de produção e `npm run check`.
+**Estado atual:** `app-ci.yml` roda `make audit-prod` e `make check`.
 `supabase-migrations.yml` é acionado por `workflow_run`, aceita somente App CI
 aprovado em push da `main`, faz checkout do `head_sha`, registra e verifica o
 SHA e só executa comandos de banco quando há caminhos relevantes alterados. A
@@ -386,7 +386,7 @@ acesso e simulação de quota.
 complexidade, tamanho, dependências arquiteturais, SAST e secrets não fazem
 parte do gate.
 
-**Estado atual:** `npm run check` cobre typecheck, comentários, ESLint, Vitest,
+**Estado atual:** `make check` cobre typecheck, comentários, ESLint, Vitest,
 Prettier e build. Baselines estruturais e de segurança estão no REVIEW.
 
 **Estado desejado:** gate rápido local e gate completo CI com coverage, ratchets,
@@ -551,7 +551,7 @@ manual do REVIEW.
 workflow documentado para updates.
 
 **Estado atual:** npm lockfile; atualizações manuais; Supabase CLI instalada
-2.98.2 enquanto o ambiente informou versão mais nova. O `npm ls` local também
+2.98.2 enquanto o ambiente informou versão mais nova. O `make deps-tree` local também
 mostrou módulos extraneous, sem prova de problema no lockfile.
 
 **Estado desejado:** detecção recorrente, PRs pequenas, classificação de risco,
@@ -579,11 +579,11 @@ o ambiente instalado possui pacotes extraneous.
 
 **Estado atual:** Vitest avisa sobre `priority` não booleano em mock de
 `next/image` e imprime falhas remotas esperadas; Playwright avisa sobre
-`NO_COLOR`; após instalação limpa, `npm ls --depth=0` lista cinco módulos
+`NO_COLOR`; após instalação limpa, `make deps-tree` lista cinco módulos
 extraneous ligados ao fallback WASM opcional do Sharp 0.35.3.
 
 **Estado desejado:** saída de teste limpa ou ruído esperado capturado
-explicitamente; `npm ci` reproduz árvore sem drift relevante.
+explicitamente; `make install-ci` reproduz árvore sem drift relevante.
 
 **Mudanças necessárias:** corrigir mocks/spies de teste; investigar ambiente
 extraneous a partir de instalação limpa; evitar esconder erro real com filtros
@@ -596,7 +596,7 @@ globais.
 **Critérios de aceite:** suítes aprovam sem warnings não explicados; instalação
 limpa reproduz a árvore do lockfile.
 
-**Validação:** `npm ci` em ambiente descartável, `npm ls --depth=0`, Vitest e os
+**Validação:** `make install-ci` em ambiente descartável, `make deps-tree`, Vitest e os
 dois comandos E2E.
 
 ## Estado das configurações externas

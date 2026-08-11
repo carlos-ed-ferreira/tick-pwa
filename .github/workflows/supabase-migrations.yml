@@ -45,15 +45,15 @@ jobs:
 
       - name: Install dependencies for manual release
         if: github.event_name == 'workflow_dispatch'
-        run: npm ci
+        run: make install-ci
 
       - name: Run checks for manual release
         if: github.event_name == 'workflow_dispatch'
-        run: npm run check
+        run: make check
 
       - name: Audit production dependencies for manual release
         if: github.event_name == 'workflow_dispatch'
-        run: npm run audit:prod
+        run: make audit-prod
 
   migrate-production:
     name: Apply production migrations
@@ -98,16 +98,16 @@ jobs:
 
       - name: Install dependencies
         if: steps.database-changes.outputs.changed == 'true'
-        run: npm ci
+        run: make install-ci
 
       - name: Repair superseded migration history
         if: steps.database-changes.outputs.changed == 'true'
-        run: npm run supabase:prod:migrations:repair
+        run: make supabase-prod-migrations-repair
 
       - name: Preview migrations
         if: steps.database-changes.outputs.changed == 'true'
-        run: npm run supabase:prod:db:dry-run
+        run: make supabase-prod-db-dry-run
 
       - name: Apply migrations
         if: steps.database-changes.outputs.changed == 'true'
-        run: npm run supabase:prod:db:push
+        run: make supabase-prod-db-push

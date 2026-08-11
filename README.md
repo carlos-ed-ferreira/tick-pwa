@@ -211,9 +211,9 @@ instalada globalmente. Não use credenciais de produção no ambiente local.
 git clone https://github.com/carlos-ed-ferreira/tick-pwa.git
 cd tick-pwa
 cp .env.example .env.local
-npm ci
-npm run supabase:start
-npm run supabase:status
+make install-ci
+make supabase-start
+make supabase-status
 ```
 
 Copie a chave local exibida por `supabase:status` para
@@ -223,8 +223,8 @@ ambiente local não devem ser usadas em produção nem incluídas em commits.
 Prepare schema, migrations e seed:
 
 ```bash
-npm run supabase:db:reset
-npm run dev
+make supabase-reset
+make dev
 ```
 
 A aplicação abre em `http://localhost:3000`. O Supabase Studio fica em
@@ -290,11 +290,11 @@ O fluxo local é:
 
 1. alterar o schema declarativo;
 2. iniciar o Supabase local;
-3. gerar uma migration com `npm run supabase:db:diff`;
+3. gerar uma migration com `make supabase-diff`;
 4. revisar o SQL gerado;
-5. recriar o banco com `npm run supabase:db:reset`;
+5. recriar o banco com `make supabase-reset`;
 6. rodar lint, pgTAP e os testes da aplicação;
-7. atualizar os tipos com `npm run supabase:types:local` quando necessário.
+7. atualizar os tipos com `make supabase-types-local` quando necessário.
 
 O reset aplica migrations e depois `supabase/seed.sql`. O pooler local está
 desabilitado. A aplicação usa HTTP/REST pelo cliente Supabase e não mantém uma
@@ -319,34 +319,40 @@ redirect, projeto Supabase, domínio e integração Vercel são externas ao Git.
 
 ## Comandos de desenvolvimento
 
-| Objetivo           | Make                               | npm                                      |
-| ------------------ | ---------------------------------- | ---------------------------------------- |
-| instalar           | `make install`                     | `npm install` ou `npm ci`                |
-| desenvolver        | `make dev`                         | `npm run dev`                            |
-| build/start        | `make build`, `make start`         | `npm run build`, `npm run start`         |
-| typecheck          | `make typecheck`                   | `npm run typecheck`                      |
-| lint               | `make lint`                        | `npm run lint`                           |
-| testes             | `make test`                        | `npm test`                               |
-| E2E padrão         | `make test-e2e`                    | `npm run test:e2e`                       |
-| E2E autenticado    | —                                  | `npm run test:e2e:account`               |
-| publicar em `main` | —                                  | `npm run publish`                        |
-| formatar/verificar | `make format`, `make format-check` | `npm run format`, `npm run format:check` |
-| gate atual         | `make check`                       | `npm run check`                          |
-| limpar gerados     | `make clean`                       | `npm run clean`                          |
+O `Makefile` é a interface única para operações do projeto. Não execute
+`npm`, `npx`, CLIs de serviço ou scripts diretamente. Se surgir uma rotina
+recorrente sem target, adicione-a ao `Makefile` e ao `make help` primeiro.
+
+| Objetivo           | Comando                             |
+| ------------------ | ----------------------------------- |
+| instalar           | `make install` ou `make install-ci` |
+| desenvolver        | `make dev`                          |
+| build/start        | `make build`, `make start`          |
+| typecheck          | `make typecheck`                    |
+| lint               | `make lint`                         |
+| testes             | `make test`                         |
+| E2E padrão         | `make test-e2e`                     |
+| E2E autenticado    | `make test-e2e-account`             |
+| publicar em `main` | `make publish`                      |
+| auditar produção   | `make audit-prod`                   |
+| dependências       | `make deps-tree`                    |
+| formatar/verificar | `make format`, `make format-check`  |
+| gate atual         | `make check`                        |
+| limpar gerados     | `make clean`                        |
 
 Supabase:
 
-| Objetivo      | Make                                        | npm                                               |
-| ------------- | ------------------------------------------- | ------------------------------------------------- |
-| iniciar/parar | `make supabase-start`, `make supabase-stop` | `npm run supabase:start`, `npm run supabase:stop` |
-| status        | `make supabase-status`                      | `npm run supabase:status`                         |
-| reset         | `make supabase-reset`                       | `npm run supabase:db:reset`                       |
-| diff          | `make supabase-diff`                        | `npm run supabase:db:diff`                        |
-| lint          | `make supabase-lint`                        | `npm run supabase:db:lint`                        |
-| pgTAP         | `make supabase-test-db`                     | `npm run supabase:test:db`                        |
-| tipos         | `make supabase-types-local`                 | `npm run supabase:types:local`                    |
+| Objetivo      | Comando                                     |
+| ------------- | ------------------------------------------- |
+| iniciar/parar | `make supabase-start`, `make supabase-stop` |
+| status        | `make supabase-status`                      |
+| reset         | `make supabase-reset`                       |
+| diff          | `make supabase-diff`                        |
+| lint          | `make supabase-lint`                        |
+| pgTAP         | `make supabase-test-db`                     |
+| tipos         | `make supabase-types-local`                 |
 
-`npm run check` executa typecheck, lint, Vitest, format-check e build. E2E e
+`make check` executa typecheck, lint, Vitest, format-check e build. E2E e
 validações de banco são separados. Os critérios de aprovação e gates
 planejados ficam exclusivamente no [REVIEW.md](REVIEW.md).
 
@@ -368,14 +374,14 @@ que autorizam migrations no ambiente GitHub `production` continuam
 intencionalmente ausentes até o novo workflow de `CICD-01` ser mesclado e
 validado no GitHub.
 
-`.github/workflows/app-ci.yml` executa audit de produção e `npm run check` em
+`.github/workflows/app-ci.yml` executa `make audit-prod` e `make check` em
 PRs e pushes para `main`. `.github/workflows/supabase-migrations.yml` só aceita
 o SHA de um `App CI` aprovado na `main`; execução manual roda o mesmo quality
 gate antes de acessar o environment `production`. O workflow registra o SHA,
 detecta mudanças de banco, faz dry-run e então aplica migrations.
 
 A publicação cotidiana parte da branch `dev`. Depois de criar o commit, execute
-`npm run publish`. O comando exige worktree limpo, envia `dev`, cria ou reutiliza
+`make publish`. O comando exige worktree limpo, envia `dev`, cria ou reutiliza
 o pull request para `main` e habilita squash automático. O comando aguarda o
 check obrigatório `Check app`, confirma o merge e reconcilia `dev` com a nova
 `main` para preparar a publicação seguinte. Não faça push direto para `main` nem
