@@ -2,13 +2,29 @@ import { describe, expect, it, vi } from 'vitest';
 import { publishDevelopmentBranch } from '../../scripts/publish-branch.mjs';
 
 function createExecutor(responses) {
-  return vi.fn(async () => responses.shift() ?? '');
+  return vi.fn(async () => {
+    const response = responses.shift() ?? '';
+
+    if (response instanceof Error) {
+      throw response;
+    }
+
+    return response;
+  });
+}
+
+function createMissingChecksError() {
+  const error = new Error("no required checks reported on the 'dev' branch");
+  error.stderr = "no required checks reported on the 'dev' branch";
+  return error;
 }
 
 describe('publishDevelopmentBranch', () => {
   it('pushes dev, creates a PR and enables automatic merge', async () => {
     const execute = createExecutor([
       'dev\n',
+      '',
+      '',
       '',
       '',
       '',
@@ -29,6 +45,8 @@ describe('publishDevelopmentBranch', () => {
       ['git', ['branch', '--show-current']],
       ['git', ['status', '--porcelain']],
       ['gh', ['auth', 'status']],
+      ['git', ['fetch', 'origin', 'main']],
+      ['git', ['merge', '--no-edit', 'origin/main']],
       ['git', ['push', '--set-upstream', 'origin', 'dev']],
       [
         'gh',
@@ -96,6 +114,8 @@ describe('publishDevelopmentBranch', () => {
       '',
       '',
       '',
+      '',
+      '',
       'https://github.com/example/tick/pull/2\n',
       '',
       '',
@@ -127,10 +147,37 @@ describe('publishDevelopmentBranch', () => {
       '',
       '',
       '',
+      '',
+      '',
       'https://github.com/example/tick/pull/3\n',
       '',
       '',
       'OPEN\n',
+      'MERGED\n',
+      '',
+      '',
+      '',
+    ]);
+    const wait = vi.fn();
+
+    await publishDevelopmentBranch({ execute, wait, write: vi.fn() });
+
+    expect(wait).toHaveBeenCalledWith(2_000);
+    expect(execute).toHaveBeenLastCalledWith('git', ['push', 'origin', 'dev']);
+  });
+
+  it('retries while GitHub has not registered the required check', async () => {
+    const execute = createExecutor([
+      'dev\n',
+      '',
+      '',
+      '',
+      '',
+      '',
+      'https://github.com/example/tick/pull/4\n',
+      '',
+      createMissingChecksError(),
+      '',
       'MERGED\n',
       '',
       '',

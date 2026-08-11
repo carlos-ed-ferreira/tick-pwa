@@ -24,6 +24,8 @@ export async function publishDevelopmentBranch({
   }
 
   await execute('gh', ['auth', 'status']);
+  await execute('git', ['fetch', 'origin', 'main']);
+  await execute('git', ['merge', '--no-edit', 'origin/main']);
   await execute('git', ['push', '--set-upstream', 'origin', 'dev']);
 
   const openPullRequest = (
@@ -61,19 +63,48 @@ export async function publishDevelopmentBranch({
   }
 
   await execute('gh', ['pr', 'merge', pullRequest, '--auto', '--squash']);
-  await execute('gh', [
-    'pr',
-    'checks',
-    pullRequest,
-    '--required',
-    '--watch',
-    '--fail-fast',
-  ]);
+  await waitForRequiredChecks(pullRequest, execute, wait);
   await waitForMergedPullRequest(pullRequest, execute, wait);
   await execute('git', ['fetch', 'origin', 'main']);
   await execute('git', ['merge', '--no-edit', 'origin/main']);
   await execute('git', ['push', 'origin', 'dev']);
   write(`Main atualizada: ${pullRequest}`);
+}
+
+async function waitForRequiredChecks(pullRequest, execute, wait) {
+  for (let attempt = 0; attempt < 30; attempt += 1) {
+    try {
+      await execute('gh', [
+        'pr',
+        'checks',
+        pullRequest,
+        '--required',
+        '--watch',
+        '--fail-fast',
+      ]);
+      return;
+    } catch (error) {
+      if (!isMissingRequiredChecksError(error)) {
+        throw error;
+      }
+    }
+
+    await wait(2_000);
+  }
+
+  throw new Error(
+    'O GitHub não registrou os checks obrigatórios dentro de 60 segundos.',
+  );
+}
+
+function isMissingRequiredChecksError(error) {
+  const message = error instanceof Error ? error.message : String(error);
+  const stderr =
+    error && typeof error === 'object' && 'stderr' in error
+      ? String(error.stderr)
+      : '';
+
+  return `${message}\n${stderr}`.includes('no required checks reported');
 }
 
 async function waitForMergedPullRequest(pullRequest, execute, wait) {
