@@ -1,259 +1,172 @@
 # AGENTS.md
 
-## Propósito
+## Autoridade e escopo
 
-Este guia orienta agentes de código ao alterar o Tick. Ele vale para todo o
-repositório, salvo quando houver um `AGENTS.md` mais específico.
+Este arquivo rege agentes no repositório inteiro, salvo `AGENTS.md` mais
+específico. Leia primeiro o [README.md](README.md) para o estado real e o
+[REVIEW.md](REVIEW.md) para gates e evidências. Consulte o
+[IMPLEMENTATION.md](IMPLEMENTATION.md) para lacunas futuras; não trate um item
+planejado como já implementado.
 
-Tick é um app web único, uma PWA de produtividade pessoal mobile-first para
-tarefas diárias, checklists e metas. Preserve simplicidade, velocidade,
-responsividade e uso frequente em dispositivos móveis.
+## Antes de editar
 
-## Stack
+1. Entenda o pedido e não amplie o escopo.
+2. Leia a arquitetura e os fluxos relevantes no README.
+3. Localize a área, testes relacionados e implementações semelhantes.
+4. Procure primitives, componentes, hooks, helpers e comandos existentes.
+5. Identifique regras de negócio, escopos e dados afetados.
+6. Consulte os gates aplicáveis no REVIEW.
+7. Verifique o worktree e preserve mudanças do usuário.
+8. Liste riscos de dados, segurança, offline, i18n e responsividade.
+9. Prefira uma mudança pequena, reversível e coerente.
 
-- Next.js 16
-- React 19
-- TypeScript
-- Tailwind CSS 4
-- Dexie + IndexedDB
-- Supabase Auth + Postgres
-- Serwist PWA
-- Vercel
+Não redesenhe áreas não relacionadas. Não crie uma arquitetura paralela para
+uma feature isolada.
 
-## Arquitetura
+## Skills locais
 
-Estrutura principal:
+Use a Skill correspondente em `.agents/skills` quando a tarefa envolver TDD,
+persistência local-first, UI, i18n ou dependências. A Skill operacionaliza o
+workflow, mas não substitui este arquivo nem os gates do REVIEW.
 
-```text
-src/app           rotas Next.js e PWA
-src/components    componentes compartilhados
-src/features      áreas funcionais
-src/hooks         hooks reutilizáveis
-src/lib/db        Dexie, schema local e comandos locais/cache
-src/lib/domain    tipos e regras de domínio
-src/lib/i18n      idioma e dicionários
-src/lib/supabase  client, auth, persistência de conta e cache
-src/lib/time      helpers de data e timezone
-src/providers     providers globais
-tests             testes unitários, integração e E2E
-supabase          configuração, seed e migrations SQL
-docs              documentação detalhada por feature
-```
+## Arquitetura e simplicidade
 
-Mantenha regras de domínio perto da feature ou da camada responsável. UI não
-deve escrever diretamente em tabelas Dexie; use comandos em `src/lib/db` ou a
-camada de persistência apropriada.
+Respeite as fronteiras documentadas no README e a direção das dependências.
+Regra de domínio não pertence à UI. Escritas IndexedDB passam por comandos de
+`src/lib/db`; não escreva diretamente em tabelas Dexie a partir de componentes.
+Acesso Supabase pertence a `src/lib/supabase` ou ao contrato de servidor
+adotado pelo projeto.
 
-## Modos de uso
+Preserve linguagem de domínio, invariantes e contratos. Use DDD apenas onde a
+complexidade justificar; CRUD não precisa de repositories, services, DTOs ou
+factories cerimoniais.
 
-Existem dois modos separados.
+Antes de abstrair, procure repetição real e avalie se a abstração reduz
+complexidade. Prefira código explícito e design incremental. Não divida módulos
+apenas para satisfazer LOC e não aumente hotspots sem avaliar uma extração
+coesa.
 
-Modo local sem conta:
+## TDD e ordem de implementação
 
-- escopo `guest:<installationId>`;
-- entidades ficam apenas no IndexedDB do dispositivo;
-- dados locais não são enviados ao Supabase;
-- dados locais não são migrados automaticamente para conta.
+Para regra nova, bug ou refatoração comportamental, trabalhe em RED, GREEN e
+REFACTOR:
 
-Modo autenticado com conta:
+1. escreva um teste que falhe pelo motivo correto;
+2. implemente somente o necessário;
+3. simplifique com a suíte verde;
+4. execute os gates aplicáveis.
 
-- escopo `user:<supabaseUserId>`;
-- autenticação via Supabase;
-- dados da conta são persistidos no Supabase;
-- alterações são confirmadas primeiro no cache IndexedDB da conta;
-- gravações Supabase são executadas em ordem depois do commit local;
-- falhas remotas devem restaurar o valor canônico e mostrar feedback;
-- dados locais de convidado não entram na conta.
+Bugfix deve reproduzir o bug em teste sempre que tecnicamente viável. Não
+enfraqueça teste para aceitar comportamento incorreto. Use dados isolados e
+nunca PII, secrets ou dados de produção.
 
-Não implemente sync ou migração automática do modo local para o modo
-autenticado. Se uma mudança parecer exigir isso, pare e valide a decisão de
-produto antes de codar.
+Em feature full-stack, implemente primeiro domínio, invariantes, validação,
+persistência, autorização, contrato e seus testes; depois UI, integração,
+loading, vazio, erro e E2E. Tarefa puramente visual não exige backend artificial.
 
-## Banco, ambientes e segurança
+## Local-first e escopos
 
-IndexedDB/Dexie é a base do modo local. Entidades principais não devem ir para
-`localStorage`; use `localStorage` apenas para preferências pequenas, como
-idioma ou flags de UI.
+A interação principal deve confirmar localmente antes da rede. Toda mudança de
+persistência deve considerar retry, idempotência, ordem, duplicação, conflito,
+rollback, reconexão, fila e estado canônico. Ação do usuário não pode
+desaparecer silenciosamente.
 
-Em desenvolvimento, Supabase autenticado usa Supabase local via Docker. O
-ambiente local deve usar:
+Preserve isolamento estrito:
 
-```bash
-NEXT_PUBLIC_TICK_SUPABASE_ENV=local
-NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321
-```
+- `guest:<installationId>` nunca envia entidades ao Supabase;
+- `user:<supabaseUserId>` nunca lê nem grava dados de outro usuário;
+- trocar de modo não mistura escopos;
+- falha remota precisa de feedback recuperável.
 
-Em `localhost`, o app só habilita Supabase quando a URL é local. Nunca use URL
-ou anon key de produção em `.env.local`.
+O estado atual não possui fila remota durável. Não prometa garantia inexistente
+e não crie sync paralelo sem decisão arquitetural.
 
-Produção roda na Vercel e usa:
+O produto futuro terá guest limitado, trial autenticado de 7 dias e assinatura.
+Trial e assinante devem usar o mesmo modelo de dados e persistência; somente o
+entitlement difere. O backend deve validar entitlement. Preços provisórios
+(`R$ 10,00/mês` no Brasil e `US$ 5.00/mês` fora) devem ser centralizados quando
+implementados.
 
-```bash
-NEXT_PUBLIC_TICK_SUPABASE_ENV=production
-```
+Não migre dados guest incidentalmente durante login. A migração futura deve ser
+uma feature explícita, idempotente, testável, com ownership, retry e tratamento
+de falha parcial, conforme `IMPLEMENTATION.md`.
 
-Fora de `localhost`, Supabase só deve ser habilitado quando o ambiente
-`production` estiver explícito. Migrations remotas são restritas ao GitHub
-Actions.
+## Banco, API e segurança
 
-O estado declarativo do Postgres fica em `supabase/schemas/tick.sql`.
-Migrations futuras devem ser geradas por diff a partir desse arquivo e
-revisadas antes de serem aplicadas. Testes estruturais do banco ficam em
-`supabase/tests` e rodam com `make supabase-test-db`.
+Trate `supabase/schemas/tick.sql` como fonte declarativa. Gere migrations por
+diff, revise o SQL e valide banco limpo, constraints, RLS, policies e
+compatibilidade de rollout. Produção só recebe migrations pelo fluxo autorizado.
 
-O banco local é gerenciado pelo Supabase CLI/Docker. O banco production é o
-Supabase production configurado na Vercel e no GitHub Actions.
+Derive usuário do token no servidor; nunca confie em `user_id`, entitlement ou
+preço enviados pela UI. Inclua testes negativos de autorização. Considere XSS,
+CSRF, SSRF, injection, secrets, abuso, rate limit, operações destrutivas,
+webhooks duplicados e ownership quando aplicável.
 
-## UX e responsividade
+Não adicione dependência antes de verificar solução existente, manutenção,
+compatibilidade, licença, vulnerabilidades e impacto em bundle/runtime. Nunca
+use atualização destrutiva ou `--force` automaticamente.
 
-Tick é uma PWA mobile-first. Toda interface deve ser amigável para celulares,
-tablets, notebooks pequenos e desktops grandes.
+## Código e comentários
 
-Ao alterar UI, trate consistência visual e UX como critério de aceite: preserve
-hierarquia clara, espaçamentos confortáveis, controles próximos do contexto em
-que atuam, alturas coerentes entre elementos relacionados e padrões visuais já
-usados pelo sistema.
+Não adicione comentários de linha, bloco, JSDoc, TODO, código comentado ou
+comentários gerados por IA em código, testes, CSS ou SQL. Expresse intenção com
+nomes, tipos, funções coesas e módulos claros. Explicações duradouras pertencem
+a Markdown. Arquivos gerados e service workers gerados não devem ser editados
+manualmente.
 
-Prefira auto-save, edição inline, feedback contextual e estados mínimos de
-loading. Não bloqueie fluxos do modo local por rede. Para conta autenticada,
-falhas de Supabase devem ter feedback claro sem misturar dados locais e dados da
-conta.
+## UI, mobile e acessibilidade
 
-Use superfícies compartilhadas (`card-surface`, `card-surface-soft`,
-`card-surface-strong`) quando fizer sentido. Evite abstrações visuais sem ganho
-real e evite cards aninhados desnecessários.
+Projete mobile-first e depois expanda. Avalie touch targets, teclado virtual,
+overflow, scroll, conteúdo longo, loading, vazio, erro e desktop. Quando mobile
+precisar de composição diferente, preserve semântica e regra de negócio em vez
+de comprimir o desktop.
 
-Cards que servem de container — tarefas do dia, etapas de meta, cartões de meta
-e de grupo — não levam borda. A separação vem do fundo e da sombra; borda só
-onde ela comunica algo, como estado de hover, seleção ou destino de drop.
+Reutilize primitives, tokens e padrões antes de criar componentes. Não force
+reutilização sem equivalência semântica. Preserve a linguagem visual e não
+redesenhe telas sem pedido.
 
-Quando a borda for necessária, desenhe com `inset-ring-hairline` em vez de
-`border`, e use `inset-ring-(--alguma-var)` quando a cor for dinâmica. O token
-`--hairline` vale 1.5px em telas de 1x e 1px acima disso, porque um traço de
-1 pixel físico numa curva não cobre um pixel inteiro e a quina arredondada
-renderiza mais fraca que a reta. `border-width` é arredondado para pixels
-inteiros pelo navegador e não resolve isso; o spread de `box-shadow` resolve.
-Para borda tracejada use o primitivo `DashedRing`, que desenha o traço em SVG e
-mantém cor e ritmo constantes ao longo da curva.
+Prefira hierarquia, espaço, alinhamento e contraste a bordas. Evite caixas em
+excesso e cards aninhados. Containers de tarefas, etapas, metas e grupos usam
+superfície e sombra, sem borda padrão. Quando necessária, use os primitives de
+ring existentes; para traço, use `DashedRing`.
 
-## Formulários e feedback
+Formulários controlados usam `noValidate` e feedback do app. Não use
+`window.alert`, `window.confirm` ou `window.prompt`. Inputs estruturados devem
+desabilitar assistência automática quando adequado. Preserve foco, teclado,
+semântica, nome acessível e contraste.
 
-Formulários React controlados pela aplicação devem usar `noValidate`.
-Validação visível deve ser local e estilizada pelo app.
+## i18n, datas e timezone
 
-Não use `window.alert`, `window.confirm` ou `window.prompt`. Use mensagens
-inline, toast, banner, modal ou sheet.
+Toda string de produto nova deve entrar nos dicionários tipados `pt-BR` e `en`
+na mesma mudança. Preserve fallback, interpolação, pluralização e terminologia.
+Não espalhe texto traduzível em componentes.
 
-Inputs curtos/estruturados devem desabilitar assistência automática quando
-adequado:
+Datas de calendário usam helpers timezone-aware de `src/lib/time`. Não recorte
+UTC manualmente para representar um dia local.
 
-```tsx
-spellCheck={false}
-autoCorrect="off"
-autoCapitalize="none"
-```
+## Robustez e performance
 
-Prefira o primitivo `Input` quando ele já centraliza esses padrões.
+Teste entradas inválidas, ausência de dados, rede indisponível, timeout,
+concorrência, retry, duplicação, estado parcial, rollback e permissão negada
+quando aplicável. Não engula exceções silenciosamente.
 
-## Datas e localização
+Evite N+1, consultas ilimitadas, payload excessivo, loops sem limite, chamadas
+sequenciais evitáveis, refresh redundante e fila sem limite. Meça caminhos
+críticos antes de otimizar. Siga baselines e ratchets do REVIEW.
 
-O app suporta `pt-BR` e `en`. Datas diárias devem usar helpers timezone-aware em
-`src/lib/time`; não recorte strings UTC manualmente para representar dias de
-calendário.
+## Documentação e conclusão
 
-## TDD e testes
+Atualize o README quando mudar estado real, setup, arquitetura, comandos,
+integrações ou operação. Atualize AGENTS quando mudar como o agente trabalha,
+REVIEW quando mudar gates e IMPLEMENTATION quando descobrir uma lacuna ainda
+não resolvida. Atualize a Skill quando mudar o procedimento que ela
+operacionaliza. Documentação detalhada de feature fica em `docs/`.
 
-Regra obrigatória: antes de codar qualquer feature ou refatoração
-comportamental, crie ou ajuste testes primeiro.
+Antes de concluir:
 
-Use:
-
-- unitários para domínio, helpers, datas, validações, hooks e componentes;
-- integração para Dexie, escopos, modo local, modo autenticado, Supabase local e
-  auth;
-- E2E para fluxos críticos de navegador e responsividade.
-
-Inclua regressões para:
-
-- modo local sem conta;
-- modo autenticado com conta;
-- troca entre local e conta;
-- garantia de que dados locais não vão para Supabase;
-- garantia de que dados autenticados ficam associados ao usuário correto.
-
-## Comentários de código
-
-Não adicione comentários em arquivos de código. Isso inclui comentários de
-linha, de bloco, JSDoc, observações em testes, CSS e SQL. Nomes, tipos, funções e
-estrutura devem tornar a implementação compreensível; explicações duradouras
-pertencem ao `README.md`, ao `AGENTS.md` ou a um documento em `docs/`.
-
-`npm run lint` verifica essa regra antes do ESLint. Use
-`npm run comments:remove` para remover comentários detectados. Arquivos gerados
-como `next-env.d.ts` e os service workers do Serwist ficam fora dessa validação
-e não devem ser editados manualmente.
-
-## Validações
-
-Comandos Make:
-
-```bash
-make install
-make dev
-make build
-make start
-make lint
-make typecheck
-make test
-make test-e2e
-make format
-make format-check
-make check
-make clean
-make supabase-start
-make supabase-stop
-make supabase-status
-make supabase-reset
-make supabase-diff
-make supabase-lint
-make supabase-test-db
-make supabase-types-local
-```
-
-`make lint` rejeita comentários de código e depois executa o ESLint. O comando
-`make check` delega para `npm run check`, que executa typecheck, lint, testes,
-format-check e build. E2E roda separadamente com `make test-e2e` ou
-`npm run test:e2e`. O cenário autenticado com latência simulada roda com
-`npm run test:e2e:account`.
-
-Antes de finalizar mudanças de código, rode os checks aplicáveis. Se não rodar
-algum check, informe o motivo.
-
-## CI/CD
-
-- `.github/workflows/app-ci.yml`: roda `npm run check` em PRs e pushes para
-  `main`.
-- `.github/workflows/supabase-migrations.yml`: aplica migrations production via
-  GitHub Actions.
-- Vercel faz deploy automático a partir da `main`.
-
-Migrations em `supabase/migrations` devem ser compatíveis com a versão anterior
-e a nova versão da aplicação, já que Vercel e migrations são acionados a partir
-da `main`. Quando o frontend passar a gravar uma coluna nova, faça rollout em
-duas etapas: migration aditiva primeiro e frontend depois da confirmação.
-
-## Documentação
-
-Atualize `README.md` quando mudar setup, comandos, deploy, autenticação,
-persistência, PWA, Supabase, testes ou comportamento relevante para humanos.
-
-Atualize `AGENTS.md` quando mudar regras do projeto, decisões arquiteturais,
-persistência, validação, UX base, testes, CI/CD ou fluxo de trabalho para
-agentes.
-
-Documentação detalhada de uma feature vai em `docs/`, com um resumo curto e um
-link no `README.md`. Exemplo: `docs/importacao-json.md`, o contrato do JSON
-aceito pela importação do calendário — atualize-o sempre que o formato ou as
-regras de validação mudarem.
-
-Mantenha documentação curta, atual e acionável.
+1. execute os gates aplicáveis do REVIEW;
+2. corrija regressões causadas pela alteração;
+3. revise o diff por ruído, código morto, logs e comentários;
+4. informe resultados e comandos executados;
+5. informe gates omitidos e motivo;
+6. diferencie falhas preexistentes de regressões novas.

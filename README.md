@@ -1,159 +1,241 @@
 # Tick
 
-Tick é uma PWA de produtividade pessoal para acompanhamento de tarefas e metas.
-O produto é mobile-first, responsivo e deve continuar útil
-sem conta, com dados salvos no próprio dispositivo.
+Tick é uma PWA mobile-first de produtividade pessoal para organizar tarefas
+diárias, checklists hierárquicos, categorias, grupos de metas, metas e etapas.
+O produto funciona no navegador em dois modos: local sem conta e autenticado
+com persistência remota.
 
-## Stack
+## Capacidades atuais
 
-- Next.js 16
-- React 19
-- TypeScript
-- Tailwind CSS 4
-- Dexie + IndexedDB
-- Supabase Auth + Postgres
-- Serwist PWA
-- Vercel
+- calendário mensal e tarefas por dia;
+- tarefas e subtarefas hierárquicas;
+- criação e limpeza em lote;
+- importação JSON;
+- categorias separadas por superfície;
+- grupos de metas, metas e etapas hierárquicas;
+- instalação como PWA e fallback de navegação offline;
+- interface em português do Brasil e inglês;
+- modo local e modo autenticado por allowlist.
 
-## Arquitetura
+## Arquitetura atual
 
-O repositório é um app web único em Next.js. A UI fica em `src/app`,
-`src/features`, `src/components`, `src/hooks` e `src/providers`. Regras de
-domínio, datas, persistência local e Supabase ficam em `src/lib`.
+O repositório contém uma única aplicação web Next.js. Não há backend próprio,
+BFF, API Route, worker de aplicação, fila externa ou microsserviço. O navegador
+acessa o Supabase diretamente por `@supabase/supabase-js`.
 
-Estrutura principal:
+As páginas usam App Router. O layout lê cookies e cabeçalhos para escolher o
+idioma inicial, por isso as rotas principais são renderizadas dinamicamente no
+servidor. As telas e os fluxos de negócio são majoritariamente componentes
+client-side.
 
 ```text
-src/app           rotas Next.js e PWA
-src/components    componentes compartilhados
-src/features      áreas funcionais
-src/hooks         hooks reutilizáveis
-src/lib/db        Dexie, schema local e comandos locais/cache
-src/lib/domain    tipos e regras de domínio
-src/lib/i18n      idioma e dicionários
-src/lib/supabase  client, auth, persistência de conta e cache
-src/lib/time      helpers de data e timezone
-src/providers     providers globais
-tests             testes unitários, integração e E2E
-supabase          configuração, seed e migrations SQL
+Next.js App Router
+  ├─ src/app e src/features       UI e composição das telas
+  ├─ src/components e src/hooks   componentes e comportamento reutilizável
+  ├─ src/lib/domain               tipos e regras puras
+  ├─ src/lib/db                   schema Dexie e comandos locais
+  ├─ src/lib/supabase             auth, mapeamento e acesso remoto
+  ├─ src/lib/i18n e src/lib/time  localização, datas e timezone
+  └─ src/providers                sessão, escopo e orquestração global
+
+Browser
+  ├─ IndexedDB/Dexie              fonte imediata da UI
+  ├─ Supabase Auth                sessão autenticada
+  └─ Supabase REST/Postgres       persistência canônica da conta
 ```
 
-## Terminologia do produto
+### Fronteiras e dependências
 
-- Em `/calendar`, cada registro é apresentado como **tarefa** e seus
-  descendentes como **subtarefas**.
-- Em `/goals`, o fluxo é **grupo de metas → meta → etapa → subetapa**.
-- Os nomes técnicos das entidades continuam `ChecklistItem` e `GoalStep`; essa
-  distinção é apenas de linguagem e experiência na interface.
-- Botões exibidos somente com ícone têm tooltip visual ao receber hover ou foco;
-  menus de overflow são chamados de **opções extras**.
+- `src/app` monta rotas e providers;
+- `src/features` organiza capacidades do produto;
+- `src/components/ui` contém primitives e `src/components/app` contém padrões
+  compartilhados do produto;
+- `src/lib/domain` não depende de UI nem de persistência;
+- `src/lib/db` concentra schema, migrations locais e comandos que escrevem no
+  IndexedDB;
+- `src/lib/supabase` concentra o cliente remoto, autenticação, mapeadores,
+  refresh e persistência da conta;
+- componentes e hooks podem observar tabelas Dexie para leitura, mas as
+  escritas passam pelos comandos de `src/lib/db`;
+- `supabase/schemas/tick.sql` é o estado declarativo canônico do Postgres;
+- `tests/unit`, `tests/integration`, `tests/e2e` e `supabase/tests` cobrem níveis
+  diferentes do sistema.
 
-## Modos de uso
+### Fluxo de leitura e escrita
 
-Tick tem dois modos separados.
+No modo local, a UI lê do IndexedDB e os comandos confirmam as alterações em
+transações Dexie. Nenhuma entidade do usuário é enviada ao Supabase.
 
-Modo local sem conta:
+No modo autenticado, o app baixa snapshots das tabelas da conta para um cache
+Dexie. As alterações são confirmadas primeiro no cache local e depois
+enfileiradas em memória, por escopo, para `upsert` direto no Supabase. Em falha,
+o app marca criações como falhas ou tenta restaurar o valor remoto. Essa fila
+não sobrevive ao fechamento ou recarregamento da página.
 
-- escopo `guest:<installationId>`;
-- salva entidades no IndexedDB do dispositivo;
-- não envia dados ao Supabase;
+O estado atual tem limitações conhecidas de paginação, retry, idempotência,
+conflitos e observabilidade. Elas estão registradas no
+[IMPLEMENTATION.md](IMPLEMENTATION.md); não devem ser confundidas com garantias
+já implementadas.
+
+### PWA e offline
+
+Serwist gera `public/sw.js` durante o build. Assets usam estratégias de cache e
+navegações usam `NetworkFirst` com fallback em `/~offline`. O modo local
+continua funcional sem Supabase. A sessão e o refresh do modo autenticado ainda
+possuem limitações em abertura offline.
+
+## Stack verificada
+
+| Área               | Tecnologia                                                    |
+| ------------------ | ------------------------------------------------------------- |
+| Linguagem          | TypeScript 5, configuração `strict`                           |
+| Runtime            | Node.js `>=20.9.0`                                            |
+| Package manager    | npm, lockfile v3                                              |
+| Framework          | Next.js 16.2.6, App Router e React 19.2.4                     |
+| UI                 | Tailwind CSS 4, Lucide e React Icons                          |
+| PWA                | Serwist 9                                                     |
+| Banco local        | IndexedDB com Dexie 4                                         |
+| Banco remoto       | PostgreSQL 17 no ambiente local do Supabase                   |
+| Query layer        | Dexie local e cliente REST do Supabase; não há ORM relacional |
+| Autenticação       | Supabase Auth, senha e Google, com allowlist própria          |
+| i18n               | dicionários tipados `pt-BR` e `en`                            |
+| Unit/integration   | Vitest 4, Testing Library, jsdom e fake-indexeddb             |
+| E2E                | Playwright 1.60, Chromium desktop e perfil Pixel 7            |
+| Banco              | Supabase CLI e pgTAP                                          |
+| Análise            | TypeScript, ESLint 9 e verificador próprio de comentários     |
+| Formatação         | Prettier 3 e EditorConfig                                     |
+| CI                 | GitHub Actions                                                |
+| Deploy documentado | Vercel e Supabase gerenciado                                  |
+
+Não há cache de servidor, broker de filas, storage de arquivos usado pela
+aplicação ou pooler habilitado. O Supabase CLI gerencia seus próprios
+containers; o projeto não possui Dockerfile nem Compose próprios.
+
+## Terminologia
+
+| Termo            | Significado no produto                                     |
+| ---------------- | ---------------------------------------------------------- |
+| Tarefa           | item de checklist associado a um dia em `/calendar`        |
+| Subtarefa        | descendente hierárquico de uma tarefa                      |
+| Categoria        | marcador visual pertencente a uma superfície específica    |
+| Grupo de metas   | agrupador opcional de metas                                |
+| Meta             | resultado acompanhado em `/goals`                          |
+| Etapa            | item hierárquico dentro de uma meta                        |
+| Subetapa         | descendente de uma etapa                                   |
+| Modo local       | uso sem conta, no escopo `guest:<installationId>`          |
+| Modo autenticado | uso no escopo `user:<supabaseUserId>`                      |
+| Allowlist        | tabela `account_access` que libera o protótipo autenticado |
+
+Os nomes técnicos principais continuam `ChecklistItem`, `Goal`, `GoalGroup` e
+`GoalStep`. Menus de overflow são chamados de **opções extras**.
+
+## Modos de uso atuais
+
+### Local sem conta
+
+- usa o escopo `guest:<installationId>`;
+- salva entidades apenas no IndexedDB do dispositivo;
+- não envia entidades ao Supabase;
+- oferece atualmente as funcionalidades principais, não apenas um preview;
 - não migra dados automaticamente para uma conta.
 
-Modo autenticado com conta:
+### Autenticado
 
-- escopo `user:<supabaseUserId>`;
-- autentica com Supabase;
-- persiste dados da conta no Supabase;
-- confirma alterações primeiro no cache IndexedDB para manter a UI responsiva;
-- envia as alterações ao Supabase em ordem, depois do commit local;
-- mantém separadamente as preferências de ações das tarefas diárias e das etapas
-  de metas, associadas ao usuário em `user_preferences`;
-- restaura o valor remoto e mostra feedback se a persistência falhar;
-- não importa nem sincroniza dados do modo local.
+- usa o escopo `user:<supabaseUserId>`;
+- exige sessão Supabase e uma linha ativa em `account_access`;
+- mantém cache IndexedDB separado por usuário;
+- persiste entidades no Postgres protegido por RLS;
+- não importa dados do modo local.
 
-Não existe sync ou migração automática do modo local para o modo autenticado.
-Essa separação é intencional.
+Guest limitado, trial, assinatura, entitlement e migração explícita de dados
+para conta são requisitos futuros, não comportamento existente. O backlog
+canônico está no [IMPLEMENTATION.md](IMPLEMENTATION.md).
 
-## Importação JSON
+## Estrutura do repositório
 
-Em `/calendar`, o botão **Importar JSON** abre um modal onde você cola um JSON
-com dias e tarefas. `text` é o único campo obrigatório da tarefa; horário,
-prioridade e categoria são opcionais, e categorias que não existirem são criadas
-com a cor informada. A importação anexa às tarefas do dia e funciona nos dois
-modos de uso.
-
-Formato, regras completas e mensagens de erro em
-[docs/importacao-json.md](docs/importacao-json.md).
-
-## Setup local
-
-Requisitos:
-
-- Node.js `>=20.9.0`
-- npm
-- Docker, para Supabase local
-- `make` opcional
-
-Instale dependências:
-
-```bash
-npm install
-# ou
-make install
+```text
+src/app             rotas, layout, manifest e service worker
+src/components      primitives e componentes compartilhados
+src/features        áreas funcionais do produto
+src/hooks           hooks reutilizáveis
+src/lib/db          Dexie, migrations e comandos locais
+src/lib/domain      tipos e regras de domínio
+src/lib/i18n        locale, dicionários e formatação
+src/lib/supabase    auth, query layer e mapeamento remoto
+src/lib/time        datas diárias e timezone
+src/providers       contexto global e escopo de usuário
+tests/unit          testes unitários e de componentes
+tests/integration   integração de domínio, Dexie e mocks de Supabase
+tests/e2e           fluxos Playwright
+supabase/schemas    estado declarativo do Postgres
+supabase/migrations migrations versionadas
+supabase/tests      testes pgTAP
+scripts             wrappers do Supabase e validação de comentários
+docs                documentação detalhada
 ```
 
-Configure `.env.local` para usar Supabase local:
+## Pré-requisitos
+
+- Git;
+- Node.js `>=20.9.0` com npm;
+- Docker acessível ao usuário local;
+- `make`, opcional;
+- portas locais 3000 e 54320–54329 disponíveis para o fluxo padrão;
+- acesso ao repositório;
+- para produção, acesso separado à Vercel, Supabase e ao ambiente `production`
+  do GitHub.
+
+A CLI do Supabase é uma dependência de desenvolvimento do npm; não precisa ser
+instalada globalmente. Não use credenciais de produção no ambiente local.
+
+## Instalação do zero
+
+```bash
+git clone https://github.com/carlos-ed-ferreira/tick-pwa.git
+cd tick-pwa
+cp .env.example .env.local
+npm ci
+npm run supabase:start
+npm run supabase:status
+```
+
+Copie a chave local exibida por `supabase:status` para
+`NEXT_PUBLIC_SUPABASE_ANON_KEY` em `.env.local`. As chaves exibidas pelo
+ambiente local não devem ser usadas em produção nem incluídas em commits.
+
+Prepare schema, migrations e seed:
+
+```bash
+npm run supabase:db:reset
+npm run dev
+```
+
+A aplicação abre em `http://localhost:3000`. O Supabase Studio fica em
+`http://127.0.0.1:54323` e a caixa de e-mail local em
+`http://127.0.0.1:54324`.
+
+O seed local cria `dev@email.com` com a senha `12341234` e libera esse e-mail
+na allowlist. Essas credenciais são exclusivamente locais.
+
+O atalho `make dev` executa instalação, inicia o Supabase e sobe o Next.js. Ele
+não substitui a configuração inicial da anon key em `.env.local`.
+
+## Variáveis de ambiente
+
+Desenvolvimento autenticado local:
 
 ```bash
 NEXT_PUBLIC_TICK_SUPABASE_ENV=local
 NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321
-NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon key local>
+NEXT_PUBLIC_SUPABASE_ANON_KEY=<chave pública local>
 NEXT_PUBLIC_TICK_DISABLE_SUPABASE=
 ```
 
-Em `localhost`, o app só habilita Supabase quando
-`NEXT_PUBLIC_TICK_SUPABASE_ENV=local` e a URL aponta para `localhost`,
-`127.0.0.1` ou `::1`. Não use credenciais de produção em `.env.local`.
+Defina `NEXT_PUBLIC_TICK_DISABLE_SUPABASE=1` para forçar execução local sem
+Supabase. Em `localhost`, a aplicação só aceita `local` com uma URL local. Fora
+de localhost, só aceita o ambiente explícito `production`.
 
-Suba o ambiente:
-
-```bash
-make dev
-```
-
-Sem `make`:
-
-```bash
-npm run supabase:start
-npm run dev
-```
-
-## Supabase local
-
-Comandos úteis:
-
-```bash
-make supabase-start
-make supabase-stop
-make supabase-status
-make supabase-reset
-make supabase-diff
-make supabase-lint
-make supabase-test-db
-make supabase-types-local
-```
-
-`make supabase-reset` aplica migrations e seed local. O seed cria/libera o
-usuário `dev@email.com` com senha `12341234` para desenvolvimento.
-
-O estado desejado do banco fica em `supabase/schemas/tick.sql`. Altere esse
-arquivo e use `make supabase-diff` para gerar/revisar migrations incrementais.
-`make supabase-test-db` executa os testes pgTAP e `make supabase-lint` valida o
-schema local.
-
-## Produção
-
-O frontend roda na Vercel. Em produção, configure:
+Produção requer:
 
 ```bash
 NEXT_PUBLIC_TICK_SUPABASE_ENV=production
@@ -161,12 +243,7 @@ NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
 ```
 
-Fora de `localhost`, Supabase só é habilitado quando
-`NEXT_PUBLIC_TICK_SUPABASE_ENV=production` está explícito.
-
-Migrations de produção são aplicadas pelo GitHub Actions em pushes para `main`
-quando arquivos de Supabase mudam. Configure os secrets do ambiente
-`production` no GitHub:
+O deploy de migrations usa secrets do ambiente GitHub `production`:
 
 ```bash
 SUPABASE_PROJECT_REF=
@@ -174,120 +251,117 @@ SUPABASE_ACCESS_TOKEN=
 SUPABASE_DB_PASSWORD=
 ```
 
-O workflow roda `npm run supabase:prod:db:dry-run` antes de
-`npm run supabase:prod:db:push`. Esses comandos são bloqueados fora do GitHub
-Actions.
+Esses valores são configurados fora do repositório. Nunca os adicione a um
+arquivo versionado.
 
-Mudanças que adicionam campos usados pelo frontend devem ser publicadas em duas
-etapas: primeiro a migration aditiva e, após sua confirmação, o frontend que
-passa a gravar o novo campo.
+## Banco, migrations e conexões
 
-## Comandos
+`supabase/schemas/tick.sql` define tabelas, constraints, índices, triggers, RLS
+e policies do schema `public`. As tabelas funcionais usam `user_id`, foreign
+keys compostas e policies que exigem `auth.uid()` e acesso ativo.
 
-Make:
+O fluxo local é:
 
-```bash
-make install
-make dev
-make build
-make start
-make lint
-make typecheck
-make test
-make test-e2e
-make format
-make format-check
-make check
-make clean
-make supabase-start
-make supabase-stop
-make supabase-status
-make supabase-reset
-make supabase-diff
-make supabase-lint
-make supabase-test-db
-make supabase-types-local
-```
+1. alterar o schema declarativo;
+2. iniciar o Supabase local;
+3. gerar uma migration com `npm run supabase:db:diff`;
+4. revisar o SQL gerado;
+5. recriar o banco com `npm run supabase:db:reset`;
+6. rodar lint, pgTAP e os testes da aplicação;
+7. atualizar os tipos com `npm run supabase:types:local` quando necessário.
 
-Scripts npm equivalentes:
+O reset aplica migrations e depois `supabase/seed.sql`. O pooler local está
+desabilitado. A aplicação usa HTTP/REST pelo cliente Supabase e não mantém uma
+conexão PostgreSQL direta.
 
-```bash
-npm run dev
-npm run build
-npm run start
-npm run lint
-npm run comments:check
-npm run comments:remove
-npm run typecheck
-npm run test
-npm run test:e2e
-npm run test:e2e:account
-npm run format
-npm run format:check
-npm run check
-npm run clean
-npm run supabase:start
-npm run supabase:stop
-npm run supabase:status
-npm run supabase:db:reset
-npm run supabase:types:local
-```
+Comandos de produção são bloqueados pelo wrapper fora do GitHub Actions. O
+workflow de migrations faz repair do histórico conhecido, dry-run e push. A
+dependência obrigatória desse workflow em relação ao quality gate ainda é uma
+lacuna registrada no `IMPLEMENTATION.md`.
 
-O repositório não aceita comentários em arquivos de código. `npm run lint`
-verifica essa regra e depois executa o ESLint. `npm run comments:check` executa
-apenas a verificação e `npm run comments:remove` remove os comentários
-detectados; explicações devem ficar nos arquivos Markdown.
+## APIs e serviços externos
 
-`npm run check` e `make check` executam typecheck, lint, testes, format-check e
-build. E2E roda separadamente com `npm run test:e2e` ou `make test-e2e`; o
-Playwright gera um build e sobe `next start` em `127.0.0.1:3100`.
-`npm run test:e2e:account` executa o cenário autenticado com Supabase simulado
-e gravações atrasadas em `127.0.0.1:3101`.
+- Supabase Auth: senha e OAuth Google;
+- Supabase REST/Postgres: leitura e escrita das contas;
+- Vercel: hospedagem documentada do frontend;
+- GitHub Actions: CI e migrations de produção;
+- Google Fonts: carregadas pelo Next.js e cobertas pelo cache da PWA.
 
-## Qualidade e testes
+Não existem webhooks, pagamentos, e-mail de produção, observabilidade ou API de
+domínio próprios no estado atual. Configuração do provedor Google, URLs de
+redirect, projeto Supabase, domínio e integração Vercel são externas ao Git.
 
-Use TDD para mudanças comportamentais: crie ou ajuste testes antes de alterar a
-feature/refatoração.
+## Comandos de desenvolvimento
 
-Use:
+| Objetivo           | Make                               | npm                                      |
+| ------------------ | ---------------------------------- | ---------------------------------------- |
+| instalar           | `make install`                     | `npm install` ou `npm ci`                |
+| desenvolver        | `make dev`                         | `npm run dev`                            |
+| build/start        | `make build`, `make start`         | `npm run build`, `npm run start`         |
+| typecheck          | `make typecheck`                   | `npm run typecheck`                      |
+| lint               | `make lint`                        | `npm run lint`                           |
+| testes             | `make test`                        | `npm test`                               |
+| E2E padrão         | `make test-e2e`                    | `npm run test:e2e`                       |
+| E2E autenticado    | —                                  | `npm run test:e2e:account`               |
+| formatar/verificar | `make format`, `make format-check` | `npm run format`, `npm run format:check` |
+| gate atual         | `make check`                       | `npm run check`                          |
+| limpar gerados     | `make clean`                       | `npm run clean`                          |
 
-- unitários para domínio, datas, validações, hooks e componentes isolados;
-- integração para Dexie, escopos, persistência de conta, Supabase local e auth;
-- E2E para fluxos críticos de navegador e responsividade.
+Supabase:
 
-Checks principais:
+| Objetivo      | Make                                        | npm                                               |
+| ------------- | ------------------------------------------- | ------------------------------------------------- |
+| iniciar/parar | `make supabase-start`, `make supabase-stop` | `npm run supabase:start`, `npm run supabase:stop` |
+| status        | `make supabase-status`                      | `npm run supabase:status`                         |
+| reset         | `make supabase-reset`                       | `npm run supabase:db:reset`                       |
+| diff          | `make supabase-diff`                        | `npm run supabase:db:diff`                        |
+| lint          | `make supabase-lint`                        | `npm run supabase:db:lint`                        |
+| pgTAP         | `make supabase-test-db`                     | `npm run supabase:test:db`                        |
+| tipos         | `make supabase-types-local`                 | `npm run supabase:types:local`                    |
 
-```bash
-make typecheck
-make lint
-make test
-make format-check
-make build
-make check
-```
+`npm run check` executa typecheck, lint, Vitest, format-check e build. E2E e
+validações de banco são separados. Os critérios de aprovação e gates
+planejados ficam exclusivamente no [REVIEW.md](REVIEW.md).
 
-## PWA e offline
+## Deploy atual
 
-Serwist gera o service worker no build a partir de `src/app/sw.ts`. O fallback
-offline fica em `/~offline`.
+O repositório documenta Vercel para o frontend e Supabase gerenciado para auth e
+banco. A Vercel é uma integração externa; não há `vercel.json` nem como
+comprovar pelo Git a configuração atual do projeto.
 
-O modo local deve funcionar offline. O modo autenticado depende do Supabase para
-confirmar gravações de conta; falhas de rede devem preservar o contexto e
-mostrar feedback sem misturar dados locais com dados de conta.
+O ambiente externo foi configurado em 11 de agosto de 2026 para a alfa
+controlada. O domínio canônico de produção é
+[https://tickapp.com.br](https://tickapp.com.br). Estão configurados a proteção
+da `main` e os checks obrigatórios no GitHub, o projeto e os ambientes da
+Vercel, o domínio e a autenticação do Supabase e o procedimento de backup
+manual. As contas dos provedores usam autenticação em dois fatores.
 
-## CI/CD
+Os previews da Vercel permanecem sem acesso ao Supabase de produção. Os secrets
+que autorizam migrations no ambiente GitHub `production` continuam
+intencionalmente ausentes até a conclusão de `CICD-01`.
 
-- `.github/workflows/app-ci.yml`: roda `npm run check` em PRs e pushes para
-  `main`.
-- `.github/workflows/supabase-migrations.yml`: aplica migrations de produção no
-  Supabase via GitHub Actions.
-- Vercel faz deploy automático a partir da `main`.
+`.github/workflows/app-ci.yml` executa `npm ci` e `npm run check` em PRs e em
+pushes para `main`. `.github/workflows/supabase-migrations.yml` reage a mudanças
+de banco na `main` e aplica migrations no Supabase vinculado.
 
-## Troubleshooting
+Mudanças de banco usadas pelo frontend devem ser aditivas e publicadas em duas
+etapas: migration compatível primeiro e aplicação depois. O fluxo desejado de
+produção e as lacunas de segurança estão no `IMPLEMENTATION.md`.
 
-- Se login local não aparecer, confira `.env.local` e rode
-  `make supabase-status`.
-- Se o banco local estiver inconsistente, rode `make supabase-reset`.
-- Se E2E falhar ao subir servidor, verifique se já há `next dev` rodando no
-  mesmo repositório.
-- Se tipos Supabase ficarem defasados, rode `make supabase-types-local`.
+O projeto continuará nos planos gratuitos nesta fase: não há decisão para
+contratar Vercel Pro ou Supabase Pro agora. O racional de custos e a
+arquitetura-alvo estão em
+[docs/plano-arquitetura-producao.md](docs/plano-arquitetura-producao.md).
+
+## Documentação
+
+- [AGENTS.md](AGENTS.md): regras operacionais para agentes;
+- [REVIEW.md](REVIEW.md): baselines, métricas e quality gates;
+- [IMPLEMENTATION.md](IMPLEMENTATION.md): lacunas e mudanças futuras;
+- [.agents/skills](.agents/skills): workflows reutilizáveis para agentes;
+- [docs/importacao-json.md](docs/importacao-json.md): contrato da importação;
+- [docs/plano-arquitetura-producao.md](docs/plano-arquitetura-producao.md):
+  avaliação de arquitetura e custos.
+
+`IMPLEMENTATION.md` é a fonte canônica do backlog técnico. Documentos de
+decisão e features fornecem contexto, mas não substituem esse backlog.
