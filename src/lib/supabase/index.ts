@@ -1,4 +1,5 @@
 export * from './account-cache';
+export * from './account-refresh-coordinator';
 export * from './account-data';
 export * from './account-preferences';
 export * from './auth';

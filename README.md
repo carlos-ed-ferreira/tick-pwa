@@ -67,10 +67,17 @@ No modo local, a UI lê do IndexedDB e os comandos confirmam as alterações em
 transações Dexie. Nenhuma entidade do usuário é enviada ao Supabase.
 
 No modo autenticado, o app baixa snapshots das tabelas da conta para um cache
-Dexie. As alterações são confirmadas primeiro no cache local e depois
-enfileiradas em memória, por escopo, para `upsert` direto no Supabase. Em falha,
-o app marca criações como falhas ou tenta restaurar o valor remoto. Essa fila
-não sobrevive ao fechamento ou recarregamento da página.
+Dexie. Os snapshots são paginados em blocos de 1.000 linhas, ordenados por
+revisão e identificador, e só reconciliam exclusões depois que todas as páginas
+terminam com sucesso. As alterações são confirmadas primeiro no cache local e
+depois enfileiradas em memória, por escopo, para `upsert` direto no Supabase. Em
+falha, o app marca criações como falhas ou tenta restaurar o valor remoto. Essa
+fila não sobrevive ao fechamento ou recarregamento da página.
+
+Refreshes de uma mesma conta são deduplicados. Foco e reconexão usam debounce
+de 500 ms e só atualizam dados com pelo menos 60 segundos; refresh manual ignora
+essa validade. A duração, páginas, linhas e motivo ficam disponíveis no
+resultado estruturado do refresh, ainda sem envio para observabilidade externa.
 
 O estado atual tem limitações conhecidas de paginação, retry, idempotência,
 conflitos e observabilidade. Elas estão registradas no
@@ -91,7 +98,7 @@ possuem limitações em abertura offline.
 | Linguagem          | TypeScript 5, configuração `strict`                           |
 | Runtime            | Node.js `>=20.9.0`                                            |
 | Package manager    | npm, lockfile v3                                              |
-| Framework          | Next.js 16.2.6, App Router e React 19.2.4                     |
+| Framework          | Next.js 16.3.0, App Router e React 19.2.4                     |
 | UI                 | Tailwind CSS 4, Lucide e React Icons                          |
 | PWA                | Serwist 9                                                     |
 | Banco local        | IndexedDB com Dexie 4                                         |
@@ -338,11 +345,14 @@ manual. As contas dos provedores usam autenticação em dois fatores.
 
 Os previews da Vercel permanecem sem acesso ao Supabase de produção. Os secrets
 que autorizam migrations no ambiente GitHub `production` continuam
-intencionalmente ausentes até a conclusão de `CICD-01`.
+intencionalmente ausentes até o novo workflow de `CICD-01` ser mesclado e
+validado no GitHub.
 
-`.github/workflows/app-ci.yml` executa `npm ci` e `npm run check` em PRs e em
-pushes para `main`. `.github/workflows/supabase-migrations.yml` reage a mudanças
-de banco na `main` e aplica migrations no Supabase vinculado.
+`.github/workflows/app-ci.yml` executa audit de produção e `npm run check` em
+PRs e pushes para `main`. `.github/workflows/supabase-migrations.yml` só aceita
+o SHA de um `App CI` aprovado na `main`; execução manual roda o mesmo quality
+gate antes de acessar o environment `production`. O workflow registra o SHA,
+detecta mudanças de banco, faz dry-run e então aplica migrations.
 
 Mudanças de banco usadas pelo frontend devem ser aditivas e publicadas em duas
 etapas: migration compatível primeiro e aplicação depois. O fluxo desejado de

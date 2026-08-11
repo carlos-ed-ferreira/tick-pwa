@@ -3,8 +3,9 @@
 ## Propósito
 
 Este é o backlog canônico de lacunas técnicas e de produto encontradas na
-auditoria de 2026-08-10. Os itens descrevem trabalho futuro; **nenhum deles foi
-implementado pela criação deste documento**.
+auditoria de 2026-08-10. Cada item distingue o estado já entregue do trabalho
+restante; um item planejado não deve ser tratado como implementado sem status e
+evidência registrados aqui.
 
 Prioridades:
 
@@ -43,18 +44,20 @@ estado de conformidade.
 
 ## DATA-01 — Paginação e reconciliação segura
 
+**Status:** concluído em 11 de agosto de 2026.
+
 **Problema/lacuna — `P0`, código e testes:** `refreshAccountCache` trata cada
 resposta como snapshot completo, embora a API limite linhas por resposta.
 
-**Estado atual:** `src/lib/supabase/account-cache.ts` usa `select('*')` nas
-tabelas funcionais sem range/cursor. `supabase/config.toml` limita respostas a
-1.000 linhas. Depois da leitura, registros locais `synced` ausentes são
-excluídos.
+**Estado atual:** `src/lib/supabase/account-cache.ts` pagina todas as tabelas
+funcionais em blocos de 1.000 linhas, com ordem por `revision` e `id`. Todas as
+páginas são carregadas antes da transação Dexie; qualquer erro aborta a
+reconciliação. O resultado informa duração, páginas e linhas por tabela.
 
 **Estado desejado:** paginação determinística e reconciliação destrutiva apenas
 depois que todas as páginas de todas as entidades necessárias forem validadas.
 
-**Mudanças necessárias:** paginação por revisão/ID ou range estável; resultado
+**Mudanças entregues:** paginação por revisão/ID ou range estável; resultado
 tipado como completo/incompleto; staging do snapshot; telemetria de páginas e
 linhas; testes em `tests/integration/account-persistence.test.ts`.
 
@@ -73,22 +76,26 @@ com write pendente, E2E autenticado e métricas de contagem.
 
 ## SYNC-01 — Sincronização durável e resiliente
 
+**Status:** em andamento; proteção de refresh da Fase 0.2 concluída em 11 de
+agosto de 2026, fila durável e prova de conceito ainda pendentes.
+
 **Problema/lacuna — `P0`, arquitetura/código/serviço externo:** operações da
 conta podem desaparecer ao fechar ou recarregar a aba.
 
 **Estado atual:** `src/lib/db/account-persistence.ts` usa `Map` em memória.
 Outbox e cursores Dexie antigos foram removidos na versão 7. Não há backoff,
 operação idempotente, limite de fila, replay após reload ou contrato formal de
-conflito. O app faz refresh completo em abertura, foco e retorno da rede.
+conflito. O refresh inicial e os eventos concorrentes são deduplicados por
+conta; foco e retorno da rede têm debounce e validade de 60 segundos.
 
 **Estado desejado:** banco local sincronizável com fila durável, pull
 incremental, retry com backoff, idempotência, conflitos determinísticos, estado
 visível e convergência multidispositivo.
 
 **Mudanças necessárias:** prova de conceito PowerSync no plano gratuito;
-schema local autenticado; conector de upload; sync rules por usuário; debounce
-de refresh; estados de sync na UI; feature flag e rollout gradual. Criar outbox
-transitória própria apenas se conta pública precisar sair antes da migração.
+schema local autenticado; conector de upload; sync rules por usuário; estados
+de sync na UI; feature flag e rollout gradual. Criar outbox transitória própria
+apenas se conta pública precisar sair antes da migração.
 
 **Dependências:** DATA-01 como proteção transitória, API-01, projeto PowerSync,
 JWT Supabase e decisão de navegadores suportados.
@@ -105,19 +112,22 @@ dois dispositivos, carga de conta madura e restore/rollback da feature flag.
 
 ## SEC-01 — Vulnerabilidades de dependências
 
+**Status:** concluído em 11 de agosto de 2026 para dependências de produção.
+
 **Problema/lacuna — `P0`, dependências/segurança:** o audit atual reporta cinco
 vulnerabilidades altas em dependências de produção.
 
-**Estado atual:** `npm audit --omit=dev` aponta advisories em `brace-expansion`,
-`nanoid`, `next`, `postcss` e `sharp`. Não há audit no script `check` nem workflow
-de segurança. O baseline é 5 altas e 0 críticas em 2026-08-10.
+**Estado atual:** Next e `eslint-config-next` estão em 16.3.0; PostCSS, Nano ID,
+Sharp e Brace Expansion foram resolvidos em versões corrigidas. O comando
+`npm run audit:prod` reporta 0 vulnerabilidades e é obrigatório no App CI e em
+releases manuais de migrations.
 
 **Estado desejado:** vulnerabilidades analisadas e corrigidas em PR dedicada;
 nenhuma crítica/alta nova; audit recorrente no CI.
 
-**Mudanças necessárias:** mapear alcance real; atualizar versões sem `--force`;
+**Mudanças entregues:** mapear alcance real; atualizar versões sem `--force`;
 revisar changelogs e lockfile; testar Next/PWA/imagens; adicionar audit com
-política de severidade e baseline temporário.
+política de severidade e baseline zero.
 
 **Dependências:** releases corrigidas compatíveis e revisão de impacto da
 atualização Next.
@@ -133,20 +143,29 @@ grafo de dependências.
 
 ## CICD-01 — Ordenar quality gate, migrations e deploy
 
+**Status:** implementação do gate do mesmo SHA concluída em 11 de agosto de
+2026; validação no GitHub e coordenação comprovável do deploy Vercel pendentes.
+
 **Problema/lacuna — `P0`, CI/CD/GitHub:** migrations podem ser aplicadas por um
 workflow separado sem depender do sucesso do quality gate do mesmo commit.
 
-**Estado atual:** `app-ci.yml` roda `npm run check`; `supabase-migrations.yml`
-faz repair, dry-run e push diretamente em push para `main`. Ele não declara
-dependência nem reutiliza o resultado do App CI. O deploy Vercel é externo.
+**Estado atual:** `app-ci.yml` roda audit de produção e `npm run check`.
+`supabase-migrations.yml` é acionado por `workflow_run`, aceita somente App CI
+aprovado em push da `main`, faz checkout do `head_sha`, registra e verifica o
+SHA e só executa comandos de banco quando há caminhos relevantes alterados. A
+execução manual repete o quality gate antes de acessar secrets. O deploy Vercel
+continua externo.
 
 **Estado desejado:** nenhum SHA alcança banco ou aplicação de produção antes de
 todos os gates obrigatórios aplicáveis terminarem com sucesso.
 
-**Mudanças necessárias:** workflow coordenador ou `workflow_run` seguro;
-quality job reutilizável; incluir banco, segurança e E2E definidos como
-obrigatórios; environments protegidos; concurrency e rollback documentados;
-alinhar deploy Vercel ao mesmo SHA.
+**Mudanças entregues:** `workflow_run` restrito a push aprovado da `main`, gate
+manual equivalente, checkout e registro do SHA, environment protegido,
+concurrency e detecção de caminhos de banco.
+
+**Mudanças restantes:** incluir banco e E2E definidos como obrigatórios,
+documentar e ensaiar rollback, validar o fluxo no GitHub e alinhar o deploy
+Vercel ao mesmo SHA.
 
 **Dependências:** QUALITY-01, TEST-01 e configuração manual de branch/environment
 protection no GitHub e Vercel.
@@ -532,7 +551,8 @@ o ambiente instalado possui pacotes extraneous.
 
 **Estado atual:** Vitest avisa sobre `priority` não booleano em mock de
 `next/image` e imprime falhas remotas esperadas; Playwright avisa sobre
-`NO_COLOR`; `npm ls --depth=0` lista quatro módulos extraneous.
+`NO_COLOR`; após instalação limpa, `npm ls --depth=0` lista cinco módulos
+extraneous ligados ao fallback WASM opcional do Sharp 0.35.3.
 
 **Estado desejado:** saída de teste limpa ou ruído esperado capturado
 explicitamente; `npm ci` reproduz árvore sem drift relevante.
@@ -565,8 +585,8 @@ Concluído manualmente em 11 de agosto de 2026 para a alfa controlada:
 
 Continuam pendentes ou intencionalmente adiados:
 
-- secrets de migrations no ambiente GitHub `production`, bloqueados até a
-  conclusão de `CICD-01`;
+- secrets de migrations no ambiente GitHub `production`, bloqueados até o novo
+  workflow ser mesclado e validado no GitHub;
 - SMTP, CAPTCHA e revisão de quotas do Supabase antes do cadastro público;
 - ordem coordenada de migrations e deploy na Vercel, coberta por `CICD-01`;
 - projeto, sync rules, região e plano do PowerSync após a prova de conceito;

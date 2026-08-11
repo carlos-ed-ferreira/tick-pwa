@@ -57,6 +57,14 @@ Avisos preexistentes observados: o Vitest emite um aviso React sobre o atributo
 `priority` em teste e logs esperados de falha remota; Playwright emite avisos de
 cor do processo. Eles não falham o gate atual.
 
+## Ratchet em 2026-08-11
+
+- Vitest: 57 arquivos e 399 testes aprovados;
+- dependências de produção: 0 vulnerabilidades pelo `npm audit --omit=dev`;
+- audit de produção automatizado no App CI e no gate manual de migrations;
+- snapshot autenticado: 1.001 linhas em cada tabela e falha da página final;
+- refresh autenticado: testes de deduplicação, validade e isolamento por conta.
+
 ## Matriz de quality gates
 
 | Gate               | Métrica e threshold                                                                 | Escopo                              | Estado         | Legado                                    | Bloqueia?                   |
@@ -71,7 +79,7 @@ cor do processo. Eles não falham o gate atual.
 | Schema lint        | 0 erros                                                                             | Postgres local                      | manual         | sem regressão                             | sim para banco              |
 | pgTAP              | 100% aprovados                                                                      | `supabase/tests`                    | manual         | manter ao menos 22; remoção exige revisão | sim para banco              |
 | Banco limpo        | reset, migrations e seed com exit 0                                                 | todas as migrations                 | manual         | compatibilidade obrigatória               | sim para banco              |
-| Dependency audit   | 0 críticas novas e 0 altas novas; baseline atual de 5 altas só pode cair            | dependências de produção            | manual         | ratchet por advisory                      | sim para dependência/deploy |
+| Dependency audit   | 0 críticas e 0 altas em `npm run audit:prod`                                        | dependências de produção            | enforced no CI | baseline reduzido a zero                  | sim para dependência/deploy |
 | Line coverage      | baseline inicial sem queda; objetivo global 80%; diff 90%                           | código não gerado                   | planned        | ratchet global                            | sim após automação          |
 | Branch coverage    | baseline inicial sem queda; objetivo global 70%; diff 80%                           | código não gerado                   | planned        | ratchet global                            | sim após automação          |
 | Mutation testing   | score não cai; objetivo 70% em domínio/persistência                                 | módulos críticos alterados          | planned        | baseline por módulo                       | sim após automação          |

@@ -54,8 +54,9 @@ controlada:
 
 Os secrets `SUPABASE_PROJECT_REF`, `SUPABASE_ACCESS_TOKEN` e
 `SUPABASE_DB_PASSWORD` não devem ser habilitados no environment GitHub
-`production` até a conclusão de `CICD-01`. Essa decisão impede que o workflow
-atual aplique migrations sem depender do quality gate do mesmo SHA.
+`production` até o novo workflow de `CICD-01` ser mesclado e validado no
+GitHub. O código já exige o quality gate do mesmo SHA, mas a proteção só pode
+ser considerada operacional depois desse ensaio externo.
 
 Continuam fora desta fase Vercel Pro, Supabase Pro, PowerSync Pro, SMTP próprio,
 CAPTCHA para cadastro público, pagamentos, observabilidade de produção e a
@@ -122,12 +123,17 @@ dados enquanto a arquitetura-alvo é construída.
 
 ### 0.1 Corrigir a leitura de snapshots
 
+**Concluído em 11 de agosto de 2026.** As tabelas funcionais usam páginas de
+1.000 linhas ordenadas por revisão e identificador. A reconciliação ocorre em
+uma única transação somente após todas as páginas terminarem, e o refresh
+retorna métricas estruturadas de duração, páginas e linhas.
+
 Hoje, o carregamento remoto consulta tabelas inteiras sem paginação e depois
 remove do cache registros que não apareceram na resposta. Como a API possui
 limite de linhas por resposta, uma conta com muitos registros pode receber um
 snapshot truncado e perder dados no cache local.
 
-Implementar:
+Entregue:
 
 - paginação determinística de todas as tabelas sincronizadas;
 - ordem estável usando revisão do servidor e identificador;
@@ -145,7 +151,12 @@ Arquivos inicialmente envolvidos:
 
 ### 0.2 Reduzir atualizações e requisições redundantes
 
-Implementar:
+**Concluído em 11 de agosto de 2026.** A atualização inicial é reaproveitada
+por chamadas concorrentes, não é repetida pelo efeito de sessão e os eventos de
+foco/reconexão usam debounce de 500 ms e validade de 60 segundos. A atualização
+manual continua imediata.
+
+Entregue:
 
 - uma única atualização inicial por sessão autenticada;
 - deduplicação de atualizações concorrentes;
@@ -386,8 +397,8 @@ migração estática não estiver concluída quando o uso comercial começar.
 
 ## Ordem de implementação
 
-- [ ] Paginar snapshots e impedir reconciliação destrutiva parcial.
-- [ ] Remover atualizações completas duplicadas e instrumentar o fluxo atual.
+- [x] Paginar snapshots e impedir reconciliação destrutiva parcial.
+- [x] Remover atualizações completas duplicadas e instrumentar o fluxo atual.
 - [ ] Exibir estado e falhas de sincronização.
 - [ ] Executar a prova de conceito do PowerSync no plano gratuito.
 - [ ] Registrar a decisão técnica da prova de conceito.
