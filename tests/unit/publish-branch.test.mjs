@@ -15,6 +15,11 @@ describe('publishDevelopmentBranch', () => {
       '',
       'https://github.com/example/tick/pull/1\n',
       '',
+      '',
+      'MERGED\n',
+      '',
+      '',
+      '',
     ]);
     const write = vi.fn();
 
@@ -50,12 +55,38 @@ describe('publishDevelopmentBranch', () => {
           'merge',
           'https://github.com/example/tick/pull/1',
           '--auto',
-          '--merge',
+          '--squash',
         ],
       ],
+      [
+        'gh',
+        [
+          'pr',
+          'checks',
+          'https://github.com/example/tick/pull/1',
+          '--required',
+          '--watch',
+          '--fail-fast',
+        ],
+      ],
+      [
+        'gh',
+        [
+          'pr',
+          'view',
+          'https://github.com/example/tick/pull/1',
+          '--json',
+          'state',
+          '--jq',
+          '.state',
+        ],
+      ],
+      ['git', ['fetch', 'origin', 'main']],
+      ['git', ['merge', '--no-edit', 'origin/main']],
+      ['git', ['push', 'origin', 'dev']],
     ]);
     expect(write).toHaveBeenCalledWith(
-      'PR pronto: https://github.com/example/tick/pull/1',
+      'Main atualizada: https://github.com/example/tick/pull/1',
     );
   });
 
@@ -67,6 +98,11 @@ describe('publishDevelopmentBranch', () => {
       '',
       'https://github.com/example/tick/pull/2\n',
       '',
+      '',
+      'MERGED\n',
+      '',
+      '',
+      '',
     ]);
 
     await publishDevelopmentBranch({ execute, write: vi.fn() });
@@ -75,13 +111,37 @@ describe('publishDevelopmentBranch', () => {
       'gh',
       expect.arrayContaining(['create']),
     );
-    expect(execute).toHaveBeenLastCalledWith('gh', [
+    expect(execute).toHaveBeenCalledWith('gh', [
       'pr',
       'merge',
       'https://github.com/example/tick/pull/2',
       '--auto',
-      '--merge',
+      '--squash',
     ]);
+    expect(execute).toHaveBeenLastCalledWith('git', ['push', 'origin', 'dev']);
+  });
+
+  it('waits for GitHub to finish the automatic merge', async () => {
+    const execute = createExecutor([
+      'dev\n',
+      '',
+      '',
+      '',
+      'https://github.com/example/tick/pull/3\n',
+      '',
+      '',
+      'OPEN\n',
+      'MERGED\n',
+      '',
+      '',
+      '',
+    ]);
+    const wait = vi.fn();
+
+    await publishDevelopmentBranch({ execute, wait, write: vi.fn() });
+
+    expect(wait).toHaveBeenCalledWith(2_000);
+    expect(execute).toHaveBeenLastCalledWith('git', ['push', 'origin', 'dev']);
   });
 
   it('rejects branches other than dev', async () => {

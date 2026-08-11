@@ -376,9 +376,10 @@ detecta mudanças de banco, faz dry-run e então aplica migrations.
 
 A publicação cotidiana parte da branch `dev`. Depois de criar o commit, execute
 `npm run publish`. O comando exige worktree limpo, envia `dev`, cria ou reutiliza
-o pull request para `main` e habilita merge automático com merge commit. O GitHub
-só atualiza `main` depois que o check obrigatório `Check app` for aprovado. Não
-faça push direto para `main` nem use force push para contornar essa proteção.
+o pull request para `main` e habilita squash automático. O comando aguarda o
+check obrigatório `Check app`, confirma o merge e reconcilia `dev` com a nova
+`main` para preparar a publicação seguinte. Não faça push direto para `main` nem
+use force push para contornar essa proteção.
 
 Mudanças de banco usadas pelo frontend devem ser aditivas e publicadas em duas
 etapas: migration compatível primeiro e aplicação depois. O fluxo desejado de

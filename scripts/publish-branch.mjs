@@ -8,6 +8,7 @@ const execFileAsync = promisify(execFile);
 
 export async function publishDevelopmentBranch({
   execute = executeCommand,
+  wait = delay,
   write = console.log,
 } = {}) {
   const branch = (await execute('git', ['branch', '--show-current'])).trim();
@@ -59,8 +60,52 @@ export async function publishDevelopmentBranch({
     throw new Error('O GitHub não retornou a URL do pull request.');
   }
 
-  await execute('gh', ['pr', 'merge', pullRequest, '--auto', '--merge']);
-  write(`PR pronto: ${pullRequest}`);
+  await execute('gh', ['pr', 'merge', pullRequest, '--auto', '--squash']);
+  await execute('gh', [
+    'pr',
+    'checks',
+    pullRequest,
+    '--required',
+    '--watch',
+    '--fail-fast',
+  ]);
+  await waitForMergedPullRequest(pullRequest, execute, wait);
+  await execute('git', ['fetch', 'origin', 'main']);
+  await execute('git', ['merge', '--no-edit', 'origin/main']);
+  await execute('git', ['push', 'origin', 'dev']);
+  write(`Main atualizada: ${pullRequest}`);
+}
+
+async function waitForMergedPullRequest(pullRequest, execute, wait) {
+  for (let attempt = 0; attempt < 30; attempt += 1) {
+    const state = (
+      await execute('gh', [
+        'pr',
+        'view',
+        pullRequest,
+        '--json',
+        'state',
+        '--jq',
+        '.state',
+      ])
+    ).trim();
+
+    if (state === 'MERGED') {
+      return;
+    }
+
+    if (state !== 'OPEN') {
+      throw new Error(`O pull request terminou no estado ${state}.`);
+    }
+
+    await wait(2_000);
+  }
+
+  throw new Error('O merge automático não terminou dentro de 60 segundos.');
+}
+
+function delay(milliseconds) {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
 async function executeCommand(command, args) {
