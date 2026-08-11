@@ -87,6 +87,19 @@ const runtimeCaching: RuntimeCaching[] = [
     }),
   },
   {
+    matcher: /\/_next\/static.+\.wasm$/i,
+    handler: new CacheFirst({
+      cacheName: 'next-static-wasm-assets',
+      plugins: [
+        new ExpirationPlugin({
+          maxEntries: 4,
+          maxAgeSeconds: 30 * 24 * 60 * 60,
+          maxAgeFrom: 'last-used',
+        }),
+      ],
+    }),
+  },
+  {
     matcher: /\.(?:js)$/i,
     handler: new StaleWhileRevalidate({
       cacheName: 'static-js-assets',

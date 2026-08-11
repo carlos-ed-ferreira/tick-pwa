@@ -10,6 +10,7 @@ import {
   goalFromRemote,
   goalGroupFromRemote,
   goalStepFromRemote,
+  type RemoteEntityTable,
   type RemoteCategoryTag,
   type RemoteChecklistItem,
   type RemoteDailyEntry,
@@ -34,6 +35,32 @@ interface SelectResponse<TRemote> {
   } | null;
 }
 
+interface SelectPageQuery<TRemote> {
+  order: (
+    column: string,
+    options: { ascending: boolean },
+  ) => SelectPageQuery<TRemote>;
+  range: (from: number, to: number) => Promise<SelectResponse<TRemote>>;
+}
+
+export interface AccountCacheTableMetrics {
+  pages: number;
+  rows: number;
+}
+
+export interface AccountCacheRefreshResult {
+  durationMs: number;
+  tables: Record<RemoteEntityTable, AccountCacheTableMetrics>;
+  totalPages: number;
+  totalRows: number;
+}
+
+interface CompleteRemoteSnapshot<TRemote> extends AccountCacheTableMetrics {
+  data: TRemote[];
+}
+
+const ACCOUNT_CACHE_PAGE_SIZE = 1000;
+
 function isMissingTableError(
   error: SelectResponse<unknown>['error'],
   tableName: string,
@@ -45,31 +72,49 @@ function isMissingTableError(
 }
 
 async function selectRemoteRows<TRemote>(
-  tableName: string,
+  tableName: RemoteEntityTable,
   {
     allowMissingTable = false,
   }: {
     allowMissingTable?: boolean;
   } = {},
-): Promise<SelectResponse<TRemote>> {
+): Promise<CompleteRemoteSnapshot<TRemote>> {
   const client = getSupabaseBrowserClient();
 
   if (!client) {
     throw new Error('Supabase is not configured for account persistence.');
   }
 
-  const response = (await client
-    .from(tableName)
-    .select('*')) as SelectResponse<TRemote>;
+  const rows: TRemote[] = [];
+  let pages = 0;
 
-  if (allowMissingTable && isMissingTableError(response.error, tableName)) {
-    return {
-      data: [],
-      error: null,
-    };
+  while (true) {
+    const from = pages * ACCOUNT_CACHE_PAGE_SIZE;
+    const query = client
+      .from(tableName)
+      .select('*') as unknown as SelectPageQuery<TRemote>;
+    const response = await query
+      .order('revision', { ascending: true })
+      .order('id', { ascending: true })
+      .range(from, from + ACCOUNT_CACHE_PAGE_SIZE - 1);
+
+    pages += 1;
+
+    if (allowMissingTable && isMissingTableError(response.error, tableName)) {
+      return { data: [], pages, rows: 0 };
+    }
+
+    if (response.error) {
+      throw response.error;
+    }
+
+    const pageRows = response.data ?? [];
+    rows.push(...pageRows);
+
+    if (pageRows.length < ACCOUNT_CACHE_PAGE_SIZE) {
+      return { data: rows, pages, rows: rows.length };
+    }
   }
-
-  return response;
 }
 
 async function mergeRemoteRows<TEntity extends CacheEntity, TRemote>({
@@ -110,10 +155,14 @@ async function mergeRemoteRows<TEntity extends CacheEntity, TRemote>({
   }
 }
 
-export async function refreshAccountCache(scope: AppScope): Promise<void> {
+export async function refreshAccountCache(
+  scope: AppScope,
+): Promise<AccountCacheRefreshResult | null> {
   if (scope.kind !== 'user') {
-    return;
+    return null;
   }
+
+  const startedAt = performance.now();
 
   const [
     ,
@@ -135,18 +184,6 @@ export async function refreshAccountCache(scope: AppScope): Promise<void> {
     selectRemoteRows<RemoteGoalStep>('goal_steps'),
   ]);
 
-  const firstError =
-    categoryTagsResponse.error ??
-    dailyEntriesResponse.error ??
-    checklistItemsResponse.error ??
-    goalGroupsResponse.error ??
-    goalsResponse.error ??
-    goalStepsResponse.error;
-
-  if (firstError) {
-    throw firstError;
-  }
-
   await db.transaction(
     'rw',
     [
@@ -161,39 +198,71 @@ export async function refreshAccountCache(scope: AppScope): Promise<void> {
       await mergeRemoteRows({
         scope,
         table: db.categoryTags,
-        rows: (categoryTagsResponse.data ?? []) as RemoteCategoryTag[],
+        rows: categoryTagsResponse.data,
         toLocal: (row) => categoryTagFromRemote(scope, row),
       });
       await mergeRemoteRows({
         scope,
         table: db.dailyEntries,
-        rows: (dailyEntriesResponse.data ?? []) as RemoteDailyEntry[],
+        rows: dailyEntriesResponse.data,
         toLocal: (row) => dailyEntryFromRemote(scope, row),
       });
       await mergeRemoteRows({
         scope,
         table: db.checklistItems,
-        rows: (checklistItemsResponse.data ?? []) as RemoteChecklistItem[],
+        rows: checklistItemsResponse.data,
         toLocal: (row) => checklistItemFromRemote(scope, row),
       });
       await mergeRemoteRows({
         scope,
         table: db.goalGroups,
-        rows: (goalGroupsResponse.data ?? []) as RemoteGoalGroup[],
+        rows: goalGroupsResponse.data,
         toLocal: (row) => goalGroupFromRemote(scope, row),
       });
       await mergeRemoteRows({
         scope,
         table: db.goals,
-        rows: (goalsResponse.data ?? []) as RemoteGoal[],
+        rows: goalsResponse.data,
         toLocal: (row) => goalFromRemote(scope, row),
       });
       await mergeRemoteRows({
         scope,
         table: db.goalSteps,
-        rows: (goalStepsResponse.data ?? []) as RemoteGoalStep[],
+        rows: goalStepsResponse.data,
         toLocal: (row) => goalStepFromRemote(scope, row),
       });
     },
   );
+
+  const tables = {
+    category_tags: {
+      pages: categoryTagsResponse.pages,
+      rows: categoryTagsResponse.rows,
+    },
+    daily_entries: {
+      pages: dailyEntriesResponse.pages,
+      rows: dailyEntriesResponse.rows,
+    },
+    checklist_items: {
+      pages: checklistItemsResponse.pages,
+      rows: checklistItemsResponse.rows,
+    },
+    goal_groups: {
+      pages: goalGroupsResponse.pages,
+      rows: goalGroupsResponse.rows,
+    },
+    goals: { pages: goalsResponse.pages, rows: goalsResponse.rows },
+    goal_steps: {
+      pages: goalStepsResponse.pages,
+      rows: goalStepsResponse.rows,
+    },
+  } satisfies Record<RemoteEntityTable, AccountCacheTableMetrics>;
+  const tableMetrics = Object.values(tables);
+
+  return {
+    durationMs: performance.now() - startedAt,
+    tables,
+    totalPages: tableMetrics.reduce((total, table) => total + table.pages, 0),
+    totalRows: tableMetrics.reduce((total, table) => total + table.rows, 0),
+  };
 }

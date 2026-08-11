@@ -12,6 +12,9 @@ const withSerwist = withSerwistInit({
 });
 
 const nextConfig: NextConfig = {
+  experimental: {
+    useTypeScriptCli: false,
+  },
   reactStrictMode: true,
   async headers() {
     return [

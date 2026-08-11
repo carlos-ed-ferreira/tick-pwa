@@ -16,8 +16,17 @@ import {
   toggleGoalStepChecked,
   softDeleteChecklistItem,
 } from '@/lib/db';
-import { waitForAccountPersistence } from '@/lib/db/account-persistence';
+import {
+  getAccountSyncSummary,
+  retryFailedAccountPersistence,
+  waitForAccountPersistence,
+} from '@/lib/db/account-persistence';
 import { refreshAccountCache } from '@/lib/supabase/account-cache';
+import {
+  checklistItemFromRemote,
+  type RemoteEntityTable,
+  type RemoteChecklistItem,
+} from '@/lib/supabase/entity-mappers';
 
 const supabaseMocks = vi.hoisted(() => ({
   getSupabaseBrowserClient: vi.fn(),
@@ -54,6 +63,182 @@ function createAccountWriteClient() {
     from,
     writes,
   };
+}
+
+function createRemoteChecklistItem(
+  scope: ReturnType<typeof createUserScope>,
+  index: number,
+): RemoteChecklistItem {
+  return {
+    ...createRemoteBaseRow(scope, 'remote-item', index),
+    daily_entry_id: 'remote-day',
+    parent_id: null,
+    text: `Remote item ${index}`,
+    scheduled_time: null,
+    checked: false,
+    ignored: false,
+    bold: false,
+    priority: false,
+    collapsed: false,
+    category_tag_id: null,
+    sort_rank: `rank-${index.toString().padStart(4, '0')}`,
+  };
+}
+
+function createRemoteBaseRow(
+  scope: ReturnType<typeof createUserScope>,
+  prefix: string,
+  index: number,
+) {
+  const timestamp = '2026-05-21T10:00:00.000Z';
+
+  return {
+    id: `${prefix}-${index.toString().padStart(4, '0')}`,
+    user_id: scope.ownerId,
+    created_at: timestamp,
+    updated_at: timestamp,
+    deleted_at: null,
+    client_updated_at: timestamp,
+    revision: index + 1,
+  };
+}
+
+function createRemoteEntityRows(
+  scope: ReturnType<typeof createUserScope>,
+  count: number,
+): Record<RemoteEntityTable, unknown[]> {
+  return {
+    category_tags: Array.from({ length: count }, (_, index) => ({
+      ...createRemoteBaseRow(scope, 'remote-tag', index),
+      name: `TAG ${index}`,
+      color_hex: '#2563eb',
+      position: `position-${index}`,
+      surface: 'checklist_item',
+      use_own_name: false,
+    })),
+    daily_entries: Array.from({ length: count }, (_, index) => ({
+      ...createRemoteBaseRow(scope, 'remote-day', index),
+      date: '2026-05-21',
+      timezone: 'America/Sao_Paulo',
+      item_count: 0,
+      completed_count: 0,
+      category_tag_ids: [],
+      category_summaries: [],
+    })),
+    checklist_items: Array.from({ length: count }, (_, index) =>
+      createRemoteChecklistItem(scope, index),
+    ),
+    goal_groups: Array.from({ length: count }, (_, index) => ({
+      ...createRemoteBaseRow(scope, 'remote-goal-group', index),
+      title: `Remote goal group ${index}`,
+      category_tag_id: null,
+      sort_rank: `rank-${index.toString().padStart(4, '0')}`,
+    })),
+    goals: Array.from({ length: count }, (_, index) => ({
+      ...createRemoteBaseRow(scope, 'remote-goal', index),
+      group_id: null,
+      title: `Remote goal ${index}`,
+      due_date: null,
+      category_tag_id: null,
+      sort_rank: `rank-${index.toString().padStart(4, '0')}`,
+      completed_at: null,
+    })),
+    goal_steps: Array.from({ length: count }, (_, index) => ({
+      ...createRemoteBaseRow(scope, 'remote-goal-step', index),
+      goal_id: 'remote-goal',
+      parent_id: null,
+      text: `Remote goal step ${index}`,
+      completed: false,
+      ignored: false,
+      bold: false,
+      priority: false,
+      collapsed: false,
+      category_tag_id: null,
+      scheduled_date: null,
+      sort_rank: `rank-${index.toString().padStart(4, '0')}`,
+    })),
+  };
+}
+
+function createPagedSelectQuery({
+  error = null,
+  orders = [],
+  ranges = [],
+  rows,
+  table,
+}: {
+  error?: { code?: string; message: string } | null;
+  orders?: Array<{ column: string; table: string }>;
+  ranges?: Array<{ from: number; table: string; to: number }>;
+  rows: unknown[];
+  table: string;
+}) {
+  const query = {
+    order: vi.fn((column: string) => {
+      orders.push({ column, table });
+      return query;
+    }),
+    range: vi.fn((fromIndex: number, toIndex: number) => {
+      ranges.push({ from: fromIndex, table, to: toIndex });
+
+      return Promise.resolve({
+        data: error ? null : rows.slice(fromIndex, toIndex + 1),
+        error,
+      });
+    }),
+  };
+
+  return query;
+}
+
+function createPagedAccountReadClient({
+  rowsByTable,
+  failingPage,
+}: {
+  rowsByTable: Record<string, unknown[]>;
+  failingPage?: { table: string; from: number };
+}) {
+  const ranges: Array<{ from: number; table: string; to: number }> = [];
+  const orders: Array<{ column: string; table: string }> = [];
+  const from = vi.fn((table: string) => ({
+    select: vi.fn((columns: string) => {
+      if (table === 'user_preferences' && columns === 'key,value') {
+        return Promise.resolve({
+          data: rowsByTable[table] ?? [],
+          error: null,
+        });
+      }
+
+      const query = createPagedSelectQuery({
+        orders,
+        ranges,
+        rows: rowsByTable[table] ?? [],
+        table,
+      });
+
+      if (failingPage?.table === table) {
+        query.range.mockImplementation((fromIndex, toIndex) => {
+          ranges.push({ from: fromIndex, table, to: toIndex });
+
+          if (failingPage.from === fromIndex) {
+            return Promise.resolve({
+              data: null,
+              error: { message: 'remote page failed' },
+            });
+          }
+
+          return Promise.resolve({
+            data: (rowsByTable[table] ?? []).slice(fromIndex, toIndex + 1),
+            error: null,
+          });
+        });
+      }
+
+      return query;
+    }),
+  }));
+
+  return { client: { from }, from, orders, ranges };
 }
 
 describe('account persistence boundaries', () => {
@@ -257,9 +442,11 @@ describe('account persistence boundaries', () => {
     });
     const categoryTag = await creation;
 
-    await expect(db.categoryTags.get(categoryTag.id)).resolves.toMatchObject({
-      name: 'FOCUS',
-      syncStatus: 'pending',
+    await vi.waitFor(async () => {
+      await expect(db.categoryTags.get(categoryTag.id)).resolves.toMatchObject({
+        name: 'FOCUS',
+        syncStatus: 'syncing',
+      });
     });
 
     resolveWrite({ data: { revision: 1 }, error: null });
@@ -320,7 +507,7 @@ describe('account persistence boundaries', () => {
     await expect(db.checklistItems.get(item.id)).resolves.toMatchObject({
       bold: true,
       collapsed: true,
-      syncStatus: 'pending',
+      syncStatus: 'syncing',
     });
     pendingWrites[1]({ data: { revision: 3 }, error: null });
     await waitForAccountPersistence(scope.id);
@@ -422,7 +609,7 @@ describe('account persistence boundaries', () => {
     expect(selectRemote).not.toHaveBeenCalled();
   });
 
-  it('preserves pending authenticated goals during account cache refresh', async () => {
+  it('preserves in-flight authenticated goals during account cache refresh', async () => {
     const scope = createUserScope('refresh-pending-goal-user');
     let resolveWrite!: (value: {
       data: { revision: number };
@@ -442,10 +629,7 @@ describe('account persistence boundaries', () => {
               maybeSingle: vi.fn(() => delayedWrite),
             })),
           })),
-          select: vi.fn().mockResolvedValue({
-            data: [],
-            error: null,
-          }),
+          select: vi.fn(() => createPagedSelectQuery({ rows: [], table })),
         };
       }
 
@@ -458,10 +642,11 @@ describe('account persistence boundaries', () => {
             }),
           })),
         })),
-        select: vi.fn().mockResolvedValue({
-          data: [],
-          error: null,
-        }),
+        select: vi.fn((columns: string) =>
+          table === 'user_preferences' && columns === 'key,value'
+            ? Promise.resolve({ data: [], error: null })
+            : createPagedSelectQuery({ rows: [], table }),
+        ),
       };
     });
     supabaseMocks.getSupabaseBrowserClient.mockReturnValue({ from });
@@ -480,7 +665,7 @@ describe('account persistence boundaries', () => {
 
     await expect(db.goals.get(goal.id)).resolves.toMatchObject({
       title: 'PENDING GOAL',
-      syncStatus: 'pending',
+      syncStatus: 'syncing',
     });
 
     resolveWrite({ data: { revision: 1 }, error: null });
@@ -491,6 +676,89 @@ describe('account persistence boundaries', () => {
       syncStatus: 'synced',
       remoteRevision: 1,
     });
+  });
+
+  it('loads every account table beyond the remote row limit with stable pagination', async () => {
+    const scope = createUserScope('paginated-snapshot-user');
+    const rowsByTable = createRemoteEntityRows(scope, 1001);
+    const accountClient = createPagedAccountReadClient({
+      rowsByTable,
+    });
+    supabaseMocks.getSupabaseBrowserClient.mockReturnValue(
+      accountClient.client,
+    );
+
+    const result = await refreshAccountCache(scope);
+
+    await expect(
+      Promise.all([
+        db.categoryTags.where('scopeId').equals(scope.id).count(),
+        db.dailyEntries.where('scopeId').equals(scope.id).count(),
+        db.checklistItems.where('scopeId').equals(scope.id).count(),
+        db.goalGroups.where('scopeId').equals(scope.id).count(),
+        db.goals.where('scopeId').equals(scope.id).count(),
+        db.goalSteps.where('scopeId').equals(scope.id).count(),
+      ]),
+    ).resolves.toEqual([1001, 1001, 1001, 1001, 1001, 1001]);
+
+    for (const table of Object.keys(rowsByTable)) {
+      expect(
+        accountClient.ranges.filter((range) => range.table === table),
+      ).toEqual([
+        { from: 0, table, to: 999 },
+        { from: 1000, table, to: 1999 },
+      ]);
+      expect(
+        accountClient.orders.filter((order) => order.table === table),
+      ).toEqual([
+        { column: 'revision', table },
+        { column: 'id', table },
+        { column: 'revision', table },
+        { column: 'id', table },
+      ]);
+    }
+
+    expect(result).toMatchObject({
+      tables: {
+        category_tags: { pages: 2, rows: 1001 },
+        daily_entries: { pages: 2, rows: 1001 },
+        checklist_items: { pages: 2, rows: 1001 },
+        goal_groups: { pages: 2, rows: 1001 },
+        goals: { pages: 2, rows: 1001 },
+        goal_steps: { pages: 2, rows: 1001 },
+      },
+      totalPages: 12,
+      totalRows: 6006,
+    });
+  });
+
+  it('does not reconcile any account table when a final snapshot page fails', async () => {
+    const scope = createUserScope('failed-final-page-user');
+    const localOnlyRow = createRemoteChecklistItem(scope, 2000);
+    localOnlyRow.id = 'local-synced-item';
+    await db.checklistItems.put(checklistItemFromRemote(scope, localOnlyRow));
+    const accountClient = createPagedAccountReadClient({
+      rowsByTable: {
+        checklist_items: Array.from({ length: 1000 }, (_, index) =>
+          createRemoteChecklistItem(scope, index),
+        ),
+      },
+      failingPage: { table: 'checklist_items', from: 1000 },
+    });
+    supabaseMocks.getSupabaseBrowserClient.mockReturnValue(
+      accountClient.client,
+    );
+
+    await expect(refreshAccountCache(scope)).rejects.toMatchObject({
+      message: 'remote page failed',
+    });
+
+    await expect(db.checklistItems.get('local-synced-item')).resolves.toEqual(
+      checklistItemFromRemote(scope, localOnlyRow),
+    );
+    await expect(
+      db.checklistItems.where('scopeId').equals(scope.id).count(),
+    ).resolves.toBe(1);
   });
 
   it('keeps newly created authenticated entities locally when Supabase persistence fails', async () => {
@@ -528,49 +796,164 @@ describe('account persistence boundaries', () => {
     });
   });
 
-  it('ignores a missing goal_groups table during account cache refresh', async () => {
-    const scope = createUserScope('goal-groups-missing-user');
-    const now = '2026-05-21T10:00:00.000Z';
-    const from = vi.fn((table: string) => ({
-      select: vi.fn().mockResolvedValue(
-        table === 'goal_groups'
-          ? {
-              data: null,
-              error: {
-                code: 'PGRST205',
-                details: null,
-                hint: null,
-                message:
-                  "Could not find the table 'public.goal_groups' in the schema cache",
-              },
-            }
-          : {
-              data:
-                table === 'goals'
-                  ? [
-                      {
-                        id: 'goal-1',
-                        user_id: scope.ownerId,
-                        group_id: null,
-                        title: 'Pulled goal',
-                        category_tag_id: null,
-                        sort_rank: 'n',
-                        completed_at: null,
-                        created_at: now,
-                        updated_at: now,
-                        deleted_at: null,
-                        client_updated_at: now,
-                        revision: 1,
-                      },
-                    ]
-                  : [],
-              error: null,
-            },
-      ),
+  it('retries a failed authenticated creation with the same local entity', async () => {
+    const scope = createUserScope('retry-failure-user');
+    let shouldFail = true;
+    let resolveRetry!: (value: {
+      data: { revision: number };
+      error: null;
+    }) => void;
+    const delayedRetry = new Promise<{
+      data: { revision: number };
+      error: null;
+    }>((resolve) => {
+      resolveRetry = resolve;
+    });
+    const writes: Record<string, unknown>[] = [];
+    const from = vi.fn(() => ({
+      upsert: vi.fn((payload: Record<string, unknown>) => {
+        writes.push(payload);
+
+        return {
+          select: vi.fn(() => ({
+            maybeSingle: vi.fn(() =>
+              shouldFail
+                ? Promise.resolve({
+                    data: null,
+                    error: { message: 'remote write failed' },
+                  })
+                : delayedRetry,
+            ),
+          })),
+        };
+      }),
     }));
     supabaseMocks.getSupabaseBrowserClient.mockReturnValue({ from });
 
-    await expect(refreshAccountCache(scope)).resolves.toBeUndefined();
+    const categoryTag = await createCategoryTag({
+      scope,
+      surface: 'calendar',
+      name: 'Focus',
+      colorHex: '#2563eb',
+    });
+    await waitForAccountPersistence(scope.id);
+    shouldFail = false;
+
+    const retry = retryFailedAccountPersistence(scope);
+
+    await vi.waitFor(async () => {
+      await expect(db.categoryTags.get(categoryTag.id)).resolves.toMatchObject({
+        syncStatus: 'syncing',
+      });
+    });
+    resolveRetry({ data: { revision: 7 }, error: null });
+    await retry;
+
+    await expect(db.categoryTags.get(categoryTag.id)).resolves.toMatchObject({
+      name: 'FOCUS',
+      remoteRevision: 7,
+      syncStatus: 'synced',
+    });
+    expect(writes).toHaveLength(2);
+    expect(writes[1]).toMatchObject({ id: categoryTag.id });
+  });
+
+  it('summarizes account sync states with failure-first priority', async () => {
+    const scope = createUserScope('sync-summary-user');
+    const from = vi.fn(() => ({
+      upsert: vi.fn(() => ({
+        select: vi.fn(() => ({
+          maybeSingle: vi.fn().mockResolvedValue({
+            data: null,
+            error: { message: 'remote write failed' },
+          }),
+        })),
+      })),
+    }));
+    supabaseMocks.getSupabaseBrowserClient.mockReturnValue({ from });
+
+    const categoryTag = await createCategoryTag({
+      scope,
+      surface: 'calendar',
+      name: 'Focus',
+      colorHex: '#2563eb',
+    });
+    await waitForAccountPersistence(scope.id);
+
+    await expect(getAccountSyncSummary(scope.id)).resolves.toEqual({
+      state: 'failed',
+      failedCount: 1,
+      pendingCount: 0,
+      syncingCount: 0,
+    });
+
+    await db.categoryTags.update(categoryTag.id, { syncStatus: 'pending' });
+    await expect(getAccountSyncSummary(scope.id)).resolves.toMatchObject({
+      state: 'pending',
+      failedCount: 0,
+      pendingCount: 1,
+    });
+
+    await db.categoryTags.update(categoryTag.id, { syncStatus: 'syncing' });
+    await expect(getAccountSyncSummary(scope.id)).resolves.toMatchObject({
+      state: 'syncing',
+      pendingCount: 0,
+      syncingCount: 1,
+    });
+
+    await db.categoryTags.update(categoryTag.id, { syncStatus: 'synced' });
+    await expect(getAccountSyncSummary(scope.id)).resolves.toEqual({
+      state: 'saved',
+      failedCount: 0,
+      pendingCount: 0,
+      syncingCount: 0,
+    });
+  });
+
+  it('ignores a missing goal_groups table during account cache refresh', async () => {
+    const scope = createUserScope('goal-groups-missing-user');
+    const now = '2026-05-21T10:00:00.000Z';
+    const goalRows = [
+      {
+        id: 'goal-1',
+        user_id: scope.ownerId,
+        group_id: null,
+        title: 'Pulled goal',
+        category_tag_id: null,
+        sort_rank: 'n',
+        completed_at: null,
+        created_at: now,
+        updated_at: now,
+        deleted_at: null,
+        client_updated_at: now,
+        revision: 1,
+      },
+    ];
+    const from = vi.fn((table: string) => ({
+      select: vi.fn((columns: string) => {
+        if (table === 'user_preferences' && columns === 'key,value') {
+          return Promise.resolve({ data: [], error: null });
+        }
+
+        return createPagedSelectQuery({
+          error:
+            table === 'goal_groups'
+              ? {
+                  code: 'PGRST205',
+                  message:
+                    "Could not find the table 'public.goal_groups' in the schema cache",
+                }
+              : null,
+          rows: table === 'goals' ? goalRows : [],
+          table,
+        });
+      }),
+    }));
+    supabaseMocks.getSupabaseBrowserClient.mockReturnValue({ from });
+
+    await expect(refreshAccountCache(scope)).resolves.toMatchObject({
+      tables: { goal_groups: { pages: 1, rows: 0 } },
+    });
     await expect(db.goals.get('goal-1')).resolves.toMatchObject({
       title: 'Pulled goal',
       syncStatus: 'synced',
@@ -687,10 +1070,17 @@ describe('account persistence boundaries', () => {
       ],
     };
     const from = vi.fn((table: string) => ({
-      select: vi.fn().mockResolvedValue({
-        data: remoteRows[table] ?? [],
-        error: null,
-      }),
+      select: vi.fn((columns: string) =>
+        table === 'user_preferences' && columns === 'key,value'
+          ? Promise.resolve({
+              data: remoteRows[table] ?? [],
+              error: null,
+            })
+          : createPagedSelectQuery({
+              rows: remoteRows[table] ?? [],
+              table,
+            }),
+      ),
     }));
     supabaseMocks.getSupabaseBrowserClient.mockReturnValue({ from });
 

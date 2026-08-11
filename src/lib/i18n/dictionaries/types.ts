@@ -105,6 +105,32 @@ export interface Dictionary {
     unauthorizedDescription: string;
     loading: string;
   };
+  sync: {
+    failed: string;
+    pending: string;
+    retry: string;
+    retrying: string;
+    saved: string;
+    syncing: string;
+  };
+  powerSyncPoc: {
+    title: string;
+    description: string;
+    unavailable: string;
+    categoryLabel: string;
+    parentLabel: string;
+    childLabel: string;
+    createScenario: string;
+    creating: string;
+    refresh: string;
+    empty: string;
+    ready: string;
+    error: string;
+    required: string;
+    categories: string;
+    hierarchy: string;
+    localNotice: string;
+  };
   navigation: {
     home: string;
     calendar: string;

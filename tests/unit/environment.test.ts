@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   isLocalhostHostname,
+  isPowerSyncPocUserAllowed,
   shouldForceLocalOnlyMode,
+  shouldUsePowerSyncPocOnHostname,
   shouldUseCloudSyncOnHostname,
 } from '@/lib/environment';
 
@@ -114,5 +116,50 @@ describe('environment helpers', () => {
         supabaseUrl: 'https://prod.supabase.co',
       }),
     ).toBe(false);
+  });
+
+  it('enables the PowerSync proof only with cloud sync, an explicit flag and HTTPS', () => {
+    const enabledConfiguration = {
+      hostname: 'tickapp.com.br',
+      disableSupabase: false,
+      enablePowerSyncPoc: true,
+      powerSyncUrl: 'https://example.powersync.journeyapps.com',
+      supabaseEnvironment: 'production',
+      supabaseUrl: 'https://project.supabase.co',
+    };
+
+    expect(shouldUsePowerSyncPocOnHostname(enabledConfiguration)).toBe(true);
+    expect(
+      shouldUsePowerSyncPocOnHostname({
+        ...enabledConfiguration,
+        enablePowerSyncPoc: false,
+      }),
+    ).toBe(false);
+    expect(
+      shouldUsePowerSyncPocOnHostname({
+        ...enabledConfiguration,
+        disableSupabase: true,
+      }),
+    ).toBe(false);
+    expect(
+      shouldUsePowerSyncPocOnHostname({
+        ...enabledConfiguration,
+        powerSyncUrl: 'http://example.powersync.journeyapps.com',
+      }),
+    ).toBe(false);
+  });
+
+  it('restricts the PowerSync proof to explicitly listed account ids', () => {
+    expect(
+      isPowerSyncPocUserAllowed(
+        'allowed-user',
+        'first-user, allowed-user ,third-user',
+      ),
+    ).toBe(true);
+    expect(
+      isPowerSyncPocUserAllowed('another-user', 'first-user,allowed-user'),
+    ).toBe(false);
+    expect(isPowerSyncPocUserAllowed('allowed-user', '')).toBe(false);
+    expect(isPowerSyncPocUserAllowed(null, 'allowed-user')).toBe(false);
   });
 });

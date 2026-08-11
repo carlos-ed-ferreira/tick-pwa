@@ -14,7 +14,10 @@ import {
 import type { AppScope, LocalePreference, SupportedLocale } from '@/lib/domain';
 import { ToastViewport } from '@/components/ui';
 import { createGuestScope, createUserScope } from '@/lib/domain';
-import { shouldUseCloudSync } from '@/lib/environment';
+import {
+  shouldUseCloudSync,
+  shouldUsePowerSyncPocForUser,
+} from '@/lib/environment';
 import {
   getLocalPreference,
   getOrCreateInstallationId,
@@ -30,11 +33,13 @@ import {
 } from '@/lib/i18n';
 import {
   ensureUserProfile,
+  AccountRefreshCoordinator,
   getSupabaseBrowserClient,
   isUserAllowed,
   refreshAccountCache,
   toTickAuthUser,
   type TickAuthUser,
+  type AccountRefreshReason,
 } from '@/lib/supabase';
 import { resolveTimezonePreference } from '@/lib/time';
 
@@ -56,6 +61,7 @@ type AccessModePreference = 'entry' | 'local';
 const ACCESS_MODE_PREFERENCE_KEY = 'accessMode';
 const APP_INITIALIZATION_TIMEOUT_MS = 3000;
 const INITIAL_AUTH_SESSION_TIMEOUT_MS = 2000;
+const ACCOUNT_REFRESH_DEBOUNCE_MS = 500;
 
 async function getInitialAuthUser(): Promise<User | null> {
   const client = getSupabaseBrowserClient();
@@ -126,7 +132,15 @@ export function AppProvider({
   const [locale, setLocaleState] = useState<SupportedLocale>(initialLocale);
   const [timezonePreference, setTimezonePreference] =
     useState<LocalePreference>(() => resolveTimezonePreference(initialLocale));
-  const accountRefreshInProgressRef = useRef(false);
+  const accountRefreshCoordinatorRef = useRef<AccountRefreshCoordinator | null>(
+    null,
+  );
+
+  if (accountRefreshCoordinatorRef.current == null) {
+    accountRefreshCoordinatorRef.current = new AccountRefreshCoordinator(
+      refreshAccountCache,
+    );
+  }
 
   const applyScopedPreferences = useCallback(
     async (nextScope: AppScope | null) => {
@@ -157,25 +171,28 @@ export function AppProvider({
     [],
   );
 
-  const refreshScopedAccountCache = useCallback(async (nextScope: AppScope) => {
-    if (
-      !shouldUseCloudSync() ||
-      nextScope.kind === 'guest' ||
-      accountRefreshInProgressRef.current
-    ) {
-      return;
-    }
+  const refreshScopedAccountCache = useCallback(
+    async (
+      nextScope: AppScope,
+      reason: AccountRefreshReason,
+      force = false,
+    ) => {
+      if (!shouldUseCloudSync() || nextScope.kind === 'guest') {
+        return;
+      }
 
-    accountRefreshInProgressRef.current = true;
-
-    try {
-      await refreshAccountCache(nextScope);
-    } catch (error) {
-      console.error('Failed to refresh Tick account data.', error);
-    } finally {
-      accountRefreshInProgressRef.current = false;
-    }
-  }, []);
+      try {
+        await accountRefreshCoordinatorRef.current?.refresh(
+          nextScope,
+          reason,
+          force,
+        );
+      } catch (error) {
+        console.error('Failed to refresh Tick account data.', error);
+      }
+    },
+    [],
+  );
 
   const activateLocalMode = useCallback(
     async ({ persistChoice }: { persistChoice: boolean }) => {
@@ -245,7 +262,7 @@ export function AppProvider({
 
       await ensureUserProfile(user);
       await applyScopedPreferences(userScope);
-      await refreshScopedAccountCache(userScope);
+      await refreshScopedAccountCache(userScope, 'session');
 
       await setLocalPreference<AccessModePreference>(
         ACCESS_MODE_PREFERENCE_KEY,
@@ -356,21 +373,68 @@ export function AppProvider({
   }, [activateAuthenticatedMode]);
 
   useEffect(() => {
+    if (
+      authMode !== 'authenticated' ||
+      scope?.kind !== 'user' ||
+      !shouldUsePowerSyncPocForUser(scope.ownerId)
+    ) {
+      return;
+    }
+
+    let isActive = true;
+    const runtimePromise = import('@/lib/powersync/runtime');
+
+    void runtimePromise
+      .then(async ({ startPowerSyncPoc }) => {
+        if (!isActive) {
+          return;
+        }
+
+        await startPowerSyncPoc(scope);
+      })
+      .catch((error) => {
+        console.error('Failed to update PowerSync proof of concept.', error);
+      });
+
+    return () => {
+      isActive = false;
+      void runtimePromise
+        .then(({ stopPowerSyncPoc }) => stopPowerSyncPoc())
+        .catch((error) => {
+          console.error('Failed to stop PowerSync proof of concept.', error);
+        });
+    };
+  }, [authMode, scope]);
+
+  useEffect(() => {
     if (authMode !== 'authenticated' || !scope || !shouldUseCloudSync()) {
       return;
     }
 
-    const refresh = () => {
-      void refreshScopedAccountCache(scope);
-    };
+    let refreshTimeoutId: number | null = null;
+    const scheduleRefresh = (reason: AccountRefreshReason) => {
+      if (refreshTimeoutId !== null) {
+        window.clearTimeout(refreshTimeoutId);
+      }
 
-    refresh();
-    window.addEventListener('online', refresh);
-    window.addEventListener('focus', refresh);
+      refreshTimeoutId = window.setTimeout(() => {
+        refreshTimeoutId = null;
+        void refreshScopedAccountCache(scope, reason);
+      }, ACCOUNT_REFRESH_DEBOUNCE_MS);
+    };
+    const refreshOnline = () => scheduleRefresh('online');
+    const refreshFocused = () => scheduleRefresh('focus');
+
+    window.addEventListener('online', refreshOnline);
+    window.addEventListener('focus', refreshFocused);
 
     return () => {
-      window.removeEventListener('online', refresh);
-      window.removeEventListener('focus', refresh);
+      window.removeEventListener('online', refreshOnline);
+      window.removeEventListener('focus', refreshFocused);
+
+      if (refreshTimeoutId !== null) {
+        window.clearTimeout(refreshTimeoutId);
+      }
     };
   }, [authMode, refreshScopedAccountCache, scope]);
 
@@ -518,7 +582,7 @@ export function AppProvider({
       return;
     }
 
-    await refreshScopedAccountCache(scope);
+    await refreshScopedAccountCache(scope, 'manual', true);
   }, [refreshScopedAccountCache, scope]);
 
   const dictionary = useMemo(() => getDictionary(locale), [locale]);
