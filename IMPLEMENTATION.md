@@ -76,9 +76,10 @@ com write pendente, E2E autenticado e métricas de contagem.
 
 ## SYNC-01 — Sincronização durável e resiliente
 
-**Status:** em andamento; proteção de refresh da Fase 0.2 e estados/retry
-visíveis da Fase 0.3 concluídos em 11 de agosto de 2026. Fila durável e prova de
-conceito ainda estão pendentes.
+**Status:** em andamento; proteção de refresh da Fase 0.2, estados/retry
+visíveis da Fase 0.3 e fundação desativada da prova PowerSync concluídos em 11
+de agosto de 2026. A configuração externa, a migração funcional para SQLite e
+os ensaios reais ainda estão pendentes.
 
 **Problema/lacuna — `P0`, arquitetura/código/serviço externo:** operações da
 conta podem desaparecer ao fechar ou recarregar a aba.
@@ -120,6 +121,22 @@ acessível. O gate `npm run check` passou com 57 arquivos e 402 testes em 11 de
 agosto de 2026; os E2E locais passaram em 22 cenários e os autenticados em 2,
 ambos em desktop e mobile, incluindo as transições `Syncing` e `Synced` sob
 latência remota simulada.
+
+**Evidência da fundação PowerSync:** `@powersync/web` está atrás de feature
+flag desligada por padrão; schema SQLite, normalização dos tipos Postgres,
+conector Supabase, ciclo de vida isolado por usuário e Sync Streams edition 3
+para `category_tags`, `daily_entries` e `checklist_items` estão versionados. O
+guest não inicia o serviço e a troca de conta fecha o banco anterior. O guia de
+ativação controlada está em `docs/powersync-poc.md`. Essa entrega ainda não
+altera as leituras e escritas funcionais do produto.
+
+O rollout também exige uma lista explícita de IDs de conta. O adapter isolado
+do POC lê somente linhas do usuário autenticado, rejeita guest e gera
+`INSERT`/`UPDATE` locais com booleanos e JSON compatíveis com SQLite. Ele ainda
+não foi conectado aos comandos Dexie para impedir dual-write durante a prova.
+A rota interna `/~powersync-poc` usa esse adapter para gravar categoria, dia,
+tarefa e subtarefa em uma única transação local, com textos pt-BR/en e bloqueio
+para contas fora do rollout. A ativação e os ensaios reais continuam pendentes.
 
 ## SEC-01 — Vulnerabilidades de dependências
 
@@ -600,7 +617,8 @@ Continuam pendentes ou intencionalmente adiados:
   workflow ser mesclado e validado no GitHub;
 - SMTP, CAPTCHA e revisão de quotas do Supabase antes do cadastro público;
 - ordem coordenada de migrations e deploy na Vercel, coberta por `CICD-01`;
-- projeto, sync rules, região e plano do PowerSync após a prova de conceito;
+- projeto gratuito, conexão, Sync Streams e região do PowerSync para executar a
+  prova de conceito;
 - conta, catálogo, moedas, webhooks e secrets do provedor de pagamento;
 - projeto, DSN, retenção, alertas e redaction da observabilidade;
 - zona, domínio, headers e rollback na Cloudflare após a migração estática;

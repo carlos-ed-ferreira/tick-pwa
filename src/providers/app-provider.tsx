@@ -14,7 +14,10 @@ import {
 import type { AppScope, LocalePreference, SupportedLocale } from '@/lib/domain';
 import { ToastViewport } from '@/components/ui';
 import { createGuestScope, createUserScope } from '@/lib/domain';
-import { shouldUseCloudSync } from '@/lib/environment';
+import {
+  shouldUseCloudSync,
+  shouldUsePowerSyncPocForUser,
+} from '@/lib/environment';
 import {
   getLocalPreference,
   getOrCreateInstallationId,
@@ -368,6 +371,40 @@ export function AppProvider({
       data.subscription.unsubscribe();
     };
   }, [activateAuthenticatedMode]);
+
+  useEffect(() => {
+    if (
+      authMode !== 'authenticated' ||
+      scope?.kind !== 'user' ||
+      !shouldUsePowerSyncPocForUser(scope.ownerId)
+    ) {
+      return;
+    }
+
+    let isActive = true;
+    const runtimePromise = import('@/lib/powersync/runtime');
+
+    void runtimePromise
+      .then(async ({ startPowerSyncPoc }) => {
+        if (!isActive) {
+          return;
+        }
+
+        await startPowerSyncPoc(scope);
+      })
+      .catch((error) => {
+        console.error('Failed to update PowerSync proof of concept.', error);
+      });
+
+    return () => {
+      isActive = false;
+      void runtimePromise
+        .then(({ stopPowerSyncPoc }) => stopPowerSyncPoc())
+        .catch((error) => {
+          console.error('Failed to stop PowerSync proof of concept.', error);
+        });
+    };
+  }, [authMode, scope]);
 
   useEffect(() => {
     if (authMode !== 'authenticated' || !scope || !shouldUseCloudSync()) {

@@ -39,6 +39,7 @@
     "clean": "rm -rf .next out build coverage public/sw.js public/sw.js.map public/swe-worker*.js"
   },
   "dependencies": {
+    "@powersync/web": "^2.1.1",
     "@serwist/next": "^9.5.11",
     "@supabase/supabase-js": "^2.105.4",
     "country-flag-icons": "^1.6.17",

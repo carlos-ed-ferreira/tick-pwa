@@ -87,6 +87,13 @@ conflitos e observabilidade externa. Elas estão registradas no
 [IMPLEMENTATION.md](IMPLEMENTATION.md); não devem ser confundidas com garantias
 já implementadas.
 
+Existe uma fundação desativada para a prova de conceito do PowerSync. Ela cria
+um SQLite isolado por conta e contém schema, autenticação, upload e Sync Streams
+para categorias e checklist. A rota interna `/~powersync-poc` exercita apenas
+esse SQLite e permanece bloqueada sem flag e UUID autorizado; ela não substitui
+a persistência funcional Dexie. O preparo externo e os limites estão em
+[docs/powersync-poc.md](docs/powersync-poc.md).
+
 ### PWA e offline
 
 Serwist gera `public/sw.js` durante o build. Assets usam estratégias de cache e
@@ -239,11 +246,20 @@ NEXT_PUBLIC_TICK_SUPABASE_ENV=local
 NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321
 NEXT_PUBLIC_SUPABASE_ANON_KEY=<chave pública local>
 NEXT_PUBLIC_TICK_DISABLE_SUPABASE=
+NEXT_PUBLIC_TICK_ENABLE_POWERSYNC_POC=
+NEXT_PUBLIC_TICK_POWERSYNC_POC_USER_IDS=
+NEXT_PUBLIC_POWERSYNC_URL=
 ```
 
 Defina `NEXT_PUBLIC_TICK_DISABLE_SUPABASE=1` para forçar execução local sem
 Supabase. Em `localhost`, a aplicação só aceita `local` com uma URL local. Fora
 de localhost, só aceita o ambiente explícito `production`.
+
+As variáveis de ativação do PowerSync permanecem vazias no fluxo normal. A prova só é
+carregada quando a URL usa HTTPS, o sync Supabase está permitido e
+`NEXT_PUBLIC_TICK_ENABLE_POWERSYNC_POC=1`. Além da flag, o ID da conta precisa
+estar em `NEXT_PUBLIC_TICK_POWERSYNC_POC_USER_IDS`. Não habilite o rollout antes
+de concluir a validação descrita em `docs/powersync-poc.md`.
 
 Produção requer:
 

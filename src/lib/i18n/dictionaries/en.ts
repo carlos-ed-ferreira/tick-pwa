@@ -64,6 +64,26 @@ export const enDictionary = {
     saved: 'Synced',
     syncing: 'Syncing',
   },
+  powerSyncPoc: {
+    title: 'PowerSync local proof',
+    description:
+      'Isolated area for validating one category and one hierarchy without using the product Dexie database.',
+    unavailable: 'This account is not authorized for the PowerSync proof.',
+    categoryLabel: 'Proof category',
+    parentLabel: 'Main task',
+    childLabel: 'Subtask',
+    createScenario: 'Save local scenario',
+    creating: 'Saving to SQLite',
+    refresh: 'Refresh local data',
+    empty: 'No scenario has been saved in this SQLite database.',
+    ready: 'PowerSync SQLite is ready.',
+    error: 'The PowerSync proof could not be accessed.',
+    required: 'Complete all three fields.',
+    categories: 'Local categories',
+    hierarchy: 'Local hierarchy',
+    localNotice:
+      'Actions on this page do not write to the Dexie database used by product screens.',
+  },
   navigation: {
     home: 'Tick',
     calendar: 'Daily Tasks',

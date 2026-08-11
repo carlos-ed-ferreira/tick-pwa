@@ -64,6 +64,26 @@ export const ptBRDictionary = {
     saved: 'Sincronizado',
     syncing: 'Sincronizando',
   },
+  powerSyncPoc: {
+    title: 'Prova local do PowerSync',
+    description:
+      'Área isolada para validar uma categoria e uma hierarquia sem usar o Dexie do produto.',
+    unavailable: 'Esta conta não está autorizada para a prova do PowerSync.',
+    categoryLabel: 'Categoria da prova',
+    parentLabel: 'Tarefa principal',
+    childLabel: 'Subtarefa',
+    createScenario: 'Gravar cenário local',
+    creating: 'Gravando no SQLite',
+    refresh: 'Atualizar leitura local',
+    empty: 'Nenhum cenário foi gravado neste SQLite.',
+    ready: 'SQLite do PowerSync pronto.',
+    error: 'Não foi possível acessar a prova do PowerSync.',
+    required: 'Preencha os três campos.',
+    categories: 'Categorias locais',
+    hierarchy: 'Hierarquia local',
+    localNotice:
+      'As ações desta página não escrevem no Dexie usado pelas telas do produto.',
+  },
   navigation: {
     home: 'Tick',
     calendar: 'Tarefas do dia',
