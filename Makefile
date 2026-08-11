@@ -1,11 +1,12 @@
 NPM = npm
 
-.PHONY: help require-npm install dev build start lint typecheck test test-e2e format format-check check clean supabase-start supabase-stop supabase-status supabase-reset supabase-diff supabase-lint supabase-test-db supabase-types-local
+.PHONY: help require-npm install install-ci dev build start lint typecheck test test-e2e test-e2e-account format format-check check audit-prod deps-tree publish clean supabase-start supabase-stop supabase-status supabase-reset supabase-diff supabase-lint supabase-test-db supabase-types-local supabase-prod-migrations-repair supabase-prod-db-dry-run supabase-prod-db-push
 .DEFAULT_GOAL := help
 
 help:
 	@printf "\n"
 	@printf "  %-26s %s\n" "make install" "Instala dependencias do projeto"
+	@printf "  %-26s %s\n" "make install-ci" "Instala dependencias exatamente como no lockfile"
 	@printf "  %-26s %s\n" "make dev" "Instala dependencias, inicia o Supabase local e o Next.js"
 	@printf "  %-26s %s\n" "make build" "Gera build de producao com PWA"
 	@printf "  %-26s %s\n" "make start" "Inicia o servidor de producao apos o build"
@@ -13,9 +14,13 @@ help:
 	@printf "  %-26s %s\n" "make typecheck" "Roda TypeScript sem emitir arquivos"
 	@printf "  %-26s %s\n" "make test" "Roda testes unitarios e de integracao"
 	@printf "  %-26s %s\n" "make test-e2e" "Roda testes end-to-end"
+	@printf "  %-26s %s\n" "make test-e2e-account" "Roda E2E autenticado"
 	@printf "  %-26s %s\n" "make format" "Formata o codigo com Prettier"
 	@printf "  %-26s %s\n" "make format-check" "Verifica formatacao com Prettier"
 	@printf "  %-26s %s\n" "make check" "Roda typecheck, lint, testes, format-check e build"
+	@printf "  %-26s %s\n" "make audit-prod" "Audita vulnerabilidades de producao"
+	@printf "  %-26s %s\n" "make deps-tree" "Mostra dependencias diretas instaladas"
+	@printf "  %-26s %s\n" "make publish" "Publica dev em main pelo fluxo protegido"
 	@printf "  %-26s %s\n" "make supabase-start" "Inicia o Supabase local"
 	@printf "  %-26s %s\n" "make supabase-stop" "Para o Supabase local"
 	@printf "  %-26s %s\n" "make supabase-status" "Mostra URLs e chaves do Supabase local"
@@ -24,6 +29,9 @@ help:
 	@printf "  %-26s %s\n" "make supabase-lint" "Valida o schema Postgres local"
 	@printf "  %-26s %s\n" "make supabase-test-db" "Roda os testes pgTAP do banco"
 	@printf "  %-26s %s\n" "make supabase-types-local" "Gera tipos TypeScript do schema Supabase local"
+	@printf "  %-26s %s\n" "make supabase-prod-migrations-repair" "Repara historico remoto no CI"
+	@printf "  %-26s %s\n" "make supabase-prod-db-dry-run" "Previsualiza migrations remotas no CI"
+	@printf "  %-26s %s\n" "make supabase-prod-db-push" "Aplica migrations remotas no CI"
 	@printf "  %-26s %s\n" "make clean" "Remove artefatos locais de build"
 	@printf "\n"
 
@@ -37,6 +45,9 @@ require-npm:
 
 install: require-npm
 	$(NPM) install
+
+install-ci: require-npm
+	$(NPM) ci
 
 dev: install
 	@set -e; \
@@ -72,6 +83,9 @@ test: require-npm
 test-e2e: require-npm
 	$(NPM) run test:e2e
 
+test-e2e-account: require-npm
+	$(NPM) run test:e2e:account
+
 format: require-npm
 	$(NPM) run format
 
@@ -80,6 +94,15 @@ format-check: require-npm
 
 check: require-npm
 	$(NPM) run check
+
+audit-prod: require-npm
+	$(NPM) run audit:prod
+
+deps-tree: require-npm
+	$(NPM) ls --depth=0
+
+publish: require-npm
+	$(NPM) run publish
 
 supabase-start: require-npm
 	$(NPM) run supabase:start
@@ -104,6 +127,15 @@ supabase-test-db: require-npm
 
 supabase-types-local: require-npm
 	$(NPM) run supabase:types:local
+
+supabase-prod-migrations-repair: require-npm
+	$(NPM) run supabase:prod:migrations:repair
+
+supabase-prod-db-dry-run: require-npm
+	$(NPM) run supabase:prod:db:dry-run
+
+supabase-prod-db-push: require-npm
+	$(NPM) run supabase:prod:db:push
 
 clean: require-npm
 	$(NPM) run clean

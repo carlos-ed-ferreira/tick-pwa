@@ -349,7 +349,7 @@ Além dos testes existentes, a evolução deve cobrir:
 - conta madura com milhares de itens;
 - carga compatível com 1.000 usuários ativos por dia e picos realistas.
 
-Cada fase deve manter `npm run check` aprovado. Os fluxos críticos também devem
+Cada fase deve manter `make check` aprovado. Os fluxos críticos também devem
 passar nos testes E2E e nos testes de banco do Supabase local.
 
 ## Métricas operacionais

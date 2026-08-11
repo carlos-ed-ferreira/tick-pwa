@@ -20,6 +20,15 @@ planejado como já implementado.
 8. Liste riscos de dados, segurança, offline, i18n e responsividade.
 9. Prefira uma mudança pequena, reversível e coerente.
 
+## Interface de comandos
+
+O `Makefile` é a interface operacional única do projeto. Pessoas, agentes e
+workflows devem executar `make <target>` em vez de chamar `npm`, `npx`, CLIs de
+serviço ou scripts do repositório diretamente. Quando uma operação recorrente
+não tiver target, adicione primeiro um target pequeno e nomeado ao `Makefile` e
+documente-o no `make help`. Os comandos internos podem continuar encapsulados
+pelos targets; não replique sua implementação fora do `Makefile`.
+
 Não redesenhe áreas não relacionadas. Não crie uma arquitetura paralela para
 uma feature isolada.
 
@@ -164,7 +173,7 @@ operacionaliza. Documentação detalhada de feature fica em `docs/`.
 
 Antes de concluir:
 
-1. execute os gates aplicáveis do REVIEW;
+1. execute os gates aplicáveis do REVIEW pelos targets do `Makefile`;
 2. corrija regressões causadas pela alteração;
 3. revise o diff por ruído, código morto, logs e comentários;
 4. informe resultados e comandos executados;

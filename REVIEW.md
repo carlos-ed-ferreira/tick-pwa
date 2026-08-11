@@ -34,21 +34,21 @@ falha de segurança ou perda de dados.
 
 Ambiente da medição: Node 22.21.1, npm 10.9.4, Linux.
 
-| Medida                                       | Resultado                                                         |
-| -------------------------------------------- | ----------------------------------------------------------------- |
-| Vitest                                       | 56 arquivos, 394 testes aprovados, 12,51 s                        |
-| Playwright local                             | 22 testes aprovados, Chromium desktop e Pixel 7                   |
-| Playwright autenticado                       | 2 testes aprovados com Supabase simulado e latência               |
-| pgTAP                                        | 1 arquivo, 22 testes aprovados                                    |
-| Schema lint                                  | 0 erros                                                           |
-| Typecheck, lint, comentários, format e build | aprovados                                                         |
-| Build das rotas principais                   | dinâmico, renderizado sob demanda                                 |
-| Dependências de produção                     | 5 vulnerabilidades altas e 0 críticas pelo `npm audit --omit=dev` |
-| Complexidade ciclomática                     | 40 funções acima de 10; máximo observado 60                       |
-| Funções                                      | 54 acima de 80 linhas lógicas; máximo observado 749               |
-| Módulos                                      | 6 acima de 800 linhas lógicas; máximo observado 3.861             |
-| Cobertura e mutation score                   | não medidos; ferramenta ausente                                   |
-| Performance, bundle e acessibilidade         | sem baseline automatizado                                         |
+| Medida                                       | Resultado                                                    |
+| -------------------------------------------- | ------------------------------------------------------------ |
+| Vitest                                       | 56 arquivos, 394 testes aprovados, 12,51 s                   |
+| Playwright local                             | 22 testes aprovados, Chromium desktop e Pixel 7              |
+| Playwright autenticado                       | 2 testes aprovados com Supabase simulado e latência          |
+| pgTAP                                        | 1 arquivo, 22 testes aprovados                               |
+| Schema lint                                  | 0 erros                                                      |
+| Typecheck, lint, comentários, format e build | aprovados                                                    |
+| Build das rotas principais                   | dinâmico, renderizado sob demanda                            |
+| Dependências de produção                     | 5 vulnerabilidades altas e 0 críticas pelo `make audit-prod` |
+| Complexidade ciclomática                     | 40 funções acima de 10; máximo observado 60                  |
+| Funções                                      | 54 acima de 80 linhas lógicas; máximo observado 749          |
+| Módulos                                      | 6 acima de 800 linhas lógicas; máximo observado 3.861        |
+| Cobertura e mutation score                   | não medidos; ferramenta ausente                              |
+| Performance, bundle e acessibilidade         | sem baseline automatizado                                    |
 
 Os comandos ad hoc de complexidade e tamanho usaram regras nativas do ESLint
 com `skipBlankLines` e `skipComments`. Arquivos gerados não definem o ratchet.
@@ -60,7 +60,7 @@ cor do processo. Eles não falham o gate atual.
 ## Ratchet em 2026-08-11
 
 - Vitest: 57 arquivos e 402 testes aprovados;
-- dependências de produção: 0 vulnerabilidades pelo `npm audit --omit=dev`;
+- dependências de produção: 0 vulnerabilidades pelo `make audit-prod`;
 - audit de produção automatizado no App CI e no gate manual de migrations;
 - snapshot autenticado: 1.001 linhas em cada tabela e falha da página final;
 - refresh autenticado: testes de deduplicação, validade e isolamento por conta.
@@ -69,17 +69,17 @@ cor do processo. Eles não falham o gate atual.
 
 | Gate               | Métrica e threshold                                                                 | Escopo                              | Estado         | Legado                                    | Bloqueia?                   |
 | ------------------ | ----------------------------------------------------------------------------------- | ----------------------------------- | -------------- | ----------------------------------------- | --------------------------- |
-| TypeScript         | 0 erros em `npm run typecheck`                                                      | TS/TSX                              | enforced       | todo o código                             | sim                         |
-| Comentários e lint | 0 comentários proibidos e 0 erros em `npm run lint`                                 | código, teste, CSS e SQL suportados | enforced       | exceções geradas configuradas             | sim                         |
-| Formatação         | 0 diferenças em `npm run format:check`                                              | arquivos suportados                 | enforced       | todo o código                             | sim                         |
+| TypeScript         | 0 erros em `make typecheck`                                                         | TS/TSX                              | enforced       | todo o código                             | sim                         |
+| Comentários e lint | 0 comentários proibidos e 0 erros em `make lint`                                    | código, teste, CSS e SQL suportados | enforced       | exceções geradas configuradas             | sim                         |
+| Formatação         | 0 diferenças em `make format-check`                                                 | arquivos suportados                 | enforced       | todo o código                             | sim                         |
 | Unit/integration   | 100% dos testes Vitest aprovados                                                    | suíte existente                     | enforced       | sem redução de testes válida sem revisão  | sim                         |
-| Build              | exit 0 em `npm run build`                                                           | aplicação e PWA                     | enforced       | todo o código                             | sim                         |
+| Build              | exit 0 em `make build`                                                              | aplicação e PWA                     | enforced       | todo o código                             | sim                         |
 | E2E local          | 100% aprovados em desktop e mobile                                                  | fluxos Playwright existentes        | manual         | manter baseline de 22                     | sim quando aplicável        |
 | E2E autenticado    | 100% aprovados em desktop e mobile                                                  | fluxo de latência simulado          | manual         | manter baseline de 2                      | sim para auth/sync          |
 | Schema lint        | 0 erros                                                                             | Postgres local                      | manual         | sem regressão                             | sim para banco              |
 | pgTAP              | 100% aprovados                                                                      | `supabase/tests`                    | manual         | manter ao menos 22; remoção exige revisão | sim para banco              |
 | Banco limpo        | reset, migrations e seed com exit 0                                                 | todas as migrations                 | manual         | compatibilidade obrigatória               | sim para banco              |
-| Dependency audit   | 0 críticas e 0 altas em `npm run audit:prod`                                        | dependências de produção            | enforced no CI | baseline reduzido a zero                  | sim para dependência/deploy |
+| Dependency audit   | 0 críticas e 0 altas em `make audit-prod`                                           | dependências de produção            | enforced no CI | baseline reduzido a zero                  | sim para dependência/deploy |
 | Line coverage      | baseline inicial sem queda; objetivo global 80%; diff 90%                           | código não gerado                   | planned        | ratchet global                            | sim após automação          |
 | Branch coverage    | baseline inicial sem queda; objetivo global 70%; diff 80%                           | código não gerado                   | planned        | ratchet global                            | sim após automação          |
 | Mutation testing   | score não cai; objetivo 70% em domínio/persistência                                 | módulos críticos alterados          | planned        | baseline por módulo                       | sim após automação          |
@@ -94,7 +94,7 @@ cor do processo. Eles não falham o gate atual.
 | i18n               | tipos válidos e chaves pt/en presentes; 0 string nova fora do mecanismo             | UI alterada                         | manual         | shape tipado já existe                    | sim quando aplicável        |
 | UI responsiva      | cenários mobile e desktop aprovados                                                 | UI alterada                         | manual         | preservar comportamento                   | sim quando aplicável        |
 
-`npm run check` é o gate automatizado atual. Ele não inclui E2E, banco,
+`make check` é o gate automatizado atual. Ele não inclui E2E, banco,
 coverage, segurança, complexidade ou performance.
 
 ## Thresholds estruturais
