@@ -3,9 +3,10 @@
 import { Cloud, LogOut, UserRound } from 'lucide-react';
 import { Button, Tooltip } from '@/components/ui';
 import { useAppContext } from '@/providers';
+import { AccountSyncIndicator } from './account-sync-indicator';
 
 export function AccountStatus() {
-  const { authMode, authUser, dictionary, openAuthEntry, signOut } =
+  const { authMode, authUser, dictionary, openAuthEntry, scope, signOut } =
     useAppContext();
 
   if (authMode === 'authenticated') {
@@ -22,6 +23,7 @@ export function AccountStatus() {
             <span className="truncate">{email}</span>
           </span>
         </Tooltip>
+        <AccountSyncIndicator dictionary={dictionary.sync} scope={scope} />
         <Button
           className="min-h-10 rounded-full inset-ring-white/10 bg-white/5 px-4 text-sm text-[#f8f3ea] shadow-sm shadow-[#253241]/10 hover:-translate-y-0.5 hover:inset-ring-white/20 hover:bg-white/10 hover:shadow-md focus-visible:outline-[#f7d9b0]"
           tone="subtle"

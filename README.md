@@ -71,16 +71,19 @@ Dexie. Os snapshots são paginados em blocos de 1.000 linhas, ordenados por
 revisão e identificador, e só reconciliam exclusões depois que todas as páginas
 terminam com sucesso. As alterações são confirmadas primeiro no cache local e
 depois enfileiradas em memória, por escopo, para `upsert` direto no Supabase. Em
-falha, o app marca criações como falhas ou tenta restaurar o valor remoto. Essa
-fila não sobrevive ao fechamento ou recarregamento da página.
+falha, o app marca a versão local como falha ou tenta restaurar o valor remoto.
+O cabeçalho da conta mostra os estados salvo, aguardando envio, sincronizando e
+falha; entidades falhas podem ser reenviadas manualmente com o mesmo ID local.
+Essa fila e a ação de retry não oferecem replay automático nem sobrevivem como
+operação durável ao fechamento ou recarregamento da página.
 
 Refreshes de uma mesma conta são deduplicados. Foco e reconexão usam debounce
 de 500 ms e só atualizam dados com pelo menos 60 segundos; refresh manual ignora
 essa validade. A duração, páginas, linhas e motivo ficam disponíveis no
 resultado estruturado do refresh, ainda sem envio para observabilidade externa.
 
-O estado atual tem limitações conhecidas de paginação, retry, idempotência,
-conflitos e observabilidade. Elas estão registradas no
+O estado atual ainda tem limitações conhecidas de retry durável, idempotência,
+conflitos e observabilidade externa. Elas estão registradas no
 [IMPLEMENTATION.md](IMPLEMENTATION.md); não devem ser confundidas com garantias
 já implementadas.
 

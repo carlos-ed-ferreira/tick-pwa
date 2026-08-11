@@ -59,7 +59,7 @@ cor do processo. Eles não falham o gate atual.
 
 ## Ratchet em 2026-08-11
 
-- Vitest: 57 arquivos e 399 testes aprovados;
+- Vitest: 57 arquivos e 402 testes aprovados;
 - dependências de produção: 0 vulnerabilidades pelo `npm audit --omit=dev`;
 - audit de produção automatizado no App CI e no gate manual de migrations;
 - snapshot autenticado: 1.001 linhas em cada tabela e falha da página final;

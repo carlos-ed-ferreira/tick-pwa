@@ -16,7 +16,11 @@ import {
   toggleGoalStepChecked,
   softDeleteChecklistItem,
 } from '@/lib/db';
-import { waitForAccountPersistence } from '@/lib/db/account-persistence';
+import {
+  getAccountSyncSummary,
+  retryFailedAccountPersistence,
+  waitForAccountPersistence,
+} from '@/lib/db/account-persistence';
 import { refreshAccountCache } from '@/lib/supabase/account-cache';
 import {
   checklistItemFromRemote,
@@ -438,9 +442,11 @@ describe('account persistence boundaries', () => {
     });
     const categoryTag = await creation;
 
-    await expect(db.categoryTags.get(categoryTag.id)).resolves.toMatchObject({
-      name: 'FOCUS',
-      syncStatus: 'pending',
+    await vi.waitFor(async () => {
+      await expect(db.categoryTags.get(categoryTag.id)).resolves.toMatchObject({
+        name: 'FOCUS',
+        syncStatus: 'syncing',
+      });
     });
 
     resolveWrite({ data: { revision: 1 }, error: null });
@@ -501,7 +507,7 @@ describe('account persistence boundaries', () => {
     await expect(db.checklistItems.get(item.id)).resolves.toMatchObject({
       bold: true,
       collapsed: true,
-      syncStatus: 'pending',
+      syncStatus: 'syncing',
     });
     pendingWrites[1]({ data: { revision: 3 }, error: null });
     await waitForAccountPersistence(scope.id);
@@ -603,7 +609,7 @@ describe('account persistence boundaries', () => {
     expect(selectRemote).not.toHaveBeenCalled();
   });
 
-  it('preserves pending authenticated goals during account cache refresh', async () => {
+  it('preserves in-flight authenticated goals during account cache refresh', async () => {
     const scope = createUserScope('refresh-pending-goal-user');
     let resolveWrite!: (value: {
       data: { revision: number };
@@ -659,7 +665,7 @@ describe('account persistence boundaries', () => {
 
     await expect(db.goals.get(goal.id)).resolves.toMatchObject({
       title: 'PENDING GOAL',
-      syncStatus: 'pending',
+      syncStatus: 'syncing',
     });
 
     resolveWrite({ data: { revision: 1 }, error: null });
@@ -787,6 +793,120 @@ describe('account persistence boundaries', () => {
     await expect(db.categoryTags.get(categoryTag.id)).resolves.toMatchObject({
       name: 'FOCUS',
       syncStatus: 'failed',
+    });
+  });
+
+  it('retries a failed authenticated creation with the same local entity', async () => {
+    const scope = createUserScope('retry-failure-user');
+    let shouldFail = true;
+    let resolveRetry!: (value: {
+      data: { revision: number };
+      error: null;
+    }) => void;
+    const delayedRetry = new Promise<{
+      data: { revision: number };
+      error: null;
+    }>((resolve) => {
+      resolveRetry = resolve;
+    });
+    const writes: Record<string, unknown>[] = [];
+    const from = vi.fn(() => ({
+      upsert: vi.fn((payload: Record<string, unknown>) => {
+        writes.push(payload);
+
+        return {
+          select: vi.fn(() => ({
+            maybeSingle: vi.fn(() =>
+              shouldFail
+                ? Promise.resolve({
+                    data: null,
+                    error: { message: 'remote write failed' },
+                  })
+                : delayedRetry,
+            ),
+          })),
+        };
+      }),
+    }));
+    supabaseMocks.getSupabaseBrowserClient.mockReturnValue({ from });
+
+    const categoryTag = await createCategoryTag({
+      scope,
+      surface: 'calendar',
+      name: 'Focus',
+      colorHex: '#2563eb',
+    });
+    await waitForAccountPersistence(scope.id);
+    shouldFail = false;
+
+    const retry = retryFailedAccountPersistence(scope);
+
+    await vi.waitFor(async () => {
+      await expect(db.categoryTags.get(categoryTag.id)).resolves.toMatchObject({
+        syncStatus: 'syncing',
+      });
+    });
+    resolveRetry({ data: { revision: 7 }, error: null });
+    await retry;
+
+    await expect(db.categoryTags.get(categoryTag.id)).resolves.toMatchObject({
+      name: 'FOCUS',
+      remoteRevision: 7,
+      syncStatus: 'synced',
+    });
+    expect(writes).toHaveLength(2);
+    expect(writes[1]).toMatchObject({ id: categoryTag.id });
+  });
+
+  it('summarizes account sync states with failure-first priority', async () => {
+    const scope = createUserScope('sync-summary-user');
+    const from = vi.fn(() => ({
+      upsert: vi.fn(() => ({
+        select: vi.fn(() => ({
+          maybeSingle: vi.fn().mockResolvedValue({
+            data: null,
+            error: { message: 'remote write failed' },
+          }),
+        })),
+      })),
+    }));
+    supabaseMocks.getSupabaseBrowserClient.mockReturnValue({ from });
+
+    const categoryTag = await createCategoryTag({
+      scope,
+      surface: 'calendar',
+      name: 'Focus',
+      colorHex: '#2563eb',
+    });
+    await waitForAccountPersistence(scope.id);
+
+    await expect(getAccountSyncSummary(scope.id)).resolves.toEqual({
+      state: 'failed',
+      failedCount: 1,
+      pendingCount: 0,
+      syncingCount: 0,
+    });
+
+    await db.categoryTags.update(categoryTag.id, { syncStatus: 'pending' });
+    await expect(getAccountSyncSummary(scope.id)).resolves.toMatchObject({
+      state: 'pending',
+      failedCount: 0,
+      pendingCount: 1,
+    });
+
+    await db.categoryTags.update(categoryTag.id, { syncStatus: 'syncing' });
+    await expect(getAccountSyncSummary(scope.id)).resolves.toMatchObject({
+      state: 'syncing',
+      pendingCount: 0,
+      syncingCount: 1,
+    });
+
+    await db.categoryTags.update(categoryTag.id, { syncStatus: 'synced' });
+    await expect(getAccountSyncSummary(scope.id)).resolves.toEqual({
+      state: 'saved',
+      failedCount: 0,
+      pendingCount: 0,
+      syncingCount: 0,
     });
   });
 

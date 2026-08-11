@@ -56,6 +56,14 @@ export const enDictionary = {
       'This account is not on the approved user list for saving cloud data. You can still test the prototype in local mode.',
     loading: 'Preparing Tick',
   },
+  sync: {
+    failed: 'Sync failed',
+    pending: 'Saved locally, waiting to send',
+    retry: 'Try again',
+    retrying: 'Trying again',
+    saved: 'Synced',
+    syncing: 'Syncing',
+  },
   navigation: {
     home: 'Tick',
     calendar: 'Daily Tasks',

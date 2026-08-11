@@ -56,6 +56,14 @@ export const ptBRDictionary = {
       'Esta conta não está na lista de usuários permitidos para salvar dados na nuvem. Você ainda pode testar o protótipo em modo local.',
     loading: 'Preparando o Tick',
   },
+  sync: {
+    failed: 'Falha ao sincronizar',
+    pending: 'Salvo localmente, aguardando envio',
+    retry: 'Tentar novamente',
+    retrying: 'Tentando novamente',
+    saved: 'Sincronizado',
+    syncing: 'Sincronizando',
+  },
   navigation: {
     home: 'Tick',
     calendar: 'Tarefas do dia',

@@ -9,9 +9,29 @@ import { db } from './database';
 const persistenceQueues = new Map<string, Promise<void>>();
 
 interface PersistedAccountEntity {
+  id: string;
+  scopeId: string;
   clientUpdatedAt: string;
   remoteRevision: number | null;
   syncStatus: 'local' | 'pending' | 'syncing' | 'synced' | 'failed';
+}
+
+const accountEntityTypes: SyncEntityType[] = [
+  'categoryTag',
+  'dailyEntry',
+  'checklistItem',
+  'goalGroup',
+  'goal',
+  'goalStep',
+];
+
+export type AccountSyncState = 'saved' | 'pending' | 'syncing' | 'failed';
+
+export interface AccountSyncSummary {
+  state: AccountSyncState;
+  failedCount: number;
+  pendingCount: number;
+  syncingCount: number;
 }
 
 function getAccountEntityTable(entityType: SyncEntityType) {
@@ -81,6 +101,25 @@ async function markAccountEntityFailed({
     });
 }
 
+async function markAccountEntitySyncing({
+  clientUpdatedAt,
+  entityId,
+  entityType,
+}: {
+  entityType: SyncEntityType;
+  entityId: string;
+  clientUpdatedAt: string;
+}): Promise<void> {
+  await getAccountEntityTable(entityType)
+    .where(':id')
+    .equals(entityId)
+    .modify((entity) => {
+      if (entity.clientUpdatedAt === clientUpdatedAt) {
+        entity.syncStatus = 'syncing';
+      }
+    });
+}
+
 async function isCurrentAccountEntityVersion({
   clientUpdatedAt,
   entityId,
@@ -98,7 +137,7 @@ async function isCurrentAccountEntityVersion({
 export function enqueueAccountPersistence(
   scopeId: string,
   task: () => Promise<void>,
-) {
+): Promise<void> {
   const previousTask = persistenceQueues.get(scopeId) ?? Promise.resolve();
   const nextTask = previousTask
     .catch(() => undefined)
@@ -110,6 +149,8 @@ export function enqueueAccountPersistence(
     });
 
   persistenceQueues.set(scopeId, nextTask);
+
+  return nextTask;
 }
 
 export async function waitForAccountPersistence(scopeId?: string) {
@@ -122,6 +163,184 @@ export async function waitForAccountPersistence(scopeId?: string) {
 
   while (persistenceQueues.size > 0) {
     await Promise.all([...persistenceQueues.values()]);
+  }
+}
+
+export async function getAccountSyncSummary(
+  scopeId: string,
+): Promise<AccountSyncSummary> {
+  const entities = (
+    await Promise.all(
+      accountEntityTypes.map((entityType) =>
+        getAccountEntityTable(entityType)
+          .where('scopeId')
+          .equals(scopeId)
+          .toArray(),
+      ),
+    )
+  ).flat();
+  const failedCount = entities.filter(
+    (entity) => entity.syncStatus === 'failed',
+  ).length;
+  const syncingCount = entities.filter(
+    (entity) => entity.syncStatus === 'syncing',
+  ).length;
+  const pendingCount = entities.filter(
+    (entity) => entity.syncStatus === 'pending',
+  ).length;
+  const state: AccountSyncState = failedCount
+    ? 'failed'
+    : syncingCount
+      ? 'syncing'
+      : pendingCount
+        ? 'pending'
+        : 'saved';
+
+  return {
+    state,
+    failedCount,
+    pendingCount,
+    syncingCount,
+  };
+}
+
+export async function retryFailedAccountPersistence(
+  scope: AppScope,
+): Promise<void> {
+  if (scope.kind === 'guest') {
+    return;
+  }
+
+  const candidates = (
+    await Promise.all(
+      accountEntityTypes.map(async (entityType) => {
+        const entities = await getAccountEntityTable(entityType)
+          .where('scopeId')
+          .equals(scope.id)
+          .filter((entity) => entity.syncStatus === 'failed')
+          .toArray();
+
+        return entities.map((entity) => ({
+          clientUpdatedAt: entity.clientUpdatedAt,
+          entityId: entity.id,
+          entityType,
+        }));
+      }),
+    )
+  ).flat();
+
+  await Promise.all(
+    candidates.map((candidate) =>
+      enqueueAccountPersistence(scope.id, async () => {
+        const table = getAccountEntityTable(candidate.entityType);
+        const entity = await table.get(candidate.entityId);
+
+        if (
+          entity?.scopeId !== scope.id ||
+          entity.clientUpdatedAt !== candidate.clientUpdatedAt ||
+          entity.syncStatus !== 'failed'
+        ) {
+          return;
+        }
+
+        await markAccountEntitySyncing(candidate);
+
+        try {
+          const revision = await persistAccountEntity({
+            entityType: candidate.entityType,
+            payload: entity as unknown as Record<string, unknown>,
+            scope,
+          });
+
+          await markAccountEntityPersisted({
+            ...candidate,
+            revision,
+          });
+        } catch (error) {
+          console.error('Failed to retry Tick account entity.', error);
+          await markAccountEntityFailed(candidate);
+        }
+      }),
+    ),
+  );
+}
+
+async function persistQueuedAccountEntityChange({
+  baseRevision,
+  clientUpdatedAt,
+  entityId,
+  entityType,
+  operation,
+  payload,
+  scope,
+}: {
+  scope: AppScope;
+  entityType: SyncEntityType;
+  entityId: string;
+  operation: SyncOperation;
+  payload: Record<string, unknown>;
+  baseRevision: number | null;
+  clientUpdatedAt: string;
+}): Promise<void> {
+  try {
+    await markAccountEntitySyncing({
+      clientUpdatedAt,
+      entityId,
+      entityType,
+    });
+
+    const revision = await persistAccountEntity({
+      entityType,
+      payload,
+      scope,
+    });
+
+    await markAccountEntityPersisted({
+      clientUpdatedAt,
+      entityId,
+      entityType,
+      revision,
+    });
+  } catch (error) {
+    console.error('Failed to persist Tick account entity.', error);
+
+    if (baseRevision === null && operation === 'upsert') {
+      await markAccountEntityFailed({
+        clientUpdatedAt,
+        entityId,
+        entityType,
+      });
+      return;
+    }
+
+    try {
+      const isCurrentVersion = await isCurrentAccountEntityVersion({
+        clientUpdatedAt,
+        entityId,
+        entityType,
+      });
+
+      if (!isCurrentVersion) {
+        return;
+      }
+
+      await restoreAccountEntity({
+        scope,
+        entityType,
+        entityId,
+        expectedClientUpdatedAt: clientUpdatedAt,
+      });
+    } catch (restoreError) {
+      console.error(
+        'Failed to restore Tick account entity after persistence error.',
+        restoreError,
+      );
+      await markAccountEntityFailed({
+        clientUpdatedAt,
+        entityId,
+        entityType,
+      });
+    }
   }
 }
 
@@ -154,56 +373,17 @@ export function persistAccountEntityChange({
   }
 
   const persistAfterCommit = () => {
-    enqueueAccountPersistence(scope.id, async () => {
-      try {
-        const revision = await persistAccountEntity({
-          entityType,
-          payload,
-          scope,
-        });
-
-        await markAccountEntityPersisted({
-          clientUpdatedAt,
-          entityId,
-          entityType,
-          revision,
-        });
-      } catch (error) {
-        console.error('Failed to persist Tick account entity.', error);
-
-        if (baseRevision === null && operation === 'upsert') {
-          await markAccountEntityFailed({
-            clientUpdatedAt,
-            entityId,
-            entityType,
-          });
-        } else {
-          try {
-            const isCurrentVersion = await isCurrentAccountEntityVersion({
-              clientUpdatedAt,
-              entityId,
-              entityType,
-            });
-
-            if (!isCurrentVersion) {
-              return;
-            }
-
-            await restoreAccountEntity({
-              scope,
-              entityType,
-              entityId,
-              expectedClientUpdatedAt: clientUpdatedAt,
-            });
-          } catch (restoreError) {
-            console.error(
-              'Failed to restore Tick account entity after persistence error.',
-              restoreError,
-            );
-          }
-        }
-      }
-    });
+    enqueueAccountPersistence(scope.id, () =>
+      persistQueuedAccountEntityChange({
+        baseRevision,
+        clientUpdatedAt,
+        entityId,
+        entityType,
+        operation,
+        payload,
+        scope,
+      }),
+    );
   };
 
   const transaction = Dexie.currentTransaction;

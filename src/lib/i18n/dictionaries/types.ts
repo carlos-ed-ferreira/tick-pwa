@@ -105,6 +105,14 @@ export interface Dictionary {
     unauthorizedDescription: string;
     loading: string;
   };
+  sync: {
+    failed: string;
+    pending: string;
+    retry: string;
+    retrying: string;
+    saved: string;
+    syncing: string;
+  };
   navigation: {
     home: string;
     calendar: string;

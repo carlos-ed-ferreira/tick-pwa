@@ -169,8 +169,9 @@ base para comparar a sincronização incremental.
 
 ### 0.3 Tornar falhas de sincronização visíveis
 
-Enquanto a fila remota atual ainda existir, a aplicação deve mostrar estados
-claros:
+**Concluído em 11 de agosto de 2026 para a fila transitória atual.** O cabeçalho
+da conta autenticada observa as seis tabelas funcionais no Dexie e mostra
+estados claros:
 
 - salvo localmente;
 - aguardando envio;
@@ -178,9 +179,16 @@ claros:
 - falha ao sincronizar;
 - ação para tentar novamente.
 
-Uma falha remota não pode desaparecer silenciosamente. O usuário também não
-pode ser tratado como não autorizado apenas porque abriu o app autenticado sem
-rede.
+Antes de uma requisição remota, a entidade passa a `syncing`; falhas que não
+podem ser restauradas passam a `failed`. A ação manual reenvia somente versões
+falhas ainda atuais, preserva o mesmo identificador e nunca atravessa o escopo
+da conta. Estados e ações foram adicionados em pt-BR e inglês com anúncio
+acessível.
+
+Esta entrega torna a falha visível e recuperável na aba atual, mas não muda a
+decisão da seção 0.4: a fila continua em memória, sem backoff, idempotency key
+formal ou replay garantido depois de fechar/recarregar. Não é uma substituição
+para a prova de conceito do PowerSync.
 
 ### 0.4 Decidir o tratamento transitório da fila
 
@@ -399,7 +407,7 @@ migração estática não estiver concluída quando o uso comercial começar.
 
 - [x] Paginar snapshots e impedir reconciliação destrutiva parcial.
 - [x] Remover atualizações completas duplicadas e instrumentar o fluxo atual.
-- [ ] Exibir estado e falhas de sincronização.
+- [x] Exibir estado e falhas de sincronização.
 - [ ] Executar a prova de conceito do PowerSync no plano gratuito.
 - [ ] Registrar a decisão técnica da prova de conceito.
 - [ ] Implementar operações idempotentes e transacionais em lote.

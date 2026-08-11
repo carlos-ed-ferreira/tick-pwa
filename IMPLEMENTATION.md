@@ -76,8 +76,9 @@ com write pendente, E2E autenticado e métricas de contagem.
 
 ## SYNC-01 — Sincronização durável e resiliente
 
-**Status:** em andamento; proteção de refresh da Fase 0.2 concluída em 11 de
-agosto de 2026, fila durável e prova de conceito ainda pendentes.
+**Status:** em andamento; proteção de refresh da Fase 0.2 e estados/retry
+visíveis da Fase 0.3 concluídos em 11 de agosto de 2026. Fila durável e prova de
+conceito ainda estão pendentes.
 
 **Problema/lacuna — `P0`, arquitetura/código/serviço externo:** operações da
 conta podem desaparecer ao fechar ou recarregar a aba.
@@ -86,16 +87,19 @@ conta podem desaparecer ao fechar ou recarregar a aba.
 Outbox e cursores Dexie antigos foram removidos na versão 7. Não há backoff,
 operação idempotente, limite de fila, replay após reload ou contrato formal de
 conflito. O refresh inicial e os eventos concorrentes são deduplicados por
-conta; foco e retorno da rede têm debounce e validade de 60 segundos.
+conta; foco e retorno da rede têm debounce e validade de 60 segundos. As seis
+tabelas funcionais alimentam um estado agregado no cabeçalho. Escritas em voo
+são marcadas como `syncing`, falhas irrecuperáveis como `failed`, e a ação
+manual reenvia apenas a mesma versão local falha, com o mesmo ID e escopo.
 
 **Estado desejado:** banco local sincronizável com fila durável, pull
 incremental, retry com backoff, idempotência, conflitos determinísticos, estado
 visível e convergência multidispositivo.
 
 **Mudanças necessárias:** prova de conceito PowerSync no plano gratuito;
-schema local autenticado; conector de upload; sync rules por usuário; estados
-de sync na UI; feature flag e rollout gradual. Criar outbox transitória própria
-apenas se conta pública precisar sair antes da migração.
+schema local autenticado; conector de upload; sync rules por usuário; feature
+flag e rollout gradual. Criar outbox transitória própria apenas se conta
+pública precisar sair antes da migração.
 
 **Dependências:** DATA-01 como proteção transitória, API-01, projeto PowerSync,
 JWT Supabase e decisão de navegadores suportados.
@@ -109,6 +113,13 @@ falhas são visíveis e limitadas.
 
 **Validação:** testes local-first do REVIEW, E2E offline/reload, dois usuários,
 dois dispositivos, carga de conta madura e restore/rollback da feature flag.
+
+**Evidência da Fase 0.3:** integração cobre transição `syncing`, falha, resumo
+agregado, retry com o mesmo ID e proteção por versão; teste de UI cobre a ação
+acessível. O gate `npm run check` passou com 57 arquivos e 402 testes em 11 de
+agosto de 2026; os E2E locais passaram em 22 cenários e os autenticados em 2,
+ambos em desktop e mobile, incluindo as transições `Syncing` e `Synced` sob
+latência remota simulada.
 
 ## SEC-01 — Vulnerabilidades de dependências
 

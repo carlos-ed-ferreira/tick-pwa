@@ -80,6 +80,7 @@ test('keeps authenticated checklist interactions responsive while Supabase is de
     page.getByRole('button', { name: labels.backToCalendar }),
   ).toBeVisible();
   await page.getByRole('button', { name: labels.checklistEmpty }).click();
+  await expect(page.getByRole('status')).toHaveText('Syncing');
 
   const itemInput = firstChecklistInput(page);
   await itemInput.fill('Authenticated delayed item');
@@ -93,4 +94,7 @@ test('keeps authenticated checklist interactions responsive while Supabase is de
   const firstCheckbox = page.getByRole('checkbox').first();
   await firstCheckbox.click();
   await expect(firstCheckbox).toBeChecked();
+  await expect(page.getByRole('status')).toHaveText('Synced', {
+    timeout: 15_000,
+  });
 });
