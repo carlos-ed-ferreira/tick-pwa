@@ -387,6 +387,10 @@ check obrigatório `Check app`, confirma o merge e reconcilia `dev` com a nova
 `main` para preparar a publicação seguinte. Não faça push direto para `main` nem
 use force push para contornar essa proteção.
 
+Commits e `make publish` são decisões manuais do desenvolvedor. Agentes devem
+entregar alterações sem commit e não podem publicar, criar PR ou fazer merge sem
+um pedido explícito para essa operação no turno atual.
+
 Mudanças de banco usadas pelo frontend devem ser aditivas e publicadas em duas
 etapas: migration compatível primeiro e aplicação depois. O fluxo desejado de
 produção e as lacunas de segurança estão no `IMPLEMENTATION.md`.
