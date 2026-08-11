@@ -29,6 +29,18 @@ não tiver target, adicione primeiro um target pequeno e nomeado ao `Makefile` e
 documente-o no `make help`. Os comandos internos podem continuar encapsulados
 pelos targets; não replique sua implementação fora do `Makefile`.
 
+## Controle manual de versão e publicação
+
+O desenvolvedor controla commits e publicações. Um pedido para implementar,
+corrigir, continuar ou concluir trabalho não autoriza o agente a executar
+`git add`, `git commit`, `git commit --amend`, `git push`, `make publish`, criar
+ou mesclar pull request, criar tag ou release. O agente deve deixar as mudanças
+não commitadas, informar os arquivos alterados e entregar os gates executados.
+
+Essas operações só podem ser feitas quando o usuário pedir explicitamente a
+operação correspondente no turno atual. Autorização anterior não permanece para
+turnos seguintes. Inspeções Git somente leitura continuam permitidas.
+
 Não redesenhe áreas não relacionadas. Não crie uma arquitetura paralela para
 uma feature isolada.
 
