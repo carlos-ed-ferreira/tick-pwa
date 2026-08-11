@@ -20,6 +20,7 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "test:e2e:account": "playwright test --config playwright.account.config.ts",
+    "publish": "node scripts/publish-branch.mjs",
     "audit:prod": "npm audit --omit=dev --audit-level=high",
     "format": "prettier --write .",
     "format:check": "prettier --check .",

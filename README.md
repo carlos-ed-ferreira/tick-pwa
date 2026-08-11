@@ -329,6 +329,7 @@ redirect, projeto Supabase, domínio e integração Vercel são externas ao Git.
 | testes             | `make test`                        | `npm test`                               |
 | E2E padrão         | `make test-e2e`                    | `npm run test:e2e`                       |
 | E2E autenticado    | —                                  | `npm run test:e2e:account`               |
+| publicar em `main` | —                                  | `npm run publish`                        |
 | formatar/verificar | `make format`, `make format-check` | `npm run format`, `npm run format:check` |
 | gate atual         | `make check`                       | `npm run check`                          |
 | limpar gerados     | `make clean`                       | `npm run clean`                          |
@@ -372,6 +373,12 @@ PRs e pushes para `main`. `.github/workflows/supabase-migrations.yml` só aceita
 o SHA de um `App CI` aprovado na `main`; execução manual roda o mesmo quality
 gate antes de acessar o environment `production`. O workflow registra o SHA,
 detecta mudanças de banco, faz dry-run e então aplica migrations.
+
+A publicação cotidiana parte da branch `dev`. Depois de criar o commit, execute
+`npm run publish`. O comando exige worktree limpo, envia `dev`, cria ou reutiliza
+o pull request para `main` e habilita merge automático com merge commit. O GitHub
+só atualiza `main` depois que o check obrigatório `Check app` for aprovado. Não
+faça push direto para `main` nem use force push para contornar essa proteção.
 
 Mudanças de banco usadas pelo frontend devem ser aditivas e publicadas em duas
 etapas: migration compatível primeiro e aplicação depois. O fluxo desejado de
