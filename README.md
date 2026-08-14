@@ -89,9 +89,10 @@ já implementadas.
 
 Existe uma fundação desativada para a prova de conceito do PowerSync. Ela cria
 um SQLite isolado por conta e contém schema, autenticação, upload e Sync Streams
-para categorias e checklist. A rota interna `/~powersync-poc` exercita apenas
-esse SQLite e permanece bloqueada sem flag e UUID autorizado; ela não substitui
-a persistência funcional Dexie. O preparo externo e os limites estão em
+para categorias e checklist. A rota interna `/~powersync-poc` exercita criação,
+edição, conclusão, reordenação, exclusão e visibilidade da fila somente nesse
+SQLite. Ela permanece bloqueada sem flag e UUID autorizado e não substitui a
+persistência funcional Dexie. O preparo externo e os limites estão em
 [docs/powersync-poc.md](docs/powersync-poc.md).
 
 ### PWA e offline
@@ -255,8 +256,8 @@ Defina `NEXT_PUBLIC_TICK_DISABLE_SUPABASE=1` para forçar execução local sem
 Supabase. Em `localhost`, a aplicação só aceita `local` com uma URL local. Fora
 de localhost, só aceita o ambiente explícito `production`.
 
-As variáveis de ativação do PowerSync permanecem vazias no fluxo normal. A prova só é
-carregada quando a URL usa HTTPS, o sync Supabase está permitido e
+As variáveis de ativação do PowerSync permanecem vazias no fluxo normal. A
+prova só é carregada quando a URL usa HTTPS, o sync Supabase está permitido e
 `NEXT_PUBLIC_TICK_ENABLE_POWERSYNC_POC=1`. Além da flag, o ID da conta precisa
 estar em `NEXT_PUBLIC_TICK_POWERSYNC_POC_USER_IDS`. Não habilite o rollout antes
 de concluir a validação descrita em `docs/powersync-poc.md`.

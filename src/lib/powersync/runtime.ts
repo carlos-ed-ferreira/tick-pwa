@@ -1,6 +1,7 @@
 import {
   PowerSyncDatabase,
   type PowerSyncBackendConnector,
+  type SyncStatus,
 } from '@powersync/web';
 import type { AppScope } from '@/lib/domain';
 import { TickPowerSyncPocConnector } from './connector';
@@ -15,6 +16,47 @@ import {
 
 const ACCOUNT_IDENTIFIER_PATTERN = /^[A-Za-z0-9_-]{1,80}$/;
 const session = new PowerSyncPocSession();
+let activeStatusSource: {
+  database: Pick<PowerSyncDatabase, 'currentStatus' | 'getUploadQueueStats'>;
+  scopeId: AppScope['id'];
+} | null = null;
+
+export interface PowerSyncPocStatus {
+  connected: boolean;
+  connecting: boolean;
+  downloading: boolean;
+  hasError: boolean;
+  hasSynced: boolean;
+  lastSyncedAt: string | null;
+  pendingOperations: number;
+  uploading: boolean;
+}
+
+export function toPowerSyncPocStatus(
+  status: Pick<
+    SyncStatus,
+    | 'connected'
+    | 'connecting'
+    | 'downloading'
+    | 'downloadError'
+    | 'hasSynced'
+    | 'lastSyncedAt'
+    | 'uploadError'
+    | 'uploading'
+  >,
+  pendingOperations: number,
+): PowerSyncPocStatus {
+  return {
+    connected: status.connected,
+    connecting: status.connecting,
+    downloading: status.downloading,
+    hasError: Boolean(status.downloadError || status.uploadError),
+    hasSynced: status.hasSynced === true,
+    lastSyncedAt: status.lastSyncedAt?.toISOString() ?? null,
+    pendingOperations,
+    uploading: status.uploading,
+  };
+}
 
 export function getPowerSyncPocDatabaseFilename(scope: AppScope): string {
   if (
@@ -52,12 +94,18 @@ function createPowerSyncPocDatabase(scope: AppScope) {
       }),
   });
   session.activate(scope, store);
+  activeStatusSource = { database: powerSyncDatabase, scopeId: scope.id };
 
   return {
     connector: new TickPowerSyncPocConnector(endpoint),
     database: {
       close: async () => {
         session.deactivate(scope);
+
+        if (activeStatusSource?.scopeId === scope.id) {
+          activeStatusSource = null;
+        }
+
         await powerSyncDatabase.close({ disconnect: true });
       },
       connect: (connector: PowerSyncBackendConnector) =>
@@ -89,6 +137,23 @@ export function readPowerSyncPocSnapshot(
   scope: AppScope,
 ): Promise<PowerSyncPocSnapshot> {
   return enqueueTransition(() => session.readSnapshot(scope));
+}
+
+export function readPowerSyncPocStatus(
+  scope: AppScope,
+): Promise<PowerSyncPocStatus> {
+  return enqueueTransition(async () => {
+    if (scope.kind !== 'user' || activeStatusSource?.scopeId !== scope.id) {
+      throw new Error('PowerSync proof is not active for this account.');
+    }
+
+    const queue = await activeStatusSource.database.getUploadQueueStats();
+
+    return toPowerSyncPocStatus(
+      activeStatusSource.database.currentStatus,
+      queue.count,
+    );
+  });
 }
 
 export function writePowerSyncPoc(change: PowerSyncPocWrite): Promise<boolean> {

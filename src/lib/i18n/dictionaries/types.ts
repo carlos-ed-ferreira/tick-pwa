@@ -120,6 +120,7 @@ export interface Dictionary {
     categoryLabel: string;
     parentLabel: string;
     childLabel: string;
+    siblingLabel: string;
     createScenario: string;
     creating: string;
     refresh: string;
@@ -130,6 +131,22 @@ export interface Dictionary {
     categories: string;
     hierarchy: string;
     localNotice: string;
+    itemLabel: string;
+    itemAction: string;
+    saveItem: string;
+    markComplete: string;
+    reopenItem: string;
+    moveDown: string;
+    deleteItem: string;
+    deleteTitle: string;
+    confirmDelete: string;
+    connected: string;
+    connecting: string;
+    offline: string;
+    synchronized: string;
+    pendingOperation: string;
+    pendingOperations: string;
+    mutationError: string;
   };
   navigation: {
     home: string;

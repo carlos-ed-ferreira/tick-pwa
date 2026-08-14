@@ -77,9 +77,9 @@ com write pendente, E2E autenticado e métricas de contagem.
 ## SYNC-01 — Sincronização durável e resiliente
 
 **Status:** em andamento; proteção de refresh da Fase 0.2, estados/retry
-visíveis da Fase 0.3 e fundação desativada da prova PowerSync concluídos em 11
-de agosto de 2026. A configuração externa, a migração funcional para SQLite e
-os ensaios reais ainda estão pendentes.
+visíveis da Fase 0.3, configuração externa e superfície funcional isolada da
+prova PowerSync concluídos em 11 de agosto de 2026. A ativação controlada, a
+migração das telas reais para SQLite e os ensaios reais ainda estão pendentes.
 
 **Problema/lacuna — `P0`, arquitetura/código/serviço externo:** operações da
 conta podem desaparecer ao fechar ou recarregar a aba.
@@ -135,8 +135,17 @@ do POC lê somente linhas do usuário autenticado, rejeita guest e gera
 `INSERT`/`UPDATE` locais com booleanos e JSON compatíveis com SQLite. Ele ainda
 não foi conectado aos comandos Dexie para impedir dual-write durante a prova.
 A rota interna `/~powersync-poc` usa esse adapter para gravar categoria, dia,
-tarefa e subtarefa em uma única transação local, com textos pt-BR/en e bloqueio
-para contas fora do rollout. A ativação e os ensaios reais continuam pendentes.
+tarefa e duas subtarefas em uma única transação local. Edição, conclusão,
+reordenação e exclusão atualizam as entidades e o resumo diário em lotes
+atômicos. A superfície mostra conexão e quantidade pendente sem expor erros
+internos, tem textos pt-BR/en e permanece bloqueada para contas fora do rollout.
+A ativação e os ensaios reais continuam pendentes.
+
+**Evidência da superfície isolada:** `make check` passou com 60 arquivos e 429
+testes; `make test-e2e` passou em 22 cenários desktop/mobile e
+`make test-e2e-account` em 2 cenários autenticados. `make audit-prod` encontrou
+0 vulnerabilidades. Esses gates mantiveram a flag ausente e, portanto, não
+substituem os ensaios reais no PowerSync Cloud.
 
 ## SEC-01 — Vulnerabilidades de dependências
 
@@ -177,7 +186,9 @@ grafo de dependências.
 **Problema/lacuna — `P0`, CI/CD/GitHub:** migrations podem ser aplicadas por um
 workflow separado sem depender do sucesso do quality gate do mesmo commit.
 
-**Estado atual:** `app-ci.yml` roda `make audit-prod` e `make check`.
+**Estado atual:** `app-ci.yml` roda `make audit-prod` e `make check`. Os
+workflows usam Node.js 22, `actions/checkout@v6` e `actions/setup-node@v7`,
+eliminando o aviso de runtime Node.js 20 das actions anteriores.
 `supabase-migrations.yml` é acionado por `workflow_run`, aceita somente App CI
 aprovado em push da `main`, faz checkout do `head_sha`, registra e verifica o
 SHA e só executa comandos de banco quando há caminhos relevantes alterados. A
@@ -617,8 +628,8 @@ Continuam pendentes ou intencionalmente adiados:
   workflow ser mesclado e validado no GitHub;
 - SMTP, CAPTCHA e revisão de quotas do Supabase antes do cadastro público;
 - ordem coordenada de migrations e deploy na Vercel, coberta por `CICD-01`;
-- projeto gratuito, conexão, Sync Streams e região do PowerSync para executar a
-  prova de conceito;
+- ativação de uma conta interna e ensaios offline, reload, multidispositivo e
+  isolamento no PowerSync gratuito;
 - conta, catálogo, moedas, webhooks e secrets do provedor de pagamento;
 - projeto, DSN, retenção, alertas e redaction da observabilidade;
 - zona, domínio, headers e rollback na Cloudflare após a migração estática;

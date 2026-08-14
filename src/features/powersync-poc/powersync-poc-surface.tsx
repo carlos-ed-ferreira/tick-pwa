@@ -1,9 +1,15 @@
 'use client';
 
-import { useEffect, useState, type FormEvent } from 'react';
-import { Button, FormField, Text } from '@/components/ui';
+import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { Button, ConfirmationDialog, FormField, Text } from '@/components/ui';
+import { sortByRank, type ChecklistItem } from '@/lib/domain';
 import { shouldUsePowerSyncPocForUser } from '@/lib/environment';
-import { createPowerSyncPocScenario } from '@/lib/powersync/poc-commands';
+import { formatCountLabel } from '@/lib/i18n';
+import {
+  createPowerSyncPocScenario,
+  mutatePowerSyncPocChecklistItem,
+} from '@/lib/powersync/poc-commands';
+import type { PowerSyncPocStatus } from '@/lib/powersync/runtime';
 import type { PowerSyncPocSnapshot } from '@/lib/powersync/store';
 import { getTodayKey } from '@/lib/time';
 import { useAppContext } from '@/providers';
@@ -14,17 +20,30 @@ const emptySnapshot: PowerSyncPocSnapshot = {
   dailyEntries: [],
 };
 
+type ViewState = {
+  scopeId: string | null;
+  snapshot: PowerSyncPocSnapshot;
+  status: 'loading' | 'ready' | 'error';
+  syncStatus: PowerSyncPocStatus | null;
+};
+
 export function PowerSyncPocSurface() {
   const { authMode, dictionary, scope, timezonePreference } = useAppContext();
   const [categoryName, setCategoryName] = useState('POWERSYNC');
   const [parentText, setParentText] = useState('Offline task');
   const [childText, setChildText] = useState('Offline subtask');
-  const [viewState, setViewState] = useState<{
-    scopeId: string | null;
-    snapshot: PowerSyncPocSnapshot;
-    status: 'loading' | 'ready' | 'error';
-  }>({ scopeId: null, snapshot: emptySnapshot, status: 'loading' });
+  const [siblingText, setSiblingText] = useState('Offline sibling');
+  const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const [viewState, setViewState] = useState<ViewState>({
+    scopeId: null,
+    snapshot: emptySnapshot,
+    status: 'loading',
+    syncStatus: null,
+  });
   const [formError, setFormError] = useState<string | null>(null);
+  const [mutationError, setMutationError] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<ChecklistItem | null>(null);
+  const [pendingItemId, setPendingItemId] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const isAllowed =
     authMode === 'authenticated' &&
@@ -33,26 +52,44 @@ export function PowerSyncPocSurface() {
   const isCurrentScope = isAllowed && viewState.scopeId === scope.id;
   const snapshot = isCurrentScope ? viewState.snapshot : emptySnapshot;
   const status = isCurrentScope ? viewState.status : 'loading';
+  const syncStatus = isCurrentScope ? viewState.syncStatus : null;
 
-  async function refreshSnapshot() {
+  const readCurrentState = useCallback(async () => {
     if (!isAllowed || scope?.kind !== 'user') {
-      return;
+      return null;
     }
 
+    const runtime = await import('@/lib/powersync/runtime');
+    await runtime.startPowerSyncPoc(scope);
+    const [nextSnapshot, nextSyncStatus] = await Promise.all([
+      runtime.readPowerSyncPocSnapshot(scope),
+      runtime.readPowerSyncPocStatus(scope),
+    ]);
+
+    return {
+      scopeId: scope.id,
+      snapshot: nextSnapshot,
+      status: 'ready' as const,
+      syncStatus: nextSyncStatus,
+    };
+  }, [isAllowed, scope]);
+
+  async function refreshSnapshot() {
     try {
-      const runtime = await import('@/lib/powersync/runtime');
-      await runtime.startPowerSyncPoc(scope);
-      setViewState({
-        scopeId: scope.id,
-        snapshot: await runtime.readPowerSyncPocSnapshot(scope),
-        status: 'ready',
-      });
+      const nextState = await readCurrentState();
+
+      if (nextState) {
+        setViewState(nextState);
+      }
     } catch {
-      setViewState({
-        scopeId: scope.id,
-        snapshot: emptySnapshot,
-        status: 'error',
-      });
+      if (scope) {
+        setViewState({
+          scopeId: scope.id,
+          snapshot: emptySnapshot,
+          status: 'error',
+          syncStatus: null,
+        });
+      }
     }
   }
 
@@ -63,18 +100,10 @@ export function PowerSyncPocSurface() {
 
     let isActive = true;
 
-    void import('@/lib/powersync/runtime')
-      .then(async (runtime) => {
-        await runtime.startPowerSyncPoc(scope);
-        return runtime.readPowerSyncPocSnapshot(scope);
-      })
-      .then((nextSnapshot) => {
-        if (isActive) {
-          setViewState({
-            scopeId: scope.id,
-            snapshot: nextSnapshot,
-            status: 'ready',
-          });
+    void readCurrentState()
+      .then((nextState) => {
+        if (isActive && nextState) {
+          setViewState(nextState);
         }
       })
       .catch(() => {
@@ -83,6 +112,7 @@ export function PowerSyncPocSurface() {
             scopeId: scope.id,
             snapshot: emptySnapshot,
             status: 'error',
+            syncStatus: null,
           });
         }
       });
@@ -90,7 +120,7 @@ export function PowerSyncPocSurface() {
     return () => {
       isActive = false;
     };
-  }, [isAllowed, scope]);
+  }, [isAllowed, readCurrentState, scope]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -99,12 +129,18 @@ export function PowerSyncPocSurface() {
       return;
     }
 
-    if (!categoryName.trim() || !parentText.trim() || !childText.trim()) {
+    if (
+      !categoryName.trim() ||
+      !parentText.trim() ||
+      !childText.trim() ||
+      !siblingText.trim()
+    ) {
       setFormError(dictionary.powerSyncPoc.required);
       return;
     }
 
     setFormError(null);
+    setMutationError(null);
     setIsCreating(true);
 
     try {
@@ -115,23 +151,48 @@ export function PowerSyncPocSurface() {
         childText,
         date: getTodayKey(timezonePreference.timezone),
         parentText,
+        siblingText,
         scope,
         timezone: timezonePreference.timezone,
         writeMany: runtime.writePowerSyncPocBatch,
       });
-      setViewState({
-        scopeId: scope.id,
-        snapshot: await runtime.readPowerSyncPocSnapshot(scope),
-        status: 'ready',
-      });
+      await refreshSnapshot();
     } catch {
-      setViewState({
-        scopeId: scope.id,
-        snapshot: emptySnapshot,
-        status: 'error',
-      });
+      setMutationError(dictionary.powerSyncPoc.mutationError);
     } finally {
       setIsCreating(false);
+    }
+  }
+
+  async function mutateItem(
+    item: ChecklistItem,
+    action:
+      | { text: string; type: 'update' }
+      | { type: 'toggleChecked' }
+      | { type: 'moveDown' }
+      | { type: 'delete' },
+  ) {
+    if (!isAllowed || scope?.kind !== 'user') {
+      return;
+    }
+
+    setMutationError(null);
+    setPendingItemId(item.id);
+
+    try {
+      const runtime = await import('@/lib/powersync/runtime');
+      await mutatePowerSyncPocChecklistItem({
+        action,
+        itemId: item.id,
+        scope,
+        snapshot,
+        writeMany: runtime.writePowerSyncPocBatch,
+      });
+      await refreshSnapshot();
+    } catch {
+      setMutationError(dictionary.powerSyncPoc.mutationError);
+    } finally {
+      setPendingItemId(null);
     }
   }
 
@@ -148,7 +209,93 @@ export function PowerSyncPocSurface() {
   const activeItems = snapshot.checklistItems.filter(
     (item) => item.deletedAt === null,
   );
-  const rootItems = activeItems.filter((item) => item.parentId === null);
+  const rootItems = sortByRank(
+    activeItems.filter((item) => item.parentId === null),
+  );
+  const syncLabel = syncStatus?.hasError
+    ? dictionary.powerSyncPoc.error
+    : syncStatus && syncStatus.pendingOperations > 0
+      ? formatCountLabel({
+          count: syncStatus.pendingOperations,
+          plural: dictionary.powerSyncPoc.pendingOperations,
+          singular: dictionary.powerSyncPoc.pendingOperation,
+        })
+      : syncStatus?.uploading || syncStatus?.downloading
+        ? dictionary.sync.syncing
+        : syncStatus?.connecting
+          ? dictionary.powerSyncPoc.connecting
+          : syncStatus?.connected && syncStatus.hasSynced
+            ? dictionary.powerSyncPoc.synchronized
+            : syncStatus?.connected
+              ? dictionary.powerSyncPoc.connected
+              : dictionary.powerSyncPoc.offline;
+
+  function renderItem(item: ChecklistItem, canMoveDown: boolean) {
+    const draft = drafts[item.id] ?? item.text;
+    const isPending = pendingItemId !== null;
+    const actionLabel = (action: string) =>
+      dictionary.powerSyncPoc.itemAction
+        .replace('{action}', action)
+        .replace('{item}', item.text);
+
+    return (
+      <div className="grid gap-3">
+        <FormField
+          disabled={isPending}
+          label={dictionary.powerSyncPoc.itemLabel}
+          onChange={(event) =>
+            setDrafts((current) => ({
+              ...current,
+              [item.id]: event.target.value,
+            }))
+          }
+          value={draft}
+        />
+        <div className="flex flex-wrap gap-2">
+          <Button
+            aria-label={actionLabel(dictionary.powerSyncPoc.saveItem)}
+            disabled={isPending || !draft.trim() || draft === item.text}
+            onClick={() =>
+              void mutateItem(item, { text: draft, type: 'update' })
+            }
+            tone="subtle"
+          >
+            {dictionary.powerSyncPoc.saveItem}
+          </Button>
+          <Button
+            aria-label={actionLabel(
+              item.checked
+                ? dictionary.powerSyncPoc.reopenItem
+                : dictionary.powerSyncPoc.markComplete,
+            )}
+            disabled={isPending}
+            onClick={() => void mutateItem(item, { type: 'toggleChecked' })}
+            tone="subtle"
+          >
+            {item.checked
+              ? dictionary.powerSyncPoc.reopenItem
+              : dictionary.powerSyncPoc.markComplete}
+          </Button>
+          <Button
+            aria-label={actionLabel(dictionary.powerSyncPoc.moveDown)}
+            disabled={isPending || !canMoveDown}
+            onClick={() => void mutateItem(item, { type: 'moveDown' })}
+            tone="subtle"
+          >
+            {dictionary.powerSyncPoc.moveDown}
+          </Button>
+          <Button
+            aria-label={actionLabel(dictionary.powerSyncPoc.deleteItem)}
+            disabled={isPending}
+            onClick={() => setDeleteTarget(item)}
+            tone="danger"
+          >
+            {dictionary.powerSyncPoc.deleteItem}
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <main className="min-h-dvh bg-background px-4 py-8 text-foreground sm:px-6">
@@ -178,14 +325,21 @@ export function PowerSyncPocSurface() {
               value={parentText}
             />
             <FormField
-              error={formError}
               label={dictionary.powerSyncPoc.childLabel}
               onChange={(event) => setChildText(event.target.value)}
               value={childText}
             />
+            <FormField
+              error={formError}
+              label={dictionary.powerSyncPoc.siblingLabel}
+              onChange={(event) => setSiblingText(event.target.value)}
+              value={siblingText}
+            />
             <div className="flex flex-col gap-3 sm:flex-row">
               <Button
-                disabled={isCreating || status === 'loading'}
+                disabled={
+                  isCreating || pendingItemId !== null || status === 'loading'
+                }
                 type="submit"
               >
                 {isCreating
@@ -193,7 +347,7 @@ export function PowerSyncPocSurface() {
                   : dictionary.powerSyncPoc.createScenario}
               </Button>
               <Button
-                disabled={isCreating}
+                disabled={isCreating || pendingItemId !== null}
                 onClick={() => void refreshSnapshot()}
                 tone="subtle"
               >
@@ -203,13 +357,17 @@ export function PowerSyncPocSurface() {
           </form>
         </section>
 
-        <Text role="status" tone={status === 'error' ? 'danger' : 'muted'}>
-          {status === 'error'
-            ? dictionary.powerSyncPoc.error
-            : status === 'loading'
-              ? dictionary.auth.loading
-              : dictionary.powerSyncPoc.ready}
-        </Text>
+        <div aria-live="polite" className="grid gap-1">
+          <Text role="status" tone={status === 'error' ? 'danger' : 'muted'}>
+            {status === 'error'
+              ? dictionary.powerSyncPoc.error
+              : status === 'loading'
+                ? dictionary.auth.loading
+                : dictionary.powerSyncPoc.ready}
+          </Text>
+          {status === 'ready' ? <Text tone="muted">{syncLabel}</Text> : null}
+          {mutationError ? <Text tone="danger">{mutationError}</Text> : null}
+        </div>
         <Text leading="relaxed" tone="muted">
           {dictionary.powerSyncPoc.localNotice}
         </Text>
@@ -238,23 +396,51 @@ export function PowerSyncPocSurface() {
                 {dictionary.powerSyncPoc.hierarchy}
               </h2>
               <ul className="mt-3 grid gap-3">
-                {rootItems.map((item) => (
-                  <li key={item.id} className="rounded-xl bg-surface px-4 py-3">
-                    <span>{item.text}</span>
-                    <ul className="mt-2 grid gap-2 pl-5 text-sm text-muted">
-                      {activeItems
-                        .filter((child) => child.parentId === item.id)
-                        .map((child) => (
-                          <li key={child.id}>{child.text}</li>
+                {rootItems.map((item, rootIndex) => {
+                  const children = sortByRank(
+                    activeItems.filter((child) => child.parentId === item.id),
+                  );
+
+                  return (
+                    <li
+                      key={item.id}
+                      className="grid gap-4 rounded-xl bg-surface px-4 py-3"
+                    >
+                      {renderItem(item, rootIndex < rootItems.length - 1)}
+                      <ul className="grid gap-4 pl-4 text-sm text-muted">
+                        {children.map((child, childIndex) => (
+                          <li key={child.id}>
+                            {renderItem(
+                              child,
+                              childIndex < children.length - 1,
+                            )}
+                          </li>
                         ))}
-                    </ul>
-                  </li>
-                ))}
+                      </ul>
+                    </li>
+                  );
+                })}
               </ul>
             </section>
           </div>
         )}
       </div>
+      <ConfirmationDialog
+        cancelLabel={dictionary.actions.cancel}
+        confirmLabel={dictionary.actions.delete}
+        description={dictionary.powerSyncPoc.confirmDelete}
+        open={deleteTarget !== null}
+        title={dictionary.powerSyncPoc.deleteTitle}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={() => {
+          const item = deleteTarget;
+          setDeleteTarget(null);
+
+          if (item) {
+            void mutateItem(item, { type: 'delete' });
+          }
+        }}
+      />
     </main>
   );
 }

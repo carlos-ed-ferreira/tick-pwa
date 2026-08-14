@@ -34,13 +34,13 @@ jobs:
 
       - name: Checkout manual release
         if: github.event_name == 'workflow_dispatch'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Node.js for manual release
         if: github.event_name == 'workflow_dispatch'
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
       - name: Install dependencies for manual release
@@ -68,7 +68,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 2
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
@@ -91,9 +91,9 @@ jobs:
 
       - name: Setup Node.js
         if: steps.database-changes.outputs.changed == 'true'
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
       - name: Install dependencies

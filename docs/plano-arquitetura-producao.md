@@ -209,10 +209,11 @@ Até a migração:
 
 Esta fase valida a decisão técnica antes de alterar toda a persistência.
 
-Em 11 de agosto de 2026, a fundação de código foi versionada e permanece
-desligada: SDK, SQLite por conta, JWT Supabase, conector, schema das entidades
-da prova e Sync Streams. Ainda faltam a configuração externa, a migração do
-fluxo funcional para o SQLite e todos os ensaios dos critérios abaixo. O passo
+Em 11 de agosto de 2026, a configuração externa e a superfície isolada ficaram
+prontas e permanecem desligadas: SDK, SQLite por conta, JWT Supabase, conector,
+schema das entidades da prova, Sync Streams, operações locais da hierarquia e
+visibilidade da fila. Ainda faltam a ativação controlada, os ensaios dos
+critérios abaixo e, se a prova for aprovada, a migração das telas reais. O passo
 a passo está em [powersync-poc.md](powersync-poc.md).
 
 ### Escopo da prova

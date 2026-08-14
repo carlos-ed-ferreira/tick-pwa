@@ -16,13 +16,17 @@ O código entregue nesta etapa contém:
 - Sync Streams filtrados por `auth.user_id()`;
 - rollout bloqueado por flag e lista explícita de contas;
 - desligamento total para convidado e quando a flag está ausente;
-- fechamento do banco ao trocar de conta.
+- fechamento do banco ao trocar de conta;
+- cenário isolado com pai e duas subtarefas;
+- edição, conclusão, reordenação e exclusão local transacional;
+- contagem da fila de upload e estado de conexão sem expor erros internos.
 
 A flag permanece desligada por padrão. O fluxo funcional do produto ainda usa
 Dexie e o conector atual do Supabase; portanto esta fundação não deve ser
 descrita como sincronização durável concluída nem liberada para usuários. A
-próxima etapa de código migra leitura e escrita das entidades da prova para o
-SQLite do PowerSync e executa os cenários reais offline.
+superfície isolada já lê e escreve as entidades da prova no SQLite do PowerSync.
+A próxima etapa é publicar o código sem ativá-lo, liberar uma única conta
+interna e executar os ensaios reais offline e multidispositivo.
 
 ## Ambientes usados nesta prova
 
@@ -52,7 +56,9 @@ Registrado em 11 de agosto de 2026 conforme confirmação manual:
 - [x] URL pública da instância cadastrada na Vercel sem ativar a prova;
 - [x] contrato isolado de leitura e escrita SQLite coberto por testes;
 - [x] superfície funcional isolada criada sem integração com o Dexie;
-- [ ] fluxo funcional migrado para o SQLite do PowerSync;
+- [x] criação, edição, conclusão, reordenação e exclusão cobertas por testes;
+- [x] fila e estado de conexão expostos de forma segura na superfície isolada;
+- [ ] telas funcionais reais migradas para o SQLite do PowerSync;
 - [ ] ativação controlada e ensaios offline executados.
 
 ## Configuração externa realizada
@@ -129,8 +135,8 @@ ativar nenhuma conta.
 ## Ativação futura
 
 O código já exige rollout restrito por conta. A flag só poderá ser definida
-como `1` depois da migração funcional e dos testes automatizados, em um deploy
-controlado. Até lá:
+como `1` depois que esta alteração for publicada sem ativação e o calendário
+normal for validado, sempre em um deploy controlado. Até lá:
 
 - não criar `NEXT_PUBLIC_TICK_ENABLE_POWERSYNC_POC`;
 - não liberar a prova para toda a allowlist;
@@ -170,28 +176,30 @@ Não informe o UUID neste documento nem adicione outras contas. O UUID não é u
 secret de autenticação, mas a lista controla o alcance da prova e deve continuar
 mínima.
 
-Na página da prova, confirme apenas que aparece o formulário e o estado
-**SQLite do PowerSync pronto**. Não execute ainda os ensaios de desconexão em
-mais de um dispositivo; eles serão conduzidos na próxima etapa com uma ordem
-controlada.
+Na página da prova, confirme o formulário, o estado do SQLite e a fila. Execute
+primeiro criação, edição, conclusão, reordenação e exclusão em um único
+dispositivo. Os ensaios de desconexão, reload e segundo dispositivo devem ser
+registrados separadamente, sem ampliar a lista de contas.
 
-## Próxima etapa de código
+## Implementação isolada concluída
 
 O contrato de persistência do POC já produz mutações SQLite com ownership
 derivado do escopo autenticado, converte booleanos e JSON para tipos
 compatíveis e rejeita dados guest. A rota interna `/~powersync-poc` cria uma
-categoria, um dia, uma tarefa e uma subtarefa em uma única transação SQLite e
-relê o resultado local. Ela ainda não está ligada aos comandos do produto e só
-fica disponível quando flag e UUID autorizado coincidirem.
+categoria, um dia, uma tarefa e duas subtarefas em uma única transação SQLite.
+Nela é possível editar, concluir ou reabrir, reordenar e excluir; cada alteração
+relacionada ao resumo diário é gravada no mesmo lote local. A rota também relê
+o snapshot e a contagem da fila. Ela não está ligada aos comandos do produto e
+só fica disponível quando flag e UUID autorizado coincidirem.
 
-A integração funcional seguirá estas regras:
+A futura migração das telas reais seguirá estas regras:
 
 - não escrever simultaneamente no Dexie e no PowerSync;
 - manter o guest exclusivamente no Dexie;
 - manter contas fora do rollout no fluxo Dexie/Supabase atual;
 - executar o POC em uma superfície isolada antes de trocar a persistência das
   telas existentes;
-- só ativar uma conta depois dos testes de reload, offline e isolamento.
+- só migrar as telas reais depois dos testes de reload, offline e isolamento.
 
 ## Validação antes de aprovar a tecnologia
 
@@ -207,3 +215,17 @@ A prova só pode ser aprovada depois de validar:
 
 Até esses resultados existirem, `SYNC-01` permanece em andamento e a fila
 atual continua sendo uma limitação conhecida.
+
+## Evidência automatizada desta etapa
+
+Executado em 11 de agosto de 2026, ainda sem ativar a flag:
+
+- `make check`: 60 arquivos e 429 testes, lint, tipagem, formato e build;
+- `make test-e2e`: 22 cenários desktop e mobile;
+- `make test-e2e-account`: 2 cenários autenticados;
+- `make audit-prod`: 0 vulnerabilidades de produção.
+
+O build informa que os dois artefatos WASM do SQLite excedem o limite de
+precache do service worker. Isso não bloqueia o POC carregado online, mas o
+reload inteiramente offline e o fallback de armazenamento continuam como
+critérios obrigatórios do ensaio real.
