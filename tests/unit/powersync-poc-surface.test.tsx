@@ -9,17 +9,32 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { PowerSyncPocSurface } from '@/features/powersync-poc/powersync-poc-surface';
 import { createUserScope } from '@/lib/domain';
 
-const { isAllowedMock, readSnapshotMock, startMock, writeBatchMock } =
-  vi.hoisted(() => ({
-    isAllowedMock: vi.fn(() => false),
-    readSnapshotMock: vi.fn().mockResolvedValue({
-      categoryTags: [],
-      checklistItems: [],
-      dailyEntries: [],
-    }),
-    startMock: vi.fn().mockResolvedValue(undefined),
-    writeBatchMock: vi.fn().mockResolvedValue(true),
-  }));
+const {
+  isAllowedMock,
+  readSnapshotMock,
+  readStatusMock,
+  startMock,
+  writeBatchMock,
+} = vi.hoisted(() => ({
+  isAllowedMock: vi.fn(() => false),
+  readSnapshotMock: vi.fn().mockResolvedValue({
+    categoryTags: [],
+    checklistItems: [],
+    dailyEntries: [],
+  }),
+  readStatusMock: vi.fn().mockResolvedValue({
+    connected: true,
+    connecting: false,
+    downloading: false,
+    hasError: false,
+    hasSynced: true,
+    lastSyncedAt: '2026-08-11T12:00:00.000Z',
+    pendingOperations: 0,
+    uploading: false,
+  }),
+  startMock: vi.fn().mockResolvedValue(undefined),
+  writeBatchMock: vi.fn().mockResolvedValue(true),
+}));
 
 vi.mock('@/lib/environment', () => ({
   shouldUsePowerSyncPocForUser: isAllowedMock,
@@ -27,6 +42,7 @@ vi.mock('@/lib/environment', () => ({
 
 vi.mock('@/lib/powersync/runtime', () => ({
   readPowerSyncPocSnapshot: readSnapshotMock,
+  readPowerSyncPocStatus: readStatusMock,
   startPowerSyncPoc: startMock,
   writePowerSyncPocBatch: writeBatchMock,
 }));
@@ -39,6 +55,7 @@ vi.mock('@/providers', () => ({
         categories: 'Local categories',
         categoryLabel: 'Proof category',
         childLabel: 'Subtask',
+        siblingLabel: 'Second subtask',
         createScenario: 'Save local scenario',
         creating: 'Saving',
         description: 'Isolated proof',
@@ -52,8 +69,26 @@ vi.mock('@/providers', () => ({
         required: 'Complete all fields',
         title: 'PowerSync proof',
         unavailable: 'Proof unavailable',
+        itemLabel: 'Item text',
+        itemAction: '{action}: {item}',
+        saveItem: 'Save text',
+        markComplete: 'Complete',
+        reopenItem: 'Reopen',
+        moveDown: 'Move down',
+        deleteItem: 'Delete',
+        deleteTitle: 'Delete proof item',
+        confirmDelete: 'Confirm proof deletion',
+        connected: 'Connected',
+        connecting: 'Connecting',
+        offline: 'Offline',
+        synchronized: 'Queue synchronized',
+        pendingOperation: '{count} operation waiting',
+        pendingOperations: '{count} operations waiting',
+        mutationError: 'Mutation error',
       },
       auth: { loading: 'Loading' },
+      actions: { cancel: 'Cancel', delete: 'Delete' },
+      sync: { syncing: 'Syncing' },
     },
     scope: createUserScope('account-user'),
     timezonePreference: { timezone: 'America/Sao_Paulo' },
@@ -66,6 +101,7 @@ describe('PowerSyncPocSurface', () => {
     isAllowedMock.mockReset();
     isAllowedMock.mockReturnValue(false);
     readSnapshotMock.mockClear();
+    readStatusMock.mockClear();
     startMock.mockClear();
     writeBatchMock.mockClear();
   });
@@ -95,6 +131,30 @@ describe('PowerSyncPocSurface', () => {
       writeBatchMock.mock.calls[0][0].map(
         (change: { entityType: string }) => change.entityType,
       ),
-    ).toEqual(['categoryTag', 'dailyEntry', 'checklistItem', 'checklistItem']);
+    ).toEqual([
+      'categoryTag',
+      'dailyEntry',
+      'checklistItem',
+      'checklistItem',
+      'checklistItem',
+    ]);
+  });
+
+  it('shows the redacted upload queue state', async () => {
+    isAllowedMock.mockReturnValue(true);
+    readStatusMock.mockResolvedValueOnce({
+      connected: false,
+      connecting: false,
+      downloading: false,
+      hasError: false,
+      hasSynced: false,
+      lastSyncedAt: null,
+      pendingOperations: 2,
+      uploading: false,
+    });
+
+    render(<PowerSyncPocSurface />);
+
+    expect(await screen.findByText('2 operations waiting')).toBeInTheDocument();
   });
 });
