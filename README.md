@@ -88,11 +88,12 @@ conflitos e observabilidade externa. Elas estão registradas no
 já implementadas.
 
 Existe uma fundação desativada para a prova de conceito do PowerSync. Ela cria
-um SQLite isolado por conta e contém schema, autenticação, upload e Sync Streams
-para categorias e checklist. A rota interna `/~powersync-poc` exercita criação,
-edição, conclusão, reordenação, exclusão e visibilidade da fila somente nesse
-SQLite. Ela permanece bloqueada sem flag e UUID autorizado e não substitui a
-persistência funcional Dexie. O preparo externo e os limites estão em
+um SQLite `v2` isolado por conta e usa tabelas PostgreSQL `powersync_poc_*`
+exclusivas, com schema, autenticação, upload e Sync Streams próprios. A rota
+interna `/~powersync-poc` exercita criação, edição, conclusão, reordenação,
+exclusão e visibilidade da fila sem ler ou escrever as tabelas funcionais. Ela
+permanece bloqueada sem flag e UUID autorizado e não substitui a persistência
+funcional Dexie. O preparo externo e os limites estão em
 [docs/powersync-poc.md](docs/powersync-poc.md).
 
 ### PWA e offline
@@ -332,6 +333,7 @@ recorrente sem target, adicione-a ao `Makefile` e ao `make help` primeiro.
 | typecheck          | `make typecheck`                    |
 | lint               | `make lint`                         |
 | testes             | `make test`                         |
+| testes PowerSync   | `make test-powersync`               |
 | E2E padrão         | `make test-e2e`                     |
 | E2E autenticado    | `make test-e2e-account`             |
 | publicar em `main` | `make publish`                      |

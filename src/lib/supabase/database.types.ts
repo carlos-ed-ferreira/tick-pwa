@@ -403,6 +403,184 @@ export type Database = {
           },
         ];
       };
+      powersync_poc_category_tags: {
+        Row: {
+          client_updated_at: string;
+          color_hex: string;
+          created_at: string;
+          deleted_at: string | null;
+          id: string;
+          name: string;
+          position: string;
+          revision: number;
+          surface: string;
+          updated_at: string;
+          use_own_name: boolean;
+          user_id: string;
+        };
+        Insert: {
+          client_updated_at?: string;
+          color_hex: string;
+          created_at?: string;
+          deleted_at?: string | null;
+          id: string;
+          name: string;
+          position: string;
+          revision?: number;
+          surface?: string;
+          updated_at?: string;
+          use_own_name?: boolean;
+          user_id: string;
+        };
+        Update: {
+          client_updated_at?: string;
+          color_hex?: string;
+          created_at?: string;
+          deleted_at?: string | null;
+          id?: string;
+          name?: string;
+          position?: string;
+          revision?: number;
+          surface?: string;
+          updated_at?: string;
+          use_own_name?: boolean;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
+      powersync_poc_checklist_items: {
+        Row: {
+          bold: boolean;
+          category_tag_id: string | null;
+          checked: boolean;
+          client_updated_at: string;
+          collapsed: boolean;
+          created_at: string;
+          daily_entry_id: string;
+          deleted_at: string | null;
+          id: string;
+          ignored: boolean;
+          parent_id: string | null;
+          priority: boolean;
+          revision: number;
+          scheduled_time: string | null;
+          sort_rank: string;
+          text: string;
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          bold?: boolean;
+          category_tag_id?: string | null;
+          checked?: boolean;
+          client_updated_at?: string;
+          collapsed?: boolean;
+          created_at?: string;
+          daily_entry_id: string;
+          deleted_at?: string | null;
+          id: string;
+          ignored?: boolean;
+          parent_id?: string | null;
+          priority?: boolean;
+          revision?: number;
+          scheduled_time?: string | null;
+          sort_rank: string;
+          text?: string;
+          updated_at?: string;
+          user_id: string;
+        };
+        Update: {
+          bold?: boolean;
+          category_tag_id?: string | null;
+          checked?: boolean;
+          client_updated_at?: string;
+          collapsed?: boolean;
+          created_at?: string;
+          daily_entry_id?: string;
+          deleted_at?: string | null;
+          id?: string;
+          ignored?: boolean;
+          parent_id?: string | null;
+          priority?: boolean;
+          revision?: number;
+          scheduled_time?: string | null;
+          sort_rank?: string;
+          text?: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'powersync_poc_checklist_items_category_tag_fkey';
+            columns: ['category_tag_id', 'user_id'];
+            isOneToOne: false;
+            referencedRelation: 'powersync_poc_category_tags';
+            referencedColumns: ['id', 'user_id'];
+          },
+          {
+            foreignKeyName: 'powersync_poc_checklist_items_daily_entry_fkey';
+            columns: ['daily_entry_id', 'user_id'];
+            isOneToOne: false;
+            referencedRelation: 'powersync_poc_daily_entries';
+            referencedColumns: ['id', 'user_id'];
+          },
+          {
+            foreignKeyName: 'powersync_poc_checklist_items_parent_fkey';
+            columns: ['parent_id', 'user_id'];
+            isOneToOne: false;
+            referencedRelation: 'powersync_poc_checklist_items';
+            referencedColumns: ['id', 'user_id'];
+          },
+        ];
+      };
+      powersync_poc_daily_entries: {
+        Row: {
+          category_summaries: Json;
+          category_tag_ids: string[];
+          client_updated_at: string;
+          completed_count: number;
+          created_at: string;
+          date: string;
+          deleted_at: string | null;
+          id: string;
+          item_count: number;
+          revision: number;
+          timezone: string;
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          category_summaries?: Json;
+          category_tag_ids?: string[];
+          client_updated_at?: string;
+          completed_count?: number;
+          created_at?: string;
+          date: string;
+          deleted_at?: string | null;
+          id: string;
+          item_count?: number;
+          revision?: number;
+          timezone: string;
+          updated_at?: string;
+          user_id: string;
+        };
+        Update: {
+          category_summaries?: Json;
+          category_tag_ids?: string[];
+          client_updated_at?: string;
+          completed_count?: number;
+          created_at?: string;
+          date?: string;
+          deleted_at?: string | null;
+          id?: string;
+          item_count?: number;
+          revision?: number;
+          timezone?: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
       profiles: {
         Row: {
           avatar_url: string | null;

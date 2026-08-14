@@ -12,6 +12,8 @@ O código entregue nesta etapa contém:
 - banco SQLite separado por usuário autenticado;
 - autenticação pelo JWT atual do Supabase;
 - schema local para categorias, dias e a hierarquia completa do checklist;
+- tabelas PostgreSQL exclusivas `powersync_poc_*`, sem ler ou escrever as
+  tabelas funcionais do produto;
 - conector de upload com ownership derivado da sessão;
 - Sync Streams filtrados por `auth.user_id()`;
 - rollout bloqueado por flag e lista explícita de contas;
@@ -47,7 +49,8 @@ necessário nesta etapa.
 
 ## Estado da configuração externa
 
-Registrado em 11 de agosto de 2026 conforme confirmação manual:
+Configuração inicial registrada em 11 de agosto de 2026 e correção isolada
+preparada em 14 de agosto de 2026:
 
 - [x] usuário de replicação e publicação criados no Supabase;
 - [x] instância Development gratuita criada no PowerSync e conectada ao banco;
@@ -58,6 +61,10 @@ Registrado em 11 de agosto de 2026 conforme confirmação manual:
 - [x] superfície funcional isolada criada sem integração com o Dexie;
 - [x] criação, edição, conclusão, reordenação e exclusão cobertas por testes;
 - [x] fila e estado de conexão expostos de forma segura na superfície isolada;
+- [x] regressão HTTP 409 reproduzida e corrigida com tabelas remotas exclusivas;
+- [x] SQLite `v2` impede a reabertura da fila antiga;
+- [ ] migration `20260814000000_isolate_powersync_poc.sql` aplicada em produção;
+- [ ] Sync Streams `powersync_poc_*` implantados no PowerSync;
 - [ ] telas funcionais reais migradas para o SQLite do PowerSync;
 - [ ] ativação controlada e ensaios offline executados.
 
@@ -65,9 +72,9 @@ Registrado em 11 de agosto de 2026 conforme confirmação manual:
 
 ### 1. Supabase
 
-**Status: concluído.** Foi criado um usuário exclusivo de replicação com leitura
-somente das três tabelas da prova. A publicação também ficou restrita a elas.
-O SQL aplicado foi:
+**Status da configuração inicial: concluído.** Foi criado um usuário exclusivo
+de replicação. Inicialmente, a publicação apontou para as três tabelas
+funcionais, conforme o SQL histórico abaixo:
 
 ```sql
 CREATE ROLE powersync_role WITH REPLICATION BYPASSRLS LOGIN PASSWORD '<SENHA_ALEATORIA_FORTE>';
@@ -78,6 +85,11 @@ CREATE PUBLICATION powersync FOR TABLE public.category_tags, public.daily_entrie
 
 A senha não deve ser gravada no repositório, na Vercel ou em `.env.local`. Ela
 pertence somente à conexão entre PowerSync Cloud e Postgres.
+
+A migration `20260814000000_isolate_powersync_poc.sql` substitui essa
+publicação pelas tabelas `powersync_poc_category_tags`,
+`powersync_poc_daily_entries` e `powersync_poc_checklist_items`, revogando do
+usuário de replicação a leitura das tabelas funcionais.
 
 ### 2. Instância gratuita do PowerSync
 
@@ -98,9 +110,10 @@ um secret legado.
 
 ### 4. Sync Streams
 
-**Status: concluído.** O conteúdo de `powersync/sync-config.yaml` foi validado e
-implantado em **Sync Streams**. A configuração possui colunas explícitas,
-assinatura automática e filtro por usuário em todas as consultas.
+**Status: requer nova implantação depois da migration.** A versão inicial foi
+implantada, mas o arquivo `powersync/sync-config.yaml` agora consulta somente
+`powersync_poc_*`. Essa versão deve ser validada e implantada novamente em
+**Sync Streams** antes de reativar a prova.
 
 ## Configuração externa finalizada
 
@@ -132,11 +145,46 @@ conecta ao PowerSync e mantém integralmente o fluxo Dexie/Supabase atual.
 Essa configuração foi suficiente para concluir a implementação isolada sem
 ativar nenhuma conta.
 
+## Incidente controlado de 14 de agosto de 2026
+
+O primeiro ensaio real abriu o SQLite, mas deixou 10 operações pendentes. O
+navegador registrou HTTP 409 no `POST /rest/v1/daily_entries?on_conflict=id`.
+A versão inicial isolava apenas o SQLite e ainda enviava a prova para as tabelas
+funcionais. Uma nova entrada do mesmo usuário e data colidiu com
+`daily_entries_user_id_date_key`.
+
+A correção não contorna a restrição nem escolhe uma data artificial. Ela:
+
+- cria três tabelas remotas exclusivas com RLS e chaves por usuário;
+- permite mais de um cenário de prova na mesma data;
+- troca a publicação e os Sync Streams para `powersync_poc_*`;
+- usa o arquivo local `tick-powersync-poc-v2-<userId>.db`;
+- nunca reabre a fila v1 com as 10 operações antigas.
+
+Até migration, Sync Streams e novo deploy estarem confirmados, mantenha
+`NEXT_PUBLIC_TICK_ENABLE_POWERSYNC_POC` ausente ou vazio. Não limpe o site nem
+reative a prova com o código anterior.
+
+Como o upload v1 gravava a categoria antes de encontrar o conflito do dia, pode
+existir categoria de teste órfã nas tabelas funcionais. Não a exclua
+automaticamente. Depois de desligar a flag, audite no Supabase SQL Editor:
+
+```sql
+select id, name, created_at, updated_at
+from public.category_tags
+where user_id = '<uuid-da-conta-interna>'
+  and name = 'POWERSYNC'
+order by created_at desc;
+```
+
+Registre o resultado e confirme cada ID criado pelo POC antes de preparar uma
+limpeza dedicada. Não execute `delete` nessa etapa.
+
 ## Ativação futura
 
 O código já exige rollout restrito por conta. A flag só poderá ser definida
-como `1` depois que esta alteração for publicada sem ativação e o calendário
-normal for validado, sempre em um deploy controlado. Até lá:
+como `1` depois que a migration isolada, os novos Sync Streams e o deploy v2
+forem confirmados, sempre em um deploy controlado. Até lá:
 
 - não criar `NEXT_PUBLIC_TICK_ENABLE_POWERSYNC_POC`;
 - não liberar a prova para toda a allowlist;
@@ -151,35 +199,40 @@ NEXT_PUBLIC_TICK_ENABLE_POWERSYNC_POC=1
 NEXT_PUBLIC_TICK_POWERSYNC_POC_USER_IDS=<uuid-da-conta-interna>
 ```
 
-## Próxima ação externa: ativar uma conta interna
+## Próxima ação externa: implantar o backend isolado
 
-A etapa de código isolada está concluída. Faça a ativação nesta ordem:
+A reativação deve seguir esta ordem:
 
-1. publique primeiro o código atual mantendo as duas variáveis de ativação
-   ausentes;
-2. confirme que `https://tickapp.com.br/calendar` continua funcionando com o
-   fluxo atual;
-3. no Supabase Dashboard, abra **Authentication → Users** e copie o UUID de uma
-   única conta interna destinada ao teste;
-4. na Vercel, crie somente em **Production**:
+1. confirme que `NEXT_PUBLIC_TICK_ENABLE_POWERSYNC_POC` está ausente ou vazia
+   em Production;
+2. publique o código mantendo a prova desligada;
+3. confirme no workflow de migrations que
+   `20260814000000_isolate_powersync_poc.sql` foi aplicada;
+4. no PowerSync Dashboard, valide e implante o novo conteúdo de
+   `powersync/sync-config.yaml`;
+5. confirme que `https://tickapp.com.br/calendar` continua funcionando e não
+   mostra entidades da prova;
+6. mantenha somente o UUID da conta interna selecionada e configure em Vercel
+   Production:
 
 ```dotenv
 NEXT_PUBLIC_TICK_ENABLE_POWERSYNC_POC=1
 NEXT_PUBLIC_TICK_POWERSYNC_POC_USER_IDS=<uuid-da-conta-interna>
 ```
 
-5. gere um novo deploy de Production;
-6. entre com essa conta e abra
+7. gere um novo deploy de Production;
+8. entre com essa conta e abra
    `https://tickapp.com.br/~powersync-poc`.
 
 Não informe o UUID neste documento nem adicione outras contas. O UUID não é um
 secret de autenticação, mas a lista controla o alcance da prova e deve continuar
 mínima.
 
-Na página da prova, confirme o formulário, o estado do SQLite e a fila. Execute
-primeiro criação, edição, conclusão, reordenação e exclusão em um único
-dispositivo. Os ensaios de desconexão, reload e segundo dispositivo devem ser
-registrados separadamente, sem ampliar a lista de contas.
+Na página da prova, o primeiro carregamento v2 deve estar vazio. Grave somente
+um cenário: a fila pode subir para 5 e deve retornar a 0. Depois execute edição,
+conclusão, reordenação e exclusão em um único dispositivo. Os ensaios de
+desconexão, reload e segundo dispositivo devem ser registrados separadamente,
+sem ampliar a lista de contas.
 
 ## Implementação isolada concluída
 
@@ -229,3 +282,14 @@ O build informa que os dois artefatos WASM do SQLite excedem o limite de
 precache do service worker. Isso não bloqueia o POC carregado online, mas o
 reload inteiramente offline e o fallback de armazenamento continuam como
 critérios obrigatórios do ensaio real.
+
+### Correção v2 em 14 de agosto de 2026
+
+- RED do cliente: 6 falhas confirmaram tabelas e SQLite v1; GREEN com 19 testes;
+- RED do banco: 8 falhas confirmaram ausência do backend isolado; GREEN com 31
+  testes pgTAP;
+- `make supabase-reset`, `make supabase-lint` e `make supabase-diff`: banco
+  limpo, 0 erros e nenhuma divergência declarativa;
+- `make check`: 60 arquivos e 429 testes, lint, tipagem, formato e build;
+- `make test-e2e`: 22 cenários desktop/mobile;
+- `make test-e2e-account`: 2 cenários autenticados.

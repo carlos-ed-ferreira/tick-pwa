@@ -22,7 +22,7 @@ describe('PowerSync proof of concept', () => {
   it('derives ownership and converts SQLite values for Supabase writes', () => {
     expect(
       normalizePowerSyncPayload({
-        table: 'category_tags',
+        table: 'powersync_poc_category_tags',
         payload: {
           name: 'FOCUS',
           user_id: 'untrusted-user',
@@ -38,7 +38,7 @@ describe('PowerSync proof of concept', () => {
 
     expect(
       normalizePowerSyncPayload({
-        table: 'daily_entries',
+        table: 'powersync_poc_daily_entries',
         payload: {
           category_summaries: '[{"categoryTagId":"tag-1"}]',
           category_tag_ids: '["tag-1"]',
@@ -53,7 +53,7 @@ describe('PowerSync proof of concept', () => {
 
     expect(
       normalizePowerSyncPayload({
-        table: 'checklist_items',
+        table: 'powersync_poc_checklist_items',
         payload: {
           bold: 0,
           checked: 1,
@@ -75,9 +75,9 @@ describe('PowerSync proof of concept', () => {
 
   it('defines the simple entity and complete checklist hierarchy', () => {
     expect(tickPowerSyncPocSchema.tables.map((table) => table.name)).toEqual([
-      'category_tags',
-      'daily_entries',
-      'checklist_items',
+      'powersync_poc_category_tags',
+      'powersync_poc_daily_entries',
+      'powersync_poc_checklist_items',
     ]);
     expect(() => tickPowerSyncPocSchema.validate()).not.toThrow();
   });
@@ -115,7 +115,7 @@ describe('PowerSync proof of concept', () => {
               user_id: 'untrusted-user',
               use_own_name: 1,
             },
-            table: 'category_tags',
+            table: 'powersync_poc_category_tags',
           },
         ],
       }),
@@ -177,7 +177,7 @@ describe('PowerSync proof of concept', () => {
       getPowerSyncPocDatabaseFilename(
         createUserScope('2f784ca2-bc84-4420-a5ef-02d260c73dc4'),
       ),
-    ).toBe('tick-powersync-poc-2f784ca2-bc84-4420-a5ef-02d260c73dc4.db');
+    ).toBe('tick-powersync-poc-v2-2f784ca2-bc84-4420-a5ef-02d260c73dc4.db');
     expect(() =>
       getPowerSyncPocDatabaseFilename(createUserScope('../another-user')),
     ).toThrow('Invalid PowerSync account identifier.');
@@ -244,7 +244,7 @@ describe('PowerSync proof of concept', () => {
         'checklist_item',
         1,
       ],
-      sql: 'INSERT INTO category_tags (id, user_id, created_at, updated_at, deleted_at, client_updated_at, name, color_hex, position, surface, use_own_name) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      sql: 'INSERT INTO powersync_poc_category_tags (id, user_id, created_at, updated_at, deleted_at, client_updated_at, name, color_hex, position, surface, use_own_name) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
     });
   });
 
@@ -262,7 +262,7 @@ describe('PowerSync proof of concept', () => {
   it('reads only the authenticated account and writes through local SQLite', async () => {
     const execute = vi.fn().mockResolvedValue(undefined);
     const getAll = vi.fn(async (sql: string) => {
-      if (sql.includes('category_tags')) {
+      if (sql.includes('powersync_poc_category_tags')) {
         return [
           {
             id: 'tag-1',
@@ -345,7 +345,7 @@ describe('PowerSync proof of concept', () => {
 
     expect(getAll).toHaveBeenCalledTimes(3);
     expect(getAll).toHaveBeenCalledWith(
-      'SELECT * FROM category_tags WHERE user_id = ?',
+      'SELECT * FROM powersync_poc_category_tags WHERE user_id = ?',
       ['authenticated-user'],
     );
     expect(execute).toHaveBeenCalledOnce();

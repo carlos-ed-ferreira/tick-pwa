@@ -78,8 +78,11 @@ com write pendente, E2E autenticado e métricas de contagem.
 
 **Status:** em andamento; proteção de refresh da Fase 0.2, estados/retry
 visíveis da Fase 0.3, configuração externa e superfície funcional isolada da
-prova PowerSync concluídos em 11 de agosto de 2026. A ativação controlada, a
-migração das telas reais para SQLite e os ensaios reais ainda estão pendentes.
+prova PowerSync concluídos em 11 de agosto de 2026. O HTTP 409 do primeiro
+ensaio revelou escrita remota nas tabelas funcionais; a correção com tabelas
+`powersync_poc_*` e SQLite `v2` foi preparada em 14 de agosto de 2026. Migration,
+novos Sync Streams, reativação controlada, migração das telas reais e ensaios
+reais ainda estão pendentes.
 
 **Problema/lacuna — `P0`, arquitetura/código/serviço externo:** operações da
 conta podem desaparecer ao fechar ou recarregar a aba.
@@ -125,7 +128,7 @@ latência remota simulada.
 **Evidência da fundação PowerSync:** `@powersync/web` está atrás de feature
 flag desligada por padrão; schema SQLite, normalização dos tipos Postgres,
 conector Supabase, ciclo de vida isolado por usuário e Sync Streams edition 3
-para `category_tags`, `daily_entries` e `checklist_items` estão versionados. O
+para as tabelas `powersync_poc_*` estão versionados. O
 guest não inicia o serviço e a troca de conta fecha o banco anterior. O guia de
 ativação controlada está em `docs/powersync-poc.md`. Essa entrega ainda não
 altera as leituras e escritas funcionais do produto.
@@ -146,6 +149,18 @@ testes; `make test-e2e` passou em 22 cenários desktop/mobile e
 `make test-e2e-account` em 2 cenários autenticados. `make audit-prod` encontrou
 0 vulnerabilidades. Esses gates mantiveram a flag ausente e, portanto, não
 substituem os ensaios reais no PowerSync Cloud.
+
+**Incidente e correção v2:** o primeiro ensaio real retornou HTTP 409 ao criar
+outro `daily_entries` para o mesmo usuário/data e deixou 10 operações locais
+pendentes. A v2 separa as três tabelas remotas, remove as tabelas funcionais da
+publicação PowerSync, aplica RLS e chaves por usuário, permite vários cenários
+na mesma data e troca o nome do SQLite para não reabrir a fila v1. A flag deve
+permanecer desligada até migration e Sync Streams serem confirmados.
+
+**Evidência da correção v2:** RED do cliente com 6 falhas e GREEN com 19
+testes direcionados; RED do banco com 8 falhas e GREEN com 31 testes pgTAP.
+Banco limpo, lint e diff declarativo passaram. `make check` aprovou 60 arquivos
+e 429 testes; E2E local aprovou 22 cenários e E2E autenticado aprovou 2.
 
 ## SEC-01 — Vulnerabilidades de dependências
 
