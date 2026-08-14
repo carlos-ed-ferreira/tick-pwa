@@ -70,15 +70,15 @@ export class PowerSyncPocStore {
     const [categoryTagRows, dailyEntryRows, checklistItemRows] =
       await Promise.all([
         this.database.getAll(
-          'SELECT * FROM category_tags WHERE user_id = ?',
+          'SELECT * FROM powersync_poc_category_tags WHERE user_id = ?',
           parameters,
         ),
         this.database.getAll(
-          'SELECT * FROM daily_entries WHERE user_id = ?',
+          'SELECT * FROM powersync_poc_daily_entries WHERE user_id = ?',
           parameters,
         ),
         this.database.getAll(
-          'SELECT * FROM checklist_items WHERE user_id = ?',
+          'SELECT * FROM powersync_poc_checklist_items WHERE user_id = ?',
           parameters,
         ),
       ]);
@@ -87,21 +87,21 @@ export class PowerSyncPocStore {
       categoryTags: normalizeOwnedRows(
         categoryTagRows,
         scope,
-        'category_tags',
+        'powersync_poc_category_tags',
       ).map((row) =>
         categoryTagFromRemote(scope, row as unknown as RemoteCategoryTag),
       ),
       dailyEntries: normalizeOwnedRows(
         dailyEntryRows,
         scope,
-        'daily_entries',
+        'powersync_poc_daily_entries',
       ).map((row) =>
         dailyEntryFromRemote(scope, row as unknown as RemoteDailyEntry),
       ),
       checklistItems: normalizeOwnedRows(
         checklistItemRows,
         scope,
-        'checklist_items',
+        'powersync_poc_checklist_items',
       ).map((row) =>
         checklistItemFromRemote(scope, row as unknown as RemoteChecklistItem),
       ),

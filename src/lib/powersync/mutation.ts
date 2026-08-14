@@ -11,15 +11,15 @@ function getPowerSyncPocTable(
   entityType: SyncEntityType,
 ): PowerSyncPocTable | null {
   if (entityType === 'categoryTag') {
-    return 'category_tags';
+    return 'powersync_poc_category_tags';
   }
 
   if (entityType === 'dailyEntry') {
-    return 'daily_entries';
+    return 'powersync_poc_daily_entries';
   }
 
   if (entityType === 'checklistItem') {
-    return 'checklist_items';
+    return 'powersync_poc_checklist_items';
   }
 
   return null;
@@ -31,7 +31,7 @@ function toPowerSyncSqliteValue(
   value: unknown,
 ): unknown {
   const booleanColumns =
-    table === 'category_tags'
+    table === 'powersync_poc_category_tags'
       ? new Set(['use_own_name'])
       : new Set(['bold', 'checked', 'collapsed', 'ignored', 'priority']);
 
@@ -40,7 +40,7 @@ function toPowerSyncSqliteValue(
   }
 
   if (
-    table === 'daily_entries' &&
+    table === 'powersync_poc_daily_entries' &&
     (column === 'category_tag_ids' || column === 'category_summaries')
   ) {
     return JSON.stringify(value);

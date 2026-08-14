@@ -1,12 +1,12 @@
 export type PowerSyncPocTable =
-  | 'category_tags'
-  | 'daily_entries'
-  | 'checklist_items';
+  | 'powersync_poc_category_tags'
+  | 'powersync_poc_daily_entries'
+  | 'powersync_poc_checklist_items';
 
 const powerSyncPocTables = new Set<string>([
-  'category_tags',
-  'daily_entries',
-  'checklist_items',
+  'powersync_poc_category_tags',
+  'powersync_poc_daily_entries',
+  'powersync_poc_checklist_items',
 ]);
 
 export function isPowerSyncPocTable(table: string): table is PowerSyncPocTable {
@@ -48,14 +48,14 @@ export function normalizePowerSyncPayload({
 }): Record<string, unknown> {
   const normalized: Record<string, unknown> = { ...payload, user_id: userId };
 
-  if (table === 'category_tags' && 'use_own_name' in normalized) {
+  if (table === 'powersync_poc_category_tags' && 'use_own_name' in normalized) {
     normalized.use_own_name = normalizeBoolean(
       normalized.use_own_name,
       'use_own_name',
     );
   }
 
-  if (table === 'daily_entries') {
+  if (table === 'powersync_poc_daily_entries') {
     if ('category_tag_ids' in normalized) {
       normalized.category_tag_ids = normalizeJson(
         normalized.category_tag_ids,
@@ -71,7 +71,7 @@ export function normalizePowerSyncPayload({
     }
   }
 
-  if (table === 'checklist_items') {
+  if (table === 'powersync_poc_checklist_items') {
     for (const field of [
       'bold',
       'checked',

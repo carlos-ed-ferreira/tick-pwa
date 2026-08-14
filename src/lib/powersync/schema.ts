@@ -64,9 +64,9 @@ const checklistItems = new Table(
 );
 
 export const tickPowerSyncPocSchema = new Schema({
-  category_tags: categoryTags,
-  daily_entries: dailyEntries,
-  checklist_items: checklistItems,
+  powersync_poc_category_tags: categoryTags,
+  powersync_poc_daily_entries: dailyEntries,
+  powersync_poc_checklist_items: checklistItems,
 });
 
 export type TickPowerSyncPocDatabase = (typeof tickPowerSyncPocSchema)['types'];

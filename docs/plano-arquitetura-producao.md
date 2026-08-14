@@ -209,12 +209,14 @@ Até a migração:
 
 Esta fase valida a decisão técnica antes de alterar toda a persistência.
 
-Em 11 de agosto de 2026, a configuração externa e a superfície isolada ficaram
-prontas e permanecem desligadas: SDK, SQLite por conta, JWT Supabase, conector,
-schema das entidades da prova, Sync Streams, operações locais da hierarquia e
-visibilidade da fila. Ainda faltam a ativação controlada, os ensaios dos
-critérios abaixo e, se a prova for aprovada, a migração das telas reais. O passo
-a passo está em [powersync-poc.md](powersync-poc.md).
+Em 11 de agosto de 2026, a configuração externa e a superfície inicial ficaram
+prontas. O primeiro ensaio revelou que o SQLite estava isolado, mas o backend
+ainda reutilizava tabelas funcionais. Em 14 de agosto, a v2 separou também as
+tabelas PostgreSQL, a publicação, os Sync Streams e o arquivo SQLite. A flag
+permanece desligada até essa migration e os novos streams serem implantados.
+Depois ainda faltam os ensaios dos critérios abaixo e, se a prova for aprovada,
+a migração das telas reais. O passo a passo está em
+[powersync-poc.md](powersync-poc.md).
 
 ### Escopo da prova
 

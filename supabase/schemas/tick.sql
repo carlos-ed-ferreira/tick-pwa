@@ -136,6 +136,76 @@ create table public.checklist_items (
     references public.category_tags (id, user_id) on delete set null (category_tag_id)
 );
 
+create table public.powersync_poc_category_tags (
+  id text primary key,
+  user_id uuid not null references auth.users (id) on delete cascade,
+  name text not null,
+  color_hex text not null,
+  surface text not null default 'checklist_item',
+  position text not null,
+  use_own_name boolean not null default false,
+  created_at timestamptz not null default timezone('utc', now()),
+  updated_at timestamptz not null default timezone('utc', now()),
+  deleted_at timestamptz,
+  client_updated_at timestamptz not null default timezone('utc', now()),
+  revision bigint not null default 1,
+  constraint powersync_poc_category_tags_id_user_id_key unique (id, user_id),
+  constraint powersync_poc_category_tags_surface_check
+    check (surface = 'checklist_item')
+);
+
+create table public.powersync_poc_daily_entries (
+  id text primary key,
+  user_id uuid not null references auth.users (id) on delete cascade,
+  date text not null,
+  timezone text not null,
+  item_count integer not null default 0,
+  completed_count integer not null default 0,
+  category_tag_ids text[] not null default '{}',
+  category_summaries jsonb not null default '[]'::jsonb,
+  created_at timestamptz not null default timezone('utc', now()),
+  updated_at timestamptz not null default timezone('utc', now()),
+  deleted_at timestamptz,
+  client_updated_at timestamptz not null default timezone('utc', now()),
+  revision bigint not null default 1,
+  constraint powersync_poc_daily_entries_id_user_id_key unique (id, user_id)
+);
+
+create table public.powersync_poc_checklist_items (
+  id text primary key,
+  user_id uuid not null references auth.users (id) on delete cascade,
+  daily_entry_id text not null,
+  parent_id text,
+  category_tag_id text,
+  text text not null default '',
+  scheduled_time text,
+  checked boolean not null default false,
+  ignored boolean not null default false,
+  bold boolean not null default false,
+  priority boolean not null default false,
+  collapsed boolean not null default false,
+  sort_rank text not null,
+  created_at timestamptz not null default timezone('utc', now()),
+  updated_at timestamptz not null default timezone('utc', now()),
+  deleted_at timestamptz,
+  client_updated_at timestamptz not null default timezone('utc', now()),
+  revision bigint not null default 1,
+  constraint powersync_poc_checklist_items_scheduled_time_check check (
+    scheduled_time is null
+    or scheduled_time ~ '^([01][0-9]|2[0-3]):[0-5][0-9]$'
+  ),
+  constraint powersync_poc_checklist_items_id_user_id_key unique (id, user_id),
+  constraint powersync_poc_checklist_items_daily_entry_fkey
+    foreign key (daily_entry_id, user_id)
+    references public.powersync_poc_daily_entries (id, user_id) on delete cascade,
+  constraint powersync_poc_checklist_items_parent_fkey
+    foreign key (parent_id, user_id)
+    references public.powersync_poc_checklist_items (id, user_id) on delete cascade,
+  constraint powersync_poc_checklist_items_category_tag_fkey
+    foreign key (category_tag_id, user_id)
+    references public.powersync_poc_category_tags (id, user_id) on delete set null (category_tag_id)
+);
+
 create table public.goal_groups (
   id text primary key,
   user_id uuid not null references auth.users (id) on delete cascade,
@@ -231,6 +301,10 @@ create index category_tags_user_updated_at_idx on public.category_tags (user_id,
 create index daily_entries_user_updated_at_idx on public.daily_entries (user_id, updated_at desc);
 create index checklist_items_entry_rank_idx on public.checklist_items (user_id, daily_entry_id, sort_rank);
 create index checklist_items_parent_idx on public.checklist_items (user_id, parent_id);
+create index powersync_poc_category_tags_user_position_idx on public.powersync_poc_category_tags (user_id, position);
+create index powersync_poc_daily_entries_user_updated_at_idx on public.powersync_poc_daily_entries (user_id, updated_at desc);
+create index powersync_poc_checklist_items_entry_rank_idx on public.powersync_poc_checklist_items (user_id, daily_entry_id, sort_rank);
+create index powersync_poc_checklist_items_parent_idx on public.powersync_poc_checklist_items (user_id, parent_id);
 create index goal_groups_user_rank_idx on public.goal_groups (user_id, sort_rank);
 create index goals_group_rank_idx on public.goals (user_id, group_id, sort_rank);
 create index goals_active_idx on public.goals (user_id, completed_at, sort_rank) where deleted_at is null;
@@ -248,6 +322,12 @@ for each row execute function public.bump_entity_revision();
 create trigger daily_entries_bump_revision before insert or update on public.daily_entries
 for each row execute function public.bump_entity_revision();
 create trigger checklist_items_bump_revision before insert or update on public.checklist_items
+for each row execute function public.bump_entity_revision();
+create trigger powersync_poc_category_tags_bump_revision before insert or update on public.powersync_poc_category_tags
+for each row execute function public.bump_entity_revision();
+create trigger powersync_poc_daily_entries_bump_revision before insert or update on public.powersync_poc_daily_entries
+for each row execute function public.bump_entity_revision();
+create trigger powersync_poc_checklist_items_bump_revision before insert or update on public.powersync_poc_checklist_items
 for each row execute function public.bump_entity_revision();
 create trigger goal_groups_bump_revision before insert or update on public.goal_groups
 for each row execute function public.bump_entity_revision();
@@ -271,6 +351,9 @@ alter table public.user_preferences enable row level security;
 alter table public.category_tags enable row level security;
 alter table public.daily_entries enable row level security;
 alter table public.checklist_items enable row level security;
+alter table public.powersync_poc_category_tags enable row level security;
+alter table public.powersync_poc_daily_entries enable row level security;
+alter table public.powersync_poc_checklist_items enable row level security;
 alter table public.goal_groups enable row level security;
 alter table public.goals enable row level security;
 alter table public.goal_steps enable row level security;
@@ -302,6 +385,9 @@ begin
     'user_preferences',
     'daily_entries',
     'checklist_items',
+    'powersync_poc_category_tags',
+    'powersync_poc_daily_entries',
+    'powersync_poc_checklist_items',
     'goal_groups',
     'goals',
     'goal_steps'

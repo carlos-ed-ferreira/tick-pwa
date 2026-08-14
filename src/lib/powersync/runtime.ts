@@ -66,7 +66,7 @@ export function getPowerSyncPocDatabaseFilename(scope: AppScope): string {
     throw new Error('Invalid PowerSync account identifier.');
   }
 
-  return `tick-powersync-poc-${scope.ownerId}.db`;
+  return `tick-powersync-poc-v2-${scope.ownerId}.db`;
 }
 
 function createPowerSyncPocDatabase(scope: AppScope) {
