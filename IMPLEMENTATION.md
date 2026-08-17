@@ -172,6 +172,11 @@ transita automaticamente de pendente para sincronizado. Depois do reload, a
 fila retornou a zero e o cenário local permaneceu disponível, confirmando o
 primeiro upload remoto da v2. O teste direcionado passou com 20 cenários e
 `make check` aprovou 60 arquivos e 430 testes, lint, tipagem, formato e build.
+Depois do deploy da atualização automática, edição de texto e conclusão foram
+enviadas, a fila retornou a zero e o estado esperado permaneceu após reload no
+mesmo dispositivo. Reordenação e exclusão em cascata também convergiram e
+permaneceram após reload; a categoria isolada foi preservada como esperado.
+Offline e segundo dispositivo ainda precisam de evidência real.
 
 ## SEC-01 — Vulnerabilidades de dependências
 
@@ -281,8 +286,11 @@ payload inválido, negativas de ownership e benchmark de lote.
 um protótipo por allowlist.
 
 **Estado atual:** existem login por senha e Google, perfil e `account_access`.
-Não existem cadastro de produto, confirmação adequada, recuperação de senha,
-gestão de sessão, exportação, exclusão completa ou política de retenção.
+Uma autorização positiva é armazenada localmente por até 24 horas para a mesma
+combinação de usuário e e-mail; indisponibilidade remota usa somente esse grant
+recente, enquanto negativa explícita o remove. Não existem cadastro de produto,
+confirmação adequada, recuperação de senha, gestão de sessão, exportação,
+exclusão completa ou política de retenção.
 
 **Estado desejado:** onboarding e ciclo de vida de conta seguros, localizados e
 testáveis, integrados ao entitlement.
@@ -303,6 +311,15 @@ verificados.
 
 **Validação:** E2E com Supabase local real, testes de auth/RLS, segurança de
 redirect, recuperação e deleção em cascade.
+
+**Incidente offline de 17 de agosto de 2026:** o reload sem rede preservou a
+sessão Supabase, mas uma falha ao consultar `account_access` era tratada como
+negativa e mostrava “Conta ainda não permitida”. O teste de regressão passou a
+distinguir `denied` de `unavailable`; somente um grant positivo, recente e da
+mesma conta autoriza o fallback offline. O ensaio real após o deploy da correção
+continua pendente. O RED reproduziu a ausência do contrato e a exceção de rede;
+o GREEN passou com 60 arquivos e 432 testes. `make check` aprovou lint, tipagem,
+formato e build; `make test-e2e-account` aprovou os 2 cenários desktop/mobile.
 
 ## ACCESS-01 — Guest limitado, trial e entitlement
 

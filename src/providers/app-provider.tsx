@@ -19,6 +19,7 @@ import {
   shouldUsePowerSyncPocForUser,
 } from '@/lib/environment';
 import {
+  deleteLocalPreference,
   getLocalPreference,
   getOrCreateInstallationId,
   seedDefaultCategoryTags,
@@ -32,12 +33,14 @@ import {
   type Dictionary,
 } from '@/lib/i18n';
 import {
+  checkUserAccess,
   ensureUserProfile,
   AccountRefreshCoordinator,
   getSupabaseBrowserClient,
-  isUserAllowed,
   refreshAccountCache,
+  resolveUserAccess,
   toTickAuthUser,
+  type CachedUserAccess,
   type TickAuthUser,
   type AccountRefreshReason,
 } from '@/lib/supabase';
@@ -59,6 +62,7 @@ export type PasswordSignInResult =
 type AccessModePreference = 'entry' | 'local';
 
 const ACCESS_MODE_PREFERENCE_KEY = 'accessMode';
+const ACCOUNT_ACCESS_PREFERENCE_KEY = 'verifiedAccountAccess';
 const APP_INITIALIZATION_TIMEOUT_MS = 3000;
 const INITIAL_AUTH_SESSION_TIMEOUT_MS = 2000;
 const ACCOUNT_REFRESH_DEBOUNCE_MS = 500;
@@ -245,11 +249,44 @@ export function AppProvider({
     async (
       user: User,
     ): Promise<'authenticated' | 'not_allowed' | 'unavailable'> => {
-      const allowed = await isUserAllowed(user);
+      const userScope = createUserScope(user.id);
+      const remoteAccessStatus = await checkUserAccess(user);
+      const cachedAccess =
+        remoteAccessStatus === 'unavailable'
+          ? await getLocalPreference<CachedUserAccess>(
+              ACCOUNT_ACCESS_PREFERENCE_KEY,
+              userScope,
+            )
+          : null;
+      const accessStatus = resolveUserAccess({
+        cached: cachedAccess,
+        now: new Date(),
+        remoteStatus: remoteAccessStatus,
+        user,
+      });
 
-      if (!allowed) {
+      if (remoteAccessStatus === 'allowed' && user.email) {
+        await setLocalPreference<CachedUserAccess>(
+          ACCOUNT_ACCESS_PREFERENCE_KEY,
+          {
+            email: user.email.trim().toLowerCase(),
+            userId: user.id,
+            verifiedAt: new Date().toISOString(),
+          },
+          userScope,
+        );
+      } else if (remoteAccessStatus === 'denied') {
+        await deleteLocalPreference(ACCOUNT_ACCESS_PREFERENCE_KEY, userScope);
+      }
+
+      if (accessStatus === 'denied') {
         await activateUnauthorizedMode(user);
         return 'not_allowed';
+      }
+
+      if (accessStatus === 'unavailable') {
+        await activateEntryMode();
+        return 'unavailable';
       }
 
       if (!shouldUseCloudSync()) {
@@ -258,11 +295,14 @@ export function AppProvider({
         return 'unavailable';
       }
 
-      const userScope = createUserScope(user.id);
-
-      await ensureUserProfile(user);
+      if (remoteAccessStatus === 'allowed') {
+        await ensureUserProfile(user);
+      }
       await applyScopedPreferences(userScope);
-      await refreshScopedAccountCache(userScope, 'session');
+
+      if (remoteAccessStatus === 'allowed') {
+        await refreshScopedAccountCache(userScope, 'session');
+      }
 
       await setLocalPreference<AccessModePreference>(
         ACCESS_MODE_PREFERENCE_KEY,
