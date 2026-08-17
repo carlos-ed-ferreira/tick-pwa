@@ -9,6 +9,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { PowerSyncPocSurface } from '@/features/powersync-poc/powersync-poc-surface';
 import { createUserScope } from '@/lib/domain';
 
+const accountScope = createUserScope('account-user');
+
 const {
   isAllowedMock,
   readSnapshotMock,
@@ -90,7 +92,7 @@ vi.mock('@/providers', () => ({
       actions: { cancel: 'Cancel', delete: 'Delete' },
       sync: { syncing: 'Syncing' },
     },
-    scope: createUserScope('account-user'),
+    scope: accountScope,
     timezonePreference: { timezone: 'America/Sao_Paulo' },
   }),
 }));
@@ -156,5 +158,37 @@ describe('PowerSyncPocSurface', () => {
     render(<PowerSyncPocSurface />);
 
     expect(await screen.findByText('2 operations waiting')).toBeInTheDocument();
+  });
+
+  it('refreshes the upload queue automatically after local persistence', async () => {
+    isAllowedMock.mockReturnValue(true);
+    readStatusMock
+      .mockResolvedValueOnce({
+        connected: true,
+        connecting: false,
+        downloading: false,
+        hasError: false,
+        hasSynced: true,
+        lastSyncedAt: '2026-08-11T12:00:00.000Z',
+        pendingOperations: 5,
+        uploading: true,
+      })
+      .mockResolvedValue({
+        connected: true,
+        connecting: false,
+        downloading: false,
+        hasError: false,
+        hasSynced: true,
+        lastSyncedAt: '2026-08-11T12:00:01.000Z',
+        pendingOperations: 0,
+        uploading: false,
+      });
+    render(<PowerSyncPocSurface />);
+
+    expect(await screen.findByText('5 operations waiting')).toBeInTheDocument();
+    expect(
+      await screen.findByText('Queue synchronized', {}, { timeout: 2500 }),
+    ).toBeInTheDocument();
+    expect(readStatusMock).toHaveBeenCalledTimes(2);
   });
 });

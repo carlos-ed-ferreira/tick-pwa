@@ -49,8 +49,8 @@ necessário nesta etapa.
 
 ## Estado da configuração externa
 
-Configuração inicial registrada em 11 de agosto de 2026 e correção isolada
-preparada em 14 de agosto de 2026:
+Configuração inicial registrada em 11 de agosto de 2026, correção isolada
+preparada em 14 de agosto e migration aplicada em 17 de agosto de 2026:
 
 - [x] usuário de replicação e publicação criados no Supabase;
 - [x] instância Development gratuita criada no PowerSync e conectada ao banco;
@@ -63,8 +63,8 @@ preparada em 14 de agosto de 2026:
 - [x] fila e estado de conexão expostos de forma segura na superfície isolada;
 - [x] regressão HTTP 409 reproduzida e corrigida com tabelas remotas exclusivas;
 - [x] SQLite `v2` impede a reabertura da fila antiga;
-- [ ] migration `20260814000000_isolate_powersync_poc.sql` aplicada em produção;
-- [ ] Sync Streams `powersync_poc_*` implantados no PowerSync;
+- [x] migration `20260814000000_isolate_powersync_poc.sql` aplicada em produção;
+- [x] Sync Streams `powersync_poc_*` implantados no PowerSync;
 - [ ] telas funcionais reais migradas para o SQLite do PowerSync;
 - [ ] ativação controlada e ensaios offline executados.
 
@@ -91,6 +91,9 @@ publicação pelas tabelas `powersync_poc_category_tags`,
 `powersync_poc_daily_entries` e `powersync_poc_checklist_items`, revogando do
 usuário de replicação a leitura das tabelas funcionais.
 
+**Status da correção v2: concluído em 17 de agosto de 2026.** O workflow remoto
+finalizou `Confirm quality gate` e `Apply production migrations` com sucesso.
+
 ### 2. Instância gratuita do PowerSync
 
 **Status: concluído.** Foi usada a instância **Development** do projeto Tick no
@@ -110,10 +113,9 @@ um secret legado.
 
 ### 4. Sync Streams
 
-**Status: requer nova implantação depois da migration.** A versão inicial foi
-implantada, mas o arquivo `powersync/sync-config.yaml` agora consulta somente
-`powersync_poc_*`. Essa versão deve ser validada e implantada novamente em
-**Sync Streams** antes de reativar a prova.
+**Status: concluído em 17 de agosto de 2026.** Depois da migration, o arquivo
+`powersync/sync-config.yaml`, que consulta somente `powersync_poc_*`, foi
+validado e implantado novamente em **Sync Streams** sem warnings.
 
 ## Configuração externa finalizada
 
@@ -207,7 +209,8 @@ A reativação deve seguir esta ordem:
    em Production;
 2. publique o código mantendo a prova desligada;
 3. confirme no workflow de migrations que
-   `20260814000000_isolate_powersync_poc.sql` foi aplicada;
+   `20260814000000_isolate_powersync_poc.sql` foi aplicada — concluído em 17 de
+   agosto de 2026;
 4. no PowerSync Dashboard, valide e implante o novo conteúdo de
    `powersync/sync-config.yaml`;
 5. confirme que `https://tickapp.com.br/calendar` continua funcionando e não
@@ -233,6 +236,15 @@ um cenário: a fila pode subir para 5 e deve retornar a 0. Depois execute ediç�
 conclusão, reordenação e exclusão em um único dispositivo. Os ensaios de
 desconexão, reload e segundo dispositivo devem ser registrados separadamente,
 sem ampliar a lista de contas.
+
+No primeiro ensaio v2, em 17 de agosto de 2026, as cinco operações foram
+persistidas localmente, mas a tela conservou o retrato obtido imediatamente
+depois da escrita. A superfície passou a atualizar o status automaticamente a
+cada segundo, impedindo consultas sobrepostas. Esse problema visual não removeu
+nem repetiu operações da fila. Depois do reload da versão publicada, a página
+exibiu `Fila do PowerSync sincronizada.` e preservou o cenário, confirmando que
+as cinco operações chegaram ao remoto. O teste direcionado passou com 20
+cenários e `make check` aprovou 60 arquivos e 430 testes.
 
 ## Implementação isolada concluída
 

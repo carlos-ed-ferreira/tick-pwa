@@ -74,6 +74,21 @@ export function PowerSyncPocSurface() {
     };
   }, [isAllowed, scope]);
 
+  const refreshSyncStatus = useCallback(async () => {
+    if (!isAllowed || scope?.kind !== 'user') {
+      return;
+    }
+
+    const runtime = await import('@/lib/powersync/runtime');
+    const nextSyncStatus = await runtime.readPowerSyncPocStatus(scope);
+
+    setViewState((current) =>
+      current.scopeId === scope.id
+        ? { ...current, status: 'ready', syncStatus: nextSyncStatus }
+        : current,
+    );
+  }, [isAllowed, scope]);
+
   async function refreshSnapshot() {
     try {
       const nextState = await readCurrentState();
@@ -121,6 +136,34 @@ export function PowerSyncPocSurface() {
       isActive = false;
     };
   }, [isAllowed, readCurrentState, scope]);
+
+  useEffect(() => {
+    if (!isAllowed || scope?.kind !== 'user' || !isCurrentScope) {
+      return;
+    }
+
+    let isRefreshing = false;
+    const interval = window.setInterval(() => {
+      if (isRefreshing) {
+        return;
+      }
+
+      isRefreshing = true;
+      void refreshSyncStatus()
+        .catch(() => {
+          setViewState((current) =>
+            current.scopeId === scope.id
+              ? { ...current, status: 'error' }
+              : current,
+          );
+        })
+        .finally(() => {
+          isRefreshing = false;
+        });
+    }, 1000);
+
+    return () => window.clearInterval(interval);
+  }, [isAllowed, isCurrentScope, refreshSyncStatus, scope]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
