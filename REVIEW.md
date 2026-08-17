@@ -74,11 +74,15 @@ cor do processo. Eles não falham o gate atual.
 
 ## Ratchet em 2026-08-17
 
-- Vitest: 60 arquivos e 432 testes aprovados;
+- Vitest: 60 arquivos e 435 testes aprovados;
 - allowlist distingue acesso negado de indisponibilidade remota;
 - fallback offline aceita somente grant positivo com até 24 horas, mesmo UUID
   e mesmo e-mail; grant expirado ou divergente não autentica;
 - erro retornado ou exceção de rede produzem o mesmo estado recuperável.
+- ensaio real: cenário autenticado preservado após reload offline e fila zerada
+  na reconexão sem repetição manual.
+- POC PowerSync usa adapter single-tab sem Web Worker, timeout recuperável de
+  inicialização e escrita bloqueada enquanto o SQLite não estiver pronto.
 
 ## Matriz de quality gates
 

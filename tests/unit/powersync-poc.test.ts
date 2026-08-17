@@ -10,6 +10,7 @@ import { PowerSyncPocLifecycle } from '@/lib/powersync/lifecycle';
 import { createPowerSyncPocMutation } from '@/lib/powersync/mutation';
 import {
   getPowerSyncPocDatabaseFilename,
+  getPowerSyncPocDatabaseOptions,
   toPowerSyncPocStatus,
 } from '@/lib/powersync/runtime';
 import { PowerSyncPocSession } from '@/lib/powersync/session';
@@ -172,6 +173,25 @@ describe('PowerSync proof of concept', () => {
     expect(secondDatabase.close).toHaveBeenCalledOnce();
   });
 
+  it('closes a database when mobile initialization does not complete', async () => {
+    const close = vi.fn().mockResolvedValue(undefined);
+    const lifecycle = new PowerSyncPocLifecycle(
+      () => ({
+        connector: { fetchCredentials: vi.fn(), uploadData: vi.fn() },
+        database: {
+          close,
+          connect: vi.fn(() => new Promise<void>(() => {})),
+        },
+      }),
+      1,
+    );
+
+    await expect(
+      lifecycle.start(createUserScope('account-user')),
+    ).rejects.toThrow('PowerSync initialization timed out.');
+    expect(close).toHaveBeenCalledOnce();
+  });
+
   it('uses a bounded account-specific database filename', () => {
     expect(
       getPowerSyncPocDatabaseFilename(
@@ -181,6 +201,16 @@ describe('PowerSync proof of concept', () => {
     expect(() =>
       getPowerSyncPocDatabaseFilename(createUserScope('../another-user')),
     ).toThrow('Invalid PowerSync account identifier.');
+  });
+
+  it('uses the mobile-compatible single-tab SQLite adapter', () => {
+    expect(
+      getPowerSyncPocDatabaseOptions(createUserScope('account-user')),
+    ).toEqual({
+      dbFilename: 'tick-powersync-poc-v2-account-user.db',
+      enableMultiTabs: false,
+      useWebWorker: false,
+    });
   });
 
   it('exposes redacted connection and upload queue status', () => {

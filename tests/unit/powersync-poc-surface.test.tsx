@@ -160,6 +160,21 @@ describe('PowerSyncPocSurface', () => {
     expect(await screen.findByText('2 operations waiting')).toBeInTheDocument();
   });
 
+  it('keeps persistence disabled when SQLite initialization fails', async () => {
+    isAllowedMock.mockReturnValue(true);
+    startMock.mockRejectedValueOnce(new Error('worker unavailable'));
+
+    render(<PowerSyncPocSurface />);
+
+    expect(await screen.findByText('Proof error')).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Save local scenario' }),
+    ).toBeDisabled();
+    expect(
+      screen.getByRole('button', { name: 'Refresh local data' }),
+    ).toBeEnabled();
+  });
+
   it('refreshes the upload queue automatically after local persistence', async () => {
     isAllowedMock.mockReturnValue(true);
     readStatusMock

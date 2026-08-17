@@ -381,7 +381,7 @@ export function PowerSyncPocSurface() {
             <div className="flex flex-col gap-3 sm:flex-row">
               <Button
                 disabled={
-                  isCreating || pendingItemId !== null || status === 'loading'
+                  isCreating || pendingItemId !== null || status !== 'ready'
                 }
                 type="submit"
               >
