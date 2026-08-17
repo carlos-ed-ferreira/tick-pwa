@@ -9,7 +9,7 @@ vi.mock('@/lib/supabase/client', () => ({
   getSupabaseBrowserClient: supabaseMocks.getSupabaseBrowserClient,
 }));
 
-import { isUserAllowed } from '@/lib/supabase/auth';
+import { checkUserAccess, resolveUserAccess } from '@/lib/supabase/auth';
 
 function createUser(email: string | null): User {
   return {
@@ -50,8 +50,8 @@ describe('account allowlist checks', () => {
     const access = createAccessClient({ data: { active: true } });
     supabaseMocks.getSupabaseBrowserClient.mockReturnValue(access.client);
 
-    await expect(isUserAllowed(createUser('User@Example.com'))).resolves.toBe(
-      true,
+    await expect(checkUserAccess(createUser('User@Example.com'))).resolves.toBe(
+      'allowed',
     );
 
     expect(access.from).toHaveBeenCalledWith('account_access');
@@ -60,7 +60,7 @@ describe('account allowlist checks', () => {
     expect(access.maybeSingle).toHaveBeenCalledTimes(1);
   });
 
-  it('rejects inactive, missing, and errored allowlist checks', async () => {
+  it('distinguishes denied access from an unavailable allowlist', async () => {
     const consoleErrorSpy = vi
       .spyOn(console, 'error')
       .mockImplementation(() => {});
@@ -77,14 +77,14 @@ describe('account allowlist checks', () => {
       .mockReturnValueOnce(erroredAccess.client);
 
     await expect(
-      isUserAllowed(createUser('inactive@example.com')),
-    ).resolves.toBe(false);
+      checkUserAccess(createUser('inactive@example.com')),
+    ).resolves.toBe('denied');
     await expect(
-      isUserAllowed(createUser('missing@example.com')),
-    ).resolves.toBe(false);
-    await expect(isUserAllowed(createUser('error@example.com'))).resolves.toBe(
-      false,
-    );
+      checkUserAccess(createUser('missing@example.com')),
+    ).resolves.toBe('denied');
+    await expect(
+      checkUserAccess(createUser('error@example.com')),
+    ).resolves.toBe('unavailable');
 
     expect(consoleErrorSpy).toHaveBeenCalledOnce();
   });
@@ -93,12 +93,90 @@ describe('account allowlist checks', () => {
     const access = createAccessClient({ data: { active: true } });
 
     supabaseMocks.getSupabaseBrowserClient.mockReturnValueOnce(null);
-    await expect(isUserAllowed(createUser('user@example.com'))).resolves.toBe(
-      false,
+    await expect(checkUserAccess(createUser('user@example.com'))).resolves.toBe(
+      'unavailable',
     );
 
     supabaseMocks.getSupabaseBrowserClient.mockReturnValueOnce(access.client);
-    await expect(isUserAllowed(createUser(null))).resolves.toBe(false);
+    await expect(checkUserAccess(createUser(null))).resolves.toBe('denied');
     expect(access.from).not.toHaveBeenCalled();
+  });
+
+  it('treats a thrown network failure as unavailable', async () => {
+    const consoleErrorSpy = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => {});
+    const maybeSingle = vi.fn().mockRejectedValue(new Error('offline'));
+    const eq = vi.fn(() => ({ maybeSingle }));
+    const select = vi.fn(() => ({ eq }));
+    const from = vi.fn(() => ({ select }));
+    supabaseMocks.getSupabaseBrowserClient.mockReturnValue({ from });
+
+    await expect(checkUserAccess(createUser('user@example.com'))).resolves.toBe(
+      'unavailable',
+    );
+    expect(consoleErrorSpy).toHaveBeenCalledOnce();
+  });
+
+  it('uses only a recent cached grant for the same user and email while offline', () => {
+    const user = createUser('User@Example.com');
+    const verifiedAt = '2026-08-17T12:00:00.000Z';
+
+    expect(
+      resolveUserAccess({
+        cached: {
+          email: 'user@example.com',
+          userId: 'user-id',
+          verifiedAt,
+        },
+        now: new Date('2026-08-18T11:59:59.000Z'),
+        remoteStatus: 'unavailable',
+        user,
+      }),
+    ).toBe('allowed');
+    expect(
+      resolveUserAccess({
+        cached: {
+          email: 'user@example.com',
+          userId: 'user-id',
+          verifiedAt,
+        },
+        now: new Date('2026-08-18T12:00:01.000Z'),
+        remoteStatus: 'unavailable',
+        user,
+      }),
+    ).toBe('unavailable');
+    expect(
+      resolveUserAccess({
+        cached: {
+          email: 'other@example.com',
+          userId: 'user-id',
+          verifiedAt,
+        },
+        now: new Date('2026-08-17T13:00:00.000Z'),
+        remoteStatus: 'unavailable',
+        user,
+      }),
+    ).toBe('unavailable');
+    expect(
+      resolveUserAccess({
+        cached: {
+          email: 'user@example.com',
+          userId: 'another-user',
+          verifiedAt,
+        },
+        now: new Date('2026-08-17T13:00:00.000Z'),
+        remoteStatus: 'unavailable',
+        user,
+      }),
+    ).toBe('unavailable');
+    expect(
+      resolveUserAccess({
+        cached: null,
+        now: new Date('2026-08-17T13:00:00.000Z'),
+        remoteStatus: 'denied',
+        user,
+      }),
+    ).toBe('denied');
   });
 });

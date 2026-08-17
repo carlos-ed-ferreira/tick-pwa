@@ -162,6 +162,8 @@ Os nomes técnicos principais continuam `ChecklistItem`, `Goal`, `GoalGroup` e
 
 - usa o escopo `user:<supabaseUserId>`;
 - exige sessão Supabase e uma linha ativa em `account_access`;
+- conserva por até 24 horas a última autorização positiva da mesma conta para
+  permitir reload offline, sem converter falha de rede em acesso negado;
 - mantém cache IndexedDB separado por usuário;
 - persiste entidades no Postgres protegido por RLS;
 - não importa dados do modo local.

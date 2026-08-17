@@ -8,6 +8,16 @@ export interface TickAuthUser {
   avatarUrl: string | null;
 }
 
+export type UserAccessStatus = 'allowed' | 'denied' | 'unavailable';
+
+export interface CachedUserAccess {
+  email: string;
+  userId: string;
+  verifiedAt: string;
+}
+
+const USER_ACCESS_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+
 function readMetadataString(
   metadata: Record<string, unknown>,
   key: string,
@@ -36,28 +46,66 @@ export function toTickAuthUser(user: User): TickAuthUser {
   };
 }
 
-export async function isUserAllowed(user: User): Promise<boolean> {
+export async function checkUserAccess(user: User): Promise<UserAccessStatus> {
   const client = getSupabaseBrowserClient();
   const email = getNormalizedUserEmail(user);
 
-  if (!client || !email) {
-    return false;
+  if (!email) {
+    return 'denied';
   }
 
-  const { data, error } = await client
-    .from('account_access')
-    .select('active')
-    .eq('email', email)
-    .maybeSingle();
+  if (!client) {
+    return 'unavailable';
+  }
 
-  if (error) {
+  try {
+    const { data, error } = await client
+      .from('account_access')
+      .select('active')
+      .eq('email', email)
+      .maybeSingle();
+
+    if (error) {
+      console.error('Failed to verify Tick account access.', error);
+      return 'unavailable';
+    }
+
+    const access = data as { active?: boolean } | null;
+
+    return access?.active === true ? 'allowed' : 'denied';
+  } catch (error) {
     console.error('Failed to verify Tick account access.', error);
-    return false;
+    return 'unavailable';
+  }
+}
+
+export function resolveUserAccess({
+  cached,
+  now,
+  remoteStatus,
+  user,
+}: {
+  cached: CachedUserAccess | null;
+  now: Date;
+  remoteStatus: UserAccessStatus;
+  user: User;
+}): UserAccessStatus {
+  if (remoteStatus !== 'unavailable') {
+    return remoteStatus;
   }
 
-  const access = data as { active?: boolean } | null;
+  const email = getNormalizedUserEmail(user);
+  const verifiedAt = cached ? Date.parse(cached.verifiedAt) : Number.NaN;
+  const age = now.getTime() - verifiedAt;
 
-  return access?.active === true;
+  return cached &&
+    cached.userId === user.id &&
+    cached.email === email &&
+    Number.isFinite(verifiedAt) &&
+    age >= 0 &&
+    age <= USER_ACCESS_CACHE_TTL_MS
+    ? 'allowed'
+    : 'unavailable';
 }
 
 export async function ensureUserProfile(user: User): Promise<void> {

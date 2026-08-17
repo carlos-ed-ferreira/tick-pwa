@@ -72,6 +72,14 @@ cor do processo. Eles não falham o gate atual.
 - schema declarativo e migrations sem diferenças pelo `make supabase-diff`;
 - lint do schema PostgreSQL com 0 erros.
 
+## Ratchet em 2026-08-17
+
+- Vitest: 60 arquivos e 432 testes aprovados;
+- allowlist distingue acesso negado de indisponibilidade remota;
+- fallback offline aceita somente grant positivo com até 24 horas, mesmo UUID
+  e mesmo e-mail; grant expirado ou divergente não autentica;
+- erro retornado ou exceção de rede produzem o mesmo estado recuperável.
+
 ## Matriz de quality gates
 
 | Gate               | Métrica e threshold                                                                 | Escopo                              | Estado         | Legado                                    | Bloqueia?                   |

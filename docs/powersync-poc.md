@@ -246,6 +246,23 @@ exibiu `Fila do PowerSync sincronizada.` e preservou o cenário, confirmando que
 as cinco operações chegaram ao remoto. O teste direcionado passou com 20
 cenários e `make check` aprovou 60 arquivos e 430 testes.
 
+Depois do deploy da atualização automática, o ensaio de edição e conclusão no
+mesmo dispositivo também passou: a tarefa editada e a subtarefa concluída
+permaneceram após reload, com a fila sincronizada. Reordenação e exclusão em
+cascata também passaram e permaneceram após reload; a hierarquia ficou vazia e
+a categoria isolada permaneceu, conforme o contrato. Offline e segundo
+dispositivo continuam como ensaios separados.
+
+No primeiro reload offline, a sessão Supabase permaneceu presente, mas a falha
+de rede da consulta à allowlist foi interpretada como conta não permitida. A
+fila e o SQLite não foram apagados. A correção distingue negativa remota de
+indisponibilidade e mantém por até 24 horas somente o último grant positivo da
+mesma combinação de usuário e e-mail. Negativa explícita remove o cache. O
+reload offline deve ser repetido depois de publicar essa correção e fazer uma
+inicialização online que grave o grant. O RED reproduziu a indisponibilidade e
+a exceção de rede; o GREEN e `make check` passaram com 60 arquivos e 432 testes.
+O E2E autenticado aprovou os 2 cenários desktop/mobile.
+
 ## Implementação isolada concluída
 
 O contrato de persistência do POC já produz mutações SQLite com ownership
