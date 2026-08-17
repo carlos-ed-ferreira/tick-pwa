@@ -372,10 +372,10 @@ da `main` e os checks obrigatórios no GitHub, o projeto e os ambientes da
 Vercel, o domínio e a autenticação do Supabase e o procedimento de backup
 manual. As contas dos provedores usam autenticação em dois fatores.
 
-Os previews da Vercel permanecem sem acesso ao Supabase de produção. Os secrets
-que autorizam migrations no ambiente GitHub `production` continuam
-intencionalmente ausentes até o novo workflow de `CICD-01` ser mesclado e
-validado no GitHub.
+Os previews da Vercel permanecem sem acesso ao Supabase de produção. Em 17 de
+agosto de 2026, os secrets que autorizam migrations foram cadastrados no
+ambiente GitHub `production` e o workflow executou com sucesso o quality gate e
+a aplicação da migration isolada do PowerSync.
 
 `.github/workflows/app-ci.yml` executa `make audit-prod` e `make check` em
 PRs e pushes para `main`. `.github/workflows/supabase-migrations.yml` só aceita

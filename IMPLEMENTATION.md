@@ -26,7 +26,7 @@ estado de conformidade.
 | DATA-01    | P0         | local-first  | snapshot remoto sem paginação pode apagar cache válido          |
 | SYNC-01    | P0         | local-first  | fila autenticada volátil, sem retry durável ou idempotência     |
 | SEC-01     | P0         | dependências | 5 vulnerabilidades altas em dependências de produção            |
-| CICD-01    | P0         | CI/CD        | migration de produção não depende do quality gate do mesmo SHA  |
+| CICD-01    | P0         | CI/CD        | deploy Vercel ainda não está coordenado ao SHA migrado          |
 | API-01     | P1         | API/banco    | escrita direta, granular e sem controle efetivo de revisão      |
 | AUTH-01    | P1         | autenticação | allowlist de protótipo, sem ciclo de vida público de conta      |
 | ACCESS-01  | P1         | guest/trial  | guest não é limitado e trial/entitlement não existem            |
@@ -141,8 +141,10 @@ A rota interna `/~powersync-poc` usa esse adapter para gravar categoria, dia,
 tarefa e duas subtarefas em uma única transação local. Edição, conclusão,
 reordenação e exclusão atualizam as entidades e o resumo diário em lotes
 atômicos. A superfície mostra conexão e quantidade pendente sem expor erros
-internos, tem textos pt-BR/en e permanece bloqueada para contas fora do rollout.
-A ativação e os ensaios reais continuam pendentes.
+internos, atualiza o estado remoto enquanto permanece aberta, tem textos
+pt-BR/en e permanece bloqueada para contas fora do rollout. A ativação
+controlada chegou ao primeiro cenário local; convergência remota e os demais
+ensaios reais continuam pendentes.
 
 **Evidência da superfície isolada:** `make check` passou com 60 arquivos e 429
 testes; `make test-e2e` passou em 22 cenários desktop/mobile e
@@ -161,6 +163,15 @@ permanecer desligada até migration e Sync Streams serem confirmados.
 testes direcionados; RED do banco com 8 falhas e GREEN com 31 testes pgTAP.
 Banco limpo, lint e diff declarativo passaram. `make check` aprovou 60 arquivos
 e 429 testes; E2E local aprovou 22 cenários e E2E autenticado aprovou 2.
+
+**Ensaio v2 em 17 de agosto de 2026:** o primeiro cenário persistiu as cinco
+operações no SQLite isolado. A superfície mantinha o primeiro retrato da fila e
+não exibia a conclusão posterior do upload. Um teste de regressão reproduziu a
+ausência de atualização; a tela agora relê o status sem sobrepor consultas e
+transita automaticamente de pendente para sincronizado. Depois do reload, a
+fila retornou a zero e o cenário local permaneceu disponível, confirmando o
+primeiro upload remoto da v2. O teste direcionado passou com 20 cenários e
+`make check` aprovou 60 arquivos e 430 testes, lint, tipagem, formato e build.
 
 ## SEC-01 — Vulnerabilidades de dependências
 
@@ -195,8 +206,9 @@ grafo de dependências.
 
 ## CICD-01 — Ordenar quality gate, migrations e deploy
 
-**Status:** implementação do gate do mesmo SHA concluída em 11 de agosto de
-2026; validação no GitHub e coordenação comprovável do deploy Vercel pendentes.
+**Status:** gate do mesmo SHA concluído em 11 de agosto de 2026 e validado no
+GitHub em 17 de agosto de 2026; coordenação comprovável do deploy Vercel
+pendente.
 
 **Problema/lacuna — `P0`, CI/CD/GitHub:** migrations podem ser aplicadas por um
 workflow separado sem depender do sucesso do quality gate do mesmo commit.
@@ -215,11 +227,11 @@ todos os gates obrigatórios aplicáveis terminarem com sucesso.
 
 **Mudanças entregues:** `workflow_run` restrito a push aprovado da `main`, gate
 manual equivalente, checkout e registro do SHA, environment protegido,
-concurrency e detecção de caminhos de banco.
+concurrency e detecção de caminhos de banco. O primeiro fluxo remoto validado
+concluiu `Confirm quality gate` e `Apply production migrations`.
 
 **Mudanças restantes:** incluir banco e E2E definidos como obrigatórios,
-documentar e ensaiar rollback, validar o fluxo no GitHub e alinhar o deploy
-Vercel ao mesmo SHA.
+documentar e ensaiar rollback e alinhar o deploy Vercel ao mesmo SHA.
 
 **Dependências:** QUALITY-01, TEST-01 e configuração manual de branch/environment
 protection no GitHub e Vercel.
