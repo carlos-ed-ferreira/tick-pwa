@@ -275,11 +275,11 @@ navegador mobile físico, o formulário foi renderizado, mas o SQLite permaneceu
 em `Preparando o Tick`, sem snapshot e com a ação principal desabilitada. A
 correção mantém o mesmo arquivo v2, usa o adapter single-tab sem Web Worker,
 limita a inicialização a 10 segundos e mantém escrita desabilitada até o banco
-estar pronto. O teste direcionado passou com 23 cenários; o aparelho deve ser
-testado novamente depois do deploy. `make check` aprovou 60 arquivos e 435
-testes, lint, tipagem, formato e build. Os E2E locais não puderam abrir o
-servidor Playwright no sandbox desta execução e devem ser repetidos antes da
-publicação.
+estar pronto. O teste direcionado passou com 23 cenários. Depois do deploy, o
+ensaio no aparelho físico foi aprovado: o SQLite inicializou, categorias e
+tarefas foram carregadas e os controles responderam normalmente. `make check`
+aprovou 60 arquivos e 435 testes, lint, tipagem, formato e build. Os E2E locais
+não puderam abrir o servidor Playwright no sandbox desta execução.
 
 ## Implementação isolada concluída
 

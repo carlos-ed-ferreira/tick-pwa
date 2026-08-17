@@ -83,6 +83,8 @@ cor do processo. Eles não falham o gate atual.
   na reconexão sem repetição manual.
 - POC PowerSync usa adapter single-tab sem Web Worker, timeout recuperável de
   inicialização e escrita bloqueada enquanto o SQLite não estiver pronto.
+- ensaio mobile físico aprovou inicialização do SQLite, leitura do snapshot e
+  interação com os controles depois do deploy.
 
 ## Matriz de quality gates
 
