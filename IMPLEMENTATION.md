@@ -177,8 +177,7 @@ enviadas, a fila retornou a zero e o estado esperado permaneceu após reload no
 mesmo dispositivo. Reordenação e exclusão em cascata também convergiram e
 permaneceram após reload; a categoria isolada foi preservada como esperado.
 Um segundo contexto web no computador convergiu nos dois sentidos. O navegador
-mobile físico ainda precisa repetir o ensaio depois da correção de
-inicialização.
+mobile físico repetiu o ensaio com sucesso depois da correção de inicialização.
 
 **Ensaio multidispositivo em 17 de agosto de 2026:** computador e aba anônima
 baixaram o mesmo cenário e propagaram alterações nos dois sentidos. No celular,
@@ -188,7 +187,8 @@ inicialização a 10 segundos, fecha tentativas expiradas e só habilita escrita
 quando o banco está pronto. O RED reproduziu adapter, timeout e bloqueio da ação;
 o GREEN passou com 23 testes PowerSync e `make check` aprovou 60 arquivos e 435
 testes. Os E2E locais ficaram pendentes porque o sandbox não permitiu iniciar o
-servidor Playwright. A validação no aparelho físico permanece pendente de deploy.
+servidor Playwright. Depois do deploy, o aparelho físico inicializou o SQLite,
+carregou o snapshot e permitiu usar os controles normalmente.
 
 ## SEC-01 — Vulnerabilidades de dependências
 
