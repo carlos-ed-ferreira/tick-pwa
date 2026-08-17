@@ -69,6 +69,14 @@ export function getPowerSyncPocDatabaseFilename(scope: AppScope): string {
   return `tick-powersync-poc-v2-${scope.ownerId}.db`;
 }
 
+export function getPowerSyncPocDatabaseOptions(scope: AppScope) {
+  return {
+    dbFilename: getPowerSyncPocDatabaseFilename(scope),
+    enableMultiTabs: false,
+    useWebWorker: false,
+  };
+}
+
 function createPowerSyncPocDatabase(scope: AppScope) {
   const endpoint = process.env.NEXT_PUBLIC_POWERSYNC_URL;
 
@@ -77,9 +85,7 @@ function createPowerSyncPocDatabase(scope: AppScope) {
   }
 
   const powerSyncDatabase = new PowerSyncDatabase({
-    database: {
-      dbFilename: getPowerSyncPocDatabaseFilename(scope),
-    },
+    database: getPowerSyncPocDatabaseOptions(scope),
     schema: tickPowerSyncPocSchema,
   });
   const store = new PowerSyncPocStore({

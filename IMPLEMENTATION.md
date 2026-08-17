@@ -176,7 +176,19 @@ Depois do deploy da atualização automática, edição de texto e conclusão fo
 enviadas, a fila retornou a zero e o estado esperado permaneceu após reload no
 mesmo dispositivo. Reordenação e exclusão em cascata também convergiram e
 permaneceram após reload; a categoria isolada foi preservada como esperado.
-Offline e segundo dispositivo ainda precisam de evidência real.
+Um segundo contexto web no computador convergiu nos dois sentidos. O navegador
+mobile físico ainda precisa repetir o ensaio depois da correção de
+inicialização.
+
+**Ensaio multidispositivo em 17 de agosto de 2026:** computador e aba anônima
+baixaram o mesmo cenário e propagaram alterações nos dois sentidos. No celular,
+o formulário abriu, mas o SQLite ficou indefinidamente em loading, impedindo
+ações e o snapshot. A correção usa o adapter single-tab sem Web Worker, limita a
+inicialização a 10 segundos, fecha tentativas expiradas e só habilita escrita
+quando o banco está pronto. O RED reproduziu adapter, timeout e bloqueio da ação;
+o GREEN passou com 23 testes PowerSync e `make check` aprovou 60 arquivos e 435
+testes. Os E2E locais ficaram pendentes porque o sandbox não permitiu iniciar o
+servidor Playwright. A validação no aparelho físico permanece pendente de deploy.
 
 ## SEC-01 — Vulnerabilidades de dependências
 
@@ -317,9 +329,11 @@ sessão Supabase, mas uma falha ao consultar `account_access` era tratada como
 negativa e mostrava “Conta ainda não permitida”. O teste de regressão passou a
 distinguir `denied` de `unavailable`; somente um grant positivo, recente e da
 mesma conta autoriza o fallback offline. O ensaio real após o deploy da correção
-continua pendente. O RED reproduziu a ausência do contrato e a exceção de rede;
-o GREEN passou com 60 arquivos e 432 testes. `make check` aprovou lint, tipagem,
-formato e build; `make test-e2e-account` aprovou os 2 cenários desktop/mobile.
+foi aprovado: o cenário permaneceu após reload offline, a sessão manteve o
+escopo autenticado e, ao reconectar, a fila retornou a zero sem repetir a ação.
+O RED reproduziu a ausência do contrato e a exceção de rede; o GREEN passou com
+60 arquivos e 432 testes. `make check` aprovou lint, tipagem, formato e build;
+`make test-e2e-account` aprovou os 2 cenários desktop/mobile.
 
 ## ACCESS-01 — Guest limitado, trial e entitlement
 

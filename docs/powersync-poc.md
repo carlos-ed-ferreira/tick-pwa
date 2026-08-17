@@ -10,6 +10,7 @@ O código entregue nesta etapa contém:
 
 - SDK web carregado sob demanda;
 - banco SQLite separado por usuário autenticado;
+- adapter web single-tab sem Web Worker e timeout recuperável de inicialização;
 - autenticação pelo JWT atual do Supabase;
 - schema local para categorias, dias e a hierarquia completa do checklist;
 - tabelas PostgreSQL exclusivas `powersync_poc_*`, sem ler ou escrever as
@@ -66,7 +67,7 @@ preparada em 14 de agosto e migration aplicada em 17 de agosto de 2026:
 - [x] migration `20260814000000_isolate_powersync_poc.sql` aplicada em produção;
 - [x] Sync Streams `powersync_poc_*` implantados no PowerSync;
 - [ ] telas funcionais reais migradas para o SQLite do PowerSync;
-- [ ] ativação controlada e ensaios offline executados.
+- [x] ativação controlada e ensaios offline executados.
 
 ## Configuração externa realizada
 
@@ -262,6 +263,23 @@ reload offline deve ser repetido depois de publicar essa correção e fazer uma
 inicialização online que grave o grant. O RED reproduziu a indisponibilidade e
 a exceção de rede; o GREEN e `make check` passaram com 60 arquivos e 432 testes.
 O E2E autenticado aprovou os 2 cenários desktop/mobile.
+
+Depois do deploy, a repetição do ensaio foi aprovada: a conta manteve o escopo
+autenticado, o cenário permaneceu após reload ainda offline e, ao restaurar a
+rede, a fila retornou a zero sem nova ação. Isso aprova persistência local,
+reload, retry e reconexão no mesmo dispositivo; não substitui o ensaio de
+segundo dispositivo.
+
+O ensaio entre o computador e uma aba anônima convergiu nos dois sentidos. No
+navegador mobile físico, o formulário foi renderizado, mas o SQLite permaneceu
+em `Preparando o Tick`, sem snapshot e com a ação principal desabilitada. A
+correção mantém o mesmo arquivo v2, usa o adapter single-tab sem Web Worker,
+limita a inicialização a 10 segundos e mantém escrita desabilitada até o banco
+estar pronto. O teste direcionado passou com 23 cenários; o aparelho deve ser
+testado novamente depois do deploy. `make check` aprovou 60 arquivos e 435
+testes, lint, tipagem, formato e build. Os E2E locais não puderam abrir o
+servidor Playwright no sandbox desta execução e devem ser repetidos antes da
+publicação.
 
 ## Implementação isolada concluída
 
