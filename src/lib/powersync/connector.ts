@@ -41,44 +41,50 @@ export class TickPowerSyncPocConnector implements PowerSyncBackendConnector {
       return;
     }
 
-    for (const operation of transaction.crud) {
+    const clientId = await database.getClientId();
+    const transactionId =
+      transaction.transactionId ?? transaction.crud[0]?.clientId;
+
+    if (transactionId === undefined) {
+      throw new Error('PowerSync upload transaction has no stable identifier.');
+    }
+
+    const operationId = `${clientId}:${transactionId}`;
+    const mutations = transaction.crud.map((operation) => {
       if (!isPowerSyncPocTable(operation.table)) {
         throw new Error(`Unsupported PowerSync table: ${operation.table}.`);
       }
 
-      const table = client.from(operation.table);
       const normalizedPayload = normalizePowerSyncPayload({
         table: operation.table,
         payload: operation.opData ?? {},
         userId: session.userId,
       });
-      let error: { message: string } | null = null;
+      const { user_id: ignoredUserId, ...payload } = normalizedPayload;
+      void ignoredUserId;
 
-      if (operation.op === UpdateType.PUT) {
-        const result = await table.upsert(
-          { ...normalizedPayload, id: operation.id },
-          { onConflict: 'id' },
-        );
-        error = result.error;
-      } else if (operation.op === UpdateType.PATCH) {
-        const { user_id: ignoredUserId, ...patch } = normalizedPayload;
-        void ignoredUserId;
-        const result = await table
-          .update(patch)
-          .eq('id', operation.id)
-          .eq('user_id', session.userId);
-        error = result.error;
-      } else if (operation.op === UpdateType.DELETE) {
-        const result = await table
-          .delete()
-          .eq('id', operation.id)
-          .eq('user_id', session.userId);
-        error = result.error;
+      if (
+        operation.op !== UpdateType.PUT &&
+        operation.op !== UpdateType.PATCH &&
+        operation.op !== UpdateType.DELETE
+      ) {
+        throw new Error(`Unsupported PowerSync operation: ${operation.op}.`);
       }
 
-      if (error) {
-        throw new Error(`PowerSync upload failed: ${error.message}`);
-      }
+      return {
+        id: operation.id,
+        op: operation.op,
+        payload,
+        table: operation.table,
+      };
+    });
+    const { error } = await client.rpc('apply_powersync_poc_operation_batch', {
+      p_mutations: mutations,
+      p_operation_id: operationId,
+    });
+
+    if (error) {
+      throw new Error(`PowerSync upload failed: ${error.message}`);
     }
 
     await transaction.complete();

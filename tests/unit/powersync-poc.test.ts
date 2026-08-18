@@ -83,9 +83,12 @@ describe('PowerSync proof of concept', () => {
     expect(() => tickPowerSyncPocSchema.validate()).not.toThrow();
   });
 
-  it('uses the current Supabase JWT and derives ownership during upload', async () => {
+  it('uploads a local transaction as one idempotent account-owned RPC', async () => {
     const complete = vi.fn().mockResolvedValue(undefined);
-    const upsert = vi.fn().mockResolvedValue({ data: null, error: null });
+    const rpc = vi.fn().mockResolvedValue({
+      data: { applied: 1, operationId: 'powersync-client:42' },
+      error: null,
+    });
     const client = {
       auth: {
         getSession: vi.fn().mockResolvedValue({
@@ -98,17 +101,19 @@ describe('PowerSync proof of concept', () => {
           error: null,
         }),
       },
-      from: vi.fn(() => ({ upsert })),
+      rpc,
     } as unknown as SupabaseClient;
     const connector = new TickPowerSyncPocConnector(
       'https://example.powersync.journeyapps.com',
       () => client,
     );
     const database = {
+      getClientId: vi.fn().mockResolvedValue('powersync-client'),
       getNextCrudTransaction: vi.fn().mockResolvedValue({
         complete,
         crud: [
           {
+            clientId: 10,
             id: 'tag-1',
             op: UpdateType.PUT,
             opData: {
@@ -119,6 +124,7 @@ describe('PowerSync proof of concept', () => {
             table: 'powersync_poc_category_tags',
           },
         ],
+        transactionId: 42,
       }),
     };
 
@@ -128,15 +134,17 @@ describe('PowerSync proof of concept', () => {
     });
     await connector.uploadData(database as never);
 
-    expect(upsert).toHaveBeenCalledWith(
-      {
-        id: 'tag-1',
-        name: 'FOCUS',
-        user_id: 'authenticated-user',
-        use_own_name: true,
-      },
-      { onConflict: 'id' },
-    );
+    expect(rpc).toHaveBeenCalledWith('apply_powersync_poc_operation_batch', {
+      p_mutations: [
+        {
+          id: 'tag-1',
+          op: 'PUT',
+          payload: { name: 'FOCUS', use_own_name: true },
+          table: 'powersync_poc_category_tags',
+        },
+      ],
+      p_operation_id: 'powersync-client:42',
+    });
     expect(complete).toHaveBeenCalledOnce();
   });
 

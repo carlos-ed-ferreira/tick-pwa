@@ -98,13 +98,15 @@ dual-write com o caminho atual.
 
 Existe uma fundação desativada para a prova de conceito do PowerSync. Ela cria
 um SQLite `v2` isolado por conta e usa tabelas PostgreSQL `powersync_poc_*`
-exclusivas, com schema, autenticação, upload e Sync Streams próprios. O adapter
-web opera em modo single-tab sem Web Worker para ampliar a compatibilidade em
-navegadores mobile, com timeout recuperável de inicialização. A rota interna
-`/~powersync-poc` exercita criação, edição, conclusão, reordenação, exclusão e
-visibilidade da fila sem ler ou escrever as tabelas funcionais. Ela permanece
-bloqueada sem flag e UUID autorizado e não substitui a persistência funcional
-Dexie. O preparo externo e os limites estão em
+exclusivas, com schema, autenticação, upload e Sync Streams próprios. Cada
+transação SQLite é enviada por uma única RPC remota com recibo idempotente e
+rollback integral; entre operações válidas, a última transação confirmada no
+servidor vence. O adapter web opera em modo single-tab sem Web Worker para
+ampliar a compatibilidade em navegadores mobile, com timeout recuperável de
+inicialização. A rota interna `/~powersync-poc` exercita criação, edição,
+conclusão, reordenação, exclusão e visibilidade da fila sem ler ou escrever as
+tabelas funcionais. Ela permanece bloqueada sem flag e UUID autorizado e não
+substitui a persistência funcional Dexie. O preparo externo e os limites estão em
 [docs/powersync-poc.md](docs/powersync-poc.md).
 
 ### PWA e offline

@@ -246,6 +246,13 @@ Se a prova falhar, registrar os motivos e comparar novamente PowerSync,
 Replicache e uma sincronização própria antes de prosseguir. Não iniciar uma
 reescrita proprietária apenas para contornar uma limitação isolada.
 
+Em 18 de agosto de 2026, o upload isolado do POC passou a enviar cada transação
+SQLite como uma única RPC com recibo idempotente e rollback integral. A política
+provisória de conflito é last-committed-wins no PostgreSQL, adequada para não
+descartar edições offline cuja revisão remota ainda não voltou ao SQLite. Retry,
+rollback e commits sequenciais estão cobertos localmente; concorrência
+simultânea entre dispositivos e métricas ainda precisam de ensaio real.
+
 ## Fase 2 — criar a API transacional de escrita
 
 Após a prova de conceito, as gravações do modo autenticado passam por uma API

@@ -84,8 +84,8 @@ ensaio revelou escrita remota nas tabelas funcionais; a correção com tabelas
 novos Sync Streams, reativação controlada, reload offline, convergência entre
 dois contextos web e ensaio Android foram concluídos em 17 de agosto de 2026.
 Migração das telas reais, fechamento completo do navegador com operação
-pendente, Safari/iOS, fallback de armazenamento, conflitos e métricas da prova
-ainda estão pendentes.
+pendente, Safari/iOS, fallback de armazenamento, conflito simultâneo e métricas
+da prova ainda estão pendentes.
 
 **Problema/lacuna — `P0`, arquitetura/código/serviço externo:** operações da
 conta podem desaparecer ao fechar ou recarregar a aba.
@@ -206,6 +206,17 @@ Sync Streams implantados.
 contas internas autorizadas foram abertas em contextos separados. Cada conta
 permaneceu restrita aos próprios dados nas telas funcionais e na rota
 `/~powersync-poc`; nenhuma informação cruzou os escopos.
+
+**Upload remoto atômico em 18 de agosto de 2026:** o conector deixou de enviar
+uma chamada Supabase por mutação e passou a transformar cada transação CRUD do
+SQLite em uma única RPC isolada. A chave `<clientId>:<transactionId>` persiste
+no banco local e identifica retries no servidor. A tabela de recibos não é
+legível pelo cliente, o helper de mutação não é executável diretamente e o JWT
+define ownership. O lote é limitado a 100 mutações, reapresenta o resultado no
+retry e faz rollback integral. A política do POC é last-committed-wins no
+PostgreSQL; o teste sequencial preserva campos não alterados. Concorrência real
+simultânea e métricas continuam pendentes. O RED comprovou chamadas granulares
+e ausência da RPC; o GREEN passou com 23 testes PowerSync e 74 testes pgTAP.
 
 ## SEC-01 — Vulnerabilidades de dependências
 
