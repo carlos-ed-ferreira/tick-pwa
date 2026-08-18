@@ -282,8 +282,9 @@ obrigatórios e ensaio documentado de falha/rollback.
 
 ## API-01 — Escrita transacional, idempotente e versionada
 
-**Status:** em andamento; primeiro lote vertical do calendário implementado de
-forma aditiva em 17 de agosto de 2026, ainda sem consumidor funcional.
+**Status:** em andamento; contrato vertical do calendário implementado em 17 de
+agosto de 2026 e estendido às metas em 18 de agosto, ainda sem consumidor
+funcional.
 
 **Problema/lacuna — `P1`, arquitetura/API/banco:** o navegador executa upserts
 inteiros por entidade e operações em massa ampliam o número de requisições.
@@ -292,11 +293,11 @@ inteiros por entidade e operações em massa ampliam o número de requisições.
 escrita. `changedFields` não controla update remoto. A revisão sobe por trigger,
 mas não é usada para compare-and-set. Resumos diários e hierarquias podem gerar
 várias gravações independentes. A RPC `apply_account_operation_batch` já aceita
-até 100 mutações de categoria, dia e tarefa, deriva ownership do JWT, registra
-um recibo por conta e `operation_id`, reapresenta o mesmo resultado em retry,
-aplica o lote em uma transação e rejeita revisão stale. O cliente TypeScript
-está implementado, mas os comandos funcionais continuam no caminho antigo para
-não introduzir dual-write antes do rollout.
+até 100 mutações de categoria, dia, tarefa, grupo de metas, meta e etapa, deriva
+ownership do JWT, registra um recibo por conta e `operation_id`, reapresenta o
+mesmo resultado em retry, aplica o lote em uma transação e rejeita revisão
+stale. O cliente TypeScript está implementado, mas os comandos funcionais
+continuam no caminho antigo para não introduzir dual-write antes do rollout.
 
 **Estado desejado:** API de domínio em lote, autenticada, transacional,
 idempotente e com política explícita de conflito.
@@ -322,11 +323,12 @@ dia e tarefa, ownership ignorando `user_id` do payload, replay sem nova revisão
 reuso inválido de `operation_id`, compare-and-set, stale write, rollback total,
 referência entre contas, allowlist e limite de 100 mutações. Testes unitários
 cobrem guest sem rede, serialização para uma única RPC, limite local e
-preservação do erro estruturado. Permanecem a integração dos comandos, suporte
-a metas, concorrência real, política de retenção dos recibos e benchmark. O
-gate atual passou com 61 arquivos e 439 testes Vitest; o banco passou com 52
-testes pgTAP de comportamento e 4 verificações adicionais de schema e
-privilégios, lint sem erros, reset limpo e schema declarativo sem divergência.
+preservação do erro estruturado. O lote de metas cobre criação atômica da
+hierarquia, ownership e compare-and-set com rejeição stale. Permanecem a
+integração dos comandos, concorrência real, política de retenção dos recibos e
+benchmark. O gate atual passou com 61 arquivos e 440 testes Vitest; o banco
+passou com 60 testes pgTAP, lint sem erros, reset limpo e schema declarativo sem
+divergência.
 
 ## AUTH-01 — Ciclo de vida público de conta
 

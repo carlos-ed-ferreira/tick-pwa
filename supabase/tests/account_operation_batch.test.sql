@@ -1,5 +1,5 @@
 begin;
-select plan(13);
+select plan(17);
 
 insert into auth.users (
   instance_id,
@@ -381,6 +381,131 @@ select throws_ok(
   '22023',
   null,
   'the server rejects an oversized batch before applying mutations'
+);
+
+select is(
+  jsonb_array_length(
+    public.apply_account_operation_batch(
+      'e0000000-0000-0000-0000-00000000000e',
+      '[
+        {
+          "entity_type": "goalGroup",
+          "base_revision": null,
+          "payload": {
+            "id": "operation-group",
+            "title": "Operation group",
+            "category_tag_id": null,
+            "sort_rank": "a0",
+            "client_updated_at": "2026-08-18T12:00:00.000Z"
+          }
+        },
+        {
+          "entity_type": "goal",
+          "base_revision": null,
+          "payload": {
+            "id": "operation-goal",
+            "group_id": "operation-group",
+            "title": "Operation goal",
+            "due_date": "2026-08-20",
+            "category_tag_id": null,
+            "sort_rank": "a0",
+            "completed_at": null,
+            "client_updated_at": "2026-08-18T12:00:00.000Z"
+          }
+        },
+        {
+          "entity_type": "goalStep",
+          "base_revision": null,
+          "payload": {
+            "id": "operation-step",
+            "goal_id": "operation-goal",
+            "parent_id": null,
+            "category_tag_id": null,
+            "text": "Operation step",
+            "completed": false,
+            "ignored": false,
+            "bold": false,
+            "priority": false,
+            "collapsed": false,
+            "scheduled_date": "2026-08-19",
+            "sort_rank": "a0",
+            "client_updated_at": "2026-08-18T12:00:00.000Z"
+          }
+        }
+      ]'::jsonb
+    ) -> 'mutations'
+  ),
+  3,
+  'an authenticated goal hierarchy applies as one logical operation'
+);
+
+select results_eq(
+  $$
+    select count(*)::bigint
+    from (
+      select user_id from public.goal_groups where id = 'operation-group'
+      union all
+      select user_id from public.goals where id = 'operation-goal'
+      union all
+      select user_id from public.goal_steps where id = 'operation-step'
+    ) as owned_goal_entities
+    where user_id = '40000000-0000-0000-0000-000000000004'::uuid
+  $$,
+  $$values (3::bigint)$$,
+  'the goal batch derives ownership for every entity'
+);
+
+select is(
+  (
+    public.apply_account_operation_batch(
+      'f0000000-0000-0000-0000-00000000000f',
+      '[
+        {
+          "entity_type": "goal",
+          "base_revision": 1,
+          "payload": {
+            "id": "operation-goal",
+            "group_id": "operation-group",
+            "title": "Updated operation goal",
+            "due_date": "2026-08-21",
+            "category_tag_id": null,
+            "sort_rank": "a0",
+            "completed_at": null,
+            "client_updated_at": "2026-08-18T13:00:00.000Z"
+          }
+        }
+      ]'::jsonb
+    ) -> 'mutations' -> 0 ->> 'revision'
+  ),
+  '2',
+  'a goal update applies with its matching base revision'
+);
+
+select throws_ok(
+  $$
+    select public.apply_account_operation_batch(
+      'fa000000-0000-0000-0000-00000000000f',
+      '[
+        {
+          "entity_type": "goal",
+          "base_revision": 1,
+          "payload": {
+            "id": "operation-goal",
+            "group_id": "operation-group",
+            "title": "Stale operation goal",
+            "due_date": "2026-08-22",
+            "category_tag_id": null,
+            "sort_rank": "a0",
+            "completed_at": null,
+            "client_updated_at": "2026-08-18T14:00:00.000Z"
+          }
+        }
+      ]'::jsonb
+    )
+  $$,
+  '40001',
+  null,
+  'a stale goal update is rejected deterministically'
 );
 
 select set_config(

@@ -2,10 +2,14 @@ import type { AppScope, SyncEntityType } from '@/lib/domain';
 import { getSupabaseBrowserClient } from './client';
 import { toRemotePayload } from './entity-mappers';
 
-type CalendarSyncEntityType = Extract<
-  SyncEntityType,
-  'categoryTag' | 'dailyEntry' | 'checklistItem'
->;
+const accountOperationEntityTypes = new Set<SyncEntityType>([
+  'categoryTag',
+  'dailyEntry',
+  'checklistItem',
+  'goalGroup',
+  'goal',
+  'goalStep',
+]);
 
 export interface AccountOperationMutation {
   baseRevision: number | null;
@@ -16,28 +20,24 @@ export interface AccountOperationMutation {
 export interface AccountOperationResult {
   operationId: string;
   mutations: Array<{
-    entityType: CalendarSyncEntityType;
+    entityType: SyncEntityType;
     id: string;
     revision: number;
   }>;
 }
 
-function isCalendarEntityType(
+function isAccountOperationEntityType(
   entityType: SyncEntityType,
-): entityType is CalendarSyncEntityType {
-  return (
-    entityType === 'categoryTag' ||
-    entityType === 'dailyEntry' ||
-    entityType === 'checklistItem'
-  );
+): entityType is SyncEntityType {
+  return accountOperationEntityTypes.has(entityType);
 }
 
 function toAccountOperationMutation(
   scope: AppScope,
   mutation: AccountOperationMutation,
 ) {
-  if (!isCalendarEntityType(mutation.entityType)) {
-    throw new Error('Account operation batch supports calendar entities only.');
+  if (!isAccountOperationEntityType(mutation.entityType)) {
+    throw new Error('Account operation batch contains an unsupported entity.');
   }
 
   const { user_id: ignoredUserId, ...payload } = toRemotePayload(
