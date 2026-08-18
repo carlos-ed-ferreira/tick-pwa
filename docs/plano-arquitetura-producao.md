@@ -252,6 +252,10 @@ provisória de conflito é last-committed-wins no PostgreSQL, adequada para não
 descartar edições offline cuja revisão remota ainda não voltou ao SQLite. Retry,
 rollback e commits sequenciais estão cobertos localmente; concorrência
 simultânea entre dispositivos e métricas ainda precisam de ensaio real.
+Depois da publicação da separação entre `init()` local e `connect()` remoto, o
+ensaio manual em produção aprovou a abertura e o uso da rota sem espera seguida
+de erro. Os critérios restantes da fase continuam sendo concorrência simultânea,
+métricas e a cobertura móvel ainda não executada.
 
 ## Fase 2 — criar a API transacional de escrita
 

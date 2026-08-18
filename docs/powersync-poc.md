@@ -296,7 +296,10 @@ segundo plano. Assim, atraso, indisponibilidade ou retry remoto permanecem no
 estado de conexão e na fila, sem transformar a persistência local disponível em
 erro total. O RED reproduziu a regressão e o GREEN passou com 24 testes
 direcionados. `make check` aprovou 61 arquivos e 441 testes, tipagem, lint,
-formato e build; `make test-e2e` aprovou 22 cenários desktop e mobile.
+formato e build; `make test-e2e` aprovou 22 cenários desktop e mobile. Depois da
+publicação, o ensaio manual em `https://tickapp.com.br/~powersync-poc` confirmou
+que a superfície deixou o preparo, abriu o SQLite e permaneceu funcional sem
+retornar ao erro de acesso à prova.
 
 ## Implementação isolada concluída
 

@@ -95,6 +95,8 @@ cor do processo. Eles não falham o gate atual.
 - pgTAP: 74 testes aprovados;
 - inicialização do POC separa abertura local e conexão remota; atraso ou falha
   de conexão não fecha o SQLite pronto nem impede leitura e escrita locais;
+- ensaio manual pós-deploy em produção aprovou abertura do SQLite e uso da rota
+  sem espera seguida de erro;
 - RPC transacional estendida a grupos de metas, metas e etapas, com criação
   atômica da hierarquia, ownership derivado do JWT, compare-and-set e rejeição
   determinística de revisão stale;

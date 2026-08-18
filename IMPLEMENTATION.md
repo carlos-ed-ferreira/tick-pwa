@@ -203,7 +203,9 @@ passa a aparecer no estado de sincronização sem fechar o banco nem descartar a
 fila. O RED reproduziu a conexão pendente derrubando a prova; o GREEN passou
 com 24 testes direcionados. `make check` aprovou 61 arquivos e 441 testes,
 tipagem, lint, formato e build; `make test-e2e` aprovou 22 cenários desktop e
-mobile.
+mobile. Depois da publicação, o ensaio manual em produção foi aprovado: a rota
+deixou o estado de preparo, abriu o SQLite e permaneceu funcional sem voltar ao
+erro de acesso à prova.
 
 **Evidência de isolamento RLS em 17 de agosto de 2026:** um teste pgTAP
 comportamental autentica duas contas permitidas e uma conta fora da allowlist.
