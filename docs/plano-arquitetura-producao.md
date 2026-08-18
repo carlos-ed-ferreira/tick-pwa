@@ -212,10 +212,11 @@ Esta fase valida a decisão técnica antes de alterar toda a persistência.
 Em 11 de agosto de 2026, a configuração externa e a superfície inicial ficaram
 prontas. O primeiro ensaio revelou que o SQLite estava isolado, mas o backend
 ainda reutilizava tabelas funcionais. Em 14 de agosto, a v2 separou também as
-tabelas PostgreSQL, a publicação, os Sync Streams e o arquivo SQLite. A flag
-permanece desligada até essa migration e os novos streams serem implantados.
-Depois ainda faltam os ensaios dos critérios abaixo e, se a prova for aprovada,
-a migração das telas reais. O passo a passo está em
+tabelas PostgreSQL, a publicação, os Sync Streams e o arquivo SQLite. Em 17 de
+agosto, migration, streams, ativação controlada, reload offline, convergência
+entre dois contextos web e ensaio Android foram concluídos. Ainda faltam os
+demais critérios abaixo e, se a prova for aprovada, a API transacional e a
+migração das telas reais. O passo a passo está em
 [powersync-poc.md](powersync-poc.md).
 
 ### Escopo da prova
@@ -274,6 +275,14 @@ O servidor deve:
 Operações em massa, como concluir, mover ou excluir uma árvore, devem produzir
 um lote lógico. O frontend não deve enviar dezenas de requisições sequenciais
 para representar uma única ação do usuário.
+
+Em 17 de agosto de 2026, foi entregue o primeiro incremento aditivo dessa fase.
+A RPC PostgreSQL `apply_account_operation_batch` cobre categorias, dias e
+tarefas, limita o lote a 100 mutações, deriva ownership do JWT, registra recibo
+idempotente, usa compare-and-set por revisão e faz rollback integral. O cliente
+TypeScript existe sem estar ligado aos comandos funcionais, preservando o fluxo
+atual até o rollout sem dual-write. Suporte a metas, retenção dos recibos,
+concorrência real, benchmark e integração com a persistência ainda faltam.
 
 ## Fase 3 — migrar o modo autenticado
 

@@ -81,8 +81,11 @@ visíveis da Fase 0.3, configuração externa e superfície funcional isolada da
 prova PowerSync concluídos em 11 de agosto de 2026. O HTTP 409 do primeiro
 ensaio revelou escrita remota nas tabelas funcionais; a correção com tabelas
 `powersync_poc_*` e SQLite `v2` foi preparada em 14 de agosto de 2026. Migration,
-novos Sync Streams, reativação controlada, migração das telas reais e ensaios
-reais ainda estão pendentes.
+novos Sync Streams, reativação controlada, reload offline, convergência entre
+dois contextos web e ensaio Android foram concluídos em 17 de agosto de 2026.
+Migração das telas reais, fechamento completo do navegador com operação
+pendente, Safari/iOS, fallback de armazenamento, conflitos e métricas da prova
+ainda estão pendentes.
 
 **Problema/lacuna — `P0`, arquitetura/código/serviço externo:** operações da
 conta podem desaparecer ao fechar ou recarregar a aba.
@@ -143,8 +146,8 @@ reordenação e exclusão atualizam as entidades e o resumo diário em lotes
 atômicos. A superfície mostra conexão e quantidade pendente sem expor erros
 internos, atualiza o estado remoto enquanto permanece aberta, tem textos
 pt-BR/en e permanece bloqueada para contas fora do rollout. A ativação
-controlada chegou ao primeiro cenário local; convergência remota e os demais
-ensaios reais continuam pendentes.
+controlada comprovou convergência remota no mesmo dispositivo, entre dois
+contextos web e em Android. Os critérios restantes continuam pendentes.
 
 **Evidência da superfície isolada:** `make check` passou com 60 arquivos e 429
 testes; `make test-e2e` passou em 22 cenários desktop/mobile e
@@ -157,7 +160,8 @@ outro `daily_entries` para o mesmo usuário/data e deixou 10 operações locais
 pendentes. A v2 separa as três tabelas remotas, remove as tabelas funcionais da
 publicação PowerSync, aplica RLS e chaves por usuário, permite vários cenários
 na mesma data e troca o nome do SQLite para não reabrir a fila v1. A flag deve
-permanecer desligada até migration e Sync Streams serem confirmados.
+permanecer desligada até migration e Sync Streams serem confirmados. Essa
+condição foi atendida antes da reativação controlada de 17 de agosto de 2026.
 
 **Evidência da correção v2:** RED do cliente com 6 falhas e GREEN com 19
 testes direcionados; RED do banco com 8 falhas e GREEN com 31 testes pgTAP.
@@ -189,6 +193,19 @@ o GREEN passou com 23 testes PowerSync e `make check` aprovou 60 arquivos e 435
 testes. Os E2E locais ficaram pendentes porque o sandbox não permitiu iniciar o
 servidor Playwright. Depois do deploy, o aparelho físico inicializou o SQLite,
 carregou o snapshot e permitiu usar os controles normalmente.
+
+**Evidência de isolamento RLS em 17 de agosto de 2026:** um teste pgTAP
+comportamental autentica duas contas permitidas e uma conta fora da allowlist.
+Ele comprova leitura e escrita próprias, bloqueio de leitura, alteração,
+exclusão e inserção cruzadas, bloqueio sem acesso e ausência de linhas após
+escritas rejeitadas. A suíte local passou com 39 testes. A validação entre duas
+contas na instância PowerSync Cloud continua necessária para cobrir também os
+Sync Streams implantados.
+
+**Ensaio de isolamento no PowerSync Cloud em 17 de agosto de 2026:** duas
+contas internas autorizadas foram abertas em contextos separados. Cada conta
+permaneceu restrita aos próprios dados nas telas funcionais e na rota
+`/~powersync-poc`; nenhuma informação cruzou os escopos.
 
 ## SEC-01 — Vulnerabilidades de dependências
 
@@ -265,13 +282,21 @@ obrigatórios e ensaio documentado de falha/rollback.
 
 ## API-01 — Escrita transacional, idempotente e versionada
 
+**Status:** em andamento; primeiro lote vertical do calendário implementado de
+forma aditiva em 17 de agosto de 2026, ainda sem consumidor funcional.
+
 **Problema/lacuna — `P1`, arquitetura/API/banco:** o navegador executa upserts
 inteiros por entidade e operações em massa ampliam o número de requisições.
 
 **Estado atual:** `src/lib/supabase/account-data.ts` ignora `baseRevision` na
 escrita. `changedFields` não controla update remoto. A revisão sobe por trigger,
 mas não é usada para compare-and-set. Resumos diários e hierarquias podem gerar
-várias gravações independentes.
+várias gravações independentes. A RPC `apply_account_operation_batch` já aceita
+até 100 mutações de categoria, dia e tarefa, deriva ownership do JWT, registra
+um recibo por conta e `operation_id`, reapresenta o mesmo resultado em retry,
+aplica o lote em uma transação e rejeita revisão stale. O cliente TypeScript
+está implementado, mas os comandos funcionais continuam no caminho antigo para
+não introduzir dual-write antes do rollout.
 
 **Estado desejado:** API de domínio em lote, autenticada, transacional,
 idempotente e com política explícita de conflito.
@@ -291,6 +316,17 @@ operação em massa usa um contrato lógico.
 
 **Validação:** integração real Supabase, concorrência, repetição, rollback,
 payload inválido, negativas de ownership e benchmark de lote.
+
+**Evidência do primeiro incremento:** pgTAP cobre criação atômica de categoria,
+dia e tarefa, ownership ignorando `user_id` do payload, replay sem nova revisão,
+reuso inválido de `operation_id`, compare-and-set, stale write, rollback total,
+referência entre contas, allowlist e limite de 100 mutações. Testes unitários
+cobrem guest sem rede, serialização para uma única RPC, limite local e
+preservação do erro estruturado. Permanecem a integração dos comandos, suporte
+a metas, concorrência real, política de retenção dos recibos e benchmark. O
+gate atual passou com 61 arquivos e 439 testes Vitest; o banco passou com 52
+testes pgTAP de comportamento e 4 verificações adicionais de schema e
+privilégios, lint sem erros, reset limpo e schema declarativo sem divergência.
 
 ## AUTH-01 — Ciclo de vida público de conta
 
@@ -686,8 +722,8 @@ Continuam pendentes ou intencionalmente adiados:
   workflow ser mesclado e validado no GitHub;
 - SMTP, CAPTCHA e revisão de quotas do Supabase antes do cadastro público;
 - ordem coordenada de migrations e deploy na Vercel, coberta por `CICD-01`;
-- ativação de uma conta interna e ensaios offline, reload, multidispositivo e
-  isolamento no PowerSync gratuito;
+- fechamento completo do navegador com operação pendente, Safari/iOS, fallback
+  de armazenamento, conflitos e métricas da prova gratuita;
 - conta, catálogo, moedas, webhooks e secrets do provedor de pagamento;
 - projeto, DSN, retenção, alertas e redaction da observabilidade;
 - zona, domínio, headers e rollback na Cloudflare após a migração estática;

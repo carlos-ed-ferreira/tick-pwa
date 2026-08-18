@@ -1,7 +1,12 @@
 begin;
-select plan(31);
+select plan(35);
 
 select has_table('public', 'user_preferences', 'user_preferences exists');
+select has_table(
+  'public',
+  'account_operation_receipts',
+  'account operation receipts exist'
+);
 select has_table('public', 'goal_groups', 'goal_groups exists');
 select has_table('public', 'goals', 'goals exists');
 select has_table('public', 'goal_steps', 'goal_steps exists');
@@ -108,6 +113,39 @@ select ok(
       and rowsecurity
   ) = 3,
   'all PowerSync POC tables have RLS enabled'
+);
+
+select ok(
+  (
+    select rowsecurity
+    from pg_tables
+    where schemaname = 'public'
+      and tablename = 'account_operation_receipts'
+  ),
+  'account operation receipts have RLS enabled'
+);
+
+select ok(
+  not has_table_privilege(
+    'authenticated',
+    'public.account_operation_receipts',
+    'select'
+  ),
+  'authenticated clients cannot read operation receipts directly'
+);
+
+select ok(
+  has_function_privilege(
+    'authenticated',
+    'public.apply_account_operation_batch(uuid,jsonb)',
+    'execute'
+  )
+  and not has_function_privilege(
+    'anon',
+    'public.apply_account_operation_batch(uuid,jsonb)',
+    'execute'
+  ),
+  'only authenticated clients can execute account operation batches'
 );
 
 select ok(

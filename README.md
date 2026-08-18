@@ -19,9 +19,11 @@ com persistência remota.
 
 ## Arquitetura atual
 
-O repositório contém uma única aplicação web Next.js. Não há backend próprio,
-BFF, API Route, worker de aplicação, fila externa ou microsserviço. O navegador
-acessa o Supabase diretamente por `@supabase/supabase-js`.
+O repositório contém uma única aplicação web Next.js. Não há BFF, API Route,
+worker de aplicação, fila externa ou microsserviço. O navegador acessa o
+Supabase por `@supabase/supabase-js`. Uma RPC PostgreSQL aditiva implementa o
+primeiro contrato transacional e idempotente para lotes do calendário, mas
+ainda não está ligada aos comandos funcionais nem substitui o fluxo atual.
 
 As páginas usam App Router. O layout lê cookies e cabeçalhos para escolher o
 idioma inicial, por isso as rotas principais são renderizadas dinamicamente no
@@ -86,6 +88,12 @@ O estado atual ainda tem limitações conhecidas de retry durável, idempotênci
 conflitos e observabilidade externa. Elas estão registradas no
 [IMPLEMENTATION.md](IMPLEMENTATION.md); não devem ser confundidas com garantias
 já implementadas.
+
+O backend contém `apply_account_operation_batch` e recibos por conta e
+`operation_id`. O contrato aceita até 100 mutações de categoria, dia e tarefa,
+deriva ownership do JWT, aplica compare-and-set por revisão e confirma o lote
+inteiro em uma transação. Ele permanece aditivo e sem consumidor funcional até
+o rollout da nova persistência, evitando dual-write com o caminho atual.
 
 Existe uma fundação desativada para a prova de conceito do PowerSync. Ela cria
 um SQLite `v2` isolado por conta e usa tabelas PostgreSQL `powersync_poc_*`

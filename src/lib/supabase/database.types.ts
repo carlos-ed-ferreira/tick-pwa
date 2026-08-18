@@ -30,6 +30,30 @@ export type Database = {
         };
         Relationships: [];
       };
+      account_operation_receipts: {
+        Row: {
+          created_at: string;
+          operation_id: string;
+          request_hash: string;
+          result: Json | null;
+          user_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          operation_id: string;
+          request_hash: string;
+          result?: Json | null;
+          user_id: string;
+        };
+        Update: {
+          created_at?: string;
+          operation_id?: string;
+          request_hash?: string;
+          result?: Json | null;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
       category_tags: {
         Row: {
           client_updated_at: string;
@@ -640,6 +664,10 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      apply_account_operation_batch: {
+        Args: { p_mutations: Json; p_operation_id: string };
+        Returns: Json;
+      };
       current_user_has_app_access: { Args: never; Returns: boolean };
     };
     Enums: {
