@@ -276,13 +276,14 @@ Operações em massa, como concluir, mover ou excluir uma árvore, devem produzi
 um lote lógico. O frontend não deve enviar dezenas de requisições sequenciais
 para representar uma única ação do usuário.
 
-Em 17 de agosto de 2026, foi entregue o primeiro incremento aditivo dessa fase.
-A RPC PostgreSQL `apply_account_operation_batch` cobre categorias, dias e
-tarefas, limita o lote a 100 mutações, deriva ownership do JWT, registra recibo
-idempotente, usa compare-and-set por revisão e faz rollback integral. O cliente
-TypeScript existe sem estar ligado aos comandos funcionais, preservando o fluxo
-atual até o rollout sem dual-write. Suporte a metas, retenção dos recibos,
-concorrência real, benchmark e integração com a persistência ainda faltam.
+Em 17 de agosto de 2026, foi entregue o primeiro incremento aditivo dessa fase
+para calendário. Em 18 de agosto, o mesmo contrato passou a cobrir grupos de
+metas, metas e etapas. A RPC PostgreSQL `apply_account_operation_batch` limita o
+lote a 100 mutações, deriva ownership do JWT, registra recibo idempotente, usa
+compare-and-set por revisão e faz rollback integral. O cliente TypeScript existe
+sem estar ligado aos comandos funcionais, preservando o fluxo atual até o
+rollout sem dual-write. Retenção dos recibos, concorrência real, benchmark e
+integração com a persistência ainda faltam.
 
 ## Fase 3 — migrar o modo autenticado
 

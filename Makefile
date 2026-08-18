@@ -1,6 +1,6 @@
 NPM = npm
 
-.PHONY: help require-npm install install-ci dev build start lint typecheck test test-powersync test-e2e test-e2e-account format format-check check audit-prod deps-tree publish clean supabase-start supabase-stop supabase-status supabase-reset supabase-diff supabase-lint supabase-test-db supabase-types-local supabase-prod-migrations-repair supabase-prod-db-dry-run supabase-prod-db-push
+.PHONY: help require-npm install install-ci dev build start lint typecheck test test-account-operations test-powersync test-e2e test-e2e-account format format-check check audit-prod deps-tree publish clean supabase-start supabase-stop supabase-status supabase-reset supabase-diff supabase-migration-diff supabase-lint supabase-test-db supabase-types-local supabase-prod-migrations-repair supabase-prod-db-dry-run supabase-prod-db-push
 .DEFAULT_GOAL := help
 
 help:
@@ -13,6 +13,7 @@ help:
 	@printf "  %-26s %s\n" "make lint" "Proibe comentarios de codigo e roda ESLint"
 	@printf "  %-26s %s\n" "make typecheck" "Roda TypeScript sem emitir arquivos"
 	@printf "  %-26s %s\n" "make test" "Roda testes unitarios e de integracao"
+	@printf "  %-26s %s\n" "make test-account-operations" "Roda testes do contrato transacional"
 	@printf "  %-26s %s\n" "make test-powersync" "Roda testes direcionados do POC PowerSync"
 	@printf "  %-26s %s\n" "make test-e2e" "Roda testes end-to-end"
 	@printf "  %-26s %s\n" "make test-e2e-account" "Roda E2E autenticado"
@@ -27,6 +28,7 @@ help:
 	@printf "  %-26s %s\n" "make supabase-status" "Mostra URLs e chaves do Supabase local"
 	@printf "  %-26s %s\n" "make supabase-reset" "Reseta o banco Supabase local com migrations e seed"
 	@printf "  %-26s %s\n" "make supabase-diff" "Compara migrations com o schema declarativo"
+	@printf "  %-26s %s\n" "make supabase-migration-diff name=<nome>" "Gera migration pelo diff declarativo"
 	@printf "  %-26s %s\n" "make supabase-lint" "Valida o schema Postgres local"
 	@printf "  %-26s %s\n" "make supabase-test-db" "Roda os testes pgTAP do banco"
 	@printf "  %-26s %s\n" "make supabase-types-local" "Gera tipos TypeScript do schema Supabase local"
@@ -81,6 +83,9 @@ typecheck: require-npm
 test: require-npm
 	$(NPM) run test
 
+test-account-operations: require-npm
+	$(NPM) run test -- tests/unit/account-operations.test.ts
+
 test-powersync: require-npm
 	$(NPM) run test -- tests/unit/powersync-poc.test.ts tests/unit/powersync-poc-surface.test.tsx
 
@@ -122,6 +127,10 @@ supabase-reset: require-npm
 
 supabase-diff: require-npm
 	$(NPM) run supabase:db:diff
+
+supabase-migration-diff: require-npm
+	@test -n "$(name)" || { printf "Erro: informe name=<nome_da_migration>.\n"; exit 2; }
+	$(NPM) run supabase:db:diff -- -f $(name)
 
 supabase-lint: require-npm
 	$(NPM) run supabase:db:lint

@@ -22,8 +22,8 @@ com persistência remota.
 O repositório contém uma única aplicação web Next.js. Não há BFF, API Route,
 worker de aplicação, fila externa ou microsserviço. O navegador acessa o
 Supabase por `@supabase/supabase-js`. Uma RPC PostgreSQL aditiva implementa o
-primeiro contrato transacional e idempotente para lotes do calendário, mas
-ainda não está ligada aos comandos funcionais nem substitui o fluxo atual.
+primeiro contrato transacional e idempotente para lotes de calendário e metas,
+mas ainda não está ligada aos comandos funcionais nem substitui o fluxo atual.
 
 As páginas usam App Router. O layout lê cookies e cabeçalhos para escolher o
 idioma inicial, por isso as rotas principais são renderizadas dinamicamente no
@@ -90,10 +90,11 @@ conflitos e observabilidade externa. Elas estão registradas no
 já implementadas.
 
 O backend contém `apply_account_operation_batch` e recibos por conta e
-`operation_id`. O contrato aceita até 100 mutações de categoria, dia e tarefa,
-deriva ownership do JWT, aplica compare-and-set por revisão e confirma o lote
-inteiro em uma transação. Ele permanece aditivo e sem consumidor funcional até
-o rollout da nova persistência, evitando dual-write com o caminho atual.
+`operation_id`. O contrato aceita até 100 mutações de categoria, dia, tarefa,
+grupo de metas, meta e etapa, deriva ownership do JWT, aplica compare-and-set
+por revisão e confirma o lote inteiro em uma transação. Ele permanece aditivo e
+sem consumidor funcional até o rollout da nova persistência, evitando
+dual-write com o caminho atual.
 
 Existe uma fundação desativada para a prova de conceito do PowerSync. Ela cria
 um SQLite `v2` isolado por conta e usa tabelas PostgreSQL `powersync_poc_*`
@@ -304,7 +305,8 @@ O fluxo local é:
 
 1. alterar o schema declarativo;
 2. iniciar o Supabase local;
-3. gerar uma migration com `make supabase-diff`;
+3. gerar uma migration com
+   `make supabase-migration-diff name=<nome_da_migration>`;
 4. revisar o SQL gerado;
 5. recriar o banco com `make supabase-reset`;
 6. rodar lint, pgTAP e os testes da aplicação;
@@ -357,15 +359,16 @@ recorrente sem target, adicione-a ao `Makefile` e ao `make help` primeiro.
 
 Supabase:
 
-| Objetivo      | Comando                                     |
-| ------------- | ------------------------------------------- |
-| iniciar/parar | `make supabase-start`, `make supabase-stop` |
-| status        | `make supabase-status`                      |
-| reset         | `make supabase-reset`                       |
-| diff          | `make supabase-diff`                        |
-| lint          | `make supabase-lint`                        |
-| pgTAP         | `make supabase-test-db`                     |
-| tipos         | `make supabase-types-local`                 |
+| Objetivo        | Comando                                     |
+| --------------- | ------------------------------------------- |
+| iniciar/parar   | `make supabase-start`, `make supabase-stop` |
+| status          | `make supabase-status`                      |
+| reset           | `make supabase-reset`                       |
+| diff            | `make supabase-diff`                        |
+| gerar migration | `make supabase-migration-diff name=<nome>`  |
+| lint            | `make supabase-lint`                        |
+| pgTAP           | `make supabase-test-db`                     |
+| tipos           | `make supabase-types-local`                 |
 
 `make check` executa typecheck, lint, Vitest, format-check e build. E2E e
 validações de banco são separados. Os critérios de aprovação e gates

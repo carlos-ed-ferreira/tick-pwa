@@ -94,7 +94,149 @@ describe('account operation batches', () => {
     });
   });
 
-  it('rejects unsupported entities and oversized batches before the network', async () => {
+  it('maps a complete goal hierarchy to one RPC', async () => {
+    const rpc = vi.fn().mockResolvedValue({
+      data: {
+        operationId: '25000000-0000-0000-0000-000000000002',
+        mutations: [
+          { entityType: 'goalGroup', id: 'group-1', revision: 1 },
+          { entityType: 'goal', id: 'goal-1', revision: 1 },
+          { entityType: 'goalStep', id: 'step-1', revision: 1 },
+        ],
+      },
+      error: null,
+    });
+    supabaseMocks.getSupabaseBrowserClient.mockReturnValue({
+      rpc,
+    } as unknown as SupabaseClient);
+    const base = {
+      clientUpdatedAt: '2026-08-18T12:00:00.000Z',
+      createdAt: '2026-08-18T12:00:00.000Z',
+      deletedAt: null,
+      remoteRevision: null,
+      scopeId: 'user:untrusted-user',
+      syncStatus: 'pending',
+      updatedAt: '2026-08-18T12:00:00.000Z',
+    };
+
+    await applyAccountOperationBatch({
+      mutations: [
+        {
+          baseRevision: null,
+          entityType: 'goalGroup',
+          payload: {
+            ...base,
+            categoryTagId: null,
+            id: 'group-1',
+            sortRank: 'a0',
+            title: 'Group',
+          },
+        },
+        {
+          baseRevision: null,
+          entityType: 'goal',
+          payload: {
+            ...base,
+            archivedAt: null,
+            category: 'short',
+            categoryTagId: null,
+            completedAt: null,
+            description: '',
+            dueDate: '2026-08-20',
+            groupId: 'group-1',
+            id: 'goal-1',
+            progressMode: 'steps',
+            progressValue: 0,
+            sortRank: 'a0',
+            status: 'active',
+            title: 'Goal',
+          },
+        },
+        {
+          baseRevision: null,
+          entityType: 'goalStep',
+          payload: {
+            ...base,
+            bold: false,
+            categoryTagId: null,
+            collapsed: false,
+            completed: false,
+            goalId: 'goal-1',
+            id: 'step-1',
+            ignored: false,
+            parentId: null,
+            priority: false,
+            scheduledDate: '2026-08-19',
+            sortRank: 'a0',
+            text: 'First step',
+          },
+        },
+      ],
+      operationId: '25000000-0000-0000-0000-000000000002',
+      scope: createUserScope('authenticated-user'),
+    });
+
+    expect(rpc).toHaveBeenCalledWith('apply_account_operation_batch', {
+      p_mutations: [
+        {
+          base_revision: null,
+          entity_type: 'goalGroup',
+          payload: {
+            category_tag_id: null,
+            client_updated_at: '2026-08-18T12:00:00.000Z',
+            created_at: '2026-08-18T12:00:00.000Z',
+            deleted_at: null,
+            id: 'group-1',
+            sort_rank: 'a0',
+            title: 'Group',
+            updated_at: '2026-08-18T12:00:00.000Z',
+          },
+        },
+        {
+          base_revision: null,
+          entity_type: 'goal',
+          payload: {
+            category_tag_id: null,
+            client_updated_at: '2026-08-18T12:00:00.000Z',
+            completed_at: null,
+            created_at: '2026-08-18T12:00:00.000Z',
+            deleted_at: null,
+            due_date: '2026-08-20',
+            group_id: 'group-1',
+            id: 'goal-1',
+            sort_rank: 'a0',
+            title: 'Goal',
+            updated_at: '2026-08-18T12:00:00.000Z',
+          },
+        },
+        {
+          base_revision: null,
+          entity_type: 'goalStep',
+          payload: {
+            bold: false,
+            category_tag_id: null,
+            client_updated_at: '2026-08-18T12:00:00.000Z',
+            collapsed: false,
+            completed: false,
+            created_at: '2026-08-18T12:00:00.000Z',
+            deleted_at: null,
+            goal_id: 'goal-1',
+            id: 'step-1',
+            ignored: false,
+            parent_id: null,
+            priority: false,
+            scheduled_date: '2026-08-19',
+            sort_rank: 'a0',
+            text: 'First step',
+            updated_at: '2026-08-18T12:00:00.000Z',
+          },
+        },
+      ],
+      p_operation_id: '25000000-0000-0000-0000-000000000002',
+    });
+  });
+
+  it('rejects unknown entities and oversized batches before the network', async () => {
     const scope = createUserScope('authenticated-user');
 
     await expect(
@@ -102,7 +244,7 @@ describe('account operation batches', () => {
         mutations: [
           {
             baseRevision: null,
-            entityType: 'goal',
+            entityType: 'unsupported' as never,
             payload: { id: 'goal-1' },
           },
         ],
@@ -110,7 +252,7 @@ describe('account operation batches', () => {
         scope,
       }),
     ).rejects.toThrow(
-      'Account operation batch supports calendar entities only.',
+      'Account operation batch contains an unsupported entity.',
     );
 
     await expect(

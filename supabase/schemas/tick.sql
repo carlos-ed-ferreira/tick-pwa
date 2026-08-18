@@ -571,6 +571,159 @@ begin
           and revision = base_revision
         returning revision into written_revision;
       end if;
+    elsif entity_type = 'goalGroup' then
+      if base_revision is null then
+        insert into public.goal_groups (
+          id,
+          user_id,
+          category_tag_id,
+          title,
+          sort_rank,
+          deleted_at,
+          client_updated_at
+        )
+        values (
+          entity_id,
+          authenticated_user_id,
+          mutation_payload ->> 'category_tag_id',
+          coalesce(mutation_payload ->> 'title', ''),
+          mutation_payload ->> 'sort_rank',
+          (mutation_payload ->> 'deleted_at')::timestamptz,
+          coalesce(
+            (mutation_payload ->> 'client_updated_at')::timestamptz,
+            timezone('utc', now())
+          )
+        )
+        returning revision into written_revision;
+      else
+        update public.goal_groups
+        set
+          category_tag_id = mutation_payload ->> 'category_tag_id',
+          title = coalesce(mutation_payload ->> 'title', ''),
+          sort_rank = mutation_payload ->> 'sort_rank',
+          deleted_at = (mutation_payload ->> 'deleted_at')::timestamptz,
+          client_updated_at = coalesce(
+            (mutation_payload ->> 'client_updated_at')::timestamptz,
+            timezone('utc', now())
+          )
+        where id = entity_id
+          and user_id = authenticated_user_id
+          and revision = base_revision
+        returning revision into written_revision;
+      end if;
+    elsif entity_type = 'goal' then
+      if base_revision is null then
+        insert into public.goals (
+          id,
+          user_id,
+          group_id,
+          category_tag_id,
+          title,
+          due_date,
+          completed_at,
+          sort_rank,
+          deleted_at,
+          client_updated_at
+        )
+        values (
+          entity_id,
+          authenticated_user_id,
+          mutation_payload ->> 'group_id',
+          mutation_payload ->> 'category_tag_id',
+          coalesce(mutation_payload ->> 'title', ''),
+          (mutation_payload ->> 'due_date')::date,
+          (mutation_payload ->> 'completed_at')::timestamptz,
+          mutation_payload ->> 'sort_rank',
+          (mutation_payload ->> 'deleted_at')::timestamptz,
+          coalesce(
+            (mutation_payload ->> 'client_updated_at')::timestamptz,
+            timezone('utc', now())
+          )
+        )
+        returning revision into written_revision;
+      else
+        update public.goals
+        set
+          group_id = mutation_payload ->> 'group_id',
+          category_tag_id = mutation_payload ->> 'category_tag_id',
+          title = coalesce(mutation_payload ->> 'title', ''),
+          due_date = (mutation_payload ->> 'due_date')::date,
+          completed_at = (mutation_payload ->> 'completed_at')::timestamptz,
+          sort_rank = mutation_payload ->> 'sort_rank',
+          deleted_at = (mutation_payload ->> 'deleted_at')::timestamptz,
+          client_updated_at = coalesce(
+            (mutation_payload ->> 'client_updated_at')::timestamptz,
+            timezone('utc', now())
+          )
+        where id = entity_id
+          and user_id = authenticated_user_id
+          and revision = base_revision
+        returning revision into written_revision;
+      end if;
+    elsif entity_type = 'goalStep' then
+      if base_revision is null then
+        insert into public.goal_steps (
+          id,
+          user_id,
+          goal_id,
+          parent_id,
+          category_tag_id,
+          text,
+          completed,
+          ignored,
+          bold,
+          priority,
+          collapsed,
+          scheduled_date,
+          sort_rank,
+          deleted_at,
+          client_updated_at
+        )
+        values (
+          entity_id,
+          authenticated_user_id,
+          mutation_payload ->> 'goal_id',
+          mutation_payload ->> 'parent_id',
+          mutation_payload ->> 'category_tag_id',
+          coalesce(mutation_payload ->> 'text', ''),
+          coalesce((mutation_payload ->> 'completed')::boolean, false),
+          coalesce((mutation_payload ->> 'ignored')::boolean, false),
+          coalesce((mutation_payload ->> 'bold')::boolean, false),
+          coalesce((mutation_payload ->> 'priority')::boolean, false),
+          coalesce((mutation_payload ->> 'collapsed')::boolean, false),
+          (mutation_payload ->> 'scheduled_date')::date,
+          mutation_payload ->> 'sort_rank',
+          (mutation_payload ->> 'deleted_at')::timestamptz,
+          coalesce(
+            (mutation_payload ->> 'client_updated_at')::timestamptz,
+            timezone('utc', now())
+          )
+        )
+        returning revision into written_revision;
+      else
+        update public.goal_steps
+        set
+          goal_id = mutation_payload ->> 'goal_id',
+          parent_id = mutation_payload ->> 'parent_id',
+          category_tag_id = mutation_payload ->> 'category_tag_id',
+          text = coalesce(mutation_payload ->> 'text', ''),
+          completed = coalesce((mutation_payload ->> 'completed')::boolean, false),
+          ignored = coalesce((mutation_payload ->> 'ignored')::boolean, false),
+          bold = coalesce((mutation_payload ->> 'bold')::boolean, false),
+          priority = coalesce((mutation_payload ->> 'priority')::boolean, false),
+          collapsed = coalesce((mutation_payload ->> 'collapsed')::boolean, false),
+          scheduled_date = (mutation_payload ->> 'scheduled_date')::date,
+          sort_rank = mutation_payload ->> 'sort_rank',
+          deleted_at = (mutation_payload ->> 'deleted_at')::timestamptz,
+          client_updated_at = coalesce(
+            (mutation_payload ->> 'client_updated_at')::timestamptz,
+            timezone('utc', now())
+          )
+        where id = entity_id
+          and user_id = authenticated_user_id
+          and revision = base_revision
+        returning revision into written_revision;
+      end if;
     else
       raise exception using errcode = '22023', message = 'unsupported_entity_type';
     end if;
