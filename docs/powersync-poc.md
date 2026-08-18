@@ -15,7 +15,8 @@ O código entregue nesta etapa contém:
 - schema local para categorias, dias e a hierarquia completa do checklist;
 - tabelas PostgreSQL exclusivas `powersync_poc_*`, sem ler ou escrever as
   tabelas funcionais do produto;
-- conector de upload com ownership derivado da sessão;
+- conector de upload que converte cada transação SQLite em uma única RPC, com
+  ownership derivado da sessão, recibo idempotente e rollback integral;
 - Sync Streams filtrados por `auth.user_id()`;
 - rollout bloqueado por flag e lista explícita de contas;
 - desligamento total para convidado e quando a flag está ausente;
@@ -73,7 +74,8 @@ preparada em 14 de agosto e migration aplicada em 17 de agosto de 2026:
 - [x] isolamento entre duas contas validado na instância PowerSync Cloud;
 - [ ] fechamento completo com operação offline pendente validado;
 - [ ] Safari/iOS e fallback de armazenamento validados;
-- [ ] conflitos e métricas de volume, latência, fila e quota registrados.
+- [ ] conflito simultâneo e métricas de volume, latência, fila e quota
+      registrados.
 
 ## Configuração externa realizada
 
@@ -306,6 +308,22 @@ A futura migração das telas reais seguirá estas regras:
 - executar o POC em uma superfície isolada antes de trocar a persistência das
   telas existentes;
 - só migrar as telas reais depois dos testes de reload, offline e isolamento.
+
+## Upload remoto atômico e política de conflito
+
+Cada transação local recebe a chave estável `<clientId>:<transactionId>` do
+próprio SQLite do PowerSync e é enviada para
+`apply_powersync_poc_operation_batch`. O servidor limita o lote a 100 mutações,
+ignora ownership vindo do payload, reapresenta o resultado de retries e aplica
+todo o lote ou nenhum item. A função interna de mutação não pode ser chamada
+diretamente pelo cliente autenticado.
+
+Para duas operações válidas sobre a mesma entidade, o estado canônico é o da
+última transação confirmada no PostgreSQL. Essa política preserva edições
+offline sem depender de uma revisão que ainda não tenha retornado ao SQLite. O
+teste de commits sequenciais passou; o ensaio de concorrência realmente
+simultânea entre dois dispositivos permanece obrigatório antes da migração das
+telas reais.
 
 ## Validação antes de aprovar a tecnologia
 

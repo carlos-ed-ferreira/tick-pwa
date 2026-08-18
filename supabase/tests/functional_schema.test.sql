@@ -1,11 +1,16 @@
 begin;
-select plan(35);
+select plan(39);
 
 select has_table('public', 'user_preferences', 'user_preferences exists');
 select has_table(
   'public',
   'account_operation_receipts',
   'account operation receipts exist'
+);
+select has_table(
+  'public',
+  'powersync_poc_operation_receipts',
+  'PowerSync POC operation receipts exist'
 );
 select has_table('public', 'goal_groups', 'goal_groups exists');
 select has_table('public', 'goals', 'goals exists');
@@ -135,6 +140,25 @@ select ok(
 );
 
 select ok(
+  (
+    select rowsecurity
+    from pg_tables
+    where schemaname = 'public'
+      and tablename = 'powersync_poc_operation_receipts'
+  ),
+  'PowerSync POC operation receipts have RLS enabled'
+);
+
+select ok(
+  not has_table_privilege(
+    'authenticated',
+    'public.powersync_poc_operation_receipts',
+    'select'
+  ),
+  'authenticated clients cannot read PowerSync operation receipts directly'
+);
+
+select ok(
   has_function_privilege(
     'authenticated',
     'public.apply_account_operation_batch(uuid,jsonb)',
@@ -146,6 +170,25 @@ select ok(
     'execute'
   ),
   'only authenticated clients can execute account operation batches'
+);
+
+select ok(
+  has_function_privilege(
+    'authenticated',
+    'public.apply_powersync_poc_operation_batch(text,jsonb)',
+    'execute'
+  )
+  and not has_function_privilege(
+    'anon',
+    'public.apply_powersync_poc_operation_batch(text,jsonb)',
+    'execute'
+  )
+  and not has_function_privilege(
+    'authenticated',
+    'public.apply_powersync_poc_mutation(uuid,jsonb)',
+    'execute'
+  ),
+  'only authenticated clients can execute the public PowerSync batch function'
 );
 
 select ok(

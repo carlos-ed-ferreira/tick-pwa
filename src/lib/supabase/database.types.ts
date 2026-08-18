@@ -605,6 +605,30 @@ export type Database = {
         };
         Relationships: [];
       };
+      powersync_poc_operation_receipts: {
+        Row: {
+          created_at: string;
+          operation_id: string;
+          request_hash: string;
+          result: Json | null;
+          user_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          operation_id: string;
+          request_hash: string;
+          result?: Json | null;
+          user_id: string;
+        };
+        Update: {
+          created_at?: string;
+          operation_id?: string;
+          request_hash?: string;
+          result?: Json | null;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
       profiles: {
         Row: {
           avatar_url: string | null;
@@ -665,6 +689,14 @@ export type Database = {
     };
     Functions: {
       apply_account_operation_batch: {
+        Args: { p_mutations: Json; p_operation_id: string };
+        Returns: Json;
+      };
+      apply_powersync_poc_mutation: {
+        Args: { authenticated_user_id: string; mutation: Json };
+        Returns: undefined;
+      };
+      apply_powersync_poc_operation_batch: {
         Args: { p_mutations: Json; p_operation_id: string };
         Returns: Json;
       };
