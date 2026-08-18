@@ -7,6 +7,7 @@ import {
   ChevronRight,
   FolderPlus,
   GripVertical,
+  LayoutList,
   MoreHorizontal,
   LogOut,
   Palette,
@@ -40,6 +41,7 @@ import {
   moveTreeItemToTarget,
   TaskTreeBulkActions,
   TaskTreeCategoryChip,
+  TaskTreeCategoryTabs,
   TaskTreeClearCategoryIcon,
   TaskTreeEditableRow,
   TaskTreeRowActionsMenu,
@@ -64,6 +66,11 @@ import {
   useCategoryTags,
 } from '@/features/categories';
 import { useDebouncedInlineEdit } from '@/hooks/use-debounced-inline-edit';
+import {
+  defaultCategoryViewMode,
+  useCategoryViewMode,
+  type CategoryViewMode,
+} from '@/hooks/use-category-view-mode';
 import { useTreeBulkActions } from '@/hooks/use-tree-bulk-actions';
 import { useTreeSelection } from '@/hooks/use-tree-selection';
 import { useTaskTreeRowActionPreferences } from '@/hooks/use-task-tree-row-action-visibility';
@@ -120,7 +127,14 @@ import type {
   GoalStep,
   TaskCompletionValues,
 } from '@/lib/domain';
-import { createId } from '@/lib/domain';
+import {
+  ALL_CATEGORY_TAB_ID,
+  buildCategoryTabs,
+  createId,
+  filterRowsByCategoryTab,
+  getSelectionCompletionState,
+  resolveActiveCategoryTab,
+} from '@/lib/domain';
 import { useAppContext } from '@/providers';
 import type { VisibleGoalStepRow } from './goal-step-tree';
 import { useGoalGroups } from './use-goal-groups';
@@ -151,11 +165,13 @@ type GoalStepSurfaceRow = VisibleGoalStepRow & {
 };
 
 function createGoalStepDraft({
+  categoryTagId = null,
   goalId,
   parentId,
   scopeId,
   afterGoalStepId = null,
 }: {
+  categoryTagId?: string | null;
   goalId: string;
   parentId: string | null;
   scopeId: AppScopeId;
@@ -174,7 +190,7 @@ function createGoalStepDraft({
     bold: false,
     priority: false,
     collapsed: false,
-    categoryTagId: null,
+    categoryTagId,
     scheduledDate: null,
     sortRank: 'draft',
     createdAt: now,
@@ -1073,6 +1089,7 @@ export function GoalsSurface() {
           />
         ) : (
           <GoalDetailCard
+            categoryTags={stepCategoryTags}
             categoryTagMap={stepCategoryMap}
             goal={selectedGoal}
             goalStepRows={selectedGoalStepRows}
@@ -3444,10 +3461,12 @@ function ArchivedGoalDetailCard({
 }
 
 function GoalDetailCard({
+  categoryTags,
   categoryTagMap,
   goal,
   goalStepRows,
 }: {
+  categoryTags: readonly CategoryTag[];
   categoryTagMap: Map<string, { colorHex: string; name: string }>;
   goal: Goal;
   goalStepRows: VisibleGoalStepRow[];
@@ -3482,9 +3501,49 @@ function GoalDetailCard({
       pendingDeletedGoalStepIds,
     ],
   );
+  const { setViewMode, viewMode } = useCategoryViewMode('goal_step');
+  const [requestedCategoryTabId, setRequestedCategoryTabId] =
+    useState(ALL_CATEGORY_TAB_ID);
+  const categoryTabs = useMemo(
+    () =>
+      buildCategoryTabs({
+        allLabel: dictionary.goals.categoryTabAll,
+        categoryTags,
+        getCategoryTagId: (row: GoalStepSurfaceRow) =>
+          row.goalStep.categoryTagId,
+        rows: displayGoalStepRows,
+        uncategorizedLabel: dictionary.goals.categoryTabUncategorized,
+      }),
+    [
+      categoryTags,
+      dictionary.goals.categoryTabAll,
+      dictionary.goals.categoryTabUncategorized,
+      displayGoalStepRows,
+    ],
+  );
+  const isTabView = viewMode === 'tabs' && categoryTabs.length > 1;
+  const activeCategoryTab = isTabView
+    ? resolveActiveCategoryTab(categoryTabs, requestedCategoryTabId)
+    : null;
+  const visibleGoalStepRows = useMemo(
+    () =>
+      activeCategoryTab
+        ? filterRowsByCategoryTab({
+            activeTabId: activeCategoryTab.id,
+            getCategoryTagId: (row: GoalStepSurfaceRow) =>
+              row.goalStep.categoryTagId,
+            rows: displayGoalStepRows,
+            tabs: categoryTabs,
+          })
+        : displayGoalStepRows,
+    [activeCategoryTab, categoryTabs, displayGoalStepRows],
+  );
   const visibleGoalStepIds = useMemo(
-    () => goalStepRows.map((row) => row.goalStep.id),
-    [goalStepRows],
+    () =>
+      visibleGoalStepRows
+        .filter((row) => !('isDraft' in row.goalStep))
+        .map((row) => row.goalStep.id),
+    [visibleGoalStepRows],
   );
   const {
     clearSelection,
@@ -3608,13 +3667,14 @@ function GoalDetailCard({
     }
 
     const nextDraft = createGoalStepDraft({
+      categoryTagId: activeCategoryTab?.categoryTagId ?? null,
       goalId: goal.id,
       parentId: null,
       scopeId: scope.id,
     });
     setDraftGoalSteps((currentDrafts) => [...currentDrafts, nextDraft]);
     return nextDraft.id;
-  }, [goal.id, scope]);
+  }, [activeCategoryTab, goal.id, scope]);
   const selectedGoalSteps = goalStepRows
     .map((row) => row.goalStep)
     .filter((goalStep) => selectedIds.has(goalStep.id));
@@ -3624,6 +3684,27 @@ function GoalDetailCard({
   const allSelectedBold =
     selectedGoalSteps.length > 0 &&
     selectedGoalSteps.every((goalStep) => goalStep.bold);
+  const selectedCompletionState = getSelectionCompletionState(
+    selectedGoalSteps.map((goalStep) => ({
+      completed: goalStep.completed,
+      ignored: goalStep.ignored,
+    })),
+  );
+  const toggleSelectedGoalStepsCompleted = useCallback(
+    async (nextValues: TaskCompletionValues) => {
+      if (!scope) {
+        return;
+      }
+
+      await setGoalStepsCompleted({
+        scope,
+        goalStepIds: [...selectedIds],
+        completed: nextValues.completed,
+        ignored: nextValues.ignored,
+      });
+    },
+    [scope, selectedIds],
+  );
   const selectedLabel = formatSelectionLabel({
     count: selectedCount,
     plural: dictionary.goalStepEditor.itemsSelected,
@@ -3633,8 +3714,16 @@ function GoalDetailCard({
   return (
     <section
       aria-label={goal.title}
-      className="flex min-h-0 flex-col rounded-[1.25rem] bg-white/[0.035] p-3 shadow-[0_18px_44px_rgba(5,8,13,0.16)] sm:p-4"
+      className="flex min-h-0 flex-col gap-3 rounded-[1.25rem] bg-white/[0.035] p-3 shadow-[0_18px_44px_rgba(5,8,13,0.16)] sm:p-4"
     >
+      {isTabView ? (
+        <TaskTreeCategoryTabs
+          activeTabId={activeCategoryTab?.id ?? null}
+          label={dictionary.goals.categoryTabs}
+          tabs={categoryTabs}
+          onSelect={setRequestedCategoryTabId}
+        />
+      ) : null}
       <TreeListPanel
         addLabel={dictionary.goals.addStep}
         bulkDeleteDialog={{
@@ -3652,7 +3741,7 @@ function GoalDetailCard({
         }}
         clearSelectionLabel={dictionary.goalStepEditor.clearSelection}
         emptyLabel={dictionary.goals.emptyGoal}
-        hasRows={displayGoalStepRows.length > 0}
+        hasRows={visibleGoalStepRows.length > 0}
         isSelectionMode={isSelectionMode}
         onAddRoot={createRootGoalStep}
         onClearSelection={clearSelection}
@@ -3661,6 +3750,7 @@ function GoalDetailCard({
             actionPreferences={actionPreferences}
             allBold={allSelectedBold}
             allPriority={allSelectedPriority}
+            completionState={selectedCompletionState}
             labels={{
               bold: dictionary.goalStepEditor.bulkBold,
               category: dictionary.goalStepEditor.bulkCategory,
@@ -3668,10 +3758,12 @@ function GoalDetailCard({
               delete: dictionary.goalStepEditor.bulkDelete,
               priority: dictionary.goalStepEditor.bulkPriority,
               selected: selectedLabel,
+              mark: dictionary.goalStepEditor.bulkMark,
             }}
             surface="goal_step"
             onAssignCategory={assignBulkCategory}
             onDelete={openBulkDeleteDialog}
+            onToggleChecked={toggleSelectedGoalStepsCompleted}
             onToggleBold={async () => {
               if (!scope) {
                 return;
@@ -3738,6 +3830,27 @@ function GoalDetailCard({
               title: dictionary.goalStepEditor.preferencesTitle,
               visible: dictionary.goalStepEditor.actionVisible,
             }}
+            settings={[
+              {
+                choices: [
+                  {
+                    label: dictionary.goals.viewModeList,
+                    value: 'list',
+                  },
+                  {
+                    label: dictionary.goals.viewModeTabs,
+                    value: 'tabs',
+                  },
+                ],
+                defaultValue: defaultCategoryViewMode,
+                icon: LayoutList,
+                key: 'viewMode',
+                label: dictionary.goals.viewMode,
+                value: viewMode,
+                onChange: (nextViewMode) =>
+                  setViewMode(nextViewMode as CategoryViewMode),
+              },
+            ]}
             showScheduledTime={false}
             showScheduledDate={true}
             value={actionPreferences}
@@ -3748,7 +3861,7 @@ function GoalDetailCard({
           />
         }
       >
-        {displayGoalStepRows.map((row) => (
+        {visibleGoalStepRows.map((row) => (
           <GoalStepRow
             key={row.goalStep.id}
             actionPreferences={actionPreferences}
@@ -3758,21 +3871,10 @@ function GoalDetailCard({
             isSelected={isSelected(row.goalStep.id)}
             isSelectionMode={isSelectionMode}
             row={row}
-            rows={displayGoalStepRows}
+            rows={visibleGoalStepRows}
             onBulkAssignCategory={assignBulkCategory}
             onBulkDelete={openBulkDeleteDialog}
-            onBulkToggleChecked={async (nextValues) => {
-              if (!scope) {
-                return;
-              }
-
-              await setGoalStepsCompleted({
-                scope,
-                goalStepIds: [...selectedIds],
-                completed: nextValues.completed,
-                ignored: nextValues.ignored,
-              });
-            }}
+            onBulkToggleChecked={toggleSelectedGoalStepsCompleted}
             onDeleteGoalStep={deleteSelectedGoalStep}
             onToggleCollapsedGoalStep={toggleCollapsedGoalStep}
             onToggleSelect={toggleSelect}
@@ -3946,6 +4048,14 @@ function GoalStepRow({
         scheduledDate: goalStep.scheduledDate,
         text,
       });
+
+      if (goalStep.categoryTagId) {
+        await assignGoalStepCategory({
+          scope,
+          goalStepId: goalStep.id,
+          categoryTagId: goalStep.categoryTagId,
+        });
+      }
 
       if (goalStep.beforeGoalStepId) {
         await moveGoalStepToTarget({

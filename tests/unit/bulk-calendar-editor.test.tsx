@@ -119,6 +119,7 @@ vi.mock('@/providers', () => ({
         bulkBold: 'Bold',
         bulkCategory: 'Category',
         bulkDelete: 'Delete',
+        bulkMark: 'Mark',
         actionHidden: 'Hidden',
         actionInMenu: 'Three-dot menu',
         actionOnRow: 'On row',
@@ -399,6 +400,24 @@ describe('BulkCalendarEditor', () => {
     expect(
       screen.getByRole('button', { name: '1 task selected' }),
     ).toBeInTheDocument();
+  });
+
+  it('completes the selected draft rows from the collective action', async () => {
+    render(<BulkCalendarEditor open onClose={vi.fn()} />);
+
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: 'Start by adding tasks for this range',
+      }),
+    );
+    fireEvent.click(screen.getByLabelText('Select task'));
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Mark · 1 task selected' }),
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole('checkbox', { checked: true })).toBeVisible();
+    });
   });
 
   it('clears every weekday in clear mode when none are selected', async () => {

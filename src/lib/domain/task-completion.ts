@@ -29,3 +29,19 @@ export function getNextTaskCompletionValues(
       return { completed: false, ignored: false };
   }
 }
+
+export function getSelectionCompletionState(
+  values: readonly TaskCompletionValues[],
+): TaskCompletionState {
+  if (values.length === 0) {
+    return 'unchecked';
+  }
+
+  if (values.every((value) => value.ignored)) {
+    return 'ignored';
+  }
+
+  return values.every((value) => value.completed && !value.ignored)
+    ? 'completed'
+    : 'unchecked';
+}

@@ -55,6 +55,7 @@ export interface TreeEditorDictionary {
   bulkBold: string;
   bulkCategory: string;
   bulkDelete: string;
+  bulkMark: string;
 }
 
 export interface Dictionary {
@@ -265,6 +266,12 @@ export interface Dictionary {
     goalCategories: string;
     groupCategories: string;
     itemCategories: string;
+    viewMode: string;
+    viewModeList: string;
+    viewModeTabs: string;
+    categoryTabs: string;
+    categoryTabAll: string;
+    categoryTabUncategorized: string;
     moveTo: string;
     removeFromGroup: string;
     noGroup: string;

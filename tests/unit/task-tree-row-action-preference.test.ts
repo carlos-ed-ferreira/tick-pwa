@@ -6,8 +6,10 @@ import {
 import {
   ACCOUNT_PREFERENCE_KEYS,
   CHECKLIST_VIEW_MODE_PREFERENCE_KEY,
+  getCategoryViewModePreferenceKey,
   getTaskTreeRowActionsPreferenceKey,
   GOAL_STEP_TREE_ROW_ACTIONS_PREFERENCE_KEY,
+  GOAL_STEP_VIEW_MODE_PREFERENCE_KEY,
   TASK_TREE_ROW_ACTIONS_PREFERENCE_KEY,
 } from '@/lib/supabase/account-preferences';
 
@@ -19,10 +21,17 @@ describe('task tree row action preference keys', () => {
     expect(getTaskTreeRowActionsPreferenceKey('goal_step')).toBe(
       GOAL_STEP_TREE_ROW_ACTIONS_PREFERENCE_KEY,
     );
+    expect(getCategoryViewModePreferenceKey('checklist_item')).toBe(
+      CHECKLIST_VIEW_MODE_PREFERENCE_KEY,
+    );
+    expect(getCategoryViewModePreferenceKey('goal_step')).toBe(
+      GOAL_STEP_VIEW_MODE_PREFERENCE_KEY,
+    );
     expect(ACCOUNT_PREFERENCE_KEYS).toEqual([
       TASK_TREE_ROW_ACTIONS_PREFERENCE_KEY,
       GOAL_STEP_TREE_ROW_ACTIONS_PREFERENCE_KEY,
       CHECKLIST_VIEW_MODE_PREFERENCE_KEY,
+      GOAL_STEP_VIEW_MODE_PREFERENCE_KEY,
     ]);
   });
 

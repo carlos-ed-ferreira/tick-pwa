@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
-  ALL_CHECKLIST_CATEGORY_TAB_ID,
-  UNCATEGORIZED_CHECKLIST_CATEGORY_TAB_ID,
-  buildChecklistCategoryTabs,
-  filterChecklistRowsByCategoryTab,
-  resolveActiveChecklistCategoryTab,
-} from '@/features/checklist/checklist-category-tabs';
-import type { CategoryTag } from '@/lib/domain';
+  ALL_CATEGORY_TAB_ID,
+  UNCATEGORIZED_CATEGORY_TAB_ID,
+  buildCategoryTabs,
+  filterRowsByCategoryTab,
+  resolveActiveCategoryTab,
+  type CategoryTag,
+} from '@/lib/domain';
 
 function createCategoryTag(
   id: string,
@@ -42,22 +42,27 @@ function createRow(
   return { depth, item: { categoryTagId, id } };
 }
 
-const labels = { allLabel: 'All', uncategorizedLabel: 'No category' };
+const tabOptions = {
+  allLabel: 'All',
+  getCategoryTagId: (row: ReturnType<typeof createRow>) =>
+    row.item.categoryTagId,
+  uncategorizedLabel: 'No category',
+};
 
-describe('buildChecklistCategoryTabs', () => {
+describe('buildCategoryTabs', () => {
   it('keeps only the all tab when no root item has a category', () => {
-    const tabs = buildChecklistCategoryTabs({
-      ...labels,
+    const tabs = buildCategoryTabs({
+      ...tabOptions,
       categoryTags: [createCategoryTag('focus')],
       rows: [createRow('a'), createRow('b')],
     });
 
-    expect(tabs.map((tab) => tab.id)).toEqual([ALL_CHECKLIST_CATEGORY_TAB_ID]);
+    expect(tabs.map((tab) => tab.id)).toEqual([ALL_CATEGORY_TAB_ID]);
   });
 
   it('orders the tabs as all, used categories, and uncategorized last', () => {
-    const tabs = buildChecklistCategoryTabs({
-      ...labels,
+    const tabs = buildCategoryTabs({
+      ...tabOptions,
       categoryTags: [
         createCategoryTag('focus', { name: 'FOCUS' }),
         createCategoryTag('health', { name: 'HEALTH' }),
@@ -71,10 +76,10 @@ describe('buildChecklistCategoryTabs', () => {
     });
 
     expect(tabs.map((tab) => tab.id)).toEqual([
-      ALL_CHECKLIST_CATEGORY_TAB_ID,
+      ALL_CATEGORY_TAB_ID,
       'focus',
       'home',
-      UNCATEGORIZED_CHECKLIST_CATEGORY_TAB_ID,
+      UNCATEGORIZED_CATEGORY_TAB_ID,
     ]);
     expect(tabs.map((tab) => tab.name)).toEqual([
       'All',
@@ -86,8 +91,8 @@ describe('buildChecklistCategoryTabs', () => {
   });
 
   it('ignores categories that only appear on child rows', () => {
-    const tabs = buildChecklistCategoryTabs({
-      ...labels,
+    const tabs = buildCategoryTabs({
+      ...tabOptions,
       categoryTags: [createCategoryTag('focus'), createCategoryTag('health')],
       rows: [
         createRow('a', { categoryTagId: 'focus' }),
@@ -95,15 +100,12 @@ describe('buildChecklistCategoryTabs', () => {
       ],
     });
 
-    expect(tabs.map((tab) => tab.id)).toEqual([
-      ALL_CHECKLIST_CATEGORY_TAB_ID,
-      'focus',
-    ]);
+    expect(tabs.map((tab) => tab.id)).toEqual([ALL_CATEGORY_TAB_ID, 'focus']);
   });
 
   it('treats unknown categories as uncategorized root items', () => {
-    const tabs = buildChecklistCategoryTabs({
-      ...labels,
+    const tabs = buildCategoryTabs({
+      ...tabOptions,
       categoryTags: [createCategoryTag('focus')],
       rows: [
         createRow('a', { categoryTagId: 'focus' }),
@@ -112,15 +114,15 @@ describe('buildChecklistCategoryTabs', () => {
     });
 
     expect(tabs.map((tab) => tab.id)).toEqual([
-      ALL_CHECKLIST_CATEGORY_TAB_ID,
+      ALL_CATEGORY_TAB_ID,
       'focus',
-      UNCATEGORIZED_CHECKLIST_CATEGORY_TAB_ID,
+      UNCATEGORIZED_CATEGORY_TAB_ID,
     ]);
   });
 
   it('omits the uncategorized tab when every root item has a category', () => {
-    const tabs = buildChecklistCategoryTabs({
-      ...labels,
+    const tabs = buildCategoryTabs({
+      ...tabOptions,
       categoryTags: [createCategoryTag('focus')],
       rows: [
         createRow('a', { categoryTagId: 'focus' }),
@@ -128,14 +130,11 @@ describe('buildChecklistCategoryTabs', () => {
       ],
     });
 
-    expect(tabs.map((tab) => tab.id)).toEqual([
-      ALL_CHECKLIST_CATEGORY_TAB_ID,
-      'focus',
-    ]);
+    expect(tabs.map((tab) => tab.id)).toEqual([ALL_CATEGORY_TAB_ID, 'focus']);
   });
 });
 
-describe('filterChecklistRowsByCategoryTab', () => {
+describe('filterRowsByCategoryTab', () => {
   const categoryTags = [
     createCategoryTag('focus'),
     createCategoryTag('health'),
@@ -148,12 +147,13 @@ describe('filterChecklistRowsByCategoryTab', () => {
     createRow('c'),
     createRow('c-1', { categoryTagId: 'focus', depth: 1 }),
   ];
-  const tabs = buildChecklistCategoryTabs({ ...labels, categoryTags, rows });
+  const tabs = buildCategoryTabs({ ...tabOptions, categoryTags, rows });
 
   it('returns every row on the all tab', () => {
     expect(
-      filterChecklistRowsByCategoryTab({
-        activeTabId: ALL_CHECKLIST_CATEGORY_TAB_ID,
+      filterRowsByCategoryTab({
+        getCategoryTagId: tabOptions.getCategoryTagId,
+        activeTabId: ALL_CATEGORY_TAB_ID,
         rows,
         tabs,
       }),
@@ -162,7 +162,8 @@ describe('filterChecklistRowsByCategoryTab', () => {
 
   it('keeps the whole subtree of the root items in the active category', () => {
     expect(
-      filterChecklistRowsByCategoryTab({
+      filterRowsByCategoryTab({
+        getCategoryTagId: tabOptions.getCategoryTagId,
         activeTabId: 'focus',
         rows,
         tabs,
@@ -172,8 +173,9 @@ describe('filterChecklistRowsByCategoryTab', () => {
 
   it('groups root items without a known category under the uncategorized tab', () => {
     expect(
-      filterChecklistRowsByCategoryTab({
-        activeTabId: UNCATEGORIZED_CHECKLIST_CATEGORY_TAB_ID,
+      filterRowsByCategoryTab({
+        getCategoryTagId: tabOptions.getCategoryTagId,
+        activeTabId: UNCATEGORIZED_CATEGORY_TAB_ID,
         rows,
         tabs,
       }).map((row) => row.item.id),
@@ -181,24 +183,24 @@ describe('filterChecklistRowsByCategoryTab', () => {
   });
 });
 
-describe('resolveActiveChecklistCategoryTab', () => {
-  const tabs = buildChecklistCategoryTabs({
-    ...labels,
+describe('resolveActiveCategoryTab', () => {
+  const tabs = buildCategoryTabs({
+    ...tabOptions,
     categoryTags: [createCategoryTag('focus')],
     rows: [createRow('a', { categoryTagId: 'focus' }), createRow('b')],
   });
 
   it('resolves the requested tab when it still exists', () => {
-    expect(resolveActiveChecklistCategoryTab(tabs, 'focus')?.id).toBe('focus');
+    expect(resolveActiveCategoryTab(tabs, 'focus')?.id).toBe('focus');
   });
 
   it('falls back to the all tab when the requested tab is gone', () => {
-    expect(resolveActiveChecklistCategoryTab(tabs, 'health')?.id).toBe(
-      ALL_CHECKLIST_CATEGORY_TAB_ID,
+    expect(resolveActiveCategoryTab(tabs, 'health')?.id).toBe(
+      ALL_CATEGORY_TAB_ID,
     );
   });
 
   it('returns null without tabs', () => {
-    expect(resolveActiveChecklistCategoryTab([], 'focus')).toBeNull();
+    expect(resolveActiveCategoryTab([], 'focus')).toBeNull();
   });
 });

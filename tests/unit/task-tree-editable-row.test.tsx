@@ -125,7 +125,9 @@ function renderRow(
     onSaveDate: vi.fn(),
   };
 
-  render(
+  const element = (
+    props: Partial<Parameters<typeof TaskTreeEditableRow>[0]> = {},
+  ) => (
     <TaskTreeEditableRow
       categoryTagId={null}
       categoryTagMap={new Map()}
@@ -147,10 +149,16 @@ function renderRow(
       text="Existing item"
       {...callbacks}
       {...overrides}
-    />,
+      {...props}
+    />
   );
+  const { rerender } = render(element());
 
-  return callbacks;
+  return {
+    ...callbacks,
+    rerender: (props: Partial<Parameters<typeof TaskTreeEditableRow>[0]>) =>
+      rerender(element(props)),
+  };
 }
 
 describe('TaskTreeEditableRow', () => {
@@ -170,6 +178,54 @@ describe('TaskTreeEditableRow', () => {
     fireEvent.click(screen.getByLabelText('Mark as priority'));
     expect(callbacks.onTogglePriority).toHaveBeenCalledOnce();
     expect(screen.getByLabelText('Remove priority')).toBeInTheDocument();
+  });
+
+  it('drops a stale optimistic completion once the item moves past it', async () => {
+    const { onToggleChecked, rerender } = renderRow();
+
+    fireEvent.click(screen.getByRole('checkbox'));
+
+    await waitFor(() => {
+      expect(onToggleChecked).toHaveBeenCalledOnce();
+    });
+    expect(screen.getByRole('checkbox')).toBeChecked();
+
+    rerender({ checked: true });
+
+    expect(screen.getByRole('checkbox')).toBeChecked();
+
+    rerender({ checked: false, ignored: true });
+
+    expect(screen.getByRole('checkbox')).toHaveAttribute(
+      'aria-checked',
+      'mixed',
+    );
+
+    rerender({ checked: false, ignored: false });
+
+    expect(screen.getByRole('checkbox')).not.toBeChecked();
+    expect(screen.getByRole('checkbox')).toHaveAttribute(
+      'aria-checked',
+      'false',
+    );
+  });
+
+  it('drops a stale optimistic priority once the item moves past it', async () => {
+    const { onTogglePriority, rerender } = renderRow();
+
+    fireEvent.click(screen.getByLabelText('More actions'));
+    fireEvent.click(screen.getByLabelText('Mark as priority'));
+
+    await waitFor(() => {
+      expect(onTogglePriority).toHaveBeenCalledOnce();
+    });
+
+    rerender({ priority: true });
+    rerender({ priority: false });
+
+    fireEvent.click(screen.getByLabelText('More actions'));
+
+    expect(screen.getByLabelText('Mark as priority')).toBeInTheDocument();
   });
 
   it('renders ignored tasks with the same faded text and a mixed checkbox', () => {

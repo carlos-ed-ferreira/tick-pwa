@@ -118,6 +118,7 @@ vi.mock('@/providers', () => ({
         bulkBold: 'Bold',
         bulkCategory: 'Category',
         bulkDelete: 'Delete',
+        bulkMark: 'Mark',
         actionHidden: 'Hidden',
         actionInMenu: 'Three-dot menu',
         actionOnRow: 'On row',
@@ -817,6 +818,64 @@ describe('ChecklistSurface delete confirmation', () => {
           ownerId: 'test',
         },
         itemIds: ['item-First task'],
+        checked: false,
+        ignored: true,
+      });
+    });
+  });
+
+  it('bulk completes selected checklist items from the collective action', async () => {
+    useChecklistTreeMock.mockReturnValue([
+      createRow('First task'),
+      createRow('Second task'),
+    ]);
+
+    render(<ChecklistSurface dailyEntryId="entry-1" />);
+
+    const selectionButtons = screen.getAllByLabelText('Select task');
+    fireEvent.click(selectionButtons[0]);
+    fireEvent.click(selectionButtons[1]);
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Mark · 2 tasks selected' }),
+    );
+
+    await waitFor(() => {
+      expect(setChecklistItemsCheckedMock).toHaveBeenCalledWith({
+        scope: {
+          id: 'guest:test',
+          kind: 'guest',
+          ownerId: 'test',
+        },
+        itemIds: ['item-First task', 'item-Second task'],
+        checked: true,
+        ignored: false,
+      });
+    });
+  });
+
+  it('advances the collective completion action from completed to ignored', async () => {
+    useChecklistTreeMock.mockReturnValue([
+      createRow('First task', { checked: true }),
+      createRow('Second task', { checked: true }),
+    ]);
+
+    render(<ChecklistSurface dailyEntryId="entry-1" />);
+
+    const selectionButtons = screen.getAllByLabelText('Select task');
+    fireEvent.click(selectionButtons[0]);
+    fireEvent.click(selectionButtons[1]);
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Mark · 2 tasks selected' }),
+    );
+
+    await waitFor(() => {
+      expect(setChecklistItemsCheckedMock).toHaveBeenCalledWith({
+        scope: {
+          id: 'guest:test',
+          kind: 'guest',
+          ownerId: 'test',
+        },
+        itemIds: ['item-First task', 'item-Second task'],
         checked: false,
         ignored: true,
       });

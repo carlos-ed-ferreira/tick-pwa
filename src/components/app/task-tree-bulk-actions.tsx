@@ -1,8 +1,14 @@
 'use client';
 
 import { Star, Tag, Trash2 } from 'lucide-react';
+import { CheckboxIndicator } from '@/components/ui';
 import { CategoryAssignmentMenu } from '@/features/categories';
-import type { CategoryTagSurface } from '@/lib/domain';
+import {
+  getNextTaskCompletionValues,
+  type CategoryTagSurface,
+  type TaskCompletionState,
+  type TaskCompletionValues,
+} from '@/lib/domain';
 import { TaskTreeClearCategoryIcon } from './task-tree-clear-category-icon';
 import {
   defaultTaskTreeRowActionPreferences,
@@ -15,6 +21,7 @@ interface TaskTreeBulkActionLabels {
   category: string;
   clearCategory: string;
   delete: string;
+  mark: string;
   priority: string;
   selected: string;
 }
@@ -27,21 +34,25 @@ export function TaskTreeBulkActions({
   actionPreferences = defaultTaskTreeRowActionPreferences,
   allBold,
   allPriority,
+  completionState,
   labels,
   surface,
   onAssignCategory,
   onDelete,
   onToggleBold,
+  onToggleChecked,
   onTogglePriority,
 }: {
   actionPreferences?: TaskTreeRowActionPreferences;
   allBold: boolean;
   allPriority: boolean;
+  completionState: TaskCompletionState;
   labels: TaskTreeBulkActionLabels;
   surface: CategoryTagSurface;
   onAssignCategory: (categoryTagId: string | null) => Promise<void> | void;
   onDelete: () => void;
   onToggleBold: () => Promise<void> | void;
+  onToggleChecked: (nextValues: TaskCompletionValues) => Promise<void> | void;
   onTogglePriority: () => Promise<void> | void;
 }) {
   const buttonClassName =
@@ -58,6 +69,27 @@ export function TaskTreeBulkActions({
       >
         {labels.selected}
       </span>
+
+      <button
+        type="button"
+        aria-label={bulkAriaLabel(labels.mark, labels.selected)}
+        className={buttonClassName}
+        onClick={() =>
+          void onToggleChecked(
+            getNextTaskCompletionValues(
+              completionState === 'completed',
+              completionState === 'ignored',
+            ),
+          )
+        }
+      >
+        <CheckboxIndicator
+          checked={completionState === 'completed'}
+          indeterminate={completionState === 'ignored'}
+          size="compact"
+        />
+        <span>{labels.mark}</span>
+      </button>
 
       {isTaskTreeBulkActionVisible(actionPreferences, 'priority') ? (
         <button

@@ -10,8 +10,11 @@ com persistência remota.
 - calendário mensal e tarefas por dia;
 - tarefas e subtarefas hierárquicas;
 - criação e limpeza em lote;
+- seleção múltipla com ações coletivas de conclusão, prioridade, negrito,
+  categoria e exclusão;
 - importação JSON;
 - categorias separadas por superfície;
+- visualização de tarefas e etapas em lista única ou em abas por categoria;
 - grupos de metas, metas e etapas hierárquicas;
 - instalação como PWA e fallback de navegação offline;
 - interface em português do Brasil e inglês;

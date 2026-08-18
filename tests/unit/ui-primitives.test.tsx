@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   Button,
   Checkbox,
+  CheckboxIndicator,
   ConfirmationDialog,
   DashedRing,
   Dialog,
@@ -24,6 +25,39 @@ describe('UI primitives', () => {
     expect(checkbox).toHaveClass('appearance-none');
     expect(checkbox).toHaveClass('focus-visible:outline-accent');
     expect(checkbox).toHaveClass('shadow-none');
+  });
+
+  it('mirrors the checkbox visual treatment in the static indicator', () => {
+    const { container, rerender } = render(<CheckboxIndicator />);
+    const indicator = container.querySelector('.tick-checkbox');
+
+    expect(indicator).not.toBeNull();
+    expect(indicator?.tagName).toBe('SPAN');
+    expect(indicator).toHaveClass('size-5');
+    expect(indicator).toHaveAttribute('aria-hidden', 'true');
+    expect(indicator).not.toHaveAttribute('data-checked');
+    expect(indicator).not.toHaveAttribute('data-ignored');
+
+    rerender(<CheckboxIndicator checked />);
+
+    expect(container.querySelector('.tick-checkbox')).toHaveAttribute(
+      'data-checked',
+      'true',
+    );
+
+    rerender(<CheckboxIndicator checked indeterminate />);
+
+    const ignoredIndicator = container.querySelector('.tick-checkbox');
+
+    expect(ignoredIndicator).toHaveAttribute('data-ignored', 'true');
+    expect(ignoredIndicator).not.toHaveAttribute('data-checked');
+
+    rerender(<CheckboxIndicator size="compact" />);
+
+    const compactIndicator = container.querySelector('.tick-checkbox');
+
+    expect(compactIndicator).toHaveClass('size-4');
+    expect(compactIndicator).not.toHaveClass('size-5');
   });
 
   it('applies structured input text assistance defaults', () => {

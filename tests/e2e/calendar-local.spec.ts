@@ -29,6 +29,7 @@ test('persists a daily task in local mode', async ({ page }) => {
   );
 
   await backButton.click();
+  await page.waitForURL(/\/calendar$/);
   await expect(page.locator('.calendar-day-cell')).toHaveCount(42);
 
   await page.goBack();
