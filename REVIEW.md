@@ -91,8 +91,10 @@ cor do processo. Eles não falham o gate atual.
 
 ## Ratchet em 2026-08-18
 
-- Vitest: 61 arquivos e 440 testes aprovados;
+- Vitest: 61 arquivos e 441 testes aprovados;
 - pgTAP: 74 testes aprovados;
+- inicialização do POC separa abertura local e conexão remota; atraso ou falha
+  de conexão não fecha o SQLite pronto nem impede leitura e escrita locais;
 - RPC transacional estendida a grupos de metas, metas e etapas, com criação
   atômica da hierarquia, ownership derivado do JWT, compare-and-set e rejeição
   determinística de revisão stale;

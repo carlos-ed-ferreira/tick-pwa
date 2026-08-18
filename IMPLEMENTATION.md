@@ -194,6 +194,17 @@ testes. Os E2E locais ficaram pendentes porque o sandbox não permitiu iniciar o
 servidor Playwright. Depois do deploy, o aparelho físico inicializou o SQLite,
 carregou o snapshot e permitiu usar os controles normalmente.
 
+**Regressão de inicialização em 18 de agosto de 2026:** a página voltou a
+permanecer em `Preparando o Tick` e terminava em erro quando a conexão remota
+não concluía em 10 segundos, mesmo com o SQLite disponível. O lifecycle agora
+aplica o timeout somente a `init()`, libera leitura e escrita depois da abertura
+local e inicia `connect()` em segundo plano. A conexão lenta ou indisponível
+passa a aparecer no estado de sincronização sem fechar o banco nem descartar a
+fila. O RED reproduziu a conexão pendente derrubando a prova; o GREEN passou
+com 24 testes direcionados. `make check` aprovou 61 arquivos e 441 testes,
+tipagem, lint, formato e build; `make test-e2e` aprovou 22 cenários desktop e
+mobile.
+
 **Evidência de isolamento RLS em 17 de agosto de 2026:** um teste pgTAP
 comportamental autentica duas contas permitidas e uma conta fora da allowlist.
 Ele comprova leitura e escrita próprias, bloqueio de leitura, alteração,
