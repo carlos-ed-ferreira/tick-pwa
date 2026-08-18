@@ -74,7 +74,10 @@ cor do processo. Eles não falham o gate atual.
 
 ## Ratchet em 2026-08-17
 
-- Vitest: 60 arquivos e 435 testes aprovados;
+- Vitest: 61 arquivos e 439 testes aprovados;
+- pgTAP: 56 testes aprovados, incluindo negativas comportamentais de leitura e
+  escrita entre contas nas tabelas isoladas do PowerSync e o primeiro contrato
+  transacional de escrita do calendário;
 - allowlist distingue acesso negado de indisponibilidade remota;
 - fallback offline aceita somente grant positivo com até 24 horas, mesmo UUID
   e mesmo e-mail; grant expirado ou divergente não autentica;
@@ -98,7 +101,7 @@ cor do processo. Eles não falham o gate atual.
 | E2E local          | 100% aprovados em desktop e mobile                                                  | fluxos Playwright existentes        | manual         | manter baseline de 22                     | sim quando aplicável        |
 | E2E autenticado    | 100% aprovados em desktop e mobile                                                  | fluxo de latência simulado          | manual         | manter baseline de 2                      | sim para auth/sync          |
 | Schema lint        | 0 erros                                                                             | Postgres local                      | manual         | sem regressão                             | sim para banco              |
-| pgTAP              | 100% aprovados                                                                      | `supabase/tests`                    | manual         | manter ao menos 31; remoção exige revisão | sim para banco              |
+| pgTAP              | 100% aprovados                                                                      | `supabase/tests`                    | manual         | manter ao menos 56; remoção exige revisão | sim para banco              |
 | Banco limpo        | reset, migrations e seed com exit 0                                                 | todas as migrations                 | manual         | compatibilidade obrigatória               | sim para banco              |
 | Dependency audit   | 0 críticas e 0 altas em `make audit-prod`                                           | dependências de produção            | enforced no CI | baseline reduzido a zero                  | sim para dependência/deploy |
 | Line coverage      | baseline inicial sem queda; objetivo global 80%; diff 90%                           | código não gerado                   | planned        | ratchet global                            | sim após automação          |

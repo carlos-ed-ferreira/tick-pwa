@@ -28,8 +28,9 @@ A flag permanece desligada por padrão. O fluxo funcional do produto ainda usa
 Dexie e o conector atual do Supabase; portanto esta fundação não deve ser
 descrita como sincronização durável concluída nem liberada para usuários. A
 superfície isolada já lê e escreve as entidades da prova no SQLite do PowerSync.
-A próxima etapa é publicar o código sem ativá-lo, liberar uma única conta
-interna e executar os ensaios reais offline e multidispositivo.
+A ativação de uma conta interna já comprovou reload offline, reconexão,
+convergência entre dois contextos web e funcionamento em Android. A próxima
+etapa é concluir os ensaios restantes e registrar a decisão técnica da prova.
 
 ## Ambientes usados nesta prova
 
@@ -67,7 +68,12 @@ preparada em 14 de agosto e migration aplicada em 17 de agosto de 2026:
 - [x] migration `20260814000000_isolate_powersync_poc.sql` aplicada em produção;
 - [x] Sync Streams `powersync_poc_*` implantados no PowerSync;
 - [ ] telas funcionais reais migradas para o SQLite do PowerSync;
-- [x] ativação controlada e ensaios offline executados.
+- [x] ativação controlada e ensaios offline executados;
+- [x] isolamento RLS comportamental entre contas coberto no Supabase local;
+- [x] isolamento entre duas contas validado na instância PowerSync Cloud;
+- [ ] fechamento completo com operação offline pendente validado;
+- [ ] Safari/iOS e fallback de armazenamento validados;
+- [ ] conflitos e métricas de volume, latência, fila e quota registrados.
 
 ## Configuração externa realizada
 
@@ -329,6 +335,13 @@ O build informa que os dois artefatos WASM do SQLite excedem o limite de
 precache do service worker. Isso não bloqueia o POC carregado online, mas o
 reload inteiramente offline e o fallback de armazenamento continuam como
 critérios obrigatórios do ensaio real.
+
+Em 17 de agosto de 2026, `make supabase-test-db` passou com 39 testes. A suíte
+inclui negativas comportamentais com duas contas permitidas e uma conta fora
+da allowlist, cobrindo leitura, inserção, alteração e exclusão nas tabelas
+`powersync_poc_*`. Depois dessa prova local, duas contas internas foram
+validadas na instância PowerSync Cloud em contextos separados. Nenhuma delas
+viu dados da outra nas telas funcionais ou em `/~powersync-poc`.
 
 ### Correção v2 em 14 de agosto de 2026
 
