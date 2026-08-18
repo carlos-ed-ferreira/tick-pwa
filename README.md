@@ -102,8 +102,10 @@ exclusivas, com schema, autenticação, upload e Sync Streams próprios. Cada
 transação SQLite é enviada por uma única RPC remota com recibo idempotente e
 rollback integral; entre operações válidas, a última transação confirmada no
 servidor vence. O adapter web opera em modo single-tab sem Web Worker para
-ampliar a compatibilidade em navegadores mobile, com timeout recuperável de
-inicialização. A rota interna `/~powersync-poc` exercita criação, edição,
+ampliar a compatibilidade em navegadores mobile. O timeout protege somente a
+abertura do SQLite; a conexão remota começa em segundo plano e não bloqueia nem
+fecha o banco local quando está lenta ou indisponível. A rota interna
+`/~powersync-poc` exercita criação, edição,
 conclusão, reordenação, exclusão e visibilidade da fila sem ler ou escrever as
 tabelas funcionais. Ela permanece bloqueada sem flag e UUID autorizado e não
 substitui a persistência funcional Dexie. O preparo externo e os limites estão em

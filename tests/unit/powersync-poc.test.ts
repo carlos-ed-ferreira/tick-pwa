@@ -152,10 +152,12 @@ describe('PowerSync proof of concept', () => {
     const firstDatabase = {
       close: vi.fn().mockResolvedValue(undefined),
       connect: vi.fn().mockResolvedValue(undefined),
+      initialize: vi.fn().mockResolvedValue(undefined),
     };
     const secondDatabase = {
       close: vi.fn().mockResolvedValue(undefined),
       connect: vi.fn().mockResolvedValue(undefined),
+      initialize: vi.fn().mockResolvedValue(undefined),
     };
     const connector = {
       fetchCredentials: vi.fn(),
@@ -181,14 +183,38 @@ describe('PowerSync proof of concept', () => {
     expect(secondDatabase.close).toHaveBeenCalledOnce();
   });
 
-  it('closes a database when mobile initialization does not complete', async () => {
+  it('keeps the local database active while the remote connection is pending', async () => {
     const close = vi.fn().mockResolvedValue(undefined);
+    const initialize = vi.fn().mockResolvedValue(undefined);
     const lifecycle = new PowerSyncPocLifecycle(
       () => ({
         connector: { fetchCredentials: vi.fn(), uploadData: vi.fn() },
         database: {
           close,
           connect: vi.fn(() => new Promise<void>(() => {})),
+          initialize,
+        },
+      }),
+      1,
+    );
+
+    await expect(
+      lifecycle.start(createUserScope('account-user')),
+    ).resolves.toBeUndefined();
+    expect(initialize).toHaveBeenCalledOnce();
+    expect(close).not.toHaveBeenCalled();
+  });
+
+  it('closes a database when local SQLite initialization does not complete', async () => {
+    const close = vi.fn().mockResolvedValue(undefined);
+    const connect = vi.fn().mockResolvedValue(undefined);
+    const lifecycle = new PowerSyncPocLifecycle(
+      () => ({
+        connector: { fetchCredentials: vi.fn(), uploadData: vi.fn() },
+        database: {
+          close,
+          connect,
+          initialize: vi.fn(() => new Promise<void>(() => {})),
         },
       }),
       1,
@@ -197,6 +223,7 @@ describe('PowerSync proof of concept', () => {
     await expect(
       lifecycle.start(createUserScope('account-user')),
     ).rejects.toThrow('PowerSync initialization timed out.');
+    expect(connect).not.toHaveBeenCalled();
     expect(close).toHaveBeenCalledOnce();
   });
 

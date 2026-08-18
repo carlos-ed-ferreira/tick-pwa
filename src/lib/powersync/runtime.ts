@@ -116,6 +116,7 @@ function createPowerSyncPocDatabase(scope: AppScope) {
       },
       connect: (connector: PowerSyncBackendConnector) =>
         powerSyncDatabase.connect(connector),
+      initialize: () => powerSyncDatabase.init(),
     },
   };
 }

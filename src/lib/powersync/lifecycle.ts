@@ -4,6 +4,7 @@ import type { AppScope } from '@/lib/domain';
 export interface PowerSyncPocDatabase {
   close: () => Promise<void>;
   connect: (connector: PowerSyncBackendConnector) => Promise<void>;
+  initialize: () => Promise<void>;
 }
 
 export type PowerSyncPocDatabaseFactory = (scope: AppScope) => {
@@ -19,7 +20,7 @@ export class PowerSyncPocLifecycle {
 
   constructor(
     private readonly createDatabase: PowerSyncPocDatabaseFactory,
-    private readonly connectionTimeoutMs = 10_000,
+    private readonly initializationTimeoutMs = 10_000,
   ) {}
 
   async start(scope: AppScope): Promise<void> {
@@ -39,12 +40,12 @@ export class PowerSyncPocLifecycle {
     const timeout = new Promise<never>((_resolve, reject) => {
       timeoutId = setTimeout(
         () => reject(new Error('PowerSync initialization timed out.')),
-        this.connectionTimeoutMs,
+        this.initializationTimeoutMs,
       );
     });
 
     try {
-      await Promise.race([database.connect(connector), timeout]);
+      await Promise.race([database.initialize(), timeout]);
     } catch (error) {
       if (this.active?.database === database) {
         this.active = null;
@@ -56,6 +57,10 @@ export class PowerSyncPocLifecycle {
         clearTimeout(timeoutId);
       }
     }
+
+    void database.connect(connector).catch((error) => {
+      console.error('Failed to connect PowerSync proof.', error);
+    });
   }
 
   async stop(): Promise<void> {

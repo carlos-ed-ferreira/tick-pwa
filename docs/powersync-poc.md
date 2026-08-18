@@ -282,12 +282,21 @@ O ensaio entre o computador e uma aba anônima convergiu nos dois sentidos. No
 navegador mobile físico, o formulário foi renderizado, mas o SQLite permaneceu
 em `Preparando o Tick`, sem snapshot e com a ação principal desabilitada. A
 correção mantém o mesmo arquivo v2, usa o adapter single-tab sem Web Worker,
-limita a inicialização a 10 segundos e mantém escrita desabilitada até o banco
+limita a abertura local a 10 segundos e mantém escrita desabilitada até o banco
 estar pronto. O teste direcionado passou com 23 cenários. Depois do deploy, o
 ensaio no aparelho físico foi aprovado: o SQLite inicializou, categorias e
 tarefas foram carregadas e os controles responderam normalmente. `make check`
 aprovou 60 arquivos e 435 testes, lint, tipagem, formato e build. Os E2E locais
 não puderam abrir o servidor Playwright no sandbox desta execução.
+
+Em 18 de agosto, uma conexão remota lenta revelou que o mesmo timeout ainda
+envolvia `connect()` e fechava um SQLite já pronto. O lifecycle passou a aguardar
+somente `init()` antes de liberar a superfície e a iniciar a sincronização em
+segundo plano. Assim, atraso, indisponibilidade ou retry remoto permanecem no
+estado de conexão e na fila, sem transformar a persistência local disponível em
+erro total. O RED reproduziu a regressão e o GREEN passou com 24 testes
+direcionados. `make check` aprovou 61 arquivos e 441 testes, tipagem, lint,
+formato e build; `make test-e2e` aprovou 22 cenários desktop e mobile.
 
 ## Implementação isolada concluída
 
