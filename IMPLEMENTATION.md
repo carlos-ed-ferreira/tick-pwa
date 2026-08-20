@@ -24,10 +24,10 @@ estado de conformidade.
 | ID         | Prioridade | Domínio      | Lacuna                                                          |
 | ---------- | ---------- | ------------ | --------------------------------------------------------------- |
 | DATA-01    | P0         | local-first  | snapshot remoto sem paginação pode apagar cache válido          |
-| SYNC-01    | P0         | local-first  | fila autenticada volátil, sem retry durável ou idempotência     |
+| SYNC-01    | P0         | local-first  | outbox controlada sem backoff, conflito ou rollout amplo        |
 | SEC-01     | P0         | dependências | 5 vulnerabilidades altas em dependências de produção            |
 | CICD-01    | P0         | CI/CD        | deploy Vercel ainda não está coordenado ao SHA migrado          |
-| API-01     | P1         | API/banco    | escrita direta, granular e sem controle efetivo de revisão      |
+| API-01     | P1         | API/banco    | consumidor em rollout; faltam conflito, retenção e benchmark    |
 | AUTH-01    | P1         | autenticação | allowlist de protótipo, sem ciclo de vida público de conta      |
 | ACCESS-01  | P1         | guest/trial  | guest não é limitado e trial/entitlement não existem            |
 | BILLING-01 | P1         | assinatura   | pagamentos, webhooks e reconciliação inexistentes               |
@@ -83,30 +83,31 @@ ensaio revelou escrita remota nas tabelas funcionais; a correção com tabelas
 `powersync_poc_*` e SQLite `v2` foi preparada em 14 de agosto de 2026. Migration,
 novos Sync Streams, reativação controlada, reload offline, convergência entre
 dois contextos web e ensaio Android foram concluídos em 17 de agosto de 2026.
-Migração das telas reais, fechamento completo do navegador com operação
-pendente, Safari/iOS, fallback de armazenamento, conflito simultâneo e métricas
-da prova ainda estão pendentes.
+Em 20 de agosto, as seis entidades funcionais ganharam uma outbox Dexie durável
+e um consumidor controlado da RPC transacional. Rollout amplo, Safari/iOS,
+fallback de armazenamento, backoff, conflito simultâneo, retenção de recibos e
+métricas ainda estão pendentes.
 
 **Problema/lacuna — `P0`, arquitetura/código/serviço externo:** operações da
 conta podem desaparecer ao fechar ou recarregar a aba.
 
-**Estado atual:** `src/lib/db/account-persistence.ts` usa `Map` em memória.
-Outbox e cursores Dexie antigos foram removidos na versão 7. Não há backoff,
-operação idempotente, limite de fila, replay após reload ou contrato formal de
-conflito. O refresh inicial e os eventos concorrentes são deduplicados por
-conta; foco e retorno da rede têm debounce e validade de 60 segundos. As seis
-tabelas funcionais alimentam um estado agregado no cabeçalho. Escritas em voo
-são marcadas como `syncing`, falhas irrecuperáveis como `failed`, e a ação
-manual reenvia apenas a mesma versão local falha, com o mesmo ID e escopo.
+**Estado atual:** contas explicitamente liberadas gravam a entidade funcional e
+o lote remoto na mesma transação Dexie. A outbox v16 mantém `operation_id`,
+tentativas, ordem e payload após reload, divide lotes acima de 100 mutações e
+retoma operações interrompidas ao abrir a conta. Retry reapresenta o mesmo lote
+idempotente; o sucesso atualiza a revisão e rebasa a próxima alteração da mesma
+entidade. Guest nunca registra nem envia operação. Contas fora da flag continuam
+temporariamente na fila legada em memória, sem dual-write. Ainda não há backoff,
+limite global da fila nem resolução automática de revisão stale.
 
 **Estado desejado:** banco local sincronizável com fila durável, pull
 incremental, retry com backoff, idempotência, conflitos determinísticos, estado
 visível e convergência multidispositivo.
 
-**Mudanças necessárias:** prova de conceito PowerSync no plano gratuito;
-schema local autenticado; conector de upload; sync rules por usuário; feature
-flag e rollout gradual. Criar outbox transitória própria apenas se conta
-pública precisar sair antes da migração.
+**Mudanças necessárias:** concluir conflito e métricas da prova PowerSync;
+validar a outbox funcional em produção para uma conta interna; implementar
+backoff e limite global; definir conflito stale; ampliar o rollout gradualmente
+ou substituí-lo pela persistência PowerSync aprovada.
 
 **Dependências:** DATA-01 como proteção transitória, API-01, projeto PowerSync,
 JWT Supabase e decisão de navegadores suportados.
@@ -231,6 +232,19 @@ PostgreSQL; o teste sequencial preserva campos não alterados. Concorrência rea
 simultânea e métricas continuam pendentes. O RED comprovou chamadas granulares
 e ausência da RPC; o GREEN passou com 23 testes PowerSync e 74 testes pgTAP.
 
+**Outbox funcional em 20 de agosto de 2026:** o RED reproduziu a ausência da
+tabela v16 e as múltiplas escritas REST de uma ação funcional. O GREEN cobre
+registro local atômico, uma RPC para tarefa e resumo diário, replay após reload
+com o mesmo UUID, resposta perdida, ordenação, falha visível, retry manual,
+rebase de edições rápidas, divisão 100+1 e as seis entidades. O caminho guest
+permanece sem rede. A ativação é dupla, por flag e UUID, e o rollback preserva a
+fila para não apagar operações. O procedimento está em
+`docs/account-operation-rollout.md`. O gate direcionado passou com 25 testes;
+`make check` aprovou 62 arquivos e 467 testes, além de tipagem, lint, formato e
+build. Os 74 testes pgTAP, lint e diff declarativo do banco passaram; E2E
+aprovou 22 cenários locais e 2 autenticados em desktop e mobile; a auditoria de
+produção encontrou 0 vulnerabilidades.
+
 ## SEC-01 — Vulnerabilidades de dependências
 
 **Status:** concluído em 11 de agosto de 2026 para dependências de produção.
@@ -307,28 +321,27 @@ obrigatórios e ensaio documentado de falha/rollback.
 ## API-01 — Escrita transacional, idempotente e versionada
 
 **Status:** em andamento; contrato vertical do calendário implementado em 17 de
-agosto de 2026 e estendido às metas em 18 de agosto, ainda sem consumidor
-funcional.
+agosto de 2026, estendido às metas em 18 de agosto e ligado às seis entidades
+funcionais atrás de rollout controlado em 20 de agosto.
 
 **Problema/lacuna — `P1`, arquitetura/API/banco:** o navegador executa upserts
 inteiros por entidade e operações em massa ampliam o número de requisições.
 
-**Estado atual:** `src/lib/supabase/account-data.ts` ignora `baseRevision` na
-escrita. `changedFields` não controla update remoto. A revisão sobe por trigger,
-mas não é usada para compare-and-set. Resumos diários e hierarquias podem gerar
-várias gravações independentes. A RPC `apply_account_operation_batch` já aceita
+**Estado atual:** o caminho legado ainda ignora `baseRevision` e faz upserts
+granulares. Para contas autorizadas, a RPC `apply_account_operation_batch` aceita
 até 100 mutações de categoria, dia, tarefa, grupo de metas, meta e etapa, deriva
 ownership do JWT, registra um recibo por conta e `operation_id`, reapresenta o
 mesmo resultado em retry, aplica o lote em uma transação e rejeita revisão
-stale. O cliente TypeScript está implementado, mas os comandos funcionais
-continuam no caminho antigo para não introduzir dual-write antes do rollout.
+stale. Os comandos funcionais registram o lote durável na mesma transação local
+e usam exclusivamente a RPC para a conta liberada. O caminho legado permanece
+como rollback para as demais contas; não há dual-write.
 
 **Estado desejado:** API de domínio em lote, autenticada, transacional,
 idempotente e com política explícita de conflito.
 
-**Mudanças necessárias:** Edge Function ou RPC; `operation_id`; versão base;
-JWT como identidade; validação de payload/ownership; transação; resultado
-repetível; horário/revisão do servidor; lotes para árvores e agregados.
+**Mudanças necessárias:** política de retenção dos recibos, tratamento de
+conflito stale, concorrência real, métricas e benchmark antes de ampliar o
+rollout e remover os upserts legados.
 
 **Dependências:** SYNC-01, schema aditivo e definição de conflitos por entidade.
 
@@ -349,10 +362,12 @@ referência entre contas, allowlist e limite de 100 mutações. Testes unitário
 cobrem guest sem rede, serialização para uma única RPC, limite local e
 preservação do erro estruturado. O lote de metas cobre criação atômica da
 hierarquia, ownership e compare-and-set com rejeição stale. Permanecem a
-integração dos comandos, concorrência real, política de retenção dos recibos e
-benchmark. O gate atual passou com 61 arquivos e 440 testes Vitest; o banco
-passou com 60 testes pgTAP, lint sem erros, reset limpo e schema declarativo sem
-divergência.
+concorrência real, política de retenção dos recibos e benchmark. Em 20 de
+agosto, a outbox funcional integrou todos os comandos atrás de flag e allowlist,
+com ação composta em uma RPC, replay idempotente e nenhuma chamada remota no
+guest. O banco havia passado com 74 testes pgTAP, lint sem erros, reset limpo e
+schema declarativo sem divergência. O gate funcional de 20 de agosto aprovou os
+mesmos 74 testes de banco, 467 testes Vitest e os E2E desktop/mobile.
 
 ## AUTH-01 — Ciclo de vida público de conta
 
@@ -744,8 +759,8 @@ Concluído manualmente em 11 de agosto de 2026 para a alfa controlada:
 
 Continuam pendentes ou intencionalmente adiados:
 
-- secrets de migrations no ambiente GitHub `production`, bloqueados até o novo
-  workflow ser mesclado e validado no GitHub;
+- ativação e ensaio da outbox funcional para uma única conta interna, conforme
+  `docs/account-operation-rollout.md`;
 - SMTP, CAPTCHA e revisão de quotas do Supabase antes do cadastro público;
 - ordem coordenada de migrations e deploy na Vercel, coberta por `CICD-01`;
 - fechamento completo do navegador com operação pendente, Safari/iOS, fallback

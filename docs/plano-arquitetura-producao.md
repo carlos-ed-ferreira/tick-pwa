@@ -169,7 +169,8 @@ base para comparar a sincronização incremental.
 
 ### 0.3 Tornar falhas de sincronização visíveis
 
-**Concluído em 11 de agosto de 2026 para a fila transitória atual.** O cabeçalho
+**Concluído em 11 de agosto de 2026 para a fila transitória inicial e ampliado
+em 20 de agosto para a outbox funcional controlada.** O cabeçalho
 da conta autenticada observa as seis tabelas funcionais no Dexie e mostra
 estados claros:
 
@@ -185,25 +186,23 @@ falhas ainda atuais, preserva o mesmo identificador e nunca atravessa o escopo
 da conta. Estados e ações foram adicionados em pt-BR e inglês com anúncio
 acessível.
 
-Esta entrega torna a falha visível e recuperável na aba atual, mas não muda a
-decisão da seção 0.4: a fila continua em memória, sem backoff, idempotency key
-formal ou replay garantido depois de fechar/recarregar. Não é uma substituição
-para a prova de conceito do PowerSync.
+Para contas incluídas no rollout, o estado agora vem da outbox Dexie durável e
+o retry preserva o `operation_id`. Contas fora da allowlist continuam na fila
+legada em memória. A entrega não substitui a prova PowerSync e ainda não inclui
+backoff, limite global ou resolução automática de conflito.
 
-### 0.4 Decidir o tratamento transitório da fila
+### 0.4 Tratamento transitório da fila
 
-A fila atual existe apenas em memória e é perdida ao recarregar ou fechar a
-aba. Não será criada uma sincronização proprietária completa se o PowerSync for
-aprovado na prova de conceito.
+**Primeiro incremento concluído em 20 de agosto de 2026.** Uma outbox Dexie v16
+persiste identificador idempotente, tentativas, estado e lotes das seis entidades
+funcionais. Entidade e operação são registradas na mesma transação local; o
+replay após reload usa a RPC transacional e respeita a ordem da conta.
 
-Até a migração:
-
-- contas públicas não devem depender da fila volátil;
-- se o modo autenticado precisar ser liberado antes do PowerSync, a fila deve
-  ser persistida no banco local com identificador idempotente, tentativas e
-  estado;
-- se o acesso continuar restrito à alfa privada, é preferível limitar o uso e
-  concentrar o esforço na prova de conceito.
+A outbox permanece desligada por padrão e autorizada por UUID. Ela reduz o risco
+da alfa antes da migração PowerSync, sem se transformar em uma sincronização
+proprietária completa. Ainda faltam backoff, limite global, conflito stale,
+métricas e validação real do rollout. O procedimento está em
+[account-operation-rollout.md](account-operation-rollout.md).
 
 ## Fase 1 — prova de conceito do PowerSync no plano gratuito
 
@@ -289,12 +288,13 @@ para representar uma única ação do usuário.
 
 Em 17 de agosto de 2026, foi entregue o primeiro incremento aditivo dessa fase
 para calendário. Em 18 de agosto, o mesmo contrato passou a cobrir grupos de
-metas, metas e etapas. A RPC PostgreSQL `apply_account_operation_batch` limita o
-lote a 100 mutações, deriva ownership do JWT, registra recibo idempotente, usa
-compare-and-set por revisão e faz rollback integral. O cliente TypeScript existe
-sem estar ligado aos comandos funcionais, preservando o fluxo atual até o
-rollout sem dual-write. Retenção dos recibos, concorrência real, benchmark e
-integração com a persistência ainda faltam.
+metas, metas e etapas. Em 20 de agosto, o cliente foi ligado às seis entidades
+funcionais por uma outbox durável atrás de flag e allowlist. A RPC PostgreSQL
+`apply_account_operation_batch` limita o lote a 100 mutações, deriva ownership
+do JWT, registra recibo idempotente, usa compare-and-set por revisão e faz
+rollback integral. A conta liberada usa somente a RPC e as demais conservam o
+caminho legado, sem dual-write. Retenção dos recibos, conflito simultâneo,
+concorrência real e benchmark ainda faltam.
 
 ## Fase 3 — migrar o modo autenticado
 
@@ -440,7 +440,7 @@ migração estática não estiver concluída quando o uso comercial começar.
 - [x] Exibir estado e falhas de sincronização.
 - [ ] Executar a prova de conceito do PowerSync no plano gratuito.
 - [ ] Registrar a decisão técnica da prova de conceito.
-- [ ] Implementar operações idempotentes e transacionais em lote.
+- [x] Implementar operações idempotentes e transacionais em lote.
 - [ ] Migrar gradualmente a persistência do modo autenticado.
 - [ ] Validar offline, concorrência, isolamento e restauração.
 - [ ] Migrar a PWA para frontend estático na Cloudflare.

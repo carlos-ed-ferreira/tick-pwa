@@ -1,13 +1,17 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   isLocalhostHostname,
   isPowerSyncPocUserAllowed,
   shouldForceLocalOnlyMode,
+  shouldUseAccountOperationBatchesForUser,
   shouldUsePowerSyncPocOnHostname,
   shouldUseCloudSyncOnHostname,
 } from '@/lib/environment';
 
 describe('environment helpers', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
   it('recognizes local hostnames', () => {
     expect(isLocalhostHostname('localhost')).toBe(true);
     expect(isLocalhostHostname('127.0.0.1')).toBe(true);
@@ -161,5 +165,19 @@ describe('environment helpers', () => {
     ).toBe(false);
     expect(isPowerSyncPocUserAllowed('allowed-user', '')).toBe(false);
     expect(isPowerSyncPocUserAllowed(null, 'allowed-user')).toBe(false);
+  });
+
+  it('enables account operation batches only for an explicitly listed user', () => {
+    vi.stubEnv('NEXT_PUBLIC_TICK_ENABLE_ACCOUNT_BATCHES', '1');
+    vi.stubEnv(
+      'NEXT_PUBLIC_TICK_ACCOUNT_BATCH_USER_IDS',
+      'first-user, allowed-user',
+    );
+
+    expect(shouldUseAccountOperationBatchesForUser('allowed-user')).toBe(true);
+    expect(shouldUseAccountOperationBatchesForUser('another-user')).toBe(false);
+
+    vi.stubEnv('NEXT_PUBLIC_TICK_ENABLE_ACCOUNT_BATCHES', '');
+    expect(shouldUseAccountOperationBatchesForUser('allowed-user')).toBe(false);
   });
 });

@@ -25,6 +25,7 @@ import {
   seedDefaultCategoryTags,
   setLocalPreference,
 } from '@/lib/db';
+import { resumeAccountPersistence } from '@/lib/db/account-persistence';
 import {
   DEFAULT_LOCALE,
   detectInitialLocale,
@@ -411,6 +412,16 @@ export function AppProvider({
       data.subscription.unsubscribe();
     };
   }, [activateAuthenticatedMode]);
+
+  useEffect(() => {
+    if (authMode !== 'authenticated' || scope?.kind !== 'user') {
+      return;
+    }
+
+    void resumeAccountPersistence(scope).catch((error) => {
+      console.error('Failed to resume Tick account persistence.', error);
+    });
+  }, [authMode, scope]);
 
   useEffect(() => {
     if (

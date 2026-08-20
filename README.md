@@ -24,9 +24,10 @@ com persistência remota.
 
 O repositório contém uma única aplicação web Next.js. Não há BFF, API Route,
 worker de aplicação, fila externa ou microsserviço. O navegador acessa o
-Supabase por `@supabase/supabase-js`. Uma RPC PostgreSQL aditiva implementa o
-primeiro contrato transacional e idempotente para lotes de calendário e metas,
-mas ainda não está ligada aos comandos funcionais nem substitui o fluxo atual.
+Supabase por `@supabase/supabase-js`. Uma RPC PostgreSQL implementa o contrato
+transacional e idempotente para lotes funcionais de calendário, categorias e
+metas. O consumidor funcional usa uma outbox Dexie durável, mas permanece
+desligado por padrão e restrito por uma allowlist de UUIDs durante o rollout.
 
 As páginas usam App Router. O layout lê cookies e cabeçalhos para escolher o
 idioma inicial, por isso as rotas principais são renderizadas dinamicamente no
@@ -74,30 +75,30 @@ transações Dexie. Nenhuma entidade do usuário é enviada ao Supabase.
 No modo autenticado, o app baixa snapshots das tabelas da conta para um cache
 Dexie. Os snapshots são paginados em blocos de 1.000 linhas, ordenados por
 revisão e identificador, e só reconciliam exclusões depois que todas as páginas
-terminam com sucesso. As alterações são confirmadas primeiro no cache local e
-depois enfileiradas em memória, por escopo, para `upsert` direto no Supabase. Em
-falha, o app marca a versão local como falha ou tenta restaurar o valor remoto.
-O cabeçalho da conta mostra os estados salvo, aguardando envio, sincronizando e
-falha; entidades falhas podem ser reenviadas manualmente com o mesmo ID local.
-Essa fila e a ação de retry não oferecem replay automático nem sobrevivem como
-operação durável ao fechamento ou recarregamento da página.
+terminam com sucesso. No rollout controlado, a alteração funcional e seu lote
+remoto são gravados atomicamente no IndexedDB. A outbox preserva o mesmo
+`operation_id` entre reloads, mantém a ordem, agrupa até 100 mutações e envia
+uma RPC transacional; falhas continuam visíveis e podem ser reenviadas. Contas
+fora da allowlist permanecem no caminho legado de `upsert` direto e fila em
+memória. Não existe dual-write entre os dois caminhos.
 
 Refreshes de uma mesma conta são deduplicados. Foco e reconexão usam debounce
 de 500 ms e só atualizam dados com pelo menos 60 segundos; refresh manual ignora
 essa validade. A duração, páginas, linhas e motivo ficam disponíveis no
 resultado estruturado do refresh, ainda sem envio para observabilidade externa.
 
-O estado atual ainda tem limitações conhecidas de retry durável, idempotência,
-conflitos e observabilidade externa. Elas estão registradas no
-[IMPLEMENTATION.md](IMPLEMENTATION.md); não devem ser confundidas com garantias
-já implementadas.
+O estado atual ainda tem limitações conhecidas de backoff automático, conflito
+entre dispositivos, retenção de recibos e observabilidade externa. Elas estão
+registradas no [IMPLEMENTATION.md](IMPLEMENTATION.md); não devem ser confundidas
+com garantias já implementadas.
 
 O backend contém `apply_account_operation_batch` e recibos por conta e
 `operation_id`. O contrato aceita até 100 mutações de categoria, dia, tarefa,
 grupo de metas, meta e etapa, deriva ownership do JWT, aplica compare-and-set
-por revisão e confirma o lote inteiro em uma transação. Ele permanece aditivo e
-sem consumidor funcional até o rollout da nova persistência, evitando
-dual-write com o caminho atual.
+por revisão e confirma o lote inteiro em uma transação. O consumidor funcional
+é habilitado somente para contas internas explicitamente autorizadas. O guia de
+ativação e rollback está em
+[docs/account-operation-rollout.md](docs/account-operation-rollout.md).
 
 Existe uma fundação desativada para a prova de conceito do PowerSync. Ela cria
 um SQLite `v2` isolado por conta e usa tabelas PostgreSQL `powersync_poc_*`
@@ -271,6 +272,8 @@ NEXT_PUBLIC_TICK_DISABLE_SUPABASE=
 NEXT_PUBLIC_TICK_ENABLE_POWERSYNC_POC=
 NEXT_PUBLIC_TICK_POWERSYNC_POC_USER_IDS=
 NEXT_PUBLIC_POWERSYNC_URL=
+NEXT_PUBLIC_TICK_ENABLE_ACCOUNT_BATCHES=
+NEXT_PUBLIC_TICK_ACCOUNT_BATCH_USER_IDS=
 ```
 
 Defina `NEXT_PUBLIC_TICK_DISABLE_SUPABASE=1` para forçar execução local sem
@@ -282,6 +285,12 @@ prova só é carregada quando a URL usa HTTPS, o sync Supabase está permitido e
 `NEXT_PUBLIC_TICK_ENABLE_POWERSYNC_POC=1`. Além da flag, o ID da conta precisa
 estar em `NEXT_PUBLIC_TICK_POWERSYNC_POC_USER_IDS`. Não habilite o rollout antes
 de concluir a validação descrita em `docs/powersync-poc.md`.
+
+As variáveis `NEXT_PUBLIC_TICK_ENABLE_ACCOUNT_BATCHES` e
+`NEXT_PUBLIC_TICK_ACCOUNT_BATCH_USER_IDS` também permanecem vazias por padrão.
+Elas controlam separadamente a outbox funcional e a RPC transacional; não
+ativam nem dependem do PowerSync. Consulte o rollout controlado antes de
+preenchê-las.
 
 Produção requer:
 
@@ -354,6 +363,7 @@ recorrente sem target, adicione-a ao `Makefile` e ao `make help` primeiro.
 | typecheck          | `make typecheck`                    |
 | lint               | `make lint`                         |
 | testes             | `make test`                         |
+| testes da outbox   | `make test-account-persistence`     |
 | testes PowerSync   | `make test-powersync`               |
 | E2E padrão         | `make test-e2e`                     |
 | E2E autenticado    | `make test-e2e-account`             |
@@ -432,6 +442,8 @@ arquitetura-alvo estão em
 - [IMPLEMENTATION.md](IMPLEMENTATION.md): lacunas e mudanças futuras;
 - [.agents/skills](.agents/skills): workflows reutilizáveis para agentes;
 - [docs/importacao-json.md](docs/importacao-json.md): contrato da importação;
+- [docs/account-operation-rollout.md](docs/account-operation-rollout.md):
+  ativação controlada da outbox funcional;
 - [docs/plano-arquitetura-producao.md](docs/plano-arquitetura-producao.md):
   avaliação de arquitetura e custos.
 

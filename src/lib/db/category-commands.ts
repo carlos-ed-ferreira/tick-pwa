@@ -94,7 +94,7 @@ export async function createCategoryTag({
   colorHex: string;
   useOwnName?: boolean;
 }): Promise<CategoryTag> {
-  return db.transaction('rw', db.categoryTags, async () => {
+  return db.transaction('rw', db.syncOutbox, db.categoryTags, async () => {
     const categoryTags = await getActiveCategoryTags(scope, surface);
     const now = createTimestamp();
     const categoryTag: CategoryTag = {
@@ -142,66 +142,72 @@ export async function updateCategoryTag({
   colorHex?: string;
   useOwnName?: boolean;
 }): Promise<void> {
-  await db.transaction('rw', db.categoryTags, db.localPreferences, async () => {
-    const categoryTag = await db.categoryTags.get(categoryTagId);
+  await db.transaction(
+    'rw',
+    db.syncOutbox,
+    db.categoryTags,
+    db.localPreferences,
+    async () => {
+      const categoryTag = await db.categoryTags.get(categoryTagId);
 
-    if (
-      !categoryTag ||
-      categoryTag.scopeId !== scope.id ||
-      categoryTag.deletedAt
-    ) {
-      return;
-    }
+      if (
+        !categoryTag ||
+        categoryTag.scopeId !== scope.id ||
+        categoryTag.deletedAt
+      ) {
+        return;
+      }
 
-    const nextUseOwnName = useOwnName ?? categoryTag.useOwnName;
-    const nextName = nextUseOwnName
-      ? ''
-      : name === undefined
-        ? categoryTag.name
-        : normalizeCategoryTagName(name) || categoryTag.name;
-    const nextColorHex =
-      colorHex === undefined
-        ? categoryTag.colorHex
-        : normalizeColorHex(colorHex);
+      const nextUseOwnName = useOwnName ?? categoryTag.useOwnName;
+      const nextName = nextUseOwnName
+        ? ''
+        : name === undefined
+          ? categoryTag.name
+          : normalizeCategoryTagName(name) || categoryTag.name;
+      const nextColorHex =
+        colorHex === undefined
+          ? categoryTag.colorHex
+          : normalizeColorHex(colorHex);
 
-    if (
-      nextName === categoryTag.name &&
-      nextColorHex === categoryTag.colorHex &&
-      nextUseOwnName === categoryTag.useOwnName
-    ) {
-      return;
-    }
+      if (
+        nextName === categoryTag.name &&
+        nextColorHex === categoryTag.colorHex &&
+        nextUseOwnName === categoryTag.useOwnName
+      ) {
+        return;
+      }
 
-    const updatedCategoryTag = touchCategoryTag(scope, {
-      ...categoryTag,
-      name: nextName,
-      colorHex: nextColorHex,
-      useOwnName: nextUseOwnName,
-    });
-    const changedFields = [
-      ...(nextName === categoryTag.name ? [] : ['name']),
-      ...(colorHex === undefined ? [] : ['colorHex']),
-      ...(useOwnName === undefined ? [] : ['useOwnName']),
-    ];
+      const updatedCategoryTag = touchCategoryTag(scope, {
+        ...categoryTag,
+        name: nextName,
+        colorHex: nextColorHex,
+        useOwnName: nextUseOwnName,
+      });
+      const changedFields = [
+        ...(nextName === categoryTag.name ? [] : ['name']),
+        ...(colorHex === undefined ? [] : ['colorHex']),
+        ...(useOwnName === undefined ? [] : ['useOwnName']),
+      ];
 
-    if (changedFields.length === 0) {
-      return;
-    }
+      if (changedFields.length === 0) {
+        return;
+      }
 
-    await persistCategoryTagUpdate(scope, updatedCategoryTag, changedFields);
+      await persistCategoryTagUpdate(scope, updatedCategoryTag, changedFields);
 
-    if (
-      scope.kind === 'guest' &&
-      name !== undefined &&
-      nextName !== categoryTag.name
-    ) {
-      await clearGuestDefaultCategoryTagTracking(
-        scope,
-        categoryTag.id,
-        categoryTag.surface,
-      );
-    }
-  });
+      if (
+        scope.kind === 'guest' &&
+        name !== undefined &&
+        nextName !== categoryTag.name
+      ) {
+        await clearGuestDefaultCategoryTagTracking(
+          scope,
+          categoryTag.id,
+          categoryTag.surface,
+        );
+      }
+    },
+  );
 }
 
 export async function reorderCategoryTag({
@@ -213,7 +219,7 @@ export async function reorderCategoryTag({
   categoryTagId: string;
   direction: 'up' | 'down';
 }): Promise<void> {
-  await db.transaction('rw', db.categoryTags, async () => {
+  await db.transaction('rw', db.syncOutbox, db.categoryTags, async () => {
     const targetCategoryTag = await db.categoryTags.get(categoryTagId);
 
     if (
@@ -272,6 +278,7 @@ export async function softDeleteCategoryTag({
   await db.transaction(
     'rw',
     [
+      db.syncOutbox,
       db.dailyEntries,
       db.checklistItems,
       db.categoryTags,

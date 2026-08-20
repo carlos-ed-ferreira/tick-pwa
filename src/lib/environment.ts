@@ -170,6 +170,18 @@ export function shouldUsePowerSyncPocForUser(
   );
 }
 
+export function shouldUseAccountOperationBatchesForUser(
+  userId: string | null | undefined,
+): boolean {
+  return (
+    process.env.NEXT_PUBLIC_TICK_ENABLE_ACCOUNT_BATCHES === '1' &&
+    isPowerSyncPocUserAllowed(
+      userId,
+      process.env.NEXT_PUBLIC_TICK_ACCOUNT_BATCH_USER_IDS,
+    )
+  );
+}
+
 export function shouldAllowSupabaseClient(): boolean {
   if (typeof window === 'undefined') {
     return false;

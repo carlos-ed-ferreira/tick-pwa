@@ -1,10 +1,18 @@
 import Dexie from 'dexie';
 import type { AppScope, SyncEntityType, SyncOperation } from '@/lib/domain';
+import { shouldUseAccountOperationBatchesForUser } from '@/lib/environment';
 import {
   persistAccountEntity,
   restoreAccountEntity,
 } from '@/lib/supabase/account-data';
 import { db } from './database';
+import {
+  getAccountOperationOutboxSummary,
+  persistAccountOperationMutation,
+  resumeAccountOperationOutbox,
+  retryFailedAccountOperationOutbox,
+  waitForAccountOperationOutbox,
+} from './account-operation-outbox';
 
 const persistenceQueues = new Map<string, Promise<void>>();
 
@@ -158,17 +166,35 @@ export async function waitForAccountPersistence(scopeId?: string) {
     while (persistenceQueues.has(scopeId)) {
       await persistenceQueues.get(scopeId);
     }
+    await waitForAccountOperationOutbox(scopeId);
     return;
   }
 
   while (persistenceQueues.size > 0) {
     await Promise.all([...persistenceQueues.values()]);
   }
+
+  await waitForAccountOperationOutbox(scopeId);
 }
 
 export async function getAccountSyncSummary(
   scopeId: string,
 ): Promise<AccountSyncSummary> {
+  const ownerId = scopeId.startsWith('user:') ? scopeId.slice(5) : null;
+
+  if (ownerId && shouldUseAccountOperationBatchesForUser(ownerId)) {
+    const summary = await getAccountOperationOutboxSummary(scopeId);
+    const state: AccountSyncState = summary.failedCount
+      ? 'failed'
+      : summary.syncingCount
+        ? 'syncing'
+        : summary.pendingCount
+          ? 'pending'
+          : 'saved';
+
+    return { ...summary, state };
+  }
+
   const entities = (
     await Promise.all(
       accountEntityTypes.map((entityType) =>
@@ -208,6 +234,11 @@ export async function retryFailedAccountPersistence(
   scope: AppScope,
 ): Promise<void> {
   if (scope.kind === 'guest') {
+    return;
+  }
+
+  if (shouldUseAccountOperationBatchesForUser(scope.ownerId)) {
+    await retryFailedAccountOperationOutbox(scope);
     return;
   }
 
@@ -344,7 +375,7 @@ async function persistQueuedAccountEntityChange({
   }
 }
 
-export function persistAccountEntityChange({
+export async function persistAccountEntityChange({
   entityId,
   entityType,
   operation,
@@ -359,7 +390,7 @@ export function persistAccountEntityChange({
   payload: Record<string, unknown>;
   changedFields: string[];
   baseRevision: number | null;
-}): void {
+}): Promise<void> {
   if (scope.kind === 'guest') {
     return;
   }
@@ -370,6 +401,19 @@ export function persistAccountEntityChange({
     throw new Error(
       'Account persistence requires a clientUpdatedAt version token.',
     );
+  }
+
+  if (shouldUseAccountOperationBatchesForUser(scope.ownerId)) {
+    await persistAccountOperationMutation({
+      baseRevision,
+      clientUpdatedAt,
+      entityId,
+      entityType,
+      operation,
+      payload,
+      scope,
+    });
+    return;
   }
 
   const persistAfterCommit = () => {
@@ -394,4 +438,15 @@ export function persistAccountEntityChange({
   }
 
   persistAfterCommit();
+}
+
+export function resumeAccountPersistence(scope: AppScope): Promise<void> {
+  if (
+    scope.kind !== 'user' ||
+    !shouldUseAccountOperationBatchesForUser(scope.ownerId)
+  ) {
+    return Promise.resolve();
+  }
+
+  return resumeAccountOperationOutbox(scope);
 }

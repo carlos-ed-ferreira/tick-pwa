@@ -1,6 +1,7 @@
 import Dexie, { type Table, type Transaction } from 'dexie';
 import type {
   CategoryTag,
+  AccountOperationOutboxItem,
   ChecklistItem,
   DailyEntry,
   Goal,
@@ -516,6 +517,7 @@ export class TickDatabase extends Dexie {
   goalSteps!: Table<GoalStep, string>;
   goalGroups!: Table<GoalGroup, string>;
   localPreferences!: Table<LocalPreference, string>;
+  syncOutbox!: Table<AccountOperationOutboxItem, string>;
 
   constructor() {
     super('tick');
@@ -1053,6 +1055,11 @@ export class TickDatabase extends Dexie {
       for (const goalStep of await goalStepsTable.toArray()) {
         await goalStepsTable.put(migrateGoalStep(goalStep) as LegacyGoalStep);
       }
+    });
+
+    this.version(16).stores({
+      syncOutbox:
+        'id, scopeId, status, createdAt, [scopeId+status], [scopeId+createdAt]',
     });
 
     this.categoryTags = this.table('colorTags');
