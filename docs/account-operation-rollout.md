@@ -23,6 +23,8 @@ PowerSync.
 - registro atômico entre entidade e outbox no IndexedDB;
 - isolamento por `user:<supabaseUserId>` e ausência de outbox para guest;
 - replay com o mesmo `operation_id` após resposta perdida ou reload;
+- retry automático das operações falhas quando o navegador retorna ao estado
+  online;
 - ordenação por conta, bloqueando operações mais novas quando uma anterior
   falha;
 - agrupamento, limite de 100 mutações por RPC e divisão ordenada de lotes
@@ -61,7 +63,8 @@ exige um novo deploy. Não altere as flags do PowerSync para este rollout.
 4. Gere um novo deploy de produção para incorporar as variáveis.
 5. Entre com a conta autorizada e altere calendário, categorias e metas.
 6. Faça uma alteração offline, recarregue a página ainda offline, reconecte e
-   confirme que o estado volta a salvo sem repetir a ação.
+   confirme que o estado volta a salvo automaticamente, sem repetir a ação nem
+   clicar em sincronizar.
 7. Em dois navegadores da mesma conta, teste edições sequenciais e registre
    qualquer estado de conflito; não amplie a allowlist se uma operação ficar
    permanentemente falha.
@@ -87,9 +90,12 @@ Use exclusivamente os targets do Makefile:
 make test-account-persistence
 make check
 make test-e2e
+make test-e2e-offline
 make test-e2e-account
 ```
 
 O teste direcionado cobre upgrade Dexie, lote funcional, perda de resposta,
 reload, ordem, retry, seis tipos de entidade, alterações rápidas, limite de 100
-mutações e isolamento do guest.
+mutações e isolamento do guest. O E2E autenticado executa o caminho novo com
+flag e UUID e comprova a retomada automática em desktop e mobile. O E2E offline
+recarrega diretamente calendário e metas pelo service worker.

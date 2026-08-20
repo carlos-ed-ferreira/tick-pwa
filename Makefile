@@ -1,6 +1,6 @@
 NPM = npm
 
-.PHONY: help require-npm install install-ci dev build start lint typecheck test test-account-operations test-account-persistence test-powersync test-e2e test-e2e-account format format-check check audit-prod deps-tree publish clean supabase-start supabase-stop supabase-status supabase-reset supabase-diff supabase-migration-diff supabase-lint supabase-test-db supabase-types-local supabase-prod-migrations-repair supabase-prod-db-dry-run supabase-prod-db-push
+.PHONY: help require-npm install install-ci dev build start lint typecheck test test-account-operations test-account-persistence test-powersync test-e2e test-e2e-offline test-e2e-account format format-check check audit-prod deps-tree publish clean supabase-start supabase-stop supabase-status supabase-reset supabase-diff supabase-migration-diff supabase-lint supabase-test-db supabase-types-local supabase-prod-migrations-repair supabase-prod-db-dry-run supabase-prod-db-push
 .DEFAULT_GOAL := help
 
 help:
@@ -17,6 +17,7 @@ help:
 	@printf "  %-26s %s\n" "make test-account-persistence" "Roda testes da outbox autenticada"
 	@printf "  %-26s %s\n" "make test-powersync" "Roda testes direcionados do POC PowerSync"
 	@printf "  %-26s %s\n" "make test-e2e" "Roda testes end-to-end"
+	@printf "  %-26s %s\n" "make test-e2e-offline" "Roda E2E de reload offline"
 	@printf "  %-26s %s\n" "make test-e2e-account" "Roda E2E autenticado"
 	@printf "  %-26s %s\n" "make format" "Formata o codigo com Prettier"
 	@printf "  %-26s %s\n" "make format-check" "Verifica formatacao com Prettier"
@@ -95,6 +96,9 @@ test-powersync: require-npm
 
 test-e2e: require-npm
 	$(NPM) run test:e2e
+
+test-e2e-offline: require-npm
+	$(NPM) run test:e2e -- tests/e2e/offline-navigation.spec.ts
 
 test-e2e-account: require-npm
 	$(NPM) run test:e2e:account

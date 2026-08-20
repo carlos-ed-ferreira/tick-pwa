@@ -470,6 +470,16 @@ export function AppProvider({
 
       refreshTimeoutId = window.setTimeout(() => {
         refreshTimeoutId = null;
+
+        if (reason === 'online') {
+          void resumeAccountPersistence(scope).catch((error) => {
+            console.error(
+              'Failed to resume Tick account persistence after reconnect.',
+              error,
+            );
+          });
+        }
+
         void refreshScopedAccountCache(scope, reason);
       }, ACCOUNT_REFRESH_DEBOUNCE_MS);
     };

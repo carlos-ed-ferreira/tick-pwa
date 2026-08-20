@@ -3,6 +3,7 @@ import { defineConfig, devices } from '@playwright/test';
 const baseURL = 'http://127.0.0.1:3101';
 const fakeAnonKey =
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlhdCI6MTcwMDAwMDAwMCwiZXhwIjoyMDAwMDAwMDAwfQ.signature';
+const accountBatchUserId = '00000000-0000-4000-8000-000000000001';
 
 export default defineConfig({
   expect: {
@@ -37,7 +38,7 @@ export default defineConfig({
     trace: 'retain-on-failure',
   },
   webServer: {
-    command: `NEXT_PUBLIC_TICK_DISABLE_SUPABASE= NEXT_PUBLIC_TICK_SUPABASE_ENV=local NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321 NEXT_PUBLIC_SUPABASE_ANON_KEY=${fakeAnonKey} npm run build && NEXT_PUBLIC_TICK_DISABLE_SUPABASE= NEXT_PUBLIC_TICK_SUPABASE_ENV=local NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321 NEXT_PUBLIC_SUPABASE_ANON_KEY=${fakeAnonKey} npm run start -- --hostname 127.0.0.1 --port 3101`,
+    command: `NEXT_PUBLIC_TICK_DISABLE_SUPABASE= NEXT_PUBLIC_TICK_SUPABASE_ENV=local NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321 NEXT_PUBLIC_SUPABASE_ANON_KEY=${fakeAnonKey} NEXT_PUBLIC_TICK_ENABLE_ACCOUNT_BATCHES=1 NEXT_PUBLIC_TICK_ACCOUNT_BATCH_USER_IDS=${accountBatchUserId} npm run build && NEXT_PUBLIC_TICK_DISABLE_SUPABASE= NEXT_PUBLIC_TICK_SUPABASE_ENV=local NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321 NEXT_PUBLIC_SUPABASE_ANON_KEY=${fakeAnonKey} NEXT_PUBLIC_TICK_ENABLE_ACCOUNT_BATCHES=1 NEXT_PUBLIC_TICK_ACCOUNT_BATCH_USER_IDS=${accountBatchUserId} npm run start -- --hostname 127.0.0.1 --port 3101`,
     reuseExistingServer: false,
     timeout: 120_000,
     url: baseURL,

@@ -118,9 +118,13 @@ substitui a persistência funcional Dexie. O preparo externo e os limites estão
 ### PWA e offline
 
 Serwist gera `public/sw.js` durante o build. Assets usam estratégias de cache e
-navegações usam `NetworkFirst` com fallback em `/~offline`. O modo local
-continua funcional sem Supabase. A sessão e o refresh do modo autenticado ainda
-possuem limitações em abertura offline.
+navegações usam `NetworkFirst` com fallback em `/~offline`. O shell de `/`,
+`/calendar` e `/goals` é precacheado para permitir reload direto offline mesmo
+quando a rota foi aberta originalmente por navegação client-side. Parâmetros
+locais, como o dia ou a meta selecionada, reutilizam o mesmo shell precacheado e
+são reconstruídos do IndexedDB. O modo local continua funcional sem Supabase. A
+sessão e o refresh do modo autenticado ainda dependem do grant local válido
+quando o Supabase está indisponível.
 
 ## Stack verificada
 
@@ -366,6 +370,7 @@ recorrente sem target, adicione-a ao `Makefile` e ao `make help` primeiro.
 | testes da outbox   | `make test-account-persistence`     |
 | testes PowerSync   | `make test-powersync`               |
 | E2E padrão         | `make test-e2e`                     |
+| E2E reload offline | `make test-e2e-offline`             |
 | E2E autenticado    | `make test-e2e-account`             |
 | publicar em `main` | `make publish`                      |
 | auditar produção   | `make audit-prod`                   |

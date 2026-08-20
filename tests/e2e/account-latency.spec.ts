@@ -14,11 +14,17 @@ async function fulfillJson(route: Route, body: unknown, status = 200) {
 }
 
 async function mockDelayedSupabase(page: Page) {
+  let isRemoteOffline = false;
   let revision = 0;
 
   await page.route('http://127.0.0.1:54321/**', async (route) => {
     const request = route.request();
     const url = new URL(request.url());
+
+    if (isRemoteOffline) {
+      await route.abort('internetdisconnected');
+      return;
+    }
 
     if (
       url.pathname === '/auth/v1/token' &&
@@ -52,6 +58,27 @@ async function mockDelayedSupabase(page: Page) {
       return;
     }
 
+    if (url.pathname.endsWith('/rpc/apply_account_operation_batch')) {
+      const payload = request.postDataJSON() as {
+        p_mutations: Array<{
+          entity_type: string;
+          payload: { id: string };
+        }>;
+        p_operation_id: string;
+      };
+      await new Promise((resolve) => setTimeout(resolve, 1_000));
+      revision += 1;
+      await fulfillJson(route, {
+        operationId: payload.p_operation_id,
+        mutations: payload.p_mutations.map((mutation) => ({
+          entityType: mutation.entity_type,
+          id: mutation.payload.id,
+          revision,
+        })),
+      });
+      return;
+    }
+
     if (request.method() === 'GET') {
       await fulfillJson(route, []);
       return;
@@ -61,19 +88,28 @@ async function mockDelayedSupabase(page: Page) {
     revision += 1;
     await fulfillJson(route, { revision });
   });
+
+  return {
+    setRemoteOffline(nextOffline: boolean) {
+      isRemoteOffline = nextOffline;
+    },
+  };
+}
+
+async function signIn(page: Page) {
+  await page.goto('/');
+
+  await page.getByLabel('Email').fill('dev@email.com');
+  await page.getByLabel('Password').fill('12341234');
+  await page.getByRole('button', { name: /^sign in$/i }).click();
+  await page.waitForURL('**/calendar**');
 }
 
 test('keeps authenticated checklist interactions responsive while Supabase is delayed', async ({
   page,
 }) => {
   await mockDelayedSupabase(page);
-  await page.goto('/');
-
-  await page.getByLabel('Email').fill('dev@email.com');
-  await page.getByLabel('Password').fill('12341234');
-  await page.getByRole('button', { name: /^sign in$/i }).click();
-
-  await page.waitForURL('**/calendar**');
+  await signIn(page);
   await page.goto('/calendar?day=2026-05-21');
 
   await expect(
@@ -94,6 +130,33 @@ test('keeps authenticated checklist interactions responsive while Supabase is de
   const firstCheckbox = page.getByRole('checkbox').first();
   await firstCheckbox.click();
   await expect(firstCheckbox).toBeChecked();
+  await expect(page.getByRole('status')).toHaveText('Synced', {
+    timeout: 15_000,
+  });
+});
+
+test('automatically retries a durable account operation after reconnect', async ({
+  context,
+  page,
+}) => {
+  const remote = await mockDelayedSupabase(page);
+  await signIn(page);
+  await page.goto('/calendar?day=2026-05-22');
+  await expect(
+    page.getByRole('button', { name: labels.backToCalendar }),
+  ).toBeVisible();
+
+  remote.setRemoteOffline(true);
+  await context.setOffline(true);
+  await page.getByRole('button', { name: labels.checklistEmpty }).click();
+  await firstChecklistInput(page).fill('Reconnect automatically');
+  await firstChecklistInput(page).press('Enter');
+  await expect(
+    page.getByRole('button', { name: /sync failed/i }),
+  ).toBeVisible();
+
+  remote.setRemoteOffline(false);
+  await context.setOffline(false);
   await expect(page.getByRole('status')).toHaveText('Synced', {
     timeout: 15_000,
   });

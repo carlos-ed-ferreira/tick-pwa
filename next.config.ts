@@ -7,7 +7,9 @@ const revision = process.env.VERCEL_GIT_COMMIT_SHA ?? randomUUID();
 const withSerwist = withSerwistInit({
   swSrc: 'src/app/sw.ts',
   swDest: 'public/sw.js',
-  additionalPrecacheEntries: [{ url: '/~offline', revision }],
+  additionalPrecacheEntries: ['/', '/calendar', '/goals', '/~offline'].map(
+    (url) => ({ url, revision }),
+  ),
   disable: process.env.NODE_ENV === 'development',
 });
 
