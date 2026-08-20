@@ -9,12 +9,15 @@ import { db } from './database';
 import {
   getAccountOperationOutboxSummary,
   persistAccountOperationMutation,
-  resumeAccountOperationOutbox,
   retryFailedAccountOperationOutbox,
   waitForAccountOperationOutbox,
 } from './account-operation-outbox';
 
 const persistenceQueues = new Map<string, Promise<void>>();
+
+function isBrowserOffline(): boolean {
+  return typeof navigator !== 'undefined' && navigator.onLine === false;
+}
 
 interface PersistedAccountEntity {
   id: string;
@@ -274,6 +277,10 @@ export async function retryFailedAccountPersistence(
           return;
         }
 
+        if (isBrowserOffline()) {
+          return;
+        }
+
         await markAccountEntitySyncing(candidate);
 
         try {
@@ -313,6 +320,15 @@ async function persistQueuedAccountEntityChange({
   baseRevision: number | null;
   clientUpdatedAt: string;
 }): Promise<void> {
+  if (isBrowserOffline()) {
+    await markAccountEntityFailed({
+      clientUpdatedAt,
+      entityId,
+      entityType,
+    });
+    return;
+  }
+
   try {
     await markAccountEntitySyncing({
       clientUpdatedAt,
@@ -441,12 +457,13 @@ export async function persistAccountEntityChange({
 }
 
 export function resumeAccountPersistence(scope: AppScope): Promise<void> {
-  if (
-    scope.kind !== 'user' ||
-    !shouldUseAccountOperationBatchesForUser(scope.ownerId)
-  ) {
+  if (scope.kind !== 'user') {
     return Promise.resolve();
   }
 
-  return resumeAccountOperationOutbox(scope);
+  if (shouldUseAccountOperationBatchesForUser(scope.ownerId)) {
+    return retryFailedAccountOperationOutbox(scope);
+  }
+
+  return retryFailedAccountPersistence(scope);
 }

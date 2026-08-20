@@ -108,8 +108,8 @@ cor do processo. Eles não falham o gate atual.
 
 ## Ratchet em 2026-08-20
 
-- Vitest: 62 arquivos e 467 testes aprovados;
-- persistência autenticada direcionada: 25 testes de outbox, migration Dexie e
+- Vitest: 63 arquivos e 469 testes aprovados;
+- persistência autenticada direcionada: 26 testes de outbox, migration Dexie e
   contrato transacional aprovados;
 - outbox Dexie v16 registra entidade e operação funcional atomicamente, preserva
   o mesmo UUID em retry/reload, mantém ordem e divide lotes em no máximo 100;
@@ -118,7 +118,12 @@ cor do processo. Eles não falham o gate atual.
 - pgTAP: 74 testes aprovados, lint PostgreSQL sem erros e schema declarativo sem
   divergência;
 - audit de produção: 0 vulnerabilidades;
-- Playwright: 22 cenários locais e 2 autenticados aprovados em desktop e mobile;
+- Playwright local: 24 cenários aprovados em desktop e mobile;
+- Playwright autenticado: 4 cenários aprovados em desktop e mobile, incluindo
+  retry automático da outbox após reconexão;
+- Playwright offline: reload direto de calendário e metas aprovado em desktop e
+  mobile com o shell funcional precacheado, inclusive URLs parametrizadas de
+  dia e meta e dados preservados no IndexedDB;
 - módulo novo da outbox com 547 linhas e funções novas limitadas a 80 linhas.
 
 ## Matriz de quality gates

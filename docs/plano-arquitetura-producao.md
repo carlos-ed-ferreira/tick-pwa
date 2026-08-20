@@ -197,6 +197,9 @@ backoff, limite global ou resolução automática de conflito.
 persiste identificador idempotente, tentativas, estado e lotes das seis entidades
 funcionais. Entidade e operação são registradas na mesma transação local; o
 replay após reload usa a RPC transacional e respeita a ordem da conta.
+O evento `online` retoma operações falhas tanto da outbox quanto do fallback
+legado; escritas legadas detectadas sem rede deixam o estado recuperável em vez
+de permanecer em sincronização.
 
 A outbox permanece desligada por padrão e autorizada por UUID. Ela reduz o risco
 da alfa antes da migração PowerSync, sem se transformar em uma sincronização

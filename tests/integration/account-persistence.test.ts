@@ -624,7 +624,6 @@ describe('account persistence boundaries', () => {
     });
     await waitForAccountPersistence(scope.id);
     const operation = await db.syncOutbox.toCollection().first();
-    await db.syncOutbox.update(operation!.id, { status: 'syncing' });
     allowSuccess = true;
 
     await resumeAccountPersistence(scope);
@@ -633,6 +632,37 @@ describe('account persistence boundaries', () => {
     await expect(db.syncOutbox.count()).resolves.toBe(0);
     await expect(db.dailyEntries.get(entry.id)).resolves.toMatchObject({
       remoteRevision: 9,
+      syncStatus: 'synced',
+    });
+  });
+
+  it('keeps a legacy offline write recoverable and resumes it after reconnect', async () => {
+    const scope = createUserScope('legacy-reconnect-user');
+    const accountClient = createAccountWriteClient();
+    supabaseMocks.getSupabaseBrowserClient.mockReturnValue(
+      accountClient.client,
+    );
+    vi.spyOn(window.navigator, 'onLine', 'get').mockReturnValue(false);
+
+    const categoryTag = await createCategoryTag({
+      scope,
+      surface: 'calendar',
+      name: 'Offline focus',
+      colorHex: '#2563eb',
+    });
+    await waitForAccountPersistence(scope.id);
+
+    expect(accountClient.from).not.toHaveBeenCalled();
+    await expect(db.categoryTags.get(categoryTag.id)).resolves.toMatchObject({
+      syncStatus: 'failed',
+    });
+
+    vi.spyOn(window.navigator, 'onLine', 'get').mockReturnValue(true);
+    await resumeAccountPersistence(scope);
+
+    expect(accountClient.from).toHaveBeenCalledOnce();
+    await expect(db.categoryTags.get(categoryTag.id)).resolves.toMatchObject({
+      remoteRevision: 1,
       syncStatus: 'synced',
     });
   });

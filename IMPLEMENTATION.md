@@ -245,6 +245,20 @@ build. Os 74 testes pgTAP, lint e diff declarativo do banco passaram; E2E
 aprovou 22 cenários locais e 2 autenticados em desktop e mobile; a auditoria de
 produção encontrou 0 vulnerabilidades.
 
+**Ensaio funcional e correções em 20 de agosto de 2026:** calendário e metas
+preservaram dados offline para conta autorizada, conta no fallback legado e
+guest. O ensaio revelou retry somente manual, estado legado ocasionalmente preso
+e fallback `/~offline` no reload direto das rotas funcionais. A correção retoma
+operações falhas 500 ms após o evento `online`, não inicia escrita legada quando
+`navigator.onLine` é falso e precacheia `/`, `/calendar` e `/goals`. O RED
+reproduziu os três comportamentos. O GREEN passou com 63 arquivos e 469 testes;
+o gate direcionado passou com 26 testes. E2E específico aprovou reload offline
+em desktop/mobile e o E2E autenticado aprovou interação sob latência e retry
+automático após reconexão nos dois perfis, sem ação manual. O precache ignora
+parâmetros de busca para servir o mesmo shell em URLs de dia e meta; o E2E
+preservou uma meta no IndexedDB e reabriu `/goals?goal=...` e
+`/calendar?day=...` offline.
+
 ## SEC-01 — Vulnerabilidades de dependências
 
 **Status:** concluído em 11 de agosto de 2026 para dependências de produção.
