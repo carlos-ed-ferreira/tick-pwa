@@ -24,7 +24,7 @@ export async function openOrCreateDailyEntry({
   date: LocalDateString;
   timezone: string;
 }): Promise<DailyEntry> {
-  return db.transaction('rw', db.dailyEntries, async () => {
+  return db.transaction('rw', db.syncOutbox, db.dailyEntries, async () => {
     const existingEntry = await db.dailyEntries
       .where('[scopeId+date]')
       .equals([scope.id, date])

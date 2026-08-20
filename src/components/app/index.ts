@@ -5,6 +5,7 @@ export * from './move-tree-item-to-target';
 export * from './task-tree-action-group';
 export * from './task-tree-bulk-actions';
 export * from './task-tree-category-chip';
+export * from './task-tree-category-tabs';
 export * from './task-tree-clear-category-icon';
 export * from './task-tree-collapse-button';
 export * from './task-tree-editable-row';

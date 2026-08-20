@@ -35,7 +35,6 @@ import {
   getTaskCompletionState,
   type CategoryTagSurface,
   type LocalDateString,
-  type TaskCompletionState,
   type TaskCompletionValues,
 } from '@/lib/domain';
 import { formatDateInputValue, parseDateInputValue } from '@/lib/time';
@@ -107,6 +106,26 @@ interface TaskTreeSelection {
 function formatShortDate(date: LocalDateString): string {
   const [, month, day] = date.split('-');
   return `${day}/${month}`;
+}
+
+function useOptimisticValue<TValue>(currentValue: TValue) {
+  const [optimisticValue, setOptimisticValue] = useState<{
+    base: TValue;
+    value: TValue;
+  } | null>(null);
+  const [lastValue, setLastValue] = useState(currentValue);
+
+  if (lastValue !== currentValue) {
+    setLastValue(currentValue);
+    setOptimisticValue(null);
+  }
+
+  const displayedValue =
+    optimisticValue !== null && optimisticValue.base === currentValue
+      ? optimisticValue.value
+      : currentValue;
+
+  return [displayedValue, setOptimisticValue] as const;
 }
 
 async function createAndFocusNewItem(
@@ -222,18 +241,6 @@ export function TaskTreeEditableRow({
   );
   const [isDragging, setIsDragging] = useState(false);
   const [isTextMultiline, setIsTextMultiline] = useState(false);
-  const [optimisticCompletion, setOptimisticCompletion] = useState<{
-    base: TaskCompletionState;
-    value: TaskCompletionState;
-  } | null>(null);
-  const [optimisticPriority, setOptimisticPriority] = useState<{
-    base: boolean;
-    value: boolean;
-  } | null>(null);
-  const [optimisticBold, setOptimisticBold] = useState<{
-    base: boolean;
-    value: boolean;
-  } | null>(null);
   const normalizedScheduledTime = scheduledTime ?? '';
   const isSelectionMode = selection?.isSelectionMode === true;
   const [timeState, setTimeState] = useState({
@@ -253,22 +260,13 @@ export function TaskTreeEditableRow({
     normalizedChecked,
     normalizedIgnored,
   );
-  const displayedCompletionState =
-    optimisticCompletion !== null &&
-    optimisticCompletion.base === completionState
-      ? optimisticCompletion.value
-      : completionState;
+  const [displayedCompletionState, setOptimisticCompletion] =
+    useOptimisticValue(completionState);
   const displayedChecked = displayedCompletionState === 'completed';
   const displayedIgnored = displayedCompletionState === 'ignored';
-  const displayedPriority =
-    optimisticPriority !== null &&
-    optimisticPriority.base === normalizedPriority
-      ? optimisticPriority.value
-      : normalizedPriority;
-  const displayedBold =
-    optimisticBold !== null && optimisticBold.base === normalizedBold
-      ? optimisticBold.value
-      : normalizedBold;
+  const [displayedPriority, setOptimisticPriority] =
+    useOptimisticValue(normalizedPriority);
+  const [displayedBold, setOptimisticBold] = useOptimisticValue(normalizedBold);
   const {
     flush: flushText,
     reset: resetText,
@@ -340,6 +338,7 @@ export function TaskTreeEditableRow({
     displayedIgnored,
     onToggleChecked,
     selection,
+    setOptimisticCompletion,
   ]);
 
   const togglePriority = useCallback(async () => {
@@ -354,7 +353,12 @@ export function TaskTreeEditableRow({
       setOptimisticPriority(null);
       throw error;
     }
-  }, [displayedPriority, normalizedPriority, onTogglePriority]);
+  }, [
+    displayedPriority,
+    normalizedPriority,
+    onTogglePriority,
+    setOptimisticPriority,
+  ]);
 
   const toggleBold = useCallback(async () => {
     setOptimisticBold({
@@ -368,7 +372,7 @@ export function TaskTreeEditableRow({
       setOptimisticBold(null);
       throw error;
     }
-  }, [displayedBold, normalizedBold, onToggleBold]);
+  }, [displayedBold, normalizedBold, onToggleBold, setOptimisticBold]);
 
   const requestDelete = useCallback(async () => {
     if (requiresDeleteConfirmation(text)) {

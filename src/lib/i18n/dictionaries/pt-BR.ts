@@ -249,6 +249,7 @@ export const ptBRDictionary = {
     bulkBold: 'Negrito',
     bulkCategory: 'Categoria',
     bulkDelete: 'Excluir',
+    bulkMark: 'Marcar',
   },
   goalStepEditor: {
     title: 'Etapas da meta',
@@ -309,6 +310,7 @@ export const ptBRDictionary = {
     bulkBold: 'Negrito',
     bulkCategory: 'Categoria',
     bulkDelete: 'Excluir',
+    bulkMark: 'Marcar',
   },
   goals: {
     title: 'Metas',
@@ -348,6 +350,12 @@ export const ptBRDictionary = {
     goalCategories: 'Metas',
     groupCategories: 'Grupos',
     itemCategories: 'Etapas',
+    viewMode: 'Visualização das etapas',
+    viewModeList: 'Lista única',
+    viewModeTabs: 'Abas por categoria',
+    categoryTabs: 'Categorias das etapas',
+    categoryTabAll: 'Todas',
+    categoryTabUncategorized: 'Sem categoria',
     moveTo: 'Mover meta para o grupo:',
     removeFromGroup: 'Retirar do Grupo',
     noGroup: 'Sem grupo',

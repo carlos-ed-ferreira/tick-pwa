@@ -6,7 +6,6 @@ import {
   useMemo,
   useRef,
   useState,
-  type CSSProperties,
   type Dispatch,
   type MutableRefObject,
   type SetStateAction,
@@ -14,6 +13,7 @@ import {
 import {
   moveTreeItemToTarget,
   TaskTreeBulkActions,
+  TaskTreeCategoryTabs,
   TaskTreeEditableRow,
   TaskTreeRowActionsMenu,
   TreeListPanel,
@@ -21,6 +21,11 @@ import {
 } from '@/components/app';
 import { IconButton } from '@/components/ui';
 import { useCategoryTags } from '@/features/categories';
+import {
+  defaultCategoryViewMode,
+  useCategoryViewMode,
+  type CategoryViewMode,
+} from '@/hooks/use-category-view-mode';
 import { useTreeBulkActions } from '@/hooks/use-tree-bulk-actions';
 import { useTreeSelection } from '@/hooks/use-tree-selection';
 import { useTaskTreeRowActionPreferences } from '@/hooks/use-task-tree-row-action-visibility';
@@ -47,23 +52,18 @@ import {
   updateChecklistItemScheduledTime,
   updateChecklistItemText,
 } from '@/lib/db';
-import { createId } from '@/lib/domain';
-import { formatCountLabel, formatSelectionLabel } from '@/lib/i18n';
-import { toAlphaColor } from '@/lib/color';
-import { useAppContext } from '@/providers';
 import {
-  ALL_CHECKLIST_CATEGORY_TAB_ID,
-  buildChecklistCategoryTabs,
-  filterChecklistRowsByCategoryTab,
-  resolveActiveChecklistCategoryTab,
-} from './checklist-category-tabs';
+  ALL_CATEGORY_TAB_ID,
+  buildCategoryTabs,
+  createId,
+  filterRowsByCategoryTab,
+  getSelectionCompletionState,
+  resolveActiveCategoryTab,
+} from '@/lib/domain';
+import { formatCountLabel, formatSelectionLabel } from '@/lib/i18n';
+import { useAppContext } from '@/providers';
 import type { VisibleChecklistRow } from './checklist-tree';
 import { useChecklistTree } from './use-checklist-tree';
-import {
-  defaultChecklistViewMode,
-  useChecklistViewMode,
-  type ChecklistViewMode,
-} from './use-checklist-view-mode';
 
 const checklistInputSelector = '[data-checklist-input="true"]';
 
@@ -387,15 +387,15 @@ export function ChecklistSurface({ dailyEntryId }: { dailyEntryId: string }) {
       ),
     [pendingCollapsedItemIds, pendingDeletedItemIds, rowsWithDrafts],
   );
-  const { setViewMode, viewMode } = useChecklistViewMode();
-  const [requestedCategoryTabId, setRequestedCategoryTabId] = useState(
-    ALL_CHECKLIST_CATEGORY_TAB_ID,
-  );
+  const { setViewMode, viewMode } = useCategoryViewMode('checklist_item');
+  const [requestedCategoryTabId, setRequestedCategoryTabId] =
+    useState(ALL_CATEGORY_TAB_ID);
   const categoryTabs = useMemo(
     () =>
-      buildChecklistCategoryTabs({
+      buildCategoryTabs({
         allLabel: dictionary.calendar.categoryTabAll,
         categoryTags,
+        getCategoryTagId: (row: ChecklistSurfaceRow) => row.item.categoryTagId,
         rows: displayRows,
         uncategorizedLabel: dictionary.calendar.categoryTabUncategorized,
       }),
@@ -408,13 +408,15 @@ export function ChecklistSurface({ dailyEntryId }: { dailyEntryId: string }) {
   );
   const isTabView = viewMode === 'tabs' && categoryTabs.length > 1;
   const activeCategoryTab = isTabView
-    ? resolveActiveChecklistCategoryTab(categoryTabs, requestedCategoryTabId)
+    ? resolveActiveCategoryTab(categoryTabs, requestedCategoryTabId)
     : null;
   const visibleRows = useMemo(
     () =>
       activeCategoryTab
-        ? filterChecklistRowsByCategoryTab({
+        ? filterRowsByCategoryTab({
             activeTabId: activeCategoryTab.id,
+            getCategoryTagId: (row: ChecklistSurfaceRow) =>
+              row.item.categoryTagId,
             rows: displayRows,
             tabs: categoryTabs,
           })
@@ -559,6 +561,27 @@ export function ChecklistSurface({ dailyEntryId }: { dailyEntryId: string }) {
     selectedItems.length > 0 && selectedItems.every((item) => item.priority);
   const allSelectedBold =
     selectedItems.length > 0 && selectedItems.every((item) => item.bold);
+  const selectedCompletionState = getSelectionCompletionState(
+    selectedItems.map((item) => ({
+      completed: item.checked,
+      ignored: item.ignored,
+    })),
+  );
+  const toggleSelectedItemsChecked = useCallback(
+    async (nextValues: TaskCompletionValues) => {
+      if (!scope) {
+        return;
+      }
+
+      await setChecklistItemsChecked({
+        scope,
+        itemIds: [...selectedIds],
+        checked: nextValues.completed,
+        ignored: nextValues.ignored,
+      });
+    },
+    [scope, selectedIds],
+  );
   const selectedLabel = formatSelectionLabel({
     count: selectedCount,
     plural: dictionary.dayEditor.itemsSelected,
@@ -572,44 +595,12 @@ export function ChecklistSurface({ dailyEntryId }: { dailyEntryId: string }) {
   return (
     <section className="flex min-h-0 flex-col gap-3">
       {isTabView ? (
-        <div
-          role="tablist"
-          aria-label={dictionary.calendar.categoryTabs}
-          className="flex shrink-0 items-center gap-1 overflow-x-auto rounded-[1rem] inset-ring-hairline inset-ring-white/10 bg-white/6 p-1 shadow-sm shadow-[#253241]/10"
-        >
-          {categoryTabs.map((tab) => {
-            const isActiveTab = tab.id === activeCategoryTab?.id;
-
-            return (
-              <button
-                key={tab.id}
-                type="button"
-                role="tab"
-                aria-selected={isActiveTab}
-                className={`inline-flex h-8 shrink-0 items-center gap-1.5 rounded-[0.75rem] inset-ring-hairline px-3 text-xs font-medium leading-none transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0] ${
-                  isActiveTab
-                    ? 'inset-ring-[#f8d7aa]/70 bg-[#f0c38e] text-[#253241] shadow-[0_12px_28px_rgba(240,195,142,0.16)]'
-                    : 'inset-ring-transparent bg-transparent text-[#b4c1ce] hover:inset-ring-white/10 hover:bg-white/8 hover:text-[#fff9f2] active:bg-white/10'
-                }`}
-                onClick={() => setRequestedCategoryTabId(tab.id)}
-              >
-                {tab.colorHex ? (
-                  <span
-                    aria-hidden="true"
-                    className="size-2 shrink-0 rounded-full inset-ring-hairline inset-ring-(--tab-dot-edge)"
-                    style={
-                      {
-                        '--tab-dot-edge': toAlphaColor(tab.colorHex, 0.45),
-                        backgroundColor: tab.colorHex,
-                      } as CSSProperties
-                    }
-                  />
-                ) : null}
-                {tab.name}
-              </button>
-            );
-          })}
-        </div>
+        <TaskTreeCategoryTabs
+          activeTabId={activeCategoryTab?.id ?? null}
+          label={dictionary.calendar.categoryTabs}
+          tabs={categoryTabs}
+          onSelect={setRequestedCategoryTabId}
+        />
       ) : null}
       <TreeListPanel
         addLabel={dictionary.dayEditor.addItem}
@@ -638,6 +629,7 @@ export function ChecklistSurface({ dailyEntryId }: { dailyEntryId: string }) {
             actionPreferences={actionPreferences}
             allBold={allSelectedBold}
             allPriority={allSelectedPriority}
+            completionState={selectedCompletionState}
             labels={{
               bold: dictionary.dayEditor.bulkBold,
               category: dictionary.dayEditor.bulkCategory,
@@ -645,10 +637,12 @@ export function ChecklistSurface({ dailyEntryId }: { dailyEntryId: string }) {
               delete: dictionary.dayEditor.bulkDelete,
               priority: dictionary.dayEditor.bulkPriority,
               selected: selectedLabel,
+              mark: dictionary.dayEditor.bulkMark,
             }}
             surface="checklist_item"
             onAssignCategory={assignBulkCategory}
             onDelete={openBulkDeleteDialog}
+            onToggleChecked={toggleSelectedItemsChecked}
             onToggleBold={async () => {
               const nextBold = !allSelectedBold;
               await Promise.all(
@@ -725,13 +719,13 @@ export function ChecklistSurface({ dailyEntryId }: { dailyEntryId: string }) {
                       value: 'tabs',
                     },
                   ],
-                  defaultValue: defaultChecklistViewMode,
+                  defaultValue: defaultCategoryViewMode,
                   icon: LayoutList,
                   key: 'viewMode',
                   label: dictionary.calendar.viewMode,
                   value: viewMode,
                   onChange: (nextViewMode) =>
-                    setViewMode(nextViewMode as ChecklistViewMode),
+                    setViewMode(nextViewMode as CategoryViewMode),
                 },
               ]}
               value={actionPreferences}
@@ -756,18 +750,7 @@ export function ChecklistSurface({ dailyEntryId }: { dailyEntryId: string }) {
             rows={visibleRows}
             onBulkAssignCategory={assignBulkCategory}
             onBulkDelete={openBulkDeleteDialog}
-            onBulkToggleChecked={async (nextValues) => {
-              if (!scope) {
-                return;
-              }
-
-              await setChecklistItemsChecked({
-                scope,
-                itemIds: [...selectedIds],
-                checked: nextValues.completed,
-                ignored: nextValues.ignored,
-              });
-            }}
+            onBulkToggleChecked={toggleSelectedItemsChecked}
             onToggleSelect={toggleSelect}
             onDeleteItem={deleteSelectedItem}
             onToggleCollapsedItem={toggleCollapsedItem}

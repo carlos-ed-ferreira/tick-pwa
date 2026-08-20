@@ -41,6 +41,123 @@ describe('TaskTreeBulkActions', () => {
     cleanup();
   });
 
+  it('keeps a stable label while cycling the selected completion state', async () => {
+    const onToggleChecked = vi.fn();
+
+    const { container, rerender } = render(
+      <TaskTreeBulkActions
+        allBold={false}
+        allPriority={false}
+        completionState="unchecked"
+        labels={{
+          bold: 'Bold',
+          category: 'Category',
+          clearCategory: 'Clear category',
+          delete: 'Delete',
+          priority: 'Priority',
+          mark: 'Mark',
+          selected: '2 selected',
+        }}
+        surface="checklist_item"
+        onAssignCategory={vi.fn()}
+        onDelete={vi.fn()}
+        onToggleBold={vi.fn()}
+        onToggleChecked={onToggleChecked}
+        onTogglePriority={vi.fn()}
+      />,
+    );
+
+    const uncheckedIndicator = container.querySelector('.tick-checkbox');
+
+    expect(uncheckedIndicator).not.toBeNull();
+    expect(uncheckedIndicator).toHaveClass('size-4');
+    expect(uncheckedIndicator).not.toHaveAttribute('data-checked');
+    expect(uncheckedIndicator).not.toHaveAttribute('data-ignored');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Mark · 2 selected' }));
+
+    await waitFor(() => {
+      expect(onToggleChecked).toHaveBeenCalledWith({
+        completed: true,
+        ignored: false,
+      });
+    });
+
+    rerender(
+      <TaskTreeBulkActions
+        allBold={false}
+        allPriority={false}
+        completionState="completed"
+        labels={{
+          bold: 'Bold',
+          category: 'Category',
+          clearCategory: 'Clear category',
+          delete: 'Delete',
+          priority: 'Priority',
+          mark: 'Mark',
+          selected: '2 selected',
+        }}
+        surface="checklist_item"
+        onAssignCategory={vi.fn()}
+        onDelete={vi.fn()}
+        onToggleBold={vi.fn()}
+        onToggleChecked={onToggleChecked}
+        onTogglePriority={vi.fn()}
+      />,
+    );
+
+    expect(container.querySelector('.tick-checkbox')).toHaveAttribute(
+      'data-checked',
+      'true',
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Mark · 2 selected' }));
+
+    await waitFor(() => {
+      expect(onToggleChecked).toHaveBeenLastCalledWith({
+        completed: false,
+        ignored: true,
+      });
+    });
+
+    rerender(
+      <TaskTreeBulkActions
+        allBold={false}
+        allPriority={false}
+        completionState="ignored"
+        labels={{
+          bold: 'Bold',
+          category: 'Category',
+          clearCategory: 'Clear category',
+          delete: 'Delete',
+          priority: 'Priority',
+          mark: 'Mark',
+          selected: '2 selected',
+        }}
+        surface="checklist_item"
+        onAssignCategory={vi.fn()}
+        onDelete={vi.fn()}
+        onToggleBold={vi.fn()}
+        onToggleChecked={onToggleChecked}
+        onTogglePriority={vi.fn()}
+      />,
+    );
+
+    expect(container.querySelector('.tick-checkbox')).toHaveAttribute(
+      'data-ignored',
+      'true',
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Mark · 2 selected' }));
+
+    await waitFor(() => {
+      expect(onToggleChecked).toHaveBeenLastCalledWith({
+        completed: false,
+        ignored: false,
+      });
+    });
+  });
+
   it('uses the shared button style and keeps clear category outside the menu', async () => {
     const onAssignCategory = vi.fn();
 
@@ -48,18 +165,21 @@ describe('TaskTreeBulkActions', () => {
       <TaskTreeBulkActions
         allBold={false}
         allPriority={false}
+        completionState="unchecked"
         labels={{
           bold: 'Bold',
           category: 'Category',
           clearCategory: 'Clear category',
           delete: 'Delete',
           priority: 'Priority',
+          mark: 'Mark',
           selected: '2 selected',
         }}
         surface="checklist_item"
         onAssignCategory={onAssignCategory}
         onDelete={vi.fn()}
         onToggleBold={vi.fn()}
+        onToggleChecked={vi.fn()}
         onTogglePriority={vi.fn()}
       />,
     );
@@ -108,18 +228,21 @@ describe('TaskTreeBulkActions', () => {
         }}
         allBold={false}
         allPriority={false}
+        completionState="unchecked"
         labels={{
           bold: 'Bold',
           category: 'Category',
           clearCategory: 'Clear category',
           delete: 'Delete',
           priority: 'Priority',
+          mark: 'Mark',
           selected: '2 selected',
         }}
         surface="checklist_item"
         onAssignCategory={vi.fn()}
         onDelete={vi.fn()}
         onToggleBold={vi.fn()}
+        onToggleChecked={vi.fn()}
         onTogglePriority={vi.fn()}
       />,
     );
@@ -140,5 +263,8 @@ describe('TaskTreeBulkActions', () => {
     expect(
       screen.queryByRole('button', { name: 'Clear category · 2 selected' }),
     ).toBeNull();
+    expect(
+      screen.getByRole('button', { name: 'Mark · 2 selected' }),
+    ).toBeVisible();
   });
 });

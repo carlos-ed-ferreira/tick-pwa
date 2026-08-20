@@ -241,6 +241,7 @@ export const enDictionary = {
     bulkBold: 'Bold',
     bulkCategory: 'Category',
     bulkDelete: 'Delete',
+    bulkMark: 'Mark',
   },
   goalStepEditor: {
     title: 'Goal steps',
@@ -299,6 +300,7 @@ export const enDictionary = {
     bulkBold: 'Bold',
     bulkCategory: 'Category',
     bulkDelete: 'Delete',
+    bulkMark: 'Mark',
   },
   goals: {
     title: 'Goals',
@@ -339,6 +341,12 @@ export const enDictionary = {
     goalCategories: 'Goals',
     groupCategories: 'Groups',
     itemCategories: 'Steps',
+    viewMode: 'Step view',
+    viewModeList: 'Single list',
+    viewModeTabs: 'Category tabs',
+    categoryTabs: 'Step categories',
+    categoryTabAll: 'All',
+    categoryTabUncategorized: 'No category',
     moveTo: 'Move goal to group:',
     removeFromGroup: 'Remove from group',
     noGroup: 'No group',

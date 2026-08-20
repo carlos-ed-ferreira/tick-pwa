@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
-  getTaskCompletionState,
   getNextTaskCompletionValues,
+  getSelectionCompletionState,
+  getTaskCompletionState,
 } from '@/lib/domain';
 
 describe('task completion state', () => {
@@ -23,5 +24,41 @@ describe('task completion state', () => {
 
   it('treats ignored as authoritative over inconsistent completed data', () => {
     expect(getTaskCompletionState(true, true)).toBe('ignored');
+  });
+});
+
+describe('selection completion state', () => {
+  it('falls back to unchecked without any selected value', () => {
+    expect(getSelectionCompletionState([])).toBe('unchecked');
+  });
+
+  it('reports completed only when every selected value is completed', () => {
+    expect(
+      getSelectionCompletionState([
+        { completed: true, ignored: false },
+        { completed: true, ignored: false },
+      ]),
+    ).toBe('completed');
+    expect(
+      getSelectionCompletionState([
+        { completed: true, ignored: false },
+        { completed: false, ignored: false },
+      ]),
+    ).toBe('unchecked');
+  });
+
+  it('reports ignored only when every selected value is ignored', () => {
+    expect(
+      getSelectionCompletionState([
+        { completed: false, ignored: true },
+        { completed: true, ignored: true },
+      ]),
+    ).toBe('ignored');
+    expect(
+      getSelectionCompletionState([
+        { completed: false, ignored: true },
+        { completed: true, ignored: false },
+      ]),
+    ).toBe('unchecked');
   });
 });

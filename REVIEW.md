@@ -106,6 +106,21 @@ cor do processo. Eles não falham o gate atual.
   idempotente, ownership derivado do JWT e rollback integral; o estado canônico
   entre commits válidos segue last-committed-wins.
 
+## Ratchet em 2026-08-20
+
+- Vitest: 62 arquivos e 467 testes aprovados;
+- persistência autenticada direcionada: 25 testes de outbox, migration Dexie e
+  contrato transacional aprovados;
+- outbox Dexie v16 registra entidade e operação funcional atomicamente, preserva
+  o mesmo UUID em retry/reload, mantém ordem e divide lotes em no máximo 100;
+- calendário, categorias e metas usam uma RPC lógica por transação local para a
+  conta autorizada, sem dual-write; guest permanece sem rede;
+- pgTAP: 74 testes aprovados, lint PostgreSQL sem erros e schema declarativo sem
+  divergência;
+- audit de produção: 0 vulnerabilidades;
+- Playwright: 22 cenários locais e 2 autenticados aprovados em desktop e mobile;
+- módulo novo da outbox com 547 linhas e funções novas limitadas a 80 linhas.
+
 ## Matriz de quality gates
 
 | Gate               | Métrica e threshold                                                                 | Escopo                              | Estado         | Legado                                    | Bloqueia?                   |

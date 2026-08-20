@@ -1,6 +1,6 @@
 NPM = npm
 
-.PHONY: help require-npm install install-ci dev build start lint typecheck test test-account-operations test-powersync test-e2e test-e2e-account format format-check check audit-prod deps-tree publish clean supabase-start supabase-stop supabase-status supabase-reset supabase-diff supabase-migration-diff supabase-lint supabase-test-db supabase-types-local supabase-prod-migrations-repair supabase-prod-db-dry-run supabase-prod-db-push
+.PHONY: help require-npm install install-ci dev build start lint typecheck test test-account-operations test-account-persistence test-powersync test-e2e test-e2e-account format format-check check audit-prod deps-tree publish clean supabase-start supabase-stop supabase-status supabase-reset supabase-diff supabase-migration-diff supabase-lint supabase-test-db supabase-types-local supabase-prod-migrations-repair supabase-prod-db-dry-run supabase-prod-db-push
 .DEFAULT_GOAL := help
 
 help:
@@ -14,6 +14,7 @@ help:
 	@printf "  %-26s %s\n" "make typecheck" "Roda TypeScript sem emitir arquivos"
 	@printf "  %-26s %s\n" "make test" "Roda testes unitarios e de integracao"
 	@printf "  %-26s %s\n" "make test-account-operations" "Roda testes do contrato transacional"
+	@printf "  %-26s %s\n" "make test-account-persistence" "Roda testes da outbox autenticada"
 	@printf "  %-26s %s\n" "make test-powersync" "Roda testes direcionados do POC PowerSync"
 	@printf "  %-26s %s\n" "make test-e2e" "Roda testes end-to-end"
 	@printf "  %-26s %s\n" "make test-e2e-account" "Roda E2E autenticado"
@@ -85,6 +86,9 @@ test: require-npm
 
 test-account-operations: require-npm
 	$(NPM) run test -- tests/unit/account-operations.test.ts
+
+test-account-persistence: require-npm
+	$(NPM) run test -- tests/integration/account-persistence.test.ts tests/integration/database-v16-migration.test.ts tests/unit/account-operations.test.ts
 
 test-powersync: require-npm
 	$(NPM) run test -- tests/unit/powersync-poc.test.ts tests/unit/powersync-poc-surface.test.tsx

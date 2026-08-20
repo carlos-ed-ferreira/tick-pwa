@@ -20,6 +20,7 @@ const scope = {
 const {
   assignGoalCategoryMock,
   assignGoalGroupCategoryMock,
+  assignGoalStepCategoryMock,
   completeGoalMock,
   createCategoryTagMock,
   createGoalMock,
@@ -46,6 +47,7 @@ const {
 } = vi.hoisted(() => ({
   assignGoalCategoryMock: vi.fn().mockResolvedValue(undefined),
   assignGoalGroupCategoryMock: vi.fn().mockResolvedValue(undefined),
+  assignGoalStepCategoryMock: vi.fn().mockResolvedValue(undefined),
   completeGoalMock: vi.fn().mockResolvedValue(undefined),
   createCategoryTagMock: vi.fn(),
   createGoalMock: vi.fn(),
@@ -81,7 +83,7 @@ vi.mock('next/navigation', () => ({
 vi.mock('@/lib/db', () => ({
   assignGoalCategory: assignGoalCategoryMock,
   assignGoalGroupCategory: assignGoalGroupCategoryMock,
-  assignGoalStepCategory: vi.fn().mockResolvedValue(undefined),
+  assignGoalStepCategory: assignGoalStepCategoryMock,
   completeGoal: completeGoalMock,
   createCategoryTag: createCategoryTagMock,
   createGoal: createGoalMock,
@@ -160,6 +162,7 @@ vi.mock('@/providers', () => ({
         bulkBold: 'Bold',
         bulkCategory: 'Category',
         bulkDelete: 'Delete',
+        bulkMark: 'Mark',
         actionHidden: 'Hidden',
         actionInMenu: 'Three-dot menu',
         actionOnRow: 'On row',
@@ -171,6 +174,12 @@ vi.mock('@/providers', () => ({
       },
       goals: {
         activeGoals: 'Active',
+        viewMode: 'Step view',
+        viewModeList: 'Single list',
+        viewModeTabs: 'Category tabs',
+        categoryTabs: 'Step categories',
+        categoryTabAll: 'All',
+        categoryTabUncategorized: 'No category',
         archivedGoals: 'Archived',
         addStep: 'Add step',
         assignGoalCategory: 'Assign goal category',
@@ -334,6 +343,7 @@ describe('GoalsSurface', () => {
     createGoalStepMock.mockResolvedValue({ id: 'step-new' });
     completeGoalMock.mockClear();
     assignGoalGroupCategoryMock.mockClear();
+    assignGoalStepCategoryMock.mockClear();
     groupGoalsTogetherMock.mockClear();
     moveGoalToGroupMock.mockClear();
     reopenGoalMock.mockClear();
@@ -1888,6 +1898,65 @@ describe('GoalsSurface', () => {
     });
   });
 
+  it('bulk completes selected goal steps from the collective action', async () => {
+    useGoalStepTreeMock.mockReturnValue([
+      goalStep(),
+      goalStep({
+        id: 'goal-step-2',
+        text: 'Second step',
+        sortRank: 'j',
+      }),
+    ]);
+
+    render(<GoalsSurface />);
+    fireEvent.click(screen.getByRole('button', { name: 'Focus' }));
+    const selectionButtons = screen.getAllByLabelText('Select step');
+    fireEvent.click(selectionButtons[0]);
+    fireEvent.click(selectionButtons[1]);
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Mark · 2 steps selected' }),
+    );
+
+    await waitFor(() => {
+      expect(setGoalStepsCompletedMock).toHaveBeenCalledWith({
+        scope,
+        goalStepIds: ['goal-step-1', 'goal-step-2'],
+        completed: true,
+        ignored: false,
+      });
+    });
+  });
+
+  it('advances the collective completion action of goal steps to ignored', async () => {
+    useGoalStepTreeMock.mockReturnValue([
+      goalStep({ completed: true }),
+      goalStep({
+        id: 'goal-step-2',
+        text: 'Second step',
+        completed: true,
+        sortRank: 'j',
+      }),
+    ]);
+
+    render(<GoalsSurface />);
+    fireEvent.click(screen.getByRole('button', { name: 'Focus' }));
+    const selectionButtons = screen.getAllByLabelText('Select step');
+    fireEvent.click(selectionButtons[0]);
+    fireEvent.click(selectionButtons[1]);
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Mark · 2 steps selected' }),
+    );
+
+    await waitFor(() => {
+      expect(setGoalStepsCompletedMock).toHaveBeenCalledWith({
+        scope,
+        goalStepIds: ['goal-step-1', 'goal-step-2'],
+        completed: false,
+        ignored: true,
+      });
+    });
+  });
+
   it('removes local sibling drafts anchored to a bulk-deleted goal step', async () => {
     useGoalStepTreeMock.mockReturnValue([
       goalStep(),
@@ -2221,6 +2290,197 @@ describe('GoalsSurface', () => {
       expect(
         screen.getByRole('radio', { name: 'Step date: Hidden' }),
       ).toHaveAttribute('aria-checked', 'true');
+    });
+  });
+
+  describe('goal step category tabs', () => {
+    const focusTag = {
+      id: 'focus',
+      name: 'FOCUS',
+      colorHex: '#2563eb',
+      position: '1',
+      surface: 'goal_step',
+      useOwnName: false,
+    };
+    const homeTag = {
+      id: 'home',
+      name: 'HOME',
+      colorHex: '#d97706',
+      position: '2',
+      surface: 'goal_step',
+      useOwnName: false,
+    };
+
+    async function selectTabView() {
+      fireEvent.click(
+        screen.getByRole('button', { name: 'Configure step actions' }),
+      );
+      fireEvent.click(
+        screen.getByRole('radio', { name: 'Step view: Category tabs' }),
+      );
+      fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+
+      await screen.findByRole('tablist', { name: 'Step categories' });
+    }
+
+    beforeEach(async () => {
+      await db.localPreferences.clear();
+      useCategoryTagsMock.mockImplementation((_scope, surface) =>
+        surface === 'goal_step' ? [focusTag, homeTag] : [],
+      );
+    });
+
+    afterEach(async () => {
+      await db.localPreferences.clear();
+    });
+
+    it('keeps a single list until the tab view is chosen in the preferences', async () => {
+      useGoalStepTreeMock.mockReturnValue([
+        goalStep({ categoryTagId: 'focus' }),
+        goalStep({ id: 'goal-step-2', text: 'Loose step', sortRank: 'j' }),
+      ]);
+
+      render(<GoalsSurface />);
+      fireEvent.click(screen.getByRole('button', { name: 'Focus' }));
+
+      expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
+
+      await selectTabView();
+
+      expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual([
+        'All',
+        'FOCUS',
+        'No category',
+      ]);
+    });
+
+    it('shows the whole subtree of the root steps in the selected tab', async () => {
+      const child = goalStep({
+        id: 'goal-step-1-1',
+        text: 'Focus substep',
+        parentId: 'goal-step-1',
+        sortRank: 'i',
+      });
+      child.depth = 1;
+      useGoalStepTreeMock.mockReturnValue([
+        goalStep({ categoryTagId: 'focus' }),
+        child,
+        goalStep({ id: 'goal-step-2', text: 'Loose step', sortRank: 'j' }),
+      ]);
+
+      render(<GoalsSurface />);
+      fireEvent.click(screen.getByRole('button', { name: 'Focus' }));
+      await selectTabView();
+
+      fireEvent.click(screen.getByRole('tab', { name: 'FOCUS' }));
+
+      expect(screen.getByDisplayValue('Existing step')).toBeInTheDocument();
+      expect(screen.getByDisplayValue('Focus substep')).toBeInTheDocument();
+      expect(screen.queryByDisplayValue('Loose step')).not.toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('tab', { name: 'No category' }));
+
+      expect(screen.getByDisplayValue('Loose step')).toBeInTheDocument();
+      expect(
+        screen.queryByDisplayValue('Existing step'),
+      ).not.toBeInTheDocument();
+    });
+
+    it('omits the uncategorized tab when every root step has a category', async () => {
+      useGoalStepTreeMock.mockReturnValue([
+        goalStep({ categoryTagId: 'focus' }),
+        goalStep({
+          id: 'goal-step-2',
+          text: 'Home step',
+          categoryTagId: 'home',
+          sortRank: 'j',
+        }),
+      ]);
+
+      render(<GoalsSurface />);
+      fireEvent.click(screen.getByRole('button', { name: 'Focus' }));
+      await selectTabView();
+
+      expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual([
+        'All',
+        'FOCUS',
+        'HOME',
+      ]);
+    });
+
+    it('hides the tab strip while no root step has a category', async () => {
+      useGoalStepTreeMock.mockReturnValue([goalStep()]);
+
+      render(<GoalsSurface />);
+      fireEvent.click(screen.getByRole('button', { name: 'Focus' }));
+      fireEvent.click(
+        screen.getByRole('button', { name: 'Configure step actions' }),
+      );
+      fireEvent.click(
+        screen.getByRole('radio', { name: 'Step view: Category tabs' }),
+      );
+      fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+
+      await waitFor(() => {
+        expect(
+          screen.getByRole('button', { name: 'Configure step actions' }),
+        ).toBeInTheDocument();
+      });
+
+      expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
+    });
+
+    it('restores the tab view from the stored preference', async () => {
+      useGoalStepTreeMock.mockReturnValue([
+        goalStep({ categoryTagId: 'focus' }),
+        goalStep({ id: 'goal-step-2', text: 'Loose step', sortRank: 'j' }),
+      ]);
+
+      const { unmount } = render(<GoalsSurface />);
+      fireEvent.click(screen.getByRole('button', { name: 'Focus' }));
+      await selectTabView();
+      unmount();
+
+      render(<GoalsSurface />);
+      fireEvent.click(screen.getByRole('button', { name: 'Focus' }));
+
+      expect(
+        await screen.findByRole('tablist', { name: 'Step categories' }),
+      ).toBeInTheDocument();
+    });
+
+    it('creates new root steps inside the active category tab', async () => {
+      useGoalStepTreeMock.mockReturnValue([
+        goalStep({ categoryTagId: 'focus' }),
+        goalStep({ id: 'goal-step-2', text: 'Loose step', sortRank: 'j' }),
+      ]);
+
+      render(<GoalsSurface />);
+      fireEvent.click(screen.getByRole('button', { name: 'Focus' }));
+      await selectTabView();
+
+      fireEvent.click(screen.getByRole('tab', { name: 'FOCUS' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Add step' }));
+
+      const draftInput = await waitFor(() => {
+        const emptyInput = screen
+          .getAllByPlaceholderText('Write a step')
+          .find((input) => (input as HTMLTextAreaElement).value === '');
+
+        expect(emptyInput).toBeDefined();
+        return emptyInput as HTMLElement;
+      });
+      fireEvent.change(draftInput, { target: { value: 'New focus step' } });
+      fireEvent.blur(draftInput);
+
+      await waitFor(() => {
+        expect(createGoalStepMock).toHaveBeenCalledWith(
+          expect.objectContaining({ text: 'New focus step' }),
+        );
+        expect(assignGoalStepCategoryMock).toHaveBeenCalledWith(
+          expect.objectContaining({ categoryTagId: 'focus' }),
+        );
+      });
     });
   });
 

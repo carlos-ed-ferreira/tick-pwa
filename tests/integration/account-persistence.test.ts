@@ -18,6 +18,8 @@ import {
 } from '@/lib/db';
 import {
   getAccountSyncSummary,
+  persistAccountEntityChange,
+  resumeAccountPersistence,
   retryFailedAccountPersistence,
   waitForAccountPersistence,
 } from '@/lib/db/account-persistence';
@@ -31,9 +33,17 @@ import {
 const supabaseMocks = vi.hoisted(() => ({
   getSupabaseBrowserClient: vi.fn(),
 }));
+const environmentMocks = vi.hoisted(() => ({
+  shouldUseAccountOperationBatchesForUser: vi.fn(() => false),
+}));
 
 vi.mock('@/lib/supabase/client', () => ({
   getSupabaseBrowserClient: supabaseMocks.getSupabaseBrowserClient,
+}));
+
+vi.mock('@/lib/environment', () => ({
+  shouldUseAccountOperationBatchesForUser:
+    environmentMocks.shouldUseAccountOperationBatchesForUser,
 }));
 
 interface RemoteWrite {
@@ -243,6 +253,9 @@ function createPagedAccountReadClient({
 
 describe('account persistence boundaries', () => {
   beforeEach(async () => {
+    environmentMocks.shouldUseAccountOperationBatchesForUser.mockReturnValue(
+      false,
+    );
     await db.delete();
     await db.open();
   });
@@ -253,6 +266,9 @@ describe('account persistence boundaries', () => {
   });
 
   it('keeps guest writes local and away from Supabase', async () => {
+    environmentMocks.shouldUseAccountOperationBatchesForUser.mockReturnValue(
+      true,
+    );
     const scope = createGuestScope('local-only');
     const entry = await openOrCreateDailyEntry({
       scope,
@@ -286,6 +302,7 @@ describe('account persistence boundaries', () => {
     });
 
     expect(supabaseMocks.getSupabaseBrowserClient).not.toHaveBeenCalled();
+    await expect(db.syncOutbox.count()).resolves.toBe(0);
     await expect(db.dailyEntries.get(entry.id)).resolves.toMatchObject({
       syncStatus: 'local',
     });
@@ -411,6 +428,455 @@ describe('account persistence boundaries', () => {
     await expect(db.goalSteps.get(goalStep.id)).resolves.toMatchObject({
       syncStatus: 'synced',
     });
+  });
+
+  it('persists a checklist transaction through one account operation RPC', async () => {
+    environmentMocks.shouldUseAccountOperationBatchesForUser.mockReturnValue(
+      true,
+    );
+    const scope = createUserScope('batched-account-user');
+    const accountClient = createAccountWriteClient();
+    const rpc = vi.fn(
+      async (
+        _functionName: string,
+        args: {
+          p_mutations: Array<{
+            entity_type: string;
+            payload: { id: string };
+          }>;
+          p_operation_id: string;
+        },
+      ) => ({
+        data: {
+          operationId: args.p_operation_id,
+          mutations: args.p_mutations.map((mutation, index) => ({
+            entityType: mutation.entity_type,
+            id: mutation.payload.id,
+            revision: index + 1,
+          })),
+        },
+        error: null,
+      }),
+    );
+    supabaseMocks.getSupabaseBrowserClient.mockReturnValue({
+      ...accountClient.client,
+      rpc,
+    });
+    const entry = await openOrCreateDailyEntry({
+      scope,
+      date: '2026-08-20',
+      timezone: 'America/Sao_Paulo',
+    });
+    await waitForAccountPersistence(scope.id);
+    rpc.mockClear();
+    accountClient.writes.length = 0;
+
+    const item = await createChecklistItem({
+      scope,
+      dailyEntryId: entry.id,
+      text: 'Atomic task',
+    });
+    await waitForAccountPersistence(scope.id);
+
+    expect(accountClient.writes).toHaveLength(0);
+    expect(rpc).toHaveBeenCalledOnce();
+    expect(rpc.mock.calls[0][0]).toBe('apply_account_operation_batch');
+    expect(rpc.mock.calls[0][1]).toMatchObject({
+      p_operation_id: expect.any(String),
+      p_mutations: [
+        { entity_type: 'checklistItem' },
+        { entity_type: 'dailyEntry' },
+      ],
+    });
+    await expect(db.syncOutbox.count()).resolves.toBe(0);
+    await expect(db.checklistItems.get(item.id)).resolves.toMatchObject({
+      remoteRevision: 1,
+      syncStatus: 'synced',
+    });
+    await expect(db.dailyEntries.get(entry.id)).resolves.toMatchObject({
+      remoteRevision: 2,
+      syncStatus: 'synced',
+    });
+  });
+
+  it('retries a durable account operation with the same id after a lost response', async () => {
+    environmentMocks.shouldUseAccountOperationBatchesForUser.mockReturnValue(
+      true,
+    );
+    const scope = createUserScope('durable-account-user');
+    const rpc = vi
+      .fn()
+      .mockResolvedValueOnce({
+        data: null,
+        error: { code: 'network_error', message: 'response lost' },
+      })
+      .mockImplementation(
+        async (
+          _functionName: string,
+          args: {
+            p_mutations: Array<{
+              entity_type: string;
+              payload: { id: string };
+            }>;
+            p_operation_id: string;
+          },
+        ) => ({
+          data: {
+            operationId: args.p_operation_id,
+            mutations: args.p_mutations.map((mutation) => ({
+              entityType: mutation.entity_type,
+              id: mutation.payload.id,
+              revision: 7,
+            })),
+          },
+          error: null,
+        }),
+      );
+    supabaseMocks.getSupabaseBrowserClient.mockReturnValue({ rpc });
+
+    const entry = await openOrCreateDailyEntry({
+      scope,
+      date: '2026-08-20',
+      timezone: 'America/Sao_Paulo',
+    });
+    await waitForAccountPersistence(scope.id);
+    const failedOperation = await db.syncOutbox.toCollection().first();
+
+    expect(failedOperation).toMatchObject({
+      attempts: 1,
+      status: 'failed',
+    });
+    await expect(db.dailyEntries.get(entry.id)).resolves.toMatchObject({
+      syncStatus: 'failed',
+    });
+    const laterEntry = await openOrCreateDailyEntry({
+      scope,
+      date: '2026-08-21',
+      timezone: 'America/Sao_Paulo',
+    });
+    await waitForAccountPersistence(scope.id);
+
+    expect(rpc).toHaveBeenCalledOnce();
+    await expect(getAccountSyncSummary(scope.id)).resolves.toEqual({
+      state: 'failed',
+      failedCount: 1,
+      pendingCount: 1,
+      syncingCount: 0,
+    });
+
+    await retryFailedAccountPersistence(scope);
+
+    expect(rpc).toHaveBeenCalledTimes(3);
+    expect(rpc.mock.calls[1][1].p_operation_id).toBe(
+      rpc.mock.calls[0][1].p_operation_id,
+    );
+    await expect(db.syncOutbox.count()).resolves.toBe(0);
+    await expect(db.dailyEntries.get(entry.id)).resolves.toMatchObject({
+      remoteRevision: 7,
+      syncStatus: 'synced',
+    });
+    await expect(db.dailyEntries.get(laterEntry.id)).resolves.toMatchObject({
+      remoteRevision: 7,
+      syncStatus: 'synced',
+    });
+  });
+
+  it('resumes an interrupted account operation after reload semantics', async () => {
+    environmentMocks.shouldUseAccountOperationBatchesForUser.mockReturnValue(
+      true,
+    );
+    const scope = createUserScope('resumed-account-user');
+    let allowSuccess = false;
+    const rpc = vi.fn(
+      async (
+        _functionName: string,
+        args: {
+          p_mutations: Array<{
+            entity_type: string;
+            payload: { id: string };
+          }>;
+          p_operation_id: string;
+        },
+      ) =>
+        allowSuccess
+          ? {
+              data: {
+                operationId: args.p_operation_id,
+                mutations: args.p_mutations.map((mutation) => ({
+                  entityType: mutation.entity_type,
+                  id: mutation.payload.id,
+                  revision: 9,
+                })),
+              },
+              error: null,
+            }
+          : {
+              data: null,
+              error: { code: 'network_error', message: 'offline' },
+            },
+    );
+    supabaseMocks.getSupabaseBrowserClient.mockReturnValue({ rpc });
+
+    const entry = await openOrCreateDailyEntry({
+      scope,
+      date: '2026-08-21',
+      timezone: 'America/Sao_Paulo',
+    });
+    await waitForAccountPersistence(scope.id);
+    const operation = await db.syncOutbox.toCollection().first();
+    await db.syncOutbox.update(operation!.id, { status: 'syncing' });
+    allowSuccess = true;
+
+    await resumeAccountPersistence(scope);
+
+    expect(rpc.mock.calls[1][1].p_operation_id).toBe(operation!.id);
+    await expect(db.syncOutbox.count()).resolves.toBe(0);
+    await expect(db.dailyEntries.get(entry.id)).resolves.toMatchObject({
+      remoteRevision: 9,
+      syncStatus: 'synced',
+    });
+  });
+
+  it('uses the durable RPC path for categories and the complete goal hierarchy', async () => {
+    environmentMocks.shouldUseAccountOperationBatchesForUser.mockReturnValue(
+      true,
+    );
+    const scope = createUserScope('goal-batch-user');
+    const accountClient = createAccountWriteClient();
+    const rpc = vi.fn(
+      async (
+        _functionName: string,
+        args: {
+          p_mutations: Array<{
+            entity_type: string;
+            payload: { id: string };
+          }>;
+          p_operation_id: string;
+        },
+      ) => ({
+        data: {
+          operationId: args.p_operation_id,
+          mutations: args.p_mutations.map((mutation) => ({
+            entityType: mutation.entity_type,
+            id: mutation.payload.id,
+            revision: 3,
+          })),
+        },
+        error: null,
+      }),
+    );
+    supabaseMocks.getSupabaseBrowserClient.mockReturnValue({
+      ...accountClient.client,
+      rpc,
+    });
+
+    const categoryTag = await createCategoryTag({
+      scope,
+      surface: 'goals',
+      name: 'Focus',
+      colorHex: '#2563eb',
+    });
+    const goalGroup = await createGoalGroup({ scope, title: 'Group' });
+    const goal = await createGoal({
+      scope,
+      groupId: goalGroup.id,
+      title: 'Goal',
+    });
+    const goalStep = await createGoalStep({
+      scope,
+      goalId: goal.id,
+      text: 'Step',
+    });
+    await waitForAccountPersistence(scope.id);
+
+    expect(accountClient.writes).toHaveLength(0);
+    expect(
+      rpc.mock.calls.flatMap(
+        (call) => call[1].p_mutations as Array<{ entity_type: string }>,
+      ),
+    ).toEqual([
+      expect.objectContaining({ entity_type: 'categoryTag' }),
+      expect.objectContaining({ entity_type: 'goalGroup' }),
+      expect.objectContaining({ entity_type: 'goal' }),
+      expect.objectContaining({ entity_type: 'goalStep' }),
+    ]);
+    await expect(
+      Promise.all([
+        db.categoryTags.get(categoryTag.id),
+        db.goalGroups.get(goalGroup.id),
+        db.goals.get(goal.id),
+        db.goalSteps.get(goalStep.id),
+      ]),
+    ).resolves.toEqual([
+      expect.objectContaining({ remoteRevision: 3, syncStatus: 'synced' }),
+      expect.objectContaining({ remoteRevision: 3, syncStatus: 'synced' }),
+      expect.objectContaining({ remoteRevision: 3, syncStatus: 'synced' }),
+      expect.objectContaining({ remoteRevision: 3, syncStatus: 'synced' }),
+    ]);
+  });
+
+  it('rebases a newer queued mutation after the previous revision is acknowledged', async () => {
+    environmentMocks.shouldUseAccountOperationBatchesForUser.mockReturnValue(
+      true,
+    );
+    const scope = createUserScope('rebased-account-user');
+    let delayNextOperation = false;
+    let resolveDelayedOperation!: (value: {
+      data: {
+        operationId: string;
+        mutations: Array<{
+          entityType: string;
+          id: string;
+          revision: number;
+        }>;
+      };
+      error: null;
+    }) => void;
+    const rpc = vi.fn(
+      async (
+        _functionName: string,
+        args: {
+          p_mutations: Array<{
+            entity_type: string;
+            payload: { id: string };
+          }>;
+          p_operation_id: string;
+        },
+      ) => {
+        if (delayNextOperation) {
+          delayNextOperation = false;
+          return new Promise((resolve) => {
+            resolveDelayedOperation = resolve;
+          });
+        }
+
+        return {
+          data: {
+            operationId: args.p_operation_id,
+            mutations: args.p_mutations.map((mutation, index) => ({
+              entityType: mutation.entity_type,
+              id: mutation.payload.id,
+              revision: rpc.mock.calls.length + index,
+            })),
+          },
+          error: null,
+        };
+      },
+    );
+    supabaseMocks.getSupabaseBrowserClient.mockReturnValue({ rpc });
+    const entry = await openOrCreateDailyEntry({
+      scope,
+      date: '2026-08-22',
+      timezone: 'America/Sao_Paulo',
+    });
+    const item = await createChecklistItem({
+      scope,
+      dailyEntryId: entry.id,
+      text: 'Rebase me',
+    });
+    await waitForAccountPersistence(scope.id);
+    rpc.mockClear();
+    delayNextOperation = true;
+
+    await toggleChecklistItemCollapsed({ scope, itemId: item.id });
+    await vi.waitFor(() => expect(rpc).toHaveBeenCalledTimes(1));
+    await toggleChecklistItemBold({ scope, itemId: item.id });
+    const firstOperation = rpc.mock.calls[0][1];
+    resolveDelayedOperation({
+      data: {
+        operationId: firstOperation.p_operation_id,
+        mutations: firstOperation.p_mutations.map(
+          (mutation: { entity_type: string; payload: { id: string } }) => ({
+            entityType: mutation.entity_type,
+            id: mutation.payload.id,
+            revision: 10,
+          }),
+        ),
+      },
+      error: null,
+    });
+    await waitForAccountPersistence(scope.id);
+
+    expect(rpc).toHaveBeenCalledTimes(2);
+    expect(rpc.mock.calls[1][1].p_mutations[0]).toMatchObject({
+      base_revision: 10,
+      entity_type: 'checklistItem',
+    });
+    await expect(db.checklistItems.get(item.id)).resolves.toMatchObject({
+      bold: true,
+      collapsed: true,
+      syncStatus: 'synced',
+    });
+  });
+
+  it('splits a large local transaction into bounded ordered RPC batches', async () => {
+    environmentMocks.shouldUseAccountOperationBatchesForUser.mockReturnValue(
+      true,
+    );
+    const scope = createUserScope('bounded-batch-user');
+    const rpc = vi.fn(
+      async (
+        _functionName: string,
+        args: {
+          p_mutations: Array<{
+            entity_type: string;
+            payload: { id: string };
+          }>;
+          p_operation_id: string;
+        },
+      ) => ({
+        data: {
+          operationId: args.p_operation_id,
+          mutations: args.p_mutations.map((mutation) => ({
+            entityType: mutation.entity_type,
+            id: mutation.payload.id,
+            revision: 1,
+          })),
+        },
+        error: null,
+      }),
+    );
+    supabaseMocks.getSupabaseBrowserClient.mockReturnValue({ rpc });
+
+    await db.transaction('rw', [db.syncOutbox, db.categoryTags], async () => {
+      for (let index = 0; index < 101; index += 1) {
+        const timestamp = new Date(
+          Date.UTC(2026, 7, 20, 10, 0, 0, index),
+        ).toISOString();
+        const categoryTag = {
+          id: `bounded-tag-${index.toString().padStart(3, '0')}`,
+          scopeId: scope.id,
+          name: `TAG ${index}`,
+          colorHex: '#2563eb',
+          position: `rank-${index.toString().padStart(3, '0')}`,
+          surface: 'checklist_item' as const,
+          useOwnName: false,
+          createdAt: timestamp,
+          updatedAt: timestamp,
+          deletedAt: null,
+          syncStatus: 'pending' as const,
+          remoteRevision: null,
+          clientUpdatedAt: timestamp,
+        };
+        await db.categoryTags.add(categoryTag);
+        await persistAccountEntityChange({
+          baseRevision: null,
+          changedFields: ['created'],
+          entityId: categoryTag.id,
+          entityType: 'categoryTag',
+          operation: 'upsert',
+          payload: categoryTag,
+          scope,
+        });
+      }
+    });
+    await waitForAccountPersistence(scope.id);
+
+    expect(rpc).toHaveBeenCalledTimes(2);
+    expect(rpc.mock.calls.map((call) => call[1].p_mutations.length)).toEqual([
+      100, 1,
+    ]);
+    await expect(db.syncOutbox.count()).resolves.toBe(0);
   });
 
   it('commits authenticated cache writes before a delayed Supabase response', async () => {

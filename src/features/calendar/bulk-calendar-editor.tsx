@@ -26,7 +26,11 @@ import {
   applyChecklistTemplateToDateRange,
   clearChecklistItemsFromDateRange,
 } from '@/lib/db';
-import { createId, type TaskCompletionValues } from '@/lib/domain';
+import {
+  createId,
+  getSelectionCompletionState,
+  type TaskCompletionValues,
+} from '@/lib/domain';
 import { formatSelectionLabel } from '@/lib/i18n';
 import type { WeekdayIndex } from '@/lib/time';
 import { getDatesInRangeForWeekdays, parseDateInputValue } from '@/lib/time';
@@ -397,6 +401,28 @@ function BulkChecklistSurface({
     selectedItems.length > 0 && selectedItems.every((item) => item.priority);
   const allSelectedBold =
     selectedItems.length > 0 && selectedItems.every((item) => item.bold);
+  const selectedCompletionState = getSelectionCompletionState(
+    selectedItems.map((item) => ({
+      completed: item.checked,
+      ignored: item.ignored,
+    })),
+  );
+  const toggleSelectedItemsChecked = useCallback(
+    (nextValues: TaskCompletionValues) => {
+      setDraftItems((currentItems) =>
+        currentItems.map((currentItem) =>
+          selectedIds.has(currentItem.id)
+            ? {
+                ...currentItem,
+                checked: nextValues.completed,
+                ignored: nextValues.ignored,
+              }
+            : currentItem,
+        ),
+      );
+    },
+    [selectedIds, setDraftItems],
+  );
   const selectedLabel = formatSelectionLabel({
     count: selectedCount,
     plural: dictionary.dayEditor.itemsSelected,
@@ -419,6 +445,7 @@ function BulkChecklistSurface({
             actionPreferences={actionPreferences}
             allBold={allSelectedBold}
             allPriority={allSelectedPriority}
+            completionState={selectedCompletionState}
             labels={{
               bold: dictionary.dayEditor.bulkBold,
               category: dictionary.dayEditor.bulkCategory,
@@ -426,6 +453,7 @@ function BulkChecklistSurface({
               delete: dictionary.dayEditor.bulkDelete,
               priority: dictionary.dayEditor.bulkPriority,
               selected: selectedLabel,
+              mark: dictionary.dayEditor.bulkMark,
             }}
             surface="checklist_item"
             onAssignCategory={async (categoryTagId) => {
@@ -445,6 +473,7 @@ function BulkChecklistSurface({
               );
               clearSelection();
             }}
+            onToggleChecked={toggleSelectedItemsChecked}
             onToggleBold={async () => {
               const nextBold = !allSelectedBold;
               setDraftItems((currentItems) =>
@@ -526,6 +555,7 @@ function BulkChecklistSurface({
             row={row}
             rows={rows}
             selectedIds={selectedIds}
+            onBulkToggleChecked={toggleSelectedItemsChecked}
             onClearSelection={clearSelection}
             onToggleSelect={toggleSelect}
             setDraftItems={setDraftItems}
@@ -544,6 +574,7 @@ function BulkChecklistRow({
   row,
   rows,
   selectedIds,
+  onBulkToggleChecked,
   onClearSelection,
   onToggleSelect,
   setDraftItems,
@@ -555,6 +586,7 @@ function BulkChecklistRow({
   row: VisibleBulkChecklistDraftRow;
   rows: VisibleBulkChecklistDraftRow[];
   selectedIds: Set<string>;
+  onBulkToggleChecked: (nextValues: TaskCompletionValues) => void;
   onClearSelection: () => void;
   onToggleSelect: (id: string, shiftKey: boolean) => void;
   setDraftItems: React.Dispatch<React.SetStateAction<BulkChecklistDraftItem[]>>;
@@ -633,19 +665,7 @@ function BulkChecklistRow({
           );
           onClearSelection();
         },
-        onBulkToggleChecked: async (nextValues: TaskCompletionValues) => {
-          setDraftItems((currentItems) =>
-            currentItems.map((currentItem) =>
-              selectedIds.has(currentItem.id)
-                ? {
-                    ...currentItem,
-                    checked: nextValues.completed,
-                    ignored: nextValues.ignored,
-                  }
-                : currentItem,
-            ),
-          );
-        },
+        onBulkToggleChecked,
         onToggle: (shiftKey) => onToggleSelect(item.id, shiftKey),
       }}
       siblingIds={siblingIds}

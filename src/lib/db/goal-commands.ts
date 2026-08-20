@@ -193,7 +193,7 @@ export async function createGoalGroup({
   title?: string;
   afterGoalGroupId?: string | null;
 }): Promise<GoalGroup> {
-  return db.transaction('rw', db.goalGroups, async () => {
+  return db.transaction('rw', db.syncOutbox, db.goalGroups, async () => {
     const groups = await db.goalGroups
       .where('scopeId')
       .equals(scope.id)
@@ -241,39 +241,45 @@ export async function assignGoalGroupCategory({
 }): Promise<void> {
   let orphanOwnCategoryTagId: string | null = null;
 
-  await db.transaction('rw', db.goalGroups, db.categoryTags, async () => {
-    const group = await db.goalGroups.get(goalGroupId);
-    const categoryTag = categoryTagId
-      ? await db.categoryTags.get(categoryTagId)
-      : null;
-
-    if (!group || group.scopeId !== scope.id || group.deletedAt) {
-      return;
-    }
-
-    const safeCategoryTagId =
-      categoryTag &&
-      categoryTag.scopeId === scope.id &&
-      !categoryTag.deletedAt &&
-      categoryTag.surface === 'goal_group'
-        ? categoryTag.id
+  await db.transaction(
+    'rw',
+    db.syncOutbox,
+    db.goalGroups,
+    db.categoryTags,
+    async () => {
+      const group = await db.goalGroups.get(goalGroupId);
+      const categoryTag = categoryTagId
+        ? await db.categoryTags.get(categoryTagId)
         : null;
 
-    if (group.categoryTagId === safeCategoryTagId) {
-      return;
-    }
+      if (!group || group.scopeId !== scope.id || group.deletedAt) {
+        return;
+      }
 
-    orphanOwnCategoryTagId = await resolveOrphanOwnCategoryTagId(
-      scope,
-      group.categoryTagId,
-    );
+      const safeCategoryTagId =
+        categoryTag &&
+        categoryTag.scopeId === scope.id &&
+        !categoryTag.deletedAt &&
+        categoryTag.surface === 'goal_group'
+          ? categoryTag.id
+          : null;
 
-    await persistGoalGroupUpdate(
-      scope,
-      touchGoalGroup(scope, { ...group, categoryTagId: safeCategoryTagId }),
-      ['categoryTagId'],
-    );
-  });
+      if (group.categoryTagId === safeCategoryTagId) {
+        return;
+      }
+
+      orphanOwnCategoryTagId = await resolveOrphanOwnCategoryTagId(
+        scope,
+        group.categoryTagId,
+      );
+
+      await persistGoalGroupUpdate(
+        scope,
+        touchGoalGroup(scope, { ...group, categoryTagId: safeCategoryTagId }),
+        ['categoryTagId'],
+      );
+    },
+  );
 
   if (orphanOwnCategoryTagId) {
     await softDeleteCategoryTag({
@@ -292,7 +298,7 @@ export async function updateGoalGroupTitle({
   goalGroupId: string;
   title: string;
 }): Promise<void> {
-  await db.transaction('rw', db.goalGroups, async () => {
+  await db.transaction('rw', db.syncOutbox, db.goalGroups, async () => {
     const group = await getScopedGoalGroup(scope, goalGroupId);
     const normalizedTitle = normalizeGoalTitle(title);
 
@@ -317,7 +323,7 @@ export async function reorderGoalGroup({
   goalGroupId: string;
   direction: 'up' | 'down';
 }): Promise<void> {
-  await db.transaction('rw', db.goalGroups, async () => {
+  await db.transaction('rw', db.syncOutbox, db.goalGroups, async () => {
     const group = await getScopedGoalGroup(scope, goalGroupId);
 
     if (!group) {
@@ -356,7 +362,7 @@ export async function moveGoalGroupAfter({
   goalGroupId: string;
   targetGoalGroupId: string;
 }): Promise<void> {
-  await db.transaction('rw', db.goalGroups, async () => {
+  await db.transaction('rw', db.syncOutbox, db.goalGroups, async () => {
     if (goalGroupId === targetGoalGroupId) {
       return;
     }
@@ -402,7 +408,7 @@ export async function moveGoalGroupBefore({
   goalGroupId: string;
   targetGoalGroupId: string;
 }): Promise<void> {
-  await db.transaction('rw', db.goalGroups, async () => {
+  await db.transaction('rw', db.syncOutbox, db.goalGroups, async () => {
     if (goalGroupId === targetGoalGroupId) {
       return;
     }
@@ -456,34 +462,40 @@ export async function softDeleteGoalGroup({
   scope: AppScope;
   goalGroupId: string;
 }): Promise<void> {
-  await db.transaction('rw', db.goalGroups, db.goals, async () => {
-    const group = await getScopedGoalGroup(scope, goalGroupId);
+  await db.transaction(
+    'rw',
+    db.syncOutbox,
+    db.goalGroups,
+    db.goals,
+    async () => {
+      const group = await getScopedGoalGroup(scope, goalGroupId);
 
-    if (!group) {
-      return;
-    }
+      if (!group) {
+        return;
+      }
 
-    const deletedAt = createTimestamp();
-    await persistGoalGroupUpdate(
-      scope,
-      touchGoalGroup(scope, { ...group, deletedAt }),
-      ['deletedAt'],
-    );
-
-    const goals = await db.goals
-      .where('[scopeId+groupId]')
-      .equals([scope.id, group.id])
-      .filter((goal) => goal.deletedAt === null)
-      .toArray();
-
-    for (const goal of goals) {
-      await persistGoalUpdate(
+      const deletedAt = createTimestamp();
+      await persistGoalGroupUpdate(
         scope,
-        touchGoal(scope, { ...goal, groupId: null }),
-        ['groupId'],
+        touchGoalGroup(scope, { ...group, deletedAt }),
+        ['deletedAt'],
       );
-    }
-  });
+
+      const goals = await db.goals
+        .where('[scopeId+groupId]')
+        .equals([scope.id, group.id])
+        .filter((goal) => goal.deletedAt === null)
+        .toArray();
+
+      for (const goal of goals) {
+        await persistGoalUpdate(
+          scope,
+          touchGoal(scope, { ...goal, groupId: null }),
+          ['groupId'],
+        );
+      }
+    },
+  );
 }
 
 export async function moveGoalToGroup({
@@ -495,40 +507,48 @@ export async function moveGoalToGroup({
   goalId: string;
   groupId: string | null;
 }): Promise<void> {
-  await db.transaction('rw', db.goalGroups, db.goals, async () => {
-    const goal = await getScopedGoal(scope, goalId);
-    const group = groupId ? await db.goalGroups.get(groupId) : null;
-    const safeGroupId =
-      group && group.scopeId === scope.id && !group.deletedAt ? group.id : null;
+  await db.transaction(
+    'rw',
+    db.syncOutbox,
+    db.goalGroups,
+    db.goals,
+    async () => {
+      const goal = await getScopedGoal(scope, goalId);
+      const group = groupId ? await db.goalGroups.get(groupId) : null;
+      const safeGroupId =
+        group && group.scopeId === scope.id && !group.deletedAt
+          ? group.id
+          : null;
 
-    if (!goal || goal.groupId === safeGroupId) {
-      return;
-    }
-    const sourceGroupId = goal.groupId;
+      if (!goal || goal.groupId === safeGroupId) {
+        return;
+      }
+      const sourceGroupId = goal.groupId;
 
-    const targetGoals = await db.goals
-      .where('scopeId')
-      .equals(scope.id)
-      .filter(
-        (candidate) =>
-          candidate.groupId === safeGroupId &&
-          candidate.deletedAt === null &&
-          candidate.completedAt === null,
-      )
-      .toArray();
+      const targetGoals = await db.goals
+        .where('scopeId')
+        .equals(scope.id)
+        .filter(
+          (candidate) =>
+            candidate.groupId === safeGroupId &&
+            candidate.deletedAt === null &&
+            candidate.completedAt === null,
+        )
+        .toArray();
 
-    await persistGoalUpdate(
-      scope,
-      touchGoal(scope, {
-        ...goal,
-        groupId: safeGroupId,
-        sortRank: createRankAfter({ items: targetGoals }),
-      }),
-      ['groupId', 'sortRank'],
-    );
+      await persistGoalUpdate(
+        scope,
+        touchGoal(scope, {
+          ...goal,
+          groupId: safeGroupId,
+          sortRank: createRankAfter({ items: targetGoals }),
+        }),
+        ['groupId', 'sortRank'],
+      );
 
-    await deleteGroupIfEmpty(scope, sourceGroupId);
-  });
+      await deleteGroupIfEmpty(scope, sourceGroupId);
+    },
+  );
 }
 
 async function deleteGroupIfEmpty(
@@ -574,62 +594,68 @@ export async function groupGoalsTogether({
   targetGoalId: string;
   title?: string;
 }): Promise<GoalGroup | null> {
-  return db.transaction('rw', db.goalGroups, db.goals, async () => {
-    if (sourceGoalId === targetGoalId) {
-      return null;
-    }
+  return db.transaction(
+    'rw',
+    db.syncOutbox,
+    db.goalGroups,
+    db.goals,
+    async () => {
+      if (sourceGoalId === targetGoalId) {
+        return null;
+      }
 
-    const sourceGoal = await getScopedGoal(scope, sourceGoalId);
-    const targetGoal = await getScopedGoal(scope, targetGoalId);
+      const sourceGoal = await getScopedGoal(scope, sourceGoalId);
+      const targetGoal = await getScopedGoal(scope, targetGoalId);
 
-    if (
-      !sourceGoal ||
-      !targetGoal ||
-      sourceGoal.completedAt ||
-      targetGoal.completedAt
-    ) {
-      return null;
-    }
+      if (
+        !sourceGoal ||
+        !targetGoal ||
+        sourceGoal.completedAt ||
+        targetGoal.completedAt
+      ) {
+        return null;
+      }
 
-    if (targetGoal.groupId) {
-      await moveGoalToGroup({
+      if (targetGoal.groupId) {
+        await moveGoalToGroup({
+          scope,
+          goalId: sourceGoal.id,
+          groupId: targetGoal.groupId,
+        });
+
+        return getScopedGoalGroup(scope, targetGoal.groupId);
+      }
+
+      const group = await createGoalGroup({
         scope,
-        goalId: sourceGoal.id,
-        groupId: targetGoal.groupId,
+        title: title || targetGoal.title || sourceGoal.title,
       });
+      const firstRank = createSortRankBetween(null, null);
+      const secondRank = createSortRankBetween(firstRank, null);
 
-      return getScopedGoalGroup(scope, targetGoal.groupId);
-    }
+      await persistGoalUpdate(
+        scope,
+        touchGoal(scope, {
+          ...targetGoal,
+          groupId: group.id,
+          sortRank: firstRank,
+        }),
+        ['groupId', 'sortRank'],
+      );
+      await persistGoalUpdate(
+        scope,
+        touchGoal(scope, {
+          ...sourceGoal,
+          groupId: group.id,
+          sortRank: secondRank,
+        }),
+        ['groupId', 'sortRank'],
+      );
+      await deleteGroupIfEmpty(scope, sourceGoal.groupId);
 
-    const group = await createGoalGroup({
-      scope,
-      title: title || targetGoal.title || sourceGoal.title,
-    });
-    const firstRank = createSortRankBetween(null, null);
-    const secondRank = createSortRankBetween(firstRank, null);
-
-    await persistGoalUpdate(
-      scope,
-      touchGoal(scope, {
-        ...targetGoal,
-        groupId: group.id,
-        sortRank: firstRank,
-      }),
-      ['groupId', 'sortRank'],
-    );
-    await persistGoalUpdate(
-      scope,
-      touchGoal(scope, {
-        ...sourceGoal,
-        groupId: group.id,
-        sortRank: secondRank,
-      }),
-      ['groupId', 'sortRank'],
-    );
-    await deleteGroupIfEmpty(scope, sourceGoal.groupId);
-
-    return group;
-  });
+      return group;
+    },
+  );
 }
 
 export async function reorderGoal({
@@ -641,7 +667,7 @@ export async function reorderGoal({
   goalId: string;
   direction: 'up' | 'down';
 }): Promise<void> {
-  await db.transaction('rw', db.goals, async () => {
+  await db.transaction('rw', db.syncOutbox, db.goals, async () => {
     const goal = await getScopedGoal(scope, goalId);
 
     if (!goal) {
@@ -683,52 +709,58 @@ export async function moveGoalAfter({
   goalId: string;
   targetGoalId: string;
 }): Promise<void> {
-  await db.transaction('rw', db.goalGroups, db.goals, async () => {
-    if (goalId === targetGoalId) {
-      return;
-    }
+  await db.transaction(
+    'rw',
+    db.syncOutbox,
+    db.goalGroups,
+    db.goals,
+    async () => {
+      if (goalId === targetGoalId) {
+        return;
+      }
 
-    const goal = await getScopedGoal(scope, goalId);
-    const targetGoal = await getScopedGoal(scope, targetGoalId);
+      const goal = await getScopedGoal(scope, goalId);
+      const targetGoal = await getScopedGoal(scope, targetGoalId);
 
-    if (!goal || !targetGoal) {
-      return;
-    }
+      if (!goal || !targetGoal) {
+        return;
+      }
 
-    const sourceGroupId = goal.groupId;
-    const targetGroupId = targetGoal.groupId;
-    const targetGoals = await db.goals
-      .where('scopeId')
-      .equals(scope.id)
-      .filter(
-        (candidate) =>
-          candidate.groupId === targetGroupId &&
-          candidate.deletedAt === null &&
-          candidate.completedAt === null &&
-          candidate.id !== goal.id,
-      )
-      .toArray();
-    const sortRank = createRankAfter({
-      afterItemId: targetGoal.id,
-      items: targetGoals,
-    });
+      const sourceGroupId = goal.groupId;
+      const targetGroupId = targetGoal.groupId;
+      const targetGoals = await db.goals
+        .where('scopeId')
+        .equals(scope.id)
+        .filter(
+          (candidate) =>
+            candidate.groupId === targetGroupId &&
+            candidate.deletedAt === null &&
+            candidate.completedAt === null &&
+            candidate.id !== goal.id,
+        )
+        .toArray();
+      const sortRank = createRankAfter({
+        afterItemId: targetGoal.id,
+        items: targetGoals,
+      });
 
-    if (sortRank === goal.sortRank && goal.groupId === targetGroupId) {
-      return;
-    }
+      if (sortRank === goal.sortRank && goal.groupId === targetGroupId) {
+        return;
+      }
 
-    await persistGoalUpdate(
-      scope,
-      touchGoal(scope, {
-        ...goal,
-        groupId: targetGroupId,
-        sortRank,
-      }),
-      ['groupId', 'sortRank'],
-    );
+      await persistGoalUpdate(
+        scope,
+        touchGoal(scope, {
+          ...goal,
+          groupId: targetGroupId,
+          sortRank,
+        }),
+        ['groupId', 'sortRank'],
+      );
 
-    await deleteGroupIfEmpty(scope, sourceGroupId);
-  });
+      await deleteGroupIfEmpty(scope, sourceGroupId);
+    },
+  );
 }
 
 export async function moveGoalBefore({
@@ -740,62 +772,68 @@ export async function moveGoalBefore({
   goalId: string;
   targetGoalId: string;
 }): Promise<void> {
-  await db.transaction('rw', db.goalGroups, db.goals, async () => {
-    if (goalId === targetGoalId) {
-      return;
-    }
+  await db.transaction(
+    'rw',
+    db.syncOutbox,
+    db.goalGroups,
+    db.goals,
+    async () => {
+      if (goalId === targetGoalId) {
+        return;
+      }
 
-    const goal = await getScopedGoal(scope, goalId);
-    const targetGoal = await getScopedGoal(scope, targetGoalId);
+      const goal = await getScopedGoal(scope, goalId);
+      const targetGoal = await getScopedGoal(scope, targetGoalId);
 
-    if (!goal || !targetGoal) {
-      return;
-    }
+      if (!goal || !targetGoal) {
+        return;
+      }
 
-    const sourceGroupId = goal.groupId;
-    const targetGroupId = targetGoal.groupId;
-    const targetGoals = await db.goals
-      .where('scopeId')
-      .equals(scope.id)
-      .filter(
-        (candidate) =>
-          candidate.groupId === targetGroupId &&
-          candidate.deletedAt === null &&
-          candidate.completedAt === null &&
-          candidate.id !== goal.id,
-      )
-      .toArray();
-    const orderedGoals = sortByRank(targetGoals);
-    const targetIndex = orderedGoals.findIndex(
-      (candidate) => candidate.id === targetGoal.id,
-    );
+      const sourceGroupId = goal.groupId;
+      const targetGroupId = targetGoal.groupId;
+      const targetGoals = await db.goals
+        .where('scopeId')
+        .equals(scope.id)
+        .filter(
+          (candidate) =>
+            candidate.groupId === targetGroupId &&
+            candidate.deletedAt === null &&
+            candidate.completedAt === null &&
+            candidate.id !== goal.id,
+        )
+        .toArray();
+      const orderedGoals = sortByRank(targetGoals);
+      const targetIndex = orderedGoals.findIndex(
+        (candidate) => candidate.id === targetGoal.id,
+      );
 
-    if (targetIndex < 0) {
-      return;
-    }
+      if (targetIndex < 0) {
+        return;
+      }
 
-    const previousGoal = orderedGoals[targetIndex - 1] ?? null;
-    const sortRank = createSortRankBetween(
-      previousGoal?.sortRank ?? null,
-      targetGoal.sortRank,
-    );
+      const previousGoal = orderedGoals[targetIndex - 1] ?? null;
+      const sortRank = createSortRankBetween(
+        previousGoal?.sortRank ?? null,
+        targetGoal.sortRank,
+      );
 
-    if (sortRank === goal.sortRank && goal.groupId === targetGroupId) {
-      return;
-    }
+      if (sortRank === goal.sortRank && goal.groupId === targetGroupId) {
+        return;
+      }
 
-    await persistGoalUpdate(
-      scope,
-      touchGoal(scope, {
-        ...goal,
-        groupId: targetGroupId,
-        sortRank,
-      }),
-      ['groupId', 'sortRank'],
-    );
+      await persistGoalUpdate(
+        scope,
+        touchGoal(scope, {
+          ...goal,
+          groupId: targetGroupId,
+          sortRank,
+        }),
+        ['groupId', 'sortRank'],
+      );
 
-    await deleteGroupIfEmpty(scope, sourceGroupId);
-  });
+      await deleteGroupIfEmpty(scope, sourceGroupId);
+    },
+  );
 }
 
 export async function completeGoal({
@@ -805,7 +843,7 @@ export async function completeGoal({
   scope: AppScope;
   goalId: string;
 }): Promise<void> {
-  await db.transaction('rw', db.goals, async () => {
+  await db.transaction('rw', db.syncOutbox, db.goals, async () => {
     const goal = await getScopedGoal(scope, goalId);
 
     if (!goal || goal.completedAt) {
@@ -833,7 +871,7 @@ export async function reopenGoal({
   scope: AppScope;
   goalId: string;
 }): Promise<void> {
-  await db.transaction('rw', db.goals, async () => {
+  await db.transaction('rw', db.syncOutbox, db.goals, async () => {
     const goal = await getScopedGoal(scope, goalId);
 
     if (!goal || !goal.completedAt) {
@@ -907,56 +945,64 @@ export async function createGoal({
 }): Promise<Goal> {
   void _category;
 
-  return db.transaction('rw', db.goalGroups, db.goals, async () => {
-    const group = groupId ? await db.goalGroups.get(groupId) : null;
-    const safeGroupId =
-      group && group.scopeId === scope.id && !group.deletedAt ? group.id : null;
-    const activeGoals = await db.goals
-      .where('scopeId')
-      .equals(scope.id)
-      .filter(
-        (goal) =>
-          goal.deletedAt === null &&
-          goal.completedAt === null &&
-          goal.groupId === safeGroupId,
-      )
-      .toArray();
-    const now = createTimestamp();
-    const normalizedTitle = normalizeGoalTitle(title);
-    const goal: Goal = {
-      id: createId(),
-      scopeId: scope.id,
-      groupId: safeGroupId,
-      category: 'now',
-      title: normalizedTitle,
-      description: '',
-      status: 'active',
-      progressMode: 'steps',
-      progressValue: 0,
-      dueDate: null,
-      categoryTagId: null,
-      sortRank: createGoalInsertRank({ siblings: activeGoals, afterGoalId }),
-      archivedAt: null,
-      completedAt: null,
-      createdAt: now,
-      updatedAt: now,
-      deletedAt: null,
-      ...createSyncMetadata(scope, now),
-    };
+  return db.transaction(
+    'rw',
+    db.syncOutbox,
+    db.goalGroups,
+    db.goals,
+    async () => {
+      const group = groupId ? await db.goalGroups.get(groupId) : null;
+      const safeGroupId =
+        group && group.scopeId === scope.id && !group.deletedAt
+          ? group.id
+          : null;
+      const activeGoals = await db.goals
+        .where('scopeId')
+        .equals(scope.id)
+        .filter(
+          (goal) =>
+            goal.deletedAt === null &&
+            goal.completedAt === null &&
+            goal.groupId === safeGroupId,
+        )
+        .toArray();
+      const now = createTimestamp();
+      const normalizedTitle = normalizeGoalTitle(title);
+      const goal: Goal = {
+        id: createId(),
+        scopeId: scope.id,
+        groupId: safeGroupId,
+        category: 'now',
+        title: normalizedTitle,
+        description: '',
+        status: 'active',
+        progressMode: 'steps',
+        progressValue: 0,
+        dueDate: null,
+        categoryTagId: null,
+        sortRank: createGoalInsertRank({ siblings: activeGoals, afterGoalId }),
+        archivedAt: null,
+        completedAt: null,
+        createdAt: now,
+        updatedAt: now,
+        deletedAt: null,
+        ...createSyncMetadata(scope, now),
+      };
 
-    await db.goals.add(goal);
-    await persistAccountEntityChange({
-      scope,
-      entityType: 'goal',
-      entityId: goal.id,
-      operation: 'upsert',
-      payload: goal as unknown as Record<string, unknown>,
-      changedFields: ['created'],
-      baseRevision: null,
-    });
+      await db.goals.add(goal);
+      await persistAccountEntityChange({
+        scope,
+        entityType: 'goal',
+        entityId: goal.id,
+        operation: 'upsert',
+        payload: goal as unknown as Record<string, unknown>,
+        changedFields: ['created'],
+        baseRevision: null,
+      });
 
-    return goal;
-  });
+      return goal;
+    },
+  );
 }
 
 export async function updateGoalTitle({
@@ -968,7 +1014,7 @@ export async function updateGoalTitle({
   goalId: string;
   title: string;
 }): Promise<void> {
-  await db.transaction('rw', db.goals, async () => {
+  await db.transaction('rw', db.syncOutbox, db.goals, async () => {
     const goal = await getScopedGoal(scope, goalId);
 
     const normalizedTitle = normalizeGoalTitle(title);
@@ -995,7 +1041,7 @@ export async function updateGoalDueDate({
   goalId: string;
   dueDate: string | null;
 }): Promise<void> {
-  await db.transaction('rw', db.goals, async () => {
+  await db.transaction('rw', db.syncOutbox, db.goals, async () => {
     const goal = await getScopedGoal(scope, goalId);
     const normalizedDueDate = normalizeLocalDate(dueDate);
 
@@ -1022,44 +1068,50 @@ export async function assignGoalCategory({
 }): Promise<void> {
   let orphanOwnCategoryTagId: string | null = null;
 
-  await db.transaction('rw', db.goals, db.categoryTags, async () => {
-    const goal = await getScopedGoal(scope, goalId);
+  await db.transaction(
+    'rw',
+    db.syncOutbox,
+    db.goals,
+    db.categoryTags,
+    async () => {
+      const goal = await getScopedGoal(scope, goalId);
 
-    if (!goal) {
-      return;
-    }
+      if (!goal) {
+        return;
+      }
 
-    const categoryTag = categoryTagId
-      ? await db.categoryTags.get(categoryTagId)
-      : null;
+      const categoryTag = categoryTagId
+        ? await db.categoryTags.get(categoryTagId)
+        : null;
 
-    if (
-      categoryTagId &&
-      (!categoryTag ||
-        categoryTag.scopeId !== scope.id ||
-        categoryTag.deletedAt ||
-        categoryTag.surface !== 'goal')
-    ) {
-      return;
-    }
+      if (
+        categoryTagId &&
+        (!categoryTag ||
+          categoryTag.scopeId !== scope.id ||
+          categoryTag.deletedAt ||
+          categoryTag.surface !== 'goal')
+      ) {
+        return;
+      }
 
-    const safeCategoryTagId = categoryTag?.id ?? null;
+      const safeCategoryTagId = categoryTag?.id ?? null;
 
-    if (goal.categoryTagId === safeCategoryTagId) {
-      return;
-    }
+      if (goal.categoryTagId === safeCategoryTagId) {
+        return;
+      }
 
-    orphanOwnCategoryTagId = await resolveOrphanOwnCategoryTagId(
-      scope,
-      goal.categoryTagId,
-    );
+      orphanOwnCategoryTagId = await resolveOrphanOwnCategoryTagId(
+        scope,
+        goal.categoryTagId,
+      );
 
-    const updatedGoal = touchGoal(scope, {
-      ...goal,
-      categoryTagId: safeCategoryTagId,
-    });
-    await persistGoalUpdate(scope, updatedGoal, ['categoryTagId']);
-  });
+      const updatedGoal = touchGoal(scope, {
+        ...goal,
+        categoryTagId: safeCategoryTagId,
+      });
+      await persistGoalUpdate(scope, updatedGoal, ['categoryTagId']);
+    },
+  );
 
   if (orphanOwnCategoryTagId) {
     await softDeleteCategoryTag({
@@ -1092,63 +1144,69 @@ export async function createGoalStep({
     throw new Error('Goal steps require text before they can be saved.');
   }
 
-  return db.transaction('rw', db.goals, db.goalSteps, async () => {
-    const goal = await getScopedGoal(scope, goalId);
+  return db.transaction(
+    'rw',
+    db.syncOutbox,
+    db.goals,
+    db.goalSteps,
+    async () => {
+      const goal = await getScopedGoal(scope, goalId);
 
-    if (!goal) {
-      throw new Error('Cannot create a goal step for an unavailable goal.');
-    }
+      if (!goal) {
+        throw new Error('Cannot create a goal step for an unavailable goal.');
+      }
 
-    const activeGoalSteps = await getActiveGoalSteps(scope, goalId);
-    const parentGoalStep = parentId
-      ? activeGoalSteps.find((goalStep) => goalStep.id === parentId)
-      : null;
-    const safeParentId = parentGoalStep ? parentGoalStep.id : null;
-    const siblings = activeGoalSteps.filter(
-      (goalStep) => goalStep.parentId === safeParentId,
-    );
-    const now = createTimestamp();
-    const goalStep: GoalStep = {
-      id,
-      scopeId: scope.id,
-      goalId,
-      parentId: safeParentId,
-      text,
-      completed: false,
-      ignored: false,
-      bold,
-      priority: false,
-      collapsed: false,
-      categoryTagId: null,
-      scheduledDate: normalizeLocalDate(scheduledDate),
-      sortRank: createGoalStepInsertRank({ siblings, afterGoalStepId }),
-      createdAt: now,
-      updatedAt: now,
-      deletedAt: null,
-      ...createSyncMetadata(scope, now),
-    };
-
-    await db.goalSteps.add(goalStep);
-    await persistAccountEntityChange({
-      scope,
-      entityType: 'goalStep',
-      entityId: goalStep.id,
-      operation: 'upsert',
-      payload: goalStep as unknown as Record<string, unknown>,
-      changedFields: ['created'],
-      baseRevision: null,
-    });
-
-    if (parentGoalStep && parentGoalStep.collapsed) {
-      const updatedParent = touchGoalStep(scope, {
-        ...parentGoalStep,
+      const activeGoalSteps = await getActiveGoalSteps(scope, goalId);
+      const parentGoalStep = parentId
+        ? activeGoalSteps.find((goalStep) => goalStep.id === parentId)
+        : null;
+      const safeParentId = parentGoalStep ? parentGoalStep.id : null;
+      const siblings = activeGoalSteps.filter(
+        (goalStep) => goalStep.parentId === safeParentId,
+      );
+      const now = createTimestamp();
+      const goalStep: GoalStep = {
+        id,
+        scopeId: scope.id,
+        goalId,
+        parentId: safeParentId,
+        text,
+        completed: false,
+        ignored: false,
+        bold,
+        priority: false,
         collapsed: false,
-      });
-      await persistGoalStepUpdate(scope, updatedParent, ['collapsed']);
-    }
+        categoryTagId: null,
+        scheduledDate: normalizeLocalDate(scheduledDate),
+        sortRank: createGoalStepInsertRank({ siblings, afterGoalStepId }),
+        createdAt: now,
+        updatedAt: now,
+        deletedAt: null,
+        ...createSyncMetadata(scope, now),
+      };
 
-    return goalStep;
-  });
+      await db.goalSteps.add(goalStep);
+      await persistAccountEntityChange({
+        scope,
+        entityType: 'goalStep',
+        entityId: goalStep.id,
+        operation: 'upsert',
+        payload: goalStep as unknown as Record<string, unknown>,
+        changedFields: ['created'],
+        baseRevision: null,
+      });
+
+      if (parentGoalStep && parentGoalStep.collapsed) {
+        const updatedParent = touchGoalStep(scope, {
+          ...parentGoalStep,
+          collapsed: false,
+        });
+        await persistGoalStepUpdate(scope, updatedParent, ['collapsed']);
+      }
+
+      return goalStep;
+    },
+  );
 }
 
 export async function createGoalStepChild({
@@ -1183,7 +1241,7 @@ export async function updateGoalStepText({
     return;
   }
 
-  await db.transaction('rw', db.goalSteps, async () => {
+  await db.transaction('rw', db.syncOutbox, db.goalSteps, async () => {
     const goalStep = await getScopedGoalStep(scope, goalStepId);
 
     if (!goalStep || goalStep.text === text) {
@@ -1204,7 +1262,7 @@ export async function updateGoalStepScheduledDate({
   goalStepId: string;
   scheduledDate: string | null;
 }): Promise<void> {
-  await db.transaction('rw', db.goalSteps, async () => {
+  await db.transaction('rw', db.syncOutbox, db.goalSteps, async () => {
     const goalStep = await getScopedGoalStep(scope, goalStepId);
     const normalizedScheduledDate = normalizeLocalDate(scheduledDate);
 
@@ -1227,27 +1285,33 @@ export async function toggleGoalStepChecked({
   scope: AppScope;
   goalStepId: string;
 }): Promise<void> {
-  await db.transaction('rw', db.goals, db.goalSteps, async () => {
-    const goalStep = await getScopedGoalStep(scope, goalStepId);
+  await db.transaction(
+    'rw',
+    db.syncOutbox,
+    db.goals,
+    db.goalSteps,
+    async () => {
+      const goalStep = await getScopedGoalStep(scope, goalStepId);
 
-    if (!goalStep) {
-      return;
-    }
+      if (!goalStep) {
+        return;
+      }
 
-    const nextState = getNextTaskCompletionValues(
-      goalStep.completed,
-      goalStep.ignored ?? false,
-    );
-    const updatedGoalStep = touchGoalStep(scope, {
-      ...goalStep,
-      completed: nextState.completed,
-      ignored: nextState.ignored,
-    });
-    await persistGoalStepUpdate(scope, updatedGoalStep, [
-      'completed',
-      'ignored',
-    ]);
-  });
+      const nextState = getNextTaskCompletionValues(
+        goalStep.completed,
+        goalStep.ignored ?? false,
+      );
+      const updatedGoalStep = touchGoalStep(scope, {
+        ...goalStep,
+        completed: nextState.completed,
+        ignored: nextState.ignored,
+      });
+      await persistGoalStepUpdate(scope, updatedGoalStep, [
+        'completed',
+        'ignored',
+      ]);
+    },
+  );
 }
 
 export async function setGoalStepsCompleted({
@@ -1265,29 +1329,35 @@ export async function setGoalStepsCompleted({
     return;
   }
 
-  await db.transaction('rw', db.goals, db.goalSteps, async () => {
-    for (const goalStepId of goalStepIds) {
-      const goalStep = await getScopedGoalStep(scope, goalStepId);
+  await db.transaction(
+    'rw',
+    db.syncOutbox,
+    db.goals,
+    db.goalSteps,
+    async () => {
+      for (const goalStepId of goalStepIds) {
+        const goalStep = await getScopedGoalStep(scope, goalStepId);
 
-      if (
-        !goalStep ||
-        (goalStep.completed === completed &&
-          Boolean(goalStep.ignored) === ignored)
-      ) {
-        continue;
+        if (
+          !goalStep ||
+          (goalStep.completed === completed &&
+            Boolean(goalStep.ignored) === ignored)
+        ) {
+          continue;
+        }
+
+        const updatedGoalStep = touchGoalStep(scope, {
+          ...goalStep,
+          completed,
+          ignored,
+        });
+        await persistGoalStepUpdate(scope, updatedGoalStep, [
+          'completed',
+          'ignored',
+        ]);
       }
-
-      const updatedGoalStep = touchGoalStep(scope, {
-        ...goalStep,
-        completed,
-        ignored,
-      });
-      await persistGoalStepUpdate(scope, updatedGoalStep, [
-        'completed',
-        'ignored',
-      ]);
-    }
-  });
+    },
+  );
 }
 
 export async function toggleGoalStepPriority({
@@ -1297,7 +1367,7 @@ export async function toggleGoalStepPriority({
   scope: AppScope;
   goalStepId: string;
 }): Promise<void> {
-  await db.transaction('rw', db.goalSteps, async () => {
+  await db.transaction('rw', db.syncOutbox, db.goalSteps, async () => {
     const goalStep = await getScopedGoalStep(scope, goalStepId);
 
     if (!goalStep) {
@@ -1319,7 +1389,7 @@ export async function toggleGoalStepBold({
   scope: AppScope;
   goalStepId: string;
 }): Promise<void> {
-  await db.transaction('rw', db.goalSteps, async () => {
+  await db.transaction('rw', db.syncOutbox, db.goalSteps, async () => {
     const goalStep = await getScopedGoalStep(scope, goalStepId);
 
     if (!goalStep) {
@@ -1341,7 +1411,7 @@ export async function toggleGoalStepCollapsed({
   scope: AppScope;
   goalStepId: string;
 }): Promise<void> {
-  await db.transaction('rw', db.goalSteps, async () => {
+  await db.transaction('rw', db.syncOutbox, db.goalSteps, async () => {
     const goalStep = await getScopedGoalStep(scope, goalStepId);
 
     if (!goalStep) {
@@ -1365,39 +1435,45 @@ export async function assignGoalStepCategory({
   goalStepId: string;
   categoryTagId: string | null;
 }): Promise<void> {
-  await db.transaction('rw', db.goalSteps, db.categoryTags, async () => {
-    const goalStep = await getScopedGoalStep(scope, goalStepId);
+  await db.transaction(
+    'rw',
+    db.syncOutbox,
+    db.goalSteps,
+    db.categoryTags,
+    async () => {
+      const goalStep = await getScopedGoalStep(scope, goalStepId);
 
-    if (!goalStep) {
-      return;
-    }
+      if (!goalStep) {
+        return;
+      }
 
-    const categoryTag = categoryTagId
-      ? await db.categoryTags.get(categoryTagId)
-      : null;
+      const categoryTag = categoryTagId
+        ? await db.categoryTags.get(categoryTagId)
+        : null;
 
-    if (
-      categoryTagId &&
-      (!categoryTag ||
-        categoryTag.scopeId !== scope.id ||
-        categoryTag.deletedAt ||
-        categoryTag.surface !== 'goal_step')
-    ) {
-      return;
-    }
+      if (
+        categoryTagId &&
+        (!categoryTag ||
+          categoryTag.scopeId !== scope.id ||
+          categoryTag.deletedAt ||
+          categoryTag.surface !== 'goal_step')
+      ) {
+        return;
+      }
 
-    const safeCategoryTagId = categoryTag?.id ?? null;
+      const safeCategoryTagId = categoryTag?.id ?? null;
 
-    if (goalStep.categoryTagId === safeCategoryTagId) {
-      return;
-    }
+      if (goalStep.categoryTagId === safeCategoryTagId) {
+        return;
+      }
 
-    const updatedGoalStep = touchGoalStep(scope, {
-      ...goalStep,
-      categoryTagId: safeCategoryTagId,
-    });
-    await persistGoalStepUpdate(scope, updatedGoalStep, ['categoryTagId']);
-  });
+      const updatedGoalStep = touchGoalStep(scope, {
+        ...goalStep,
+        categoryTagId: safeCategoryTagId,
+      });
+      await persistGoalStepUpdate(scope, updatedGoalStep, ['categoryTagId']);
+    },
+  );
 }
 
 export async function softDeleteGoal({
@@ -1407,29 +1483,35 @@ export async function softDeleteGoal({
   scope: AppScope;
   goalId: string;
 }): Promise<void> {
-  await db.transaction('rw', db.goals, db.goalSteps, async () => {
-    const goal = await getScopedGoal(scope, goalId);
+  await db.transaction(
+    'rw',
+    db.syncOutbox,
+    db.goals,
+    db.goalSteps,
+    async () => {
+      const goal = await getScopedGoal(scope, goalId);
 
-    if (!goal) {
-      return;
-    }
+      if (!goal) {
+        return;
+      }
 
-    const activeGoalSteps = await getActiveGoalSteps(scope, goal.id);
-    const deletedAt = createTimestamp();
-    const deletedGoal = touchGoal(scope, {
-      ...goal,
-      deletedAt,
-    });
-    await persistGoalUpdate(scope, deletedGoal, ['deletedAt']);
-
-    for (const goalStep of activeGoalSteps) {
-      const deletedGoalStep = touchGoalStep(scope, {
-        ...goalStep,
+      const activeGoalSteps = await getActiveGoalSteps(scope, goal.id);
+      const deletedAt = createTimestamp();
+      const deletedGoal = touchGoal(scope, {
+        ...goal,
         deletedAt,
       });
-      await persistGoalStepUpdate(scope, deletedGoalStep, ['deletedAt']);
-    }
-  });
+      await persistGoalUpdate(scope, deletedGoal, ['deletedAt']);
+
+      for (const goalStep of activeGoalSteps) {
+        const deletedGoalStep = touchGoalStep(scope, {
+          ...goalStep,
+          deletedAt,
+        });
+        await persistGoalStepUpdate(scope, deletedGoalStep, ['deletedAt']);
+      }
+    },
+  );
 }
 
 export async function softDeleteGoalStep({
@@ -1439,49 +1521,55 @@ export async function softDeleteGoalStep({
   scope: AppScope;
   goalStepId: string;
 }): Promise<void> {
-  await db.transaction('rw', db.goals, db.goalSteps, async () => {
-    const goalStep = await getScopedGoalStep(scope, goalStepId);
+  await db.transaction(
+    'rw',
+    db.syncOutbox,
+    db.goals,
+    db.goalSteps,
+    async () => {
+      const goalStep = await getScopedGoalStep(scope, goalStepId);
 
-    if (!goalStep) {
-      return;
-    }
-
-    const activeGoalSteps = await getActiveGoalSteps(scope, goalStep.goalId);
-    const childrenByParentId = new Map<string, GoalStep[]>();
-
-    for (const activeGoalStep of activeGoalSteps) {
-      if (!activeGoalStep.parentId) {
-        continue;
+      if (!goalStep) {
+        return;
       }
 
-      const children = childrenByParentId.get(activeGoalStep.parentId) ?? [];
-      children.push(activeGoalStep);
-      childrenByParentId.set(activeGoalStep.parentId, children);
-    }
+      const activeGoalSteps = await getActiveGoalSteps(scope, goalStep.goalId);
+      const childrenByParentId = new Map<string, GoalStep[]>();
 
-    const goalStepIdsToDelete = new Set<string>();
-    const visit = (parentGoalStepId: string) => {
-      goalStepIdsToDelete.add(parentGoalStepId);
+      for (const activeGoalStep of activeGoalSteps) {
+        if (!activeGoalStep.parentId) {
+          continue;
+        }
 
-      for (const child of childrenByParentId.get(parentGoalStepId) ?? []) {
-        visit(child.id);
-      }
-    };
-
-    visit(goalStep.id);
-
-    for (const activeGoalStep of activeGoalSteps) {
-      if (!goalStepIdsToDelete.has(activeGoalStep.id)) {
-        continue;
+        const children = childrenByParentId.get(activeGoalStep.parentId) ?? [];
+        children.push(activeGoalStep);
+        childrenByParentId.set(activeGoalStep.parentId, children);
       }
 
-      const updatedGoalStep = touchGoalStep(scope, {
-        ...activeGoalStep,
-        deletedAt: createTimestamp(),
-      });
-      await persistGoalStepUpdate(scope, updatedGoalStep, ['deletedAt']);
-    }
-  });
+      const goalStepIdsToDelete = new Set<string>();
+      const visit = (parentGoalStepId: string) => {
+        goalStepIdsToDelete.add(parentGoalStepId);
+
+        for (const child of childrenByParentId.get(parentGoalStepId) ?? []) {
+          visit(child.id);
+        }
+      };
+
+      visit(goalStep.id);
+
+      for (const activeGoalStep of activeGoalSteps) {
+        if (!goalStepIdsToDelete.has(activeGoalStep.id)) {
+          continue;
+        }
+
+        const updatedGoalStep = touchGoalStep(scope, {
+          ...activeGoalStep,
+          deletedAt: createTimestamp(),
+        });
+        await persistGoalStepUpdate(scope, updatedGoalStep, ['deletedAt']);
+      }
+    },
+  );
 }
 
 export async function indentGoalStep({
@@ -1491,7 +1579,7 @@ export async function indentGoalStep({
   scope: AppScope;
   goalStepId: string;
 }): Promise<void> {
-  await db.transaction('rw', db.goalSteps, async () => {
+  await db.transaction('rw', db.syncOutbox, db.goalSteps, async () => {
     const goalStep = await getScopedGoalStep(scope, goalStepId);
 
     if (!goalStep) {
@@ -1538,7 +1626,7 @@ export async function moveGoalStepToParent({
   goalStepId: string;
   parentGoalStepId: string;
 }): Promise<void> {
-  await db.transaction('rw', db.goalSteps, async () => {
+  await db.transaction('rw', db.syncOutbox, db.goalSteps, async () => {
     const goalStep = await getScopedGoalStep(scope, goalStepId);
 
     if (!goalStep || goalStep.id === parentGoalStepId) {
@@ -1602,7 +1690,7 @@ export async function moveGoalStepToTarget({
   targetGoalStepId: string;
   placement: 'before' | 'after';
 }): Promise<void> {
-  await db.transaction('rw', db.goalSteps, async () => {
+  await db.transaction('rw', db.syncOutbox, db.goalSteps, async () => {
     const goalStep = await getScopedGoalStep(scope, goalStepId);
 
     if (!goalStep || goalStep.id === targetGoalStepId) return;
@@ -1671,7 +1759,7 @@ export async function outdentGoalStep({
   scope: AppScope;
   goalStepId: string;
 }): Promise<void> {
-  await db.transaction('rw', db.goalSteps, async () => {
+  await db.transaction('rw', db.syncOutbox, db.goalSteps, async () => {
     const goalStep = await getScopedGoalStep(scope, goalStepId);
 
     if (!goalStep?.parentId) {
@@ -1720,7 +1808,7 @@ export async function reorderGoalStep({
   goalStepId: string;
   direction: 'up' | 'down';
 }): Promise<void> {
-  await db.transaction('rw', db.goalSteps, async () => {
+  await db.transaction('rw', db.syncOutbox, db.goalSteps, async () => {
     const goalStep = await getScopedGoalStep(scope, goalStepId);
 
     if (!goalStep) {

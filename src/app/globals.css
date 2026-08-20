@@ -197,7 +197,8 @@ body {
     transform: translateY(-1px);
   }
 
-  .tick-checkbox:checked {
+  .tick-checkbox:checked,
+  .tick-checkbox[data-checked='true'] {
     --checkbox-edge: var(--accent);
 
     background-color: var(--accent);
@@ -218,20 +219,21 @@ body {
     position: absolute;
     top: 50%;
     left: 50%;
-    width: 0.625rem;
-    height: 2px;
+    width: 50%;
+    height: 10%;
     content: '';
     border-radius: 999px;
     background: color-mix(in srgb, var(--foreground) 68%, transparent);
     transform: translate(-50%, -50%);
   }
 
-  .tick-checkbox:checked::after {
+  .tick-checkbox:checked::after,
+  .tick-checkbox[data-checked='true']::after {
     position: absolute;
-    top: calc(0.17rem + 1px);
-    left: calc(0.35rem + 1px);
-    width: 0.4rem;
-    height: 0.68rem;
+    top: 18.6%;
+    left: 33%;
+    width: 32%;
+    height: 54.4%;
     content: '';
     border-right: 2px solid var(--accent-foreground);
     border-bottom: 2px solid var(--accent-foreground);

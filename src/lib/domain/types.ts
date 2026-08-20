@@ -166,6 +166,26 @@ export interface SyncOutboxItem {
   status: SyncOutboxStatus;
 }
 
+export interface AccountOperationOutboxMutation {
+  baseRevision: number | null;
+  clientUpdatedAt: string;
+  entityId: string;
+  entityType: SyncEntityType;
+  operation: SyncOperation;
+  payload: Record<string, unknown>;
+}
+
+export interface AccountOperationOutboxItem {
+  id: string;
+  scopeId: AppScopeId;
+  mutations: AccountOperationOutboxMutation[];
+  createdAt: string;
+  attempts: number;
+  lastAttemptAt: string | null;
+  lastError: string | null;
+  status: SyncOutboxStatus;
+}
+
 export interface SyncCursor {
   id: string;
   scopeId: AppScopeId;
