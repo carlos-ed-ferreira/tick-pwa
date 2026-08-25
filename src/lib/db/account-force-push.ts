@@ -2,6 +2,7 @@ import type { AppScope, SyncEntityType } from '@/lib/domain';
 import { fetchRemoteEntityRevisions } from '@/lib/supabase/account-data';
 import {
   applyAccountOperationBatch,
+  isStaleRevisionError,
   type AccountOperationResult,
 } from '@/lib/supabase/account-operations';
 import { db } from './database';
@@ -114,16 +115,6 @@ async function applyForcePushResult(
         }
       });
   }
-}
-
-function isStaleRevisionError(error: unknown): boolean {
-  return (
-    typeof error === 'object' &&
-    error !== null &&
-    'message' in error &&
-    typeof error.message === 'string' &&
-    error.message.includes('stale_revision')
-  );
 }
 
 async function pushBatch(

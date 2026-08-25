@@ -82,9 +82,15 @@ uma RPC transacional; falhas continuam visíveis e podem ser reenviadas. Contas
 fora da allowlist permanecem no caminho legado de `upsert` direto e fila em
 memória. Não existe dual-write entre os dois caminhos.
 
-Uma operação que falha é retentada automaticamente no máximo cinco vezes, e a
-drenagem da outbox usa um lock por conta para que abas do mesmo navegador não
-disputem o mesmo `operation_id`. O indicador de sincronização é acionável em
+Uma operação que falha é retentada automaticamente no máximo cinco vezes, com
+espera exponencial de 1 s a 30 s entre as tentativas; reconexão e retry manual
+ignoram essa espera. A fila durável é limitada a 200 operações por conta: ao
+atingir o limite, a alteração continua salva localmente, deixa de gerar novas
+operações remotas e aparece como falha recuperável, resolvida pela
+sincronização forçada. Uma rejeição `stale_revision` é rebaseada uma vez pela
+revisão atual do servidor e reenviada automaticamente; se ainda assim falhar, a
+operação permanece visível e recuperável. A drenagem da outbox usa um lock por
+conta para que abas do mesmo navegador não disputem o mesmo `operation_id`. O indicador de sincronização é acionável em
 qualquer estado: a ação envia o estado local deste dispositivo e sobrescreve a
 revisão remota, rebaseando `base_revision` a partir do servidor. Ela nunca
 apaga linhas que existam apenas no remoto, e é a saída para um `stale_revision`
@@ -92,18 +98,28 @@ que o retry automático não resolve sozinho.
 
 Refreshes de uma mesma conta são deduplicados. Foco e reconexão usam debounce
 de 500 ms e só atualizam dados com pelo menos 60 segundos; refresh manual ignora
-essa validade. A duração, páginas, linhas e motivo ficam disponíveis no
+essa validade. A reconciliação só escreve no IndexedDB o que realmente mudou:
+linhas com a mesma revisão remota e preferências com o mesmo valor não são
+regravadas, então um refresh sem novidade não dispara nenhuma consulta viva nem
+re-render da interface. O indicador de sincronização também só sai de
+`Sincronizado` quando a atividade passa de 800 ms; ciclos rápidos permanecem
+invisíveis, enquanto falha aparece imediatamente. A duração, páginas, linhas e motivo ficam disponíveis no
 resultado estruturado do refresh, ainda sem envio para observabilidade externa.
 
-O estado atual ainda tem limitações conhecidas de backoff automático, conflito
-entre dispositivos, retenção de recibos e observabilidade externa. Elas estão
+Métricas de fila, tentativas, rejeições, conflitos e latência de confirmação
+são acumuladas por conta em `src/lib/db/account-sync-metrics.ts`, sem conteúdo
+do usuário. Elas ainda não têm destino externo.
+
+O estado atual ainda tem limitações conhecidas de rollout amplo, cobertura de
+Safari/iOS e observabilidade externa. Elas estão
 registradas no [IMPLEMENTATION.md](IMPLEMENTATION.md); não devem ser confundidas
 com garantias já implementadas.
 
 O backend contém `apply_account_operation_batch` e recibos por conta e
 `operation_id`. O contrato aceita até 100 mutações de categoria, dia, tarefa,
 grupo de metas, meta e etapa, deriva ownership do JWT, aplica compare-and-set
-por revisão e confirma o lote inteiro em uma transação. O consumidor funcional
+por revisão e confirma o lote inteiro em uma transação. Cada chamada também
+descarta os recibos da própria conta com mais de sete dias. O consumidor funcional
 é habilitado somente para contas internas explicitamente autorizadas. O guia de
 ativação e rollback está em
 [docs/account-operation-rollout.md](docs/account-operation-rollout.md).
@@ -392,9 +408,11 @@ Supabase:
 | Objetivo        | Comando                                     |
 | --------------- | ------------------------------------------- |
 | iniciar/parar   | `make supabase-start`, `make supabase-stop` |
+| só o banco      | `make supabase-start-db`                    |
 | status          | `make supabase-status`                      |
 | reset           | `make supabase-reset`                       |
 | diff            | `make supabase-diff`                        |
+| conferir diff   | `make supabase-diff-check`                  |
 | gerar migration | `make supabase-migration-diff name=<nome>`  |
 | lint            | `make supabase-lint`                        |
 | pgTAP           | `make supabase-test-db`                     |
@@ -423,7 +441,12 @@ ambiente GitHub `production` e o workflow executou com sucesso o quality gate e
 a aplicação da migration isolada do PowerSync.
 
 `.github/workflows/app-ci.yml` executa `make audit-prod` e `make check` em
-PRs e pushes para `main`. `.github/workflows/supabase-migrations.yml` só aceita
+PRs e pushes para `main`, além de dois jobs paralelos: `Check database` sobe apenas o
+Postgres local com `make supabase-start-db`, recria o banco pelas migrations,
+roda lint, `make supabase-diff-check` e pgTAP; `Check end-to-end` roda os E2E locais e
+autenticados e guarda os artefatos do Playwright em caso de falha. Desde 25 de
+agosto de 2026, o ruleset `main-protection` exige os três checks, de modo que um
+SHA reprovado em banco ou E2E não alcança a `main`. `.github/workflows/supabase-migrations.yml` só aceita
 o SHA de um `App CI` aprovado na `main`; execução manual roda o mesmo quality
 gate antes de acessar o environment `production`. O workflow registra o SHA,
 detecta mudanças de banco, faz dry-run e então aplica migrations.
@@ -458,7 +481,9 @@ arquitetura-alvo estão em
 - [docs/account-operation-rollout.md](docs/account-operation-rollout.md):
   ativação controlada da outbox funcional;
 - [docs/plano-arquitetura-producao.md](docs/plano-arquitetura-producao.md):
-  avaliação de arquitetura e custos.
+  avaliação de arquitetura e custos;
+- [docs/proximos-passos-externos.md](docs/proximos-passos-externos.md): o que
+  decidir e como executar as pendências que dependem do desenvolvedor.
 
 `IMPLEMENTATION.md` é a fonte canônica do backlog técnico. Documentos de
 decisão e features fornecem contexto, mas não substituem esse backlog.

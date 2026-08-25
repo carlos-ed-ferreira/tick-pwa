@@ -22,7 +22,18 @@ import {
 interface CacheEntity {
   id: string;
   scopeId: string;
+  remoteRevision: number | null;
   syncStatus: 'local' | 'pending' | 'syncing' | 'synced' | 'failed';
+}
+
+function isSameRemoteRevision(
+  existingItem: CacheEntity,
+  remoteItem: CacheEntity,
+): boolean {
+  return (
+    remoteItem.remoteRevision !== null &&
+    existingItem.remoteRevision === remoteItem.remoteRevision
+  );
 }
 
 interface SelectResponse<TRemote> {
@@ -139,6 +150,10 @@ async function mergeRemoteRows<TEntity extends CacheEntity, TRemote>({
     const existingItem = existingById.get(localItem.id);
 
     if (existingItem && existingItem.syncStatus !== 'synced') {
+      continue;
+    }
+
+    if (existingItem && isSameRemoteRevision(existingItem, localItem)) {
       continue;
     }
 

@@ -1,6 +1,7 @@
 import type { AppScope } from '@/lib/domain';
 import {
   deleteLocalPreference,
+  getLocalPreference,
   setLocalPreference,
 } from '@/lib/db/local-preferences';
 import { getSupabaseBrowserClient } from './client';
@@ -143,6 +144,35 @@ export async function restoreAccountPreference({
   await setLocalPreference(key, preference.value, scope);
 }
 
+function toCanonicalPreferenceValue(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map(toCanonicalPreferenceValue);
+  }
+
+  if (typeof value === 'object' && value !== null) {
+    return Object.fromEntries(
+      Object.entries(value)
+        .sort(([firstKey], [secondKey]) => firstKey.localeCompare(secondKey))
+        .map(([entryKey, entryValue]) => [
+          entryKey,
+          toCanonicalPreferenceValue(entryValue),
+        ]),
+    );
+  }
+
+  return value;
+}
+
+function isSamePreferenceValue(
+  storedValue: unknown,
+  remoteValue: unknown,
+): boolean {
+  return (
+    JSON.stringify(toCanonicalPreferenceValue(storedValue)) ===
+    JSON.stringify(toCanonicalPreferenceValue(remoteValue))
+  );
+}
+
 export async function refreshAccountPreferences(
   scope: AppScope,
 ): Promise<void> {
@@ -168,9 +198,15 @@ export async function refreshAccountPreferences(
       continue;
     }
 
+    const storedValue = await getLocalPreference<Json>(key, scope);
+
     if (preferencesByKey.has(key)) {
-      await setLocalPreference(key, preferencesByKey.get(key), scope);
-    } else {
+      const remoteValue = preferencesByKey.get(key) ?? null;
+
+      if (!isSamePreferenceValue(storedValue, remoteValue)) {
+        await setLocalPreference(key, remoteValue, scope);
+      }
+    } else if (storedValue !== null) {
       await deleteLocalPreference(key, scope);
     }
   }

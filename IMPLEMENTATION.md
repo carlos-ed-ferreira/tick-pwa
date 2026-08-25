@@ -16,7 +16,10 @@ Prioridades:
 
 O plano de arquitetura e custos em
 [docs/plano-arquitetura-producao.md](docs/plano-arquitetura-producao.md) contém
-o racional da direção futura. Este arquivo prevalece como lista de execução e
+o racional da direção futura. O guia
+[docs/proximos-passos-externos.md](docs/proximos-passos-externos.md) detalha,
+para cada pendência que depende do desenvolvedor, o que decidir, como executar e
+como confirmar a conclusão. Este arquivo prevalece como lista de execução e
 estado de conformidade.
 
 ## Resumo
@@ -24,17 +27,17 @@ estado de conformidade.
 | ID         | Prioridade | Domínio      | Lacuna                                                          |
 | ---------- | ---------- | ------------ | --------------------------------------------------------------- |
 | DATA-01    | P0         | local-first  | snapshot remoto sem paginação pode apagar cache válido          |
-| SYNC-01    | P0         | local-first  | outbox controlada sem backoff, conflito ou rollout amplo        |
+| SYNC-01    | P0         | local-first  | outbox controlada sem rollout amplo, Safari/iOS ou métricas     |
 | SEC-01     | P0         | dependências | 5 vulnerabilidades altas em dependências de produção            |
 | CICD-01    | P0         | CI/CD        | deploy Vercel ainda não está coordenado ao SHA migrado          |
-| API-01     | P1         | API/banco    | consumidor em rollout; faltam conflito, retenção e benchmark    |
+| API-01     | P1         | API/banco    | consumidor em rollout; faltam concorrência real e benchmark     |
 | AUTH-01    | P1         | autenticação | allowlist de protótipo, sem ciclo de vida público de conta      |
 | ACCESS-01  | P1         | guest/trial  | guest não é limitado e trial/entitlement não existem            |
 | BILLING-01 | P1         | assinatura   | pagamentos, webhooks e reconciliação inexistentes               |
 | MIGRATE-01 | P1         | dados        | migração guest para conta inexistente                           |
 | OPS-01     | P1         | operação     | observabilidade, backup e restauração insuficientes             |
 | QUALITY-01 | P1         | qualidade    | coverage, mutation, estrutura e segurança fora do gate          |
-| TEST-01    | P1         | testes       | E2E/banco/RLS reais não fazem parte do CI completo              |
+| TEST-01    | P1         | testes       | E2E e banco já rodam no CI; falta Supabase real no autenticado  |
 | SCALE-01   | P1         | performance  | sem baseline de carga, bundle, sync ou quotas                   |
 | HOST-01    | P2         | arquitetura  | frontend depende de runtime Next e hospedagem futura pendente   |
 | MOD-01     | P2         | modularidade | hotspots extensos e complexos sem ratchet automatizado          |
@@ -84,9 +87,11 @@ ensaio revelou escrita remota nas tabelas funcionais; a correção com tabelas
 novos Sync Streams, reativação controlada, reload offline, convergência entre
 dois contextos web e ensaio Android foram concluídos em 17 de agosto de 2026.
 Em 20 de agosto, as seis entidades funcionais ganharam uma outbox Dexie durável
-e um consumidor controlado da RPC transacional. Rollout amplo, Safari/iOS,
-fallback de armazenamento, backoff, conflito simultâneo, retenção de recibos e
-métricas ainda estão pendentes.
+e um consumidor controlado da RPC transacional. Em 25 de agosto, a fila recebeu
+backoff exponencial, limite global por conta, rebase automático de revisão
+stale e métricas locais sem PII. Rollout amplo, Safari/iOS, fallback de
+armazenamento, concorrência simultânea real e envio das métricas para
+observabilidade externa ainda estão pendentes.
 
 **Problema/lacuna — `P0`, arquitetura/código/serviço externo:** operações da
 conta podem desaparecer ao fechar ou recarregar a aba.
@@ -102,8 +107,8 @@ esperava o limite do gateway e voltava como HTTP 504. A correção adicionou
 `lock_timeout` e `statement_timeout` na RPC, limite de cinco tentativas
 automáticas, lock de drenagem por conta entre abas, recuperação de entidades
 presas em `syncing` e uma sincronização forçada em que o dispositivo do usuário
-sobrescreve a revisão remota. Backoff temporal, retenção de recibos e métricas
-continuam pendentes.
+sobrescreve a revisão remota. O backoff temporal, a retenção de recibos e as
+métricas locais foram entregues em 25 de agosto de 2026.
 
 **Estado atual:** contas explicitamente liberadas gravam a entidade funcional e
 o lote remoto na mesma transação Dexie. A outbox v16 mantém `operation_id`,
@@ -111,17 +116,25 @@ tentativas, ordem e payload após reload, divide lotes acima de 100 mutações e
 retoma operações interrompidas ao abrir a conta. Retry reapresenta o mesmo lote
 idempotente; o sucesso atualiza a revisão e rebasa a próxima alteração da mesma
 entidade. Guest nunca registra nem envia operação. Contas fora da flag continuam
-temporariamente na fila legada em memória, sem dual-write. Ainda não há backoff,
-limite global da fila nem resolução automática de revisão stale.
+temporariamente na fila legada em memória, sem dual-write.
+
+A retentativa automática usa espera exponencial de 1 s até 30 s, agendada por
+conta; reconexão e retry manual ignoram a espera e cancelam o agendamento. A
+fila é limitada a 200 operações por conta: ao atingir o limite, a alteração
+permanece salva no IndexedDB, nenhuma operação nova é registrada e a entidade
+fica em falha recuperável pela sincronização forçada. Uma rejeição
+`stale_revision` é rebaseada uma vez com a revisão atual do servidor e reenviada
+com o mesmo `operation_id`, política de último gravador vence por entidade; uma
+segunda rejeição deixa a operação recuperável sem novo rebase.
 
 **Estado desejado:** banco local sincronizável com fila durável, pull
 incremental, retry com backoff, idempotência, conflitos determinísticos, estado
 visível e convergência multidispositivo.
 
-**Mudanças necessárias:** concluir conflito e métricas da prova PowerSync;
-validar a outbox funcional em produção para uma conta interna; implementar
-backoff e limite global; definir conflito stale; ampliar o rollout gradualmente
-ou substituí-lo pela persistência PowerSync aprovada.
+**Mudanças necessárias:** concluir conflito simultâneo e métricas da prova
+PowerSync; validar em produção o backoff, o limite e o rebase stale para uma
+conta interna; enviar as métricas locais para observabilidade externa; ampliar o
+rollout gradualmente ou substituí-lo pela persistência PowerSync aprovada.
 
 **Dependências:** DATA-01 como proteção transitória, API-01, projeto PowerSync,
 JWT Supabase e decisão de navegadores suportados.
@@ -142,6 +155,16 @@ acessível. O gate `make check` passou com 57 arquivos e 402 testes em 11 de
 agosto de 2026; os E2E locais passaram em 22 cenários e os autenticados em 2,
 ambos em desktop e mobile, incluindo as transições `Syncing` e `Synced` sob
 latência remota simulada.
+
+**Sincronização imperceptível em 25 de agosto de 2026:** o RED reproduziu a
+regravação de todas as linhas e de todas as preferências em um refresh sem
+novidade, que fazia cada consulta viva reemitir e a interface re-renderizar. O
+GREEN pula a escrita quando a revisão remota e o valor da preferência já são os
+atuais, mantém a aplicação de mudanças reais e atrasa em 800 ms a exibição de
+estados transitórios do indicador, preservando a falha imediata. Vitest passou
+com 65 arquivos e 485 testes; `make test-e2e` aprovou 24 cenários e
+`make test-e2e-account` aprovou 4, incluindo a transição `Syncing` sob latência
+simulada.
 
 **Evidência da fundação PowerSync:** `@powersync/web` está atrás de feature
 flag desligada por padrão; schema SQLite, normalização dos tipos Postgres,
@@ -273,6 +296,18 @@ parâmetros de busca para servir o mesmo shell em URLs de dia e meta; o E2E
 preservou uma meta no IndexedDB e reabriu `/goals?goal=...` e
 `/calendar?day=...` offline.
 
+**Resiliência da outbox em 25 de agosto de 2026:** o RED reproduziu o retry
+imediato sem espera, o enfileiramento ilimitado, a ausência de rebase após
+`stale_revision` e a falta de métricas. O GREEN cobre a janela de backoff com
+retomada agendada, o limite de 200 operações por conta com alteração local
+preservada, o rebase único e reenvio automático da revisão stale, a segunda
+rejeição sem novo rebase e o resumo de métricas sem conteúdo do usuário. A
+migration Dexie v17 acrescenta `nextAttemptAt` e `rebasedAt` sem perder
+operações enfileiradas. `make check` aprovou 64 arquivos e 479 testes, tipagem,
+lint, formato e build; `make test-e2e` aprovou 24 cenários desktop/mobile e
+`make test-e2e-account` aprovou 4. O banco passou com 77 testes pgTAP, lint sem
+erros, reset limpo e `make supabase-diff-check` sem divergência declarativa.
+
 ## SEC-01 — Vulnerabilidades de dependências
 
 **Status:** concluído em 11 de agosto de 2026 para dependências de produção.
@@ -307,8 +342,9 @@ grafo de dependências.
 ## CICD-01 — Ordenar quality gate, migrations e deploy
 
 **Status:** gate do mesmo SHA concluído em 11 de agosto de 2026 e validado no
-GitHub em 17 de agosto de 2026; coordenação comprovável do deploy Vercel
-pendente.
+GitHub em 17 de agosto de 2026; banco e E2E adicionados ao App CI e exigidos
+como checks obrigatórios da branch padrão em 25 de agosto de 2026; coordenação
+comprovável do deploy Vercel e ensaio de rollback pendentes.
 
 **Problema/lacuna — `P0`, CI/CD/GitHub:** migrations podem ser aplicadas por um
 workflow separado sem depender do sucesso do quality gate do mesmo commit.
@@ -330,8 +366,16 @@ manual equivalente, checkout e registro do SHA, environment protegido,
 concurrency e detecção de caminhos de banco. O primeiro fluxo remoto validado
 concluiu `Confirm quality gate` e `Apply production migrations`.
 
-**Mudanças restantes:** incluir banco e E2E definidos como obrigatórios,
-documentar e ensaiar rollback e alinhar o deploy Vercel ao mesmo SHA.
+**Mudanças restantes:** alinhar o deploy Vercel ao mesmo SHA e documentar e
+ensaiar o rollback de banco. O ruleset `main-protection` já exige `Check app`,
+`Check database` e `Check end-to-end`, então um SHA reprovado em banco ou E2E não
+alcança a `main` nem o workflow de migrations.
+
+**Decisões pendentes:** qual estratégia de ordenação do deploy adotar entre
+manter o paralelo com migrations aditivas, disparar o deploy por hook depois das
+migrations ou bloquear o build pela Vercel; e onde ensaiar a restauração, já que
+o plano Free tem um único projeto. As opções, os custos e o passo a passo estão
+em [docs/proximos-passos-externos.md](docs/proximos-passos-externos.md).
 
 **Dependências:** QUALITY-01, TEST-01 e configuração manual de branch/environment
 protection no GitHub e Vercel.
@@ -367,9 +411,11 @@ como rollback para as demais contas; não há dual-write.
 **Estado desejado:** API de domínio em lote, autenticada, transacional,
 idempotente e com política explícita de conflito.
 
-**Mudanças necessárias:** política de retenção dos recibos, tratamento de
-conflito stale, concorrência real, métricas e benchmark antes de ampliar o
-rollout e remover os upserts legados.
+**Mudanças necessárias:** concorrência real entre dispositivos e benchmark de
+lote antes de ampliar o rollout e remover os upserts legados. A retenção dos
+recibos e o tratamento de conflito stale foram entregues em 25 de agosto de
+2026: cada chamada da RPC descarta os recibos da própria conta com mais de sete
+dias e o cliente rebaseia uma vez a revisão rejeitada.
 
 **Dependências:** SYNC-01, schema aditivo e definição de conflitos por entidade.
 
@@ -412,6 +458,10 @@ exclusão completa ou política de retenção.
 **Estado desejado:** onboarding e ciclo de vida de conta seguros, localizados e
 testáveis, integrados ao entitlement.
 
+**Decisões pendentes:** provedor de SMTP e domínio remetente, uso de CAPTCHA
+desde a abertura do cadastro, prazo prometido para exportação e exclusão e o
+momento de remover a allowlist.
+
 **Mudanças necessárias:** telas e contratos de signup/confirm/reset; templates
 e SMTP; OAuth production; export/delete; reautenticação para ações sensíveis;
 retenção; remover dependência da allowlist quando o entitlement assumir acesso.
@@ -453,6 +503,11 @@ entitlement.
 uma vez e dura 7 dias; assinante ativo recebe acesso completo. Trial e assinante
 usam exatamente a mesma persistência e sincronização.
 
+**Decisões pendentes:** quais capacidades o convidado perde e em que quantidade,
+o que acontece com um convidado que já excede esse limite, quando os sete dias
+começam a contar, o que muda ao expirar e se o trial é controlado por conta,
+e-mail ou dispositivo.
+
 **Mudanças necessárias:** modelo central de entitlement; relógio canônico do
 servidor; regras de limite guest no domínio; estados trial/active/grace/expired;
 UI e dicionários; autorização remota; proteção contra abuso.
@@ -482,6 +537,11 @@ nos demais países.
 **Estado desejado:** catálogo centralizado por região/moeda, checkout seguro,
 status canônico de assinatura e entitlement derivado no servidor.
 
+**Decisões pendentes:** provedor de pagamento considerando emissão fiscal no
+Brasil, entidade jurídica que recebe, confirmação ou substituição dos preços
+provisórios e comportamento em falha de pagamento, incluindo tolerância e acesso
+durante ela.
+
 **Mudanças necessárias:** escolher provedor; modelar customer/subscription e
 event log; checkout/portal; webhooks assinados e idempotentes; renovação,
 cancelamento, grace period, falha de pagamento e job de reconciliação.
@@ -509,6 +569,10 @@ transferidos para uma conta.
 
 **Estado desejado:** fluxo opcional e explícito para dados elegíveis, seguro,
 idempotente, recuperável e preservando ownership.
+
+**Decisões pendentes:** se a migração será oferecida e em que momento da
+experiência, o que fazer quando a conta de destino já tem dados e se a origem
+convidada é apagada após a confirmação.
 
 **Mudanças necessárias:** definir elegibilidade e UX; inventariar grafo guest;
 gerar `migration_id`; mapear IDs/relações; lote transacional; checkpoint local;
@@ -538,6 +602,12 @@ Hobby permanecem nesta fase.
 
 **Estado desejado:** erros acionáveis sem PII, métricas de sync, alertas de
 quota/falha, backup independente e restauração comprovada.
+
+**Decisões pendentes:** provedor de observabilidade, quais eventos saem do
+dispositivo, retenção, limites que geram alerta e confirmação de que nenhum
+conteúdo do usuário acompanha a métrica. A coleta local já existe em
+`src/lib/db/account-sync-metrics.ts`; falta apenas o destino. O detalhamento
+está em [docs/proximos-passos-externos.md](docs/proximos-passos-externos.md).
 
 **Mudanças necessárias:** escolher observabilidade; definir eventos e redaction;
 dashboards; alertas; export/backup automatizado; criptografia/retenção; runbooks
@@ -588,15 +658,27 @@ e CI e revisar relatórios gerados.
 **Problema/lacuna — `P1`, testes/CI/banco:** E2E e checks de banco são manuais;
 o E2E autenticado intercepta HTTP e não prova integração real ou RLS.
 
-**Estado atual:** 394 Vitest, 22 E2E locais, 2 E2E autenticados simulados e 22
-pgTAP passam. pgTAP verifica sobretudo estrutura e presença de policies.
+**Estado atual:** 479 Vitest, 24 E2E locais, 4 E2E autenticados simulados e 77
+pgTAP passam. Desde 25 de agosto de 2026, o App CI executa `Check database`
+(Supabase local, reset, lint, paridade declarativa e pgTAP) e `Check end-to-end`
+(E2E locais e autenticados com artefatos em falha). O E2E autenticado continua
+interceptando HTTP e não prova integração real nem RLS.
 
 **Estado desejado:** CI executa a matriz aplicável, incluindo Supabase local
 real, policies negativas, auth e migrations limpas.
 
-**Mudanças necessárias:** job Docker/Supabase; reset; pgTAP; E2E autenticado
-real; fixtures de dois usuários; testes de CRUD negado; artifacts Playwright;
-sharding/cache estáveis.
+**Nota de estabilidade:** a primeira execução do job de banco no GitHub
+derrubou o servidor PostgreSQL durante o pgTAP, com o backend terminando e a
+instância entrando em recovery. A mesma imagem passa localmente, então a
+resposta foi reduzir a superfície: o CI passou a subir somente o container do
+Postgres por `make supabase-start-db` e a asserção de privilégio da função de
+purga deixou de executá-la como cliente autenticado, verificando o grant por
+`has_function_privilege`.
+
+**Mudanças necessárias:** E2E autenticado contra o Supabase local real;
+fixtures de dois usuários; testes de CRUD negado no fluxo de aplicação;
+sharding e cache estáveis. Job Docker/Supabase, reset, pgTAP e artifacts do
+Playwright foram entregues em 25 de agosto de 2026.
 
 **Dependências:** CICD-01 e tempo aceitável de CI.
 
@@ -785,10 +867,17 @@ Concluído manualmente em 11 de agosto de 2026 para a alfa controlada:
   Google OAuth, allowlist, RLS e SSL no Supabase;
 - procedimento manual de backup e restauração do Supabase.
 
+Concluído manualmente em 25 de agosto de 2026:
+
+- `Check app`, `Check database` e `Check end-to-end` exigidos como checks
+  obrigatórios da branch padrão no ruleset `main-protection`;
+- revisão do SQL da migration de retenção de recibos antes da publicação.
+
 Continuam pendentes ou intencionalmente adiados:
 
-- ativação e ensaio da outbox funcional para uma única conta interna, conforme
-  `docs/account-operation-rollout.md`;
+- publicação da versão com backoff, limite de fila e rebase stale, seguida do
+  ensaio descrito em `docs/account-operation-rollout.md` para uma única conta
+  interna;
 - SMTP, CAPTCHA e revisão de quotas do Supabase antes do cadastro público;
 - ordem coordenada de migrations e deploy na Vercel, coberta por `CICD-01`;
 - fechamento completo do navegador com operação pendente, Safari/iOS, fallback
@@ -801,3 +890,6 @@ Continuam pendentes ou intencionalmente adiados:
 Supabase Pro, Vercel Pro e PowerSync Pro não serão contratados nesta fase. Cada
 upgrade depende dos gatilhos técnicos e comerciais documentados no plano de
 arquitetura.
+
+O que decidir e como executar cada pendência acima está em
+[docs/proximos-passos-externos.md](docs/proximos-passos-externos.md).

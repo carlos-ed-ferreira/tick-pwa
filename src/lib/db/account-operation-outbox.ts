@@ -4,16 +4,33 @@ import type {
   AccountOperationOutboxMutation,
   AppScope,
 } from '@/lib/domain';
-import { applyAccountOperationBatch } from '@/lib/supabase/account-operations';
+import { fetchRemoteEntityRevisions } from '@/lib/supabase/account-data';
+import {
+  applyAccountOperationBatch,
+  isStaleRevisionError,
+} from '@/lib/supabase/account-operations';
 import { db } from './database';
 import { createTimestamp } from './entity-metadata';
 import {
+  accountEntityTypes,
   createOperationId,
   getAccountEntityTable,
   type PersistedAccountEntity,
 } from './account-entity-tables';
+import {
+  recordAccountOperationConfirmed,
+  recordAccountOperationConflict,
+  recordAccountOperationExhausted,
+  recordAccountOperationRejected,
+  recordAccountOperationSent,
+} from './account-sync-metrics';
 
 const MAX_AUTOMATIC_ATTEMPTS = 5;
+const MAX_MUTATIONS_PER_OPERATION = 100;
+const RETRY_BASE_DELAY_MS = 1000;
+const RETRY_MAX_DELAY_MS = 30000;
+
+export const MAX_ACCOUNT_OUTBOX_OPERATIONS = 200;
 
 type AccountOperationBatchResult = NonNullable<
   Awaited<ReturnType<typeof applyAccountOperationBatch>>
@@ -25,6 +42,7 @@ const transactionBatches = new WeakMap<
 >();
 const registeredTransactionScopes = new WeakMap<Transaction, Set<string>>();
 const operationQueues = new Map<string, Promise<void>>();
+const retryTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
 function createOutboxItem(scope: AppScope): AccountOperationOutboxItem {
   return {
@@ -35,8 +53,54 @@ function createOutboxItem(scope: AppScope): AccountOperationOutboxItem {
     attempts: 0,
     lastAttemptAt: null,
     lastError: null,
+    nextAttemptAt: null,
+    rebasedAt: null,
     status: 'pending',
   };
+}
+
+export function computeAccountOperationRetryDelayMs(attempts: number): number {
+  const exponent = Math.max(attempts - 1, 0);
+
+  return Math.min(RETRY_BASE_DELAY_MS * 2 ** exponent, RETRY_MAX_DELAY_MS);
+}
+
+function isRetryDue(item: AccountOperationOutboxItem): boolean {
+  if (!item.nextAttemptAt) {
+    return true;
+  }
+
+  const nextAttempt = Date.parse(item.nextAttemptAt);
+
+  return !Number.isFinite(nextAttempt) || nextAttempt <= Date.now();
+}
+
+function cancelScheduledRetry(scopeId: string): void {
+  const timer = retryTimers.get(scopeId);
+
+  if (timer === undefined) {
+    return;
+  }
+
+  clearTimeout(timer);
+  retryTimers.delete(scopeId);
+}
+
+function scheduleRetry(scope: AppScope, delayMs: number): void {
+  cancelScheduledRetry(scope.id);
+
+  const timer = setTimeout(() => {
+    retryTimers.delete(scope.id);
+    void enqueueOperation(scope.id, () =>
+      withOutboxLock(scope.id, () =>
+        drainOperations(scope, { ignoreBackoff: false, includeFailed: true }),
+      ),
+    ).catch((error) => {
+      console.error('Failed to retry Tick account operations.', error);
+    });
+  }, delayMs);
+
+  retryTimers.set(scope.id, timer);
 }
 
 function enqueueOperation(
@@ -78,6 +142,29 @@ function registerTransactionDrain(
   });
 }
 
+async function hasReachedQueueLimit(scope: AppScope): Promise<boolean> {
+  const queuedOperations = await db.syncOutbox
+    .where('scopeId')
+    .equals(scope.id)
+    .count();
+
+  return queuedOperations >= MAX_ACCOUNT_OUTBOX_OPERATIONS;
+}
+
+function registerOverflowFailure(
+  transaction: Transaction,
+  mutation: AccountOperationOutboxMutation,
+): void {
+  transaction.on('complete', () => {
+    void updateMutationEntityStatus(mutation, 'failed').catch((error) => {
+      console.error(
+        'Failed to flag a Tick account change blocked by the outbox limit.',
+        error,
+      );
+    });
+  });
+}
+
 async function appendMutation(
   transaction: Transaction,
   scope: AppScope,
@@ -108,7 +195,12 @@ async function appendMutation(
       baseRevision: existingMutation.baseRevision,
     };
   } else {
-    if (!batch || batch.mutations.length >= 100) {
+    if (!batch || batch.mutations.length >= MAX_MUTATIONS_PER_OPERATION) {
+      if (await hasReachedQueueLimit(scope)) {
+        registerOverflowFailure(transaction, mutation);
+        return;
+      }
+
       batch = createOutboxItem(scope);
       batches.push(batch);
       transactionBatches.set(transaction, batches);
@@ -200,6 +292,7 @@ async function markOperationSyncing(
         attempts: current.attempts + 1,
         lastAttemptAt: new Date().toISOString(),
         lastError: null,
+        nextAttemptAt: null,
         status: 'syncing',
       };
       await db.syncOutbox.put(syncingItem);
@@ -227,9 +320,20 @@ function getSafeErrorCode(error: unknown): string {
 }
 
 async function markOperationFailed(
+  scope: AppScope,
   item: AccountOperationOutboxItem,
   error: unknown,
 ): Promise<void> {
+  const errorCode = getSafeErrorCode(error);
+  const canRetryAutomatically = item.attempts < MAX_AUTOMATIC_ATTEMPTS;
+  const retryDelayMs = computeAccountOperationRetryDelayMs(item.attempts);
+
+  recordAccountOperationRejected(scope.id, errorCode);
+
+  if (!canRetryAutomatically) {
+    recordAccountOperationExhausted(scope.id);
+  }
+
   await db.transaction(
     'rw',
     [
@@ -250,7 +354,10 @@ async function markOperationFailed(
 
       await db.syncOutbox.put({
         ...current,
-        lastError: getSafeErrorCode(error),
+        lastError: errorCode,
+        nextAttemptAt: canRetryAutomatically
+          ? new Date(Date.now() + retryDelayMs).toISOString()
+          : null,
         status: 'failed',
       });
 
@@ -259,6 +366,10 @@ async function markOperationFailed(
       }
     },
   );
+
+  if (canRetryAutomatically) {
+    scheduleRetry(scope, retryDelayMs);
+  }
 }
 
 function validateOperationResult(
@@ -364,6 +475,75 @@ async function completeOperation(
   );
 }
 
+async function sendOperation(
+  scope: AppScope,
+  item: AccountOperationOutboxItem,
+): Promise<void> {
+  recordAccountOperationSent(scope.id);
+
+  const result = await applyAccountOperationBatch({
+    mutations: item.mutations.map((mutation) => ({
+      baseRevision: mutation.baseRevision,
+      entityType: mutation.entityType,
+      payload: mutation.payload,
+    })),
+    operationId: item.id,
+    scope,
+  });
+
+  if (!result) {
+    throw new Error('Account operation did not return a result.');
+  }
+
+  await completeOperation(item, result);
+  recordAccountOperationConfirmed(
+    scope.id,
+    Date.now() - Date.parse(item.createdAt),
+  );
+}
+
+async function rebaseStaleOperation(
+  scope: AppScope,
+  item: AccountOperationOutboxItem,
+): Promise<AccountOperationOutboxItem> {
+  const revisions = new Map<string, number>();
+
+  for (const entityType of accountEntityTypes) {
+    const entityIds = item.mutations
+      .filter((mutation) => mutation.entityType === entityType)
+      .map((mutation) => mutation.entityId);
+
+    if (entityIds.length === 0) {
+      continue;
+    }
+
+    const remoteRevisions = await fetchRemoteEntityRevisions({
+      entityIds,
+      entityType,
+      scope,
+    });
+
+    for (const [entityId, revision] of remoteRevisions) {
+      revisions.set(`${entityType}:${entityId}`, revision);
+    }
+  }
+
+  const rebasedItem: AccountOperationOutboxItem = {
+    ...item,
+    mutations: item.mutations.map((mutation) => ({
+      ...mutation,
+      baseRevision:
+        revisions.get(`${mutation.entityType}:${mutation.entityId}`) ?? null,
+    })),
+    rebasedAt: new Date().toISOString(),
+  };
+
+  await db.syncOutbox.put(rebasedItem);
+  recordAccountOperationConflict(scope.id);
+
+  return rebasedItem;
+}
+
 async function processOperation(
   scope: AppScope,
   item: AccountOperationOutboxItem,
@@ -375,24 +555,27 @@ async function processOperation(
   }
 
   try {
-    const result = await applyAccountOperationBatch({
-      mutations: syncingItem.mutations.map((mutation) => ({
-        baseRevision: mutation.baseRevision,
-        entityType: mutation.entityType,
-        payload: mutation.payload,
-      })),
-      operationId: syncingItem.id,
-      scope,
-    });
-
-    if (!result) {
-      throw new Error('Account operation did not return a result.');
-    }
-
-    await completeOperation(syncingItem, result);
+    await sendOperation(scope, syncingItem);
   } catch (error) {
     console.error('Failed to persist Tick account operation.', error);
-    await markOperationFailed(syncingItem, error);
+
+    if (!isStaleRevisionError(error) || syncingItem.rebasedAt) {
+      await markOperationFailed(scope, syncingItem, error);
+      return;
+    }
+
+    try {
+      await sendOperation(
+        scope,
+        await rebaseStaleOperation(scope, syncingItem),
+      );
+    } catch (rebaseError) {
+      console.error(
+        'Failed to reapply a stale Tick account operation.',
+        rebaseError,
+      );
+      await markOperationFailed(scope, syncingItem, rebaseError);
+    }
   }
 }
 
@@ -418,7 +601,10 @@ async function withOutboxLock(
 
 async function drainOperations(
   scope: AppScope,
-  includeFailed: boolean,
+  {
+    ignoreBackoff,
+    includeFailed,
+  }: { ignoreBackoff: boolean; includeFailed: boolean },
 ): Promise<void> {
   if (scope.kind === 'guest') {
     return;
@@ -441,6 +627,10 @@ async function drainOperations(
       break;
     }
 
+    if (!ignoreBackoff && !isRetryDue(item)) {
+      break;
+    }
+
     if (
       item.status !== 'pending' &&
       item.status !== 'syncing' &&
@@ -458,6 +648,24 @@ async function drainOperations(
   }
 }
 
+async function collectFailedEntityKeys(scopeId: string): Promise<Set<string>> {
+  const keys = new Set<string>();
+
+  for (const entityType of accountEntityTypes) {
+    const entities = await getAccountEntityTable(entityType)
+      .where('scopeId')
+      .equals(scopeId)
+      .filter((entity) => entity.syncStatus === 'failed')
+      .toArray();
+
+    for (const entity of entities) {
+      keys.add(`${entityType}:${entity.id}`);
+    }
+  }
+
+  return keys;
+}
+
 export async function getAccountOperationOutboxSummary(
   scopeId: string,
 ): Promise<{
@@ -466,7 +674,7 @@ export async function getAccountOperationOutboxSummary(
   syncingCount: number;
 }> {
   const items = await db.syncOutbox.where('scopeId').equals(scopeId).toArray();
-  const failed = new Set<string>();
+  const failed = await collectFailedEntityKeys(scopeId);
   const pending = new Set<string>();
   const syncing = new Set<string>();
 
@@ -502,7 +710,9 @@ export async function getAccountOperationOutboxSummary(
 
 export function resumeAccountOperationOutbox(scope: AppScope): Promise<void> {
   return enqueueOperation(scope.id, () =>
-    withOutboxLock(scope.id, () => drainOperations(scope, false)),
+    withOutboxLock(scope.id, () =>
+      drainOperations(scope, { ignoreBackoff: false, includeFailed: false }),
+    ),
   );
 }
 
@@ -513,8 +723,12 @@ export async function retryFailedAccountOperationOutbox(
     return;
   }
 
+  cancelScheduledRetry(scope.id);
+
   await enqueueOperation(scope.id, () =>
-    withOutboxLock(scope.id, () => drainOperations(scope, true)),
+    withOutboxLock(scope.id, () =>
+      drainOperations(scope, { ignoreBackoff: true, includeFailed: true }),
+    ),
   );
 }
 

@@ -54,6 +54,16 @@ function toAccountOperationMutation(
   };
 }
 
+export function isStaleRevisionError(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'message' in error &&
+    typeof error.message === 'string' &&
+    error.message.includes('stale_revision')
+  );
+}
+
 export async function applyAccountOperationBatch({
   mutations,
   operationId,

@@ -32,3 +32,76 @@ jobs:
 
       - name: Run checks
         run: make check
+
+  database:
+    name: Check database
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: make install-ci
+
+      - name: Start the local database
+        run: make supabase-start-db
+
+      - name: Rebuild the database from migrations and seed
+        run: make supabase-reset
+
+      - name: Lint the PostgreSQL schema
+        run: make supabase-lint
+
+      - name: Confirm the declarative schema matches the migrations
+        run: make supabase-diff-check
+
+      - name: Run database tests
+        run: make supabase-test-db
+
+      - name: Stop local Supabase
+        if: always()
+        run: make supabase-stop
+
+  end-to-end:
+    name: Check end-to-end
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: make install-ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run local end-to-end tests
+        run: make test-e2e
+
+      - name: Run authenticated end-to-end tests
+        run: make test-e2e-account
+
+      - name: Upload Playwright artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-artifacts
+          path: |
+            .next/playwright-report
+            .next/playwright-results
+            .next/playwright-account-results
+          retention-days: 7
