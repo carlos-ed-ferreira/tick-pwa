@@ -50,8 +50,8 @@ jobs:
       - name: Install dependencies
         run: make install-ci
 
-      - name: Start local Supabase
-        run: make supabase-start
+      - name: Start the local database
+        run: make supabase-start-db
 
       - name: Rebuild the database from migrations and seed
         run: make supabase-reset

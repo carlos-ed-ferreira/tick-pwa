@@ -178,10 +178,12 @@ select results_eq(
   'the batch derives ownership from the authenticated user'
 );
 
-select throws_ok(
-  $$select public.purge_account_operation_receipts()$$,
-  '42501',
-  null,
+select ok(
+  not has_function_privilege(
+    'authenticated',
+    'public.purge_account_operation_receipts(uuid, interval)',
+    'execute'
+  ),
   'an authenticated client cannot purge receipts directly'
 );
 

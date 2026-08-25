@@ -16,7 +16,10 @@ Prioridades:
 
 O plano de arquitetura e custos em
 [docs/plano-arquitetura-producao.md](docs/plano-arquitetura-producao.md) contém
-o racional da direção futura. Este arquivo prevalece como lista de execução e
+o racional da direção futura. O guia
+[docs/proximos-passos-externos.md](docs/proximos-passos-externos.md) detalha,
+para cada pendência que depende do desenvolvedor, o que decidir, como executar e
+como confirmar a conclusão. Este arquivo prevalece como lista de execução e
 estado de conformidade.
 
 ## Resumo
@@ -339,8 +342,9 @@ grafo de dependências.
 ## CICD-01 — Ordenar quality gate, migrations e deploy
 
 **Status:** gate do mesmo SHA concluído em 11 de agosto de 2026 e validado no
-GitHub em 17 de agosto de 2026; coordenação comprovável do deploy Vercel
-pendente.
+GitHub em 17 de agosto de 2026; banco e E2E adicionados ao App CI e exigidos
+como checks obrigatórios da branch padrão em 25 de agosto de 2026; coordenação
+comprovável do deploy Vercel e ensaio de rollback pendentes.
 
 **Problema/lacuna — `P0`, CI/CD/GitHub:** migrations podem ser aplicadas por um
 workflow separado sem depender do sucesso do quality gate do mesmo commit.
@@ -362,11 +366,16 @@ manual equivalente, checkout e registro do SHA, environment protegido,
 concurrency e detecção de caminhos de banco. O primeiro fluxo remoto validado
 concluiu `Confirm quality gate` e `Apply production migrations`.
 
-**Mudanças restantes:** marcar `Check database` e `Check end-to-end` como
-checks obrigatórios no GitHub, documentar e ensaiar rollback e alinhar o deploy
-Vercel ao mesmo SHA. Em 25 de agosto de 2026, o App CI passou a executar banco e
-E2E como jobs próprios; enquanto a proteção de branch não exigir os dois, o
-gate de migrations continua dependendo apenas da conclusão do workflow.
+**Mudanças restantes:** alinhar o deploy Vercel ao mesmo SHA e documentar e
+ensaiar o rollback de banco. O ruleset `main-protection` já exige `Check app`,
+`Check database` e `Check end-to-end`, então um SHA reprovado em banco ou E2E não
+alcança a `main` nem o workflow de migrations.
+
+**Decisões pendentes:** qual estratégia de ordenação do deploy adotar entre
+manter o paralelo com migrations aditivas, disparar o deploy por hook depois das
+migrations ou bloquear o build pela Vercel; e onde ensaiar a restauração, já que
+o plano Free tem um único projeto. As opções, os custos e o passo a passo estão
+em [docs/proximos-passos-externos.md](docs/proximos-passos-externos.md).
 
 **Dependências:** QUALITY-01, TEST-01 e configuração manual de branch/environment
 protection no GitHub e Vercel.
@@ -449,6 +458,10 @@ exclusão completa ou política de retenção.
 **Estado desejado:** onboarding e ciclo de vida de conta seguros, localizados e
 testáveis, integrados ao entitlement.
 
+**Decisões pendentes:** provedor de SMTP e domínio remetente, uso de CAPTCHA
+desde a abertura do cadastro, prazo prometido para exportação e exclusão e o
+momento de remover a allowlist.
+
 **Mudanças necessárias:** telas e contratos de signup/confirm/reset; templates
 e SMTP; OAuth production; export/delete; reautenticação para ações sensíveis;
 retenção; remover dependência da allowlist quando o entitlement assumir acesso.
@@ -490,6 +503,11 @@ entitlement.
 uma vez e dura 7 dias; assinante ativo recebe acesso completo. Trial e assinante
 usam exatamente a mesma persistência e sincronização.
 
+**Decisões pendentes:** quais capacidades o convidado perde e em que quantidade,
+o que acontece com um convidado que já excede esse limite, quando os sete dias
+começam a contar, o que muda ao expirar e se o trial é controlado por conta,
+e-mail ou dispositivo.
+
 **Mudanças necessárias:** modelo central de entitlement; relógio canônico do
 servidor; regras de limite guest no domínio; estados trial/active/grace/expired;
 UI e dicionários; autorização remota; proteção contra abuso.
@@ -519,6 +537,11 @@ nos demais países.
 **Estado desejado:** catálogo centralizado por região/moeda, checkout seguro,
 status canônico de assinatura e entitlement derivado no servidor.
 
+**Decisões pendentes:** provedor de pagamento considerando emissão fiscal no
+Brasil, entidade jurídica que recebe, confirmação ou substituição dos preços
+provisórios e comportamento em falha de pagamento, incluindo tolerância e acesso
+durante ela.
+
 **Mudanças necessárias:** escolher provedor; modelar customer/subscription e
 event log; checkout/portal; webhooks assinados e idempotentes; renovação,
 cancelamento, grace period, falha de pagamento e job de reconciliação.
@@ -546,6 +569,10 @@ transferidos para uma conta.
 
 **Estado desejado:** fluxo opcional e explícito para dados elegíveis, seguro,
 idempotente, recuperável e preservando ownership.
+
+**Decisões pendentes:** se a migração será oferecida e em que momento da
+experiência, o que fazer quando a conta de destino já tem dados e se a origem
+convidada é apagada após a confirmação.
 
 **Mudanças necessárias:** definir elegibilidade e UX; inventariar grafo guest;
 gerar `migration_id`; mapear IDs/relações; lote transacional; checkpoint local;
@@ -575,6 +602,12 @@ Hobby permanecem nesta fase.
 
 **Estado desejado:** erros acionáveis sem PII, métricas de sync, alertas de
 quota/falha, backup independente e restauração comprovada.
+
+**Decisões pendentes:** provedor de observabilidade, quais eventos saem do
+dispositivo, retenção, limites que geram alerta e confirmação de que nenhum
+conteúdo do usuário acompanha a métrica. A coleta local já existe em
+`src/lib/db/account-sync-metrics.ts`; falta apenas o destino. O detalhamento
+está em [docs/proximos-passos-externos.md](docs/proximos-passos-externos.md).
 
 **Mudanças necessárias:** escolher observabilidade; definir eventos e redaction;
 dashboards; alertas; export/backup automatizado; criptografia/retenção; runbooks
@@ -633,6 +666,14 @@ interceptando HTTP e não prova integração real nem RLS.
 
 **Estado desejado:** CI executa a matriz aplicável, incluindo Supabase local
 real, policies negativas, auth e migrations limpas.
+
+**Nota de estabilidade:** a primeira execução do job de banco no GitHub
+derrubou o servidor PostgreSQL durante o pgTAP, com o backend terminando e a
+instância entrando em recovery. A mesma imagem passa localmente, então a
+resposta foi reduzir a superfície: o CI passou a subir somente o container do
+Postgres por `make supabase-start-db` e a asserção de privilégio da função de
+purga deixou de executá-la como cliente autenticado, verificando o grant por
+`has_function_privilege`.
 
 **Mudanças necessárias:** E2E autenticado contra o Supabase local real;
 fixtures de dois usuários; testes de CRUD negado no fluxo de aplicação;
@@ -826,13 +867,17 @@ Concluído manualmente em 11 de agosto de 2026 para a alfa controlada:
   Google OAuth, allowlist, RLS e SSL no Supabase;
 - procedimento manual de backup e restauração do Supabase.
 
+Concluído manualmente em 25 de agosto de 2026:
+
+- `Check app`, `Check database` e `Check end-to-end` exigidos como checks
+  obrigatórios da branch padrão no ruleset `main-protection`;
+- revisão do SQL da migration de retenção de recibos antes da publicação.
+
 Continuam pendentes ou intencionalmente adiados:
 
-- ativação e ensaio da outbox funcional para uma única conta interna, conforme
-  `docs/account-operation-rollout.md`, incluindo backoff, limite de fila e
-  rebase de revisão stale;
-- inclusão de `Check database` e `Check end-to-end` entre os checks obrigatórios
-  da `main` no GitHub;
+- publicação da versão com backoff, limite de fila e rebase stale, seguida do
+  ensaio descrito em `docs/account-operation-rollout.md` para uma única conta
+  interna;
 - SMTP, CAPTCHA e revisão de quotas do Supabase antes do cadastro público;
 - ordem coordenada de migrations e deploy na Vercel, coberta por `CICD-01`;
 - fechamento completo do navegador com operação pendente, Safari/iOS, fallback
@@ -845,3 +890,6 @@ Continuam pendentes ou intencionalmente adiados:
 Supabase Pro, Vercel Pro e PowerSync Pro não serão contratados nesta fase. Cada
 upgrade depende dos gatilhos técnicos e comerciais documentados no plano de
 arquitetura.
+
+O que decidir e como executar cada pendência acima está em
+[docs/proximos-passos-externos.md](docs/proximos-passos-externos.md).

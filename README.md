@@ -408,6 +408,7 @@ Supabase:
 | Objetivo        | Comando                                     |
 | --------------- | ------------------------------------------- |
 | iniciar/parar   | `make supabase-start`, `make supabase-stop` |
+| só o banco      | `make supabase-start-db`                    |
 | status          | `make supabase-status`                      |
 | reset           | `make supabase-reset`                       |
 | diff            | `make supabase-diff`                        |
@@ -440,10 +441,12 @@ ambiente GitHub `production` e o workflow executou com sucesso o quality gate e
 a aplicação da migration isolada do PowerSync.
 
 `.github/workflows/app-ci.yml` executa `make audit-prod` e `make check` em
-PRs e pushes para `main`, além de dois jobs paralelos: `Check database` sobe o
-Supabase local, recria o banco pelas migrations, roda lint, `make
-supabase-diff-check` e pgTAP; `Check end-to-end` roda os E2E locais e
-autenticados e guarda os artefatos do Playwright em caso de falha. `.github/workflows/supabase-migrations.yml` só aceita
+PRs e pushes para `main`, além de dois jobs paralelos: `Check database` sobe apenas o
+Postgres local com `make supabase-start-db`, recria o banco pelas migrations,
+roda lint, `make supabase-diff-check` e pgTAP; `Check end-to-end` roda os E2E locais e
+autenticados e guarda os artefatos do Playwright em caso de falha. Desde 25 de
+agosto de 2026, o ruleset `main-protection` exige os três checks, de modo que um
+SHA reprovado em banco ou E2E não alcança a `main`. `.github/workflows/supabase-migrations.yml` só aceita
 o SHA de um `App CI` aprovado na `main`; execução manual roda o mesmo quality
 gate antes de acessar o environment `production`. O workflow registra o SHA,
 detecta mudanças de banco, faz dry-run e então aplica migrations.
@@ -478,7 +481,9 @@ arquitetura-alvo estão em
 - [docs/account-operation-rollout.md](docs/account-operation-rollout.md):
   ativação controlada da outbox funcional;
 - [docs/plano-arquitetura-producao.md](docs/plano-arquitetura-producao.md):
-  avaliação de arquitetura e custos.
+  avaliação de arquitetura e custos;
+- [docs/proximos-passos-externos.md](docs/proximos-passos-externos.md): o que
+  decidir e como executar as pendências que dependem do desenvolvedor.
 
 `IMPLEMENTATION.md` é a fonte canônica do backlog técnico. Documentos de
 decisão e features fornecem contexto, mas não substituem esse backlog.

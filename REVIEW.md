@@ -142,7 +142,10 @@ cor do processo. Eles não falham o gate atual.
 - migration Dexie v17 preserva operações enfileiradas ao acrescentar
   `nextAttemptAt` e `rebasedAt`;
 - App CI executa banco e E2E como jobs próprios, com paridade declarativa
-  verificada por `make supabase-diff-check`;
+  verificada por `make supabase-diff-check`; os três checks são obrigatórios na
+  branch padrão desde 25 de agosto de 2026;
+- o job de banco sobe apenas o container do Postgres, reduzindo a superfície que
+  derrubou o servidor na primeira execução remota;
 - reconciliação silenciosa: refresh sem mudança remota não escreve entidade nem
   preferência no IndexedDB, comprovado por espiões de `put` e `delete`;
 - indicador de sincronização com atraso de 800 ms para estados transitórios,

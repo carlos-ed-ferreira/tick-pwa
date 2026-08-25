@@ -25,6 +25,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "supabase:start": "node scripts/supabase-cli.mjs start",
+    "supabase:start:db": "node scripts/supabase-cli.mjs start -x gotrue,realtime,storage-api,imgproxy,kong,mailpit,postgrest,postgres-meta,studio,edge-runtime,logflare,vector,supavisor",
     "supabase:stop": "node scripts/supabase-cli.mjs stop",
     "supabase:status": "node scripts/supabase-cli.mjs status",
     "supabase:db:reset": "node scripts/supabase-cli.mjs db:reset",

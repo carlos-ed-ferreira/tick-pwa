@@ -52,6 +52,11 @@ controlada:
       Supabase;
 - [x] procedimento manual de backup e restauração preparado e validado.
 
+Em 25 de agosto de 2026, `Check app`, `Check database` e `Check end-to-end`
+passaram a ser checks obrigatórios da branch padrão. A ordem entre migrations e
+deploy da Vercel continua sendo a única parte de `CICD-01` sem garantia técnica;
+as opções estão em [proximos-passos-externos.md](proximos-passos-externos.md).
+
 Os secrets `SUPABASE_PROJECT_REF`, `SUPABASE_ACCESS_TOKEN` e
 `SUPABASE_DB_PASSWORD` não devem ser habilitados no environment GitHub
 `production` até o novo workflow de `CICD-01` ser mesclado e validado no

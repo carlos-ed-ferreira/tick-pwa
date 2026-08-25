@@ -94,6 +94,58 @@ exige um novo deploy. Não altere as flags do PowerSync para este rollout.
 8. Confirme que uma conta não listada continua funcional pelo caminho legado e
    que o modo guest não faz chamadas remotas de entidades.
 
+## Ensaio dos comportamentos de resiliência
+
+Execute cada cenário com a conta autorizada, um de cada vez, e registre o
+resultado. Todos usam apenas o navegador e as ferramentas de desenvolvedor.
+
+### Backoff e retomada automática
+
+1. Abra o app autenticado e deixe as ferramentas de desenvolvedor em **Network**.
+2. Ative **Offline** e faça uma alteração no calendário.
+3. Observe o indicador: ele deve permanecer em `Sincronizado` por cerca de um
+   segundo e só então mostrar o estado transitório, porque estados rápidos são
+   suprimidos por 800 ms.
+4. Continue offline por dois minutos. As tentativas devem se espaçar, não se
+   repetir a cada instante.
+5. Volte para **Online** sem clicar em nada.
+
+**Aprovado quando:** o indicador volta sozinho para `Sincronizado`, sem ação
+manual, e a aba **Network** não mostra rajadas de chamadas repetidas durante o
+período offline.
+
+### Limite da fila durável
+
+Cenário opcional, porque exige gerar volume. Ele comprova que uma fila presa não
+cresce sem limite.
+
+1. Fique offline e faça mais de duzentas alterações, por exemplo marcando e
+   desmarcando itens em sequência.
+2. Continue alterando depois de passar do limite.
+
+**Aprovado quando:** as alterações continuam salvas na tela mesmo depois do
+limite, o indicador mostra falha recuperável e a sincronização forçada, ao
+voltar online, envia o estado local e devolve o indicador para `Sincronizado`.
+
+### Rebase de revisão stale
+
+1. Abra a mesma conta em dois contextos, por exemplo uma janela normal e uma
+   anônima, e carregue a mesma tarefa nos dois.
+2. Deixe o segundo contexto offline.
+3. Edite a tarefa no primeiro contexto e aguarde a confirmação.
+4. Edite a mesma tarefa no segundo contexto e volte a ficar online.
+
+**Aprovado quando:** o segundo contexto reenvia sozinho, o indicador volta para
+`Sincronizado` sem intervenção e o valor final é o do segundo contexto, que foi
+o último a gravar. Uma operação que permanecer falha depois disso é motivo para
+não ampliar a allowlist.
+
+### O que fazer se um cenário reprovar
+
+Não limpe dados do site nem o IndexedDB. Use a sincronização forçada para
+reconciliar, registre o estado do indicador e o código de erro exibido no
+console e mantenha a conta única até a causa ser corrigida.
+
 ## Rollback
 
 Remova ou esvazie `NEXT_PUBLIC_TICK_ENABLE_ACCOUNT_BATCHES` e faça novo deploy.
