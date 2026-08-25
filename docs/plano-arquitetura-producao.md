@@ -201,10 +201,17 @@ O evento `online` retoma operações falhas tanto da outbox quanto do fallback
 legado; escritas legadas detectadas sem rede deixam o estado recuperável em vez
 de permanecer em sincronização.
 
+Em 25 de agosto de 2026, a fila ganhou backoff exponencial de 1 s a 30 s com
+retomada agendada, limite de 200 operações por conta sem descartar a alteração
+local, rebase automático e único de uma revisão stale e métricas locais sem
+conteúdo do usuário. No servidor, cada chamada da RPC descarta os recibos da
+própria conta com mais de sete dias.
+
 A outbox permanece desligada por padrão e autorizada por UUID. Ela reduz o risco
 da alfa antes da migração PowerSync, sem se transformar em uma sincronização
-proprietária completa. Ainda faltam backoff, limite global, conflito stale,
-métricas e validação real do rollout. O procedimento está em
+proprietária completa. Ainda faltam o destino externo das métricas, a
+concorrência realmente simultânea entre dispositivos e a validação real do
+rollout. O procedimento está em
 [account-operation-rollout.md](account-operation-rollout.md).
 
 ## Fase 1 — prova de conceito do PowerSync no plano gratuito

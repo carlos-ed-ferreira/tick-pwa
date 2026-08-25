@@ -1062,6 +1062,21 @@ export class TickDatabase extends Dexie {
         'id, scopeId, status, createdAt, [scopeId+status], [scopeId+createdAt]',
     });
 
+    this.version(17).upgrade(async (transaction) => {
+      const syncOutboxTable = transaction.table('syncOutbox') as Table<
+        AccountOperationOutboxItem,
+        string
+      >;
+
+      for (const outboxItem of await syncOutboxTable.toArray()) {
+        await syncOutboxTable.put({
+          ...outboxItem,
+          nextAttemptAt: outboxItem.nextAttemptAt ?? null,
+          rebasedAt: outboxItem.rebasedAt ?? null,
+        });
+      }
+    });
+
     this.categoryTags = this.table('colorTags');
   }
 }

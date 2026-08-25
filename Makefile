@@ -1,6 +1,6 @@
 NPM = npm
 
-.PHONY: help require-npm install install-ci dev build start lint typecheck test test-account-operations test-account-persistence test-powersync test-e2e test-e2e-offline test-e2e-account format format-check check audit-prod deps-tree publish clean supabase-start supabase-stop supabase-status supabase-reset supabase-diff supabase-migration-diff supabase-lint supabase-test-db supabase-types-local supabase-prod-migrations-repair supabase-prod-db-dry-run supabase-prod-db-push
+.PHONY: help require-npm install install-ci dev build start lint typecheck test test-account-operations test-account-persistence test-powersync test-e2e test-e2e-offline test-e2e-account format format-check check audit-prod deps-tree publish clean supabase-start supabase-stop supabase-status supabase-reset supabase-diff supabase-diff-check supabase-migration-diff supabase-lint supabase-test-db supabase-types-local supabase-prod-migrations-repair supabase-prod-db-dry-run supabase-prod-db-push
 .DEFAULT_GOAL := help
 
 help:
@@ -30,6 +30,7 @@ help:
 	@printf "  %-26s %s\n" "make supabase-status" "Mostra URLs e chaves do Supabase local"
 	@printf "  %-26s %s\n" "make supabase-reset" "Reseta o banco Supabase local com migrations e seed"
 	@printf "  %-26s %s\n" "make supabase-diff" "Compara migrations com o schema declarativo"
+	@printf "  %-26s %s\n" "make supabase-diff-check" "Falha quando o schema declarativo diverge"
 	@printf "  %-26s %s\n" "make supabase-migration-diff name=<nome>" "Gera migration pelo diff declarativo"
 	@printf "  %-26s %s\n" "make supabase-lint" "Valida o schema Postgres local"
 	@printf "  %-26s %s\n" "make supabase-test-db" "Roda os testes pgTAP do banco"
@@ -135,6 +136,9 @@ supabase-reset: require-npm
 
 supabase-diff: require-npm
 	$(NPM) run supabase:db:diff
+
+supabase-diff-check: require-npm
+	$(NPM) run supabase:db:diff:check
 
 supabase-migration-diff: require-npm
 	@test -n "$(name)" || { printf "Erro: informe name=<nome_da_migration>.\n"; exit 2; }

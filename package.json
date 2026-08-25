@@ -29,6 +29,7 @@
     "supabase:status": "node scripts/supabase-cli.mjs status",
     "supabase:db:reset": "node scripts/supabase-cli.mjs db:reset",
     "supabase:db:diff": "node scripts/supabase-cli.mjs db:diff",
+    "supabase:db:diff:check": "node scripts/supabase-cli.mjs db:diff:check",
     "supabase:db:lint": "node scripts/supabase-cli.mjs db:lint",
     "supabase:test:db": "node scripts/supabase-cli.mjs test:db",
     "supabase:types:local": "node scripts/supabase-cli.mjs types:local",

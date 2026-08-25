@@ -126,6 +126,29 @@ cor do processo. Eles não falham o gate atual.
   dia e meta e dados preservados no IndexedDB;
 - módulo novo da outbox com 547 linhas e funções novas limitadas a 80 linhas.
 
+## Ratchet em 2026-08-25
+
+- Vitest: 64 arquivos e 479 testes aprovados;
+- pgTAP: 77 testes aprovados, incluindo retenção de recibos e bloqueio da purga
+  direta pelo cliente autenticado;
+- outbox autenticada com backoff exponencial de 1 s a 30 s, retomada agendada e
+  cancelamento da espera na reconexão e no retry manual;
+- fila durável limitada a 200 operações por conta, sem descartar a alteração
+  local e mantendo a sincronização forçada como saída;
+- rejeição `stale_revision` rebaseada uma vez pela revisão do servidor e
+  reenviada com o mesmo `operation_id`; a segunda rejeição não rebaseia de novo;
+- métricas locais de fila, tentativas, rejeições, conflitos e latência sem
+  conteúdo do usuário;
+- migration Dexie v17 preserva operações enfileiradas ao acrescentar
+  `nextAttemptAt` e `rebasedAt`;
+- App CI executa banco e E2E como jobs próprios, com paridade declarativa
+  verificada por `make supabase-diff-check`;
+- reconciliação silenciosa: refresh sem mudança remota não escreve entidade nem
+  preferência no IndexedDB, comprovado por espiões de `put` e `delete`;
+- indicador de sincronização com atraso de 800 ms para estados transitórios,
+  falha imediata e cobertura de fila crescente sem reiniciar a janela;
+- Playwright local: 24 cenários aprovados; Playwright autenticado: 4 cenários.
+
 ## Matriz de quality gates
 
 | Gate               | Métrica e threshold                                                                 | Escopo                              | Estado         | Legado                                    | Bloqueia?                   |
@@ -135,11 +158,12 @@ cor do processo. Eles não falham o gate atual.
 | Formatação         | 0 diferenças em `make format-check`                                                 | arquivos suportados                 | enforced       | todo o código                             | sim                         |
 | Unit/integration   | 100% dos testes Vitest aprovados                                                    | suíte existente                     | enforced       | sem redução de testes válida sem revisão  | sim                         |
 | Build              | exit 0 em `make build`                                                              | aplicação e PWA                     | enforced       | todo o código                             | sim                         |
-| E2E local          | 100% aprovados em desktop e mobile                                                  | fluxos Playwright existentes        | manual         | manter baseline de 22                     | sim quando aplicável        |
-| E2E autenticado    | 100% aprovados em desktop e mobile                                                  | fluxo de latência simulado          | manual         | manter baseline de 2                      | sim para auth/sync          |
-| Schema lint        | 0 erros                                                                             | Postgres local                      | manual         | sem regressão                             | sim para banco              |
-| pgTAP              | 100% aprovados                                                                      | `supabase/tests`                    | manual         | manter ao menos 74; remoção exige revisão | sim para banco              |
-| Banco limpo        | reset, migrations e seed com exit 0                                                 | todas as migrations                 | manual         | compatibilidade obrigatória               | sim para banco              |
+| E2E local          | 100% aprovados em desktop e mobile                                                  | fluxos Playwright existentes        | enforced no CI | manter baseline de 24                     | sim quando aplicável        |
+| E2E autenticado    | 100% aprovados em desktop e mobile                                                  | fluxo de latência simulado          | enforced no CI | manter baseline de 4                      | sim para auth/sync          |
+| Schema lint        | 0 erros                                                                             | Postgres local                      | enforced no CI | sem regressão                             | sim para banco              |
+| pgTAP              | 100% aprovados                                                                      | `supabase/tests`                    | enforced no CI | manter ao menos 77; remoção exige revisão | sim para banco              |
+| Banco limpo        | reset, migrations e seed com exit 0                                                 | todas as migrations                 | enforced no CI | compatibilidade obrigatória               | sim para banco              |
+| Schema declarativo | 0 divergências em `make supabase-diff-check`                                        | `supabase/schemas` e migrations     | enforced no CI | sem divergência                           | sim para banco              |
 | Dependency audit   | 0 críticas e 0 altas em `make audit-prod`                                           | dependências de produção            | enforced no CI | baseline reduzido a zero                  | sim para dependência/deploy |
 | Line coverage      | baseline inicial sem queda; objetivo global 80%; diff 90%                           | código não gerado                   | planned        | ratchet global                            | sim após automação          |
 | Branch coverage    | baseline inicial sem queda; objetivo global 70%; diff 80%                           | código não gerado                   | planned        | ratchet global                            | sim após automação          |
@@ -155,8 +179,9 @@ cor do processo. Eles não falham o gate atual.
 | i18n               | tipos válidos e chaves pt/en presentes; 0 string nova fora do mecanismo             | UI alterada                         | manual         | shape tipado já existe                    | sim quando aplicável        |
 | UI responsiva      | cenários mobile e desktop aprovados                                                 | UI alterada                         | manual         | preservar comportamento                   | sim quando aplicável        |
 
-`make check` é o gate automatizado atual. Ele não inclui E2E, banco,
-coverage, segurança, complexidade ou performance.
+`make check` é o gate local. O App CI acrescenta `make audit-prod`, o job de
+banco e o job de E2E. Coverage, segurança, complexidade e performance continuam
+fora de qualquer gate automatizado.
 
 ## Thresholds estruturais
 

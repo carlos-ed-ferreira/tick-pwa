@@ -1,5 +1,5 @@
 begin;
-select plan(17);
+select plan(20);
 
 insert into auth.users (
   instance_id,
@@ -79,6 +79,29 @@ values (
   'America/Sao_Paulo'
 );
 
+insert into public.account_operation_receipts (
+  user_id,
+  operation_id,
+  request_hash,
+  result,
+  created_at
+)
+values
+  (
+    '40000000-0000-0000-0000-000000000004',
+    'aa000000-0000-0000-0000-0000000000aa',
+    'expired-hash',
+    '{}'::jsonb,
+    timezone('utc', now()) - interval '30 days'
+  ),
+  (
+    '40000000-0000-0000-0000-000000000004',
+    'ab000000-0000-0000-0000-0000000000ab',
+    'recent-hash',
+    '{}'::jsonb,
+    timezone('utc', now()) - interval '1 day'
+  );
+
 set local role authenticated;
 select set_config(
   'request.jwt.claims',
@@ -153,6 +176,13 @@ select results_eq(
   $$,
   $$values ('40000000-0000-0000-0000-000000000004'::uuid)$$,
   'the batch derives ownership from the authenticated user'
+);
+
+select throws_ok(
+  $$select public.purge_account_operation_receipts()$$,
+  '42501',
+  null,
+  'an authenticated client cannot purge receipts directly'
 );
 
 select is(
@@ -527,5 +557,25 @@ select throws_ok(
 );
 
 reset role;
+
+select is_empty(
+  $$
+    select operation_id
+    from public.account_operation_receipts
+    where operation_id = 'aa000000-0000-0000-0000-0000000000aa'
+  $$,
+  'applying a batch purges receipts older than the retention window'
+);
+
+select results_eq(
+  $$
+    select count(*)
+    from public.account_operation_receipts
+    where operation_id = 'ab000000-0000-0000-0000-0000000000ab'
+  $$,
+  $$values (1::bigint)$$,
+  'a receipt inside the retention window is preserved'
+);
+
 select * from finish();
 rollback;

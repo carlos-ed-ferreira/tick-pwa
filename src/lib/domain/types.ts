@@ -183,6 +183,8 @@ export interface AccountOperationOutboxItem {
   attempts: number;
   lastAttemptAt: string | null;
   lastError: string | null;
+  nextAttemptAt: string | null;
+  rebasedAt: string | null;
   status: SyncOutboxStatus;
 }
 

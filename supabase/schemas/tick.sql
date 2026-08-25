@@ -698,6 +698,28 @@ begin
 end;
 $$;
 
+create or replace function public.purge_account_operation_receipts(
+  p_user_id uuid default null,
+  p_retention interval default interval '7 days'
+)
+returns integer
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  purged_receipts integer;
+begin
+  delete from public.account_operation_receipts
+  where created_at < timezone('utc', now()) - p_retention
+    and (p_user_id is null or user_id = p_user_id);
+
+  get diagnostics purged_receipts = row_count;
+
+  return purged_receipts;
+end;
+$$;
+
 create or replace function public.apply_account_operation_batch(
   p_operation_id uuid,
   p_mutations jsonb
@@ -744,6 +766,8 @@ begin
   end if;
 
   request_hash := encode(extensions.digest(p_mutations::text, 'sha256'), 'hex');
+
+  perform public.purge_account_operation_receipts(authenticated_user_id);
 
   insert into public.account_operation_receipts (
     user_id,
@@ -1150,6 +1174,7 @@ begin
 end;
 $$;
 
+create index account_operation_receipts_user_created_at_idx on public.account_operation_receipts (user_id, created_at);
 create index category_tags_user_surface_position_idx on public.category_tags (user_id, surface, position);
 create index category_tags_user_updated_at_idx on public.category_tags (user_id, updated_at desc);
 create index daily_entries_user_updated_at_idx on public.daily_entries (user_id, updated_at desc);
@@ -1272,6 +1297,7 @@ $$;
 grant execute on function public.current_user_has_app_access() to authenticated;
 revoke all on public.account_operation_receipts from anon, authenticated;
 revoke all on public.powersync_poc_operation_receipts from anon, authenticated;
+revoke all on function public.purge_account_operation_receipts(uuid, interval) from public, anon, authenticated;
 revoke all on function public.apply_account_operation_batch(uuid, jsonb) from public, anon;
 grant execute on function public.apply_account_operation_batch(uuid, jsonb) to authenticated;
 revoke all on function public.apply_powersync_poc_mutation(uuid, jsonb) from public, anon, authenticated;

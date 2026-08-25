@@ -46,6 +46,22 @@ try {
     process.exit(0);
   }
 
+  if (command === 'db:diff:check') {
+    const pendingSchema = await executeSupabase(['db', 'diff', ...extraArgs], {
+      captureOutput: true,
+      teeOutput: true,
+    });
+
+    if (pendingSchema.trim().length > 0) {
+      console.error(
+        'The declarative schema diverges from the applied migrations. Generate a migration with make supabase-migration-diff name=<nome>.',
+      );
+      process.exit(1);
+    }
+
+    process.exit(0);
+  }
+
   if (command === 'db:lint') {
     await executeSupabase([
       'db',
@@ -166,6 +182,7 @@ Commands:
   status           Show local Supabase services and keys
   db:reset         Reset the local Supabase database
   db:diff          Diff migrations against supabase/schemas
+  db:diff:check    Fail when supabase/schemas diverges from the migrations
   db:lint          Lint the local public schema
   test:db          Run pgTAP tests against the local database
   types:local      Generate src/lib/supabase/database.types.ts from local Supabase
