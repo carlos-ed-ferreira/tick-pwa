@@ -82,6 +82,14 @@ uma RPC transacional; falhas continuam visíveis e podem ser reenviadas. Contas
 fora da allowlist permanecem no caminho legado de `upsert` direto e fila em
 memória. Não existe dual-write entre os dois caminhos.
 
+Uma operação que falha é retentada automaticamente no máximo cinco vezes, e a
+drenagem da outbox usa um lock por conta para que abas do mesmo navegador não
+disputem o mesmo `operation_id`. O indicador de sincronização é acionável em
+qualquer estado: a ação envia o estado local deste dispositivo e sobrescreve a
+revisão remota, rebaseando `base_revision` a partir do servidor. Ela nunca
+apaga linhas que existam apenas no remoto, e é a saída para um `stale_revision`
+que o retry automático não resolve sozinho.
+
 Refreshes de uma mesma conta são deduplicados. Foco e reconexão usam debounce
 de 500 ms e só atualizam dados com pelo menos 60 segundos; refresh manual ignora
 essa validade. A duração, páginas, linhas e motivo ficam disponíveis no

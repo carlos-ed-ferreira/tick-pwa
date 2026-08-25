@@ -5,36 +5,23 @@ import {
   persistAccountEntity,
   restoreAccountEntity,
 } from '@/lib/supabase/account-data';
-import { db } from './database';
 import {
   getAccountOperationOutboxSummary,
   persistAccountOperationMutation,
   retryFailedAccountOperationOutbox,
   waitForAccountOperationOutbox,
 } from './account-operation-outbox';
+import {
+  accountEntityTypes,
+  getAccountEntityTable,
+} from './account-entity-tables';
+import { forcePushLocalAccountState } from './account-force-push';
 
 const persistenceQueues = new Map<string, Promise<void>>();
 
 function isBrowserOffline(): boolean {
   return typeof navigator !== 'undefined' && navigator.onLine === false;
 }
-
-interface PersistedAccountEntity {
-  id: string;
-  scopeId: string;
-  clientUpdatedAt: string;
-  remoteRevision: number | null;
-  syncStatus: 'local' | 'pending' | 'syncing' | 'synced' | 'failed';
-}
-
-const accountEntityTypes: SyncEntityType[] = [
-  'categoryTag',
-  'dailyEntry',
-  'checklistItem',
-  'goalGroup',
-  'goal',
-  'goalStep',
-];
 
 export type AccountSyncState = 'saved' | 'pending' | 'syncing' | 'failed';
 
@@ -43,30 +30,6 @@ export interface AccountSyncSummary {
   failedCount: number;
   pendingCount: number;
   syncingCount: number;
-}
-
-function getAccountEntityTable(entityType: SyncEntityType) {
-  if (entityType === 'categoryTag') {
-    return db.categoryTags as Dexie.Table<PersistedAccountEntity, string>;
-  }
-
-  if (entityType === 'dailyEntry') {
-    return db.dailyEntries as Dexie.Table<PersistedAccountEntity, string>;
-  }
-
-  if (entityType === 'checklistItem') {
-    return db.checklistItems as Dexie.Table<PersistedAccountEntity, string>;
-  }
-
-  if (entityType === 'goalGroup') {
-    return db.goalGroups as Dexie.Table<PersistedAccountEntity, string>;
-  }
-
-  if (entityType === 'goal') {
-    return db.goals as Dexie.Table<PersistedAccountEntity, string>;
-  }
-
-  return db.goalSteps as Dexie.Table<PersistedAccountEntity, string>;
 }
 
 async function markAccountEntityPersisted({
@@ -251,7 +214,10 @@ export async function retryFailedAccountPersistence(
         const entities = await getAccountEntityTable(entityType)
           .where('scopeId')
           .equals(scope.id)
-          .filter((entity) => entity.syncStatus === 'failed')
+          .filter(
+            (entity) =>
+              entity.syncStatus === 'failed' || entity.syncStatus === 'syncing',
+          )
           .toArray();
 
         return entities.map((entity) => ({
@@ -272,7 +238,7 @@ export async function retryFailedAccountPersistence(
         if (
           entity?.scopeId !== scope.id ||
           entity.clientUpdatedAt !== candidate.clientUpdatedAt ||
-          entity.syncStatus !== 'failed'
+          (entity.syncStatus !== 'failed' && entity.syncStatus !== 'syncing')
         ) {
           return;
         }
@@ -300,6 +266,16 @@ export async function retryFailedAccountPersistence(
         }
       }),
     ),
+  );
+}
+
+export async function forceSyncAccount(scope: AppScope): Promise<void> {
+  if (scope.kind !== 'user') {
+    return;
+  }
+
+  await enqueueAccountPersistence(scope.id, () =>
+    forcePushLocalAccountState(scope),
   );
 }
 

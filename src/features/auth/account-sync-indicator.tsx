@@ -7,6 +7,17 @@ import type { AppScope } from '@/lib/domain';
 import type { Dictionary } from '@/lib/i18n';
 import { useAccountSyncStatus } from './use-account-sync-status';
 
+const stateStyles = {
+  saved:
+    'inset-ring-emerald-300/20 bg-emerald-400/10 text-emerald-100 hover:bg-emerald-400/20 focus-visible:outline-emerald-200',
+  syncing:
+    'inset-ring-sky-300/20 bg-sky-400/10 text-sky-100 hover:bg-sky-400/20 focus-visible:outline-sky-200',
+  pending:
+    'inset-ring-amber-300/25 bg-amber-400/12 text-amber-100 hover:bg-amber-400/20 focus-visible:outline-amber-200',
+  failed:
+    'inset-ring-rose-300/30 bg-rose-400/12 text-rose-100 hover:bg-rose-400/20 focus-visible:outline-rose-200',
+} as const;
+
 export function AccountSyncIndicator({
   dictionary,
   scope,
@@ -15,60 +26,53 @@ export function AccountSyncIndicator({
   scope: AppScope | null;
 }) {
   const { retry, summary } = useAccountSyncStatus(scope);
-  const [isRetrying, setIsRetrying] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
   const statusLabel = dictionary[summary.state];
+  const actionLabel = isSyncing
+    ? summary.state === 'failed'
+      ? dictionary.retrying
+      : dictionary.forcing
+    : summary.state === 'failed'
+      ? dictionary.retry
+      : dictionary.force;
 
-  const retrySync = async () => {
-    setIsRetrying(true);
+  const forceSync = async () => {
+    setIsSyncing(true);
 
     try {
       await retry();
+    } catch (error) {
+      console.error('Failed to force a Tick account sync.', error);
     } finally {
-      setIsRetrying(false);
+      setIsSyncing(false);
     }
   };
 
-  if (summary.state === 'failed') {
-    return (
-      <Button
-        aria-label={`${dictionary.failed}. ${isRetrying ? dictionary.retrying : dictionary.retry}`}
-        className="min-h-10 rounded-full inset-ring-rose-300/30 bg-rose-400/12 px-3.5 text-xs text-rose-100 hover:bg-rose-400/20 focus-visible:outline-rose-200"
-        disabled={isRetrying}
-        tone="subtle"
-        onClick={() => void retrySync()}
-      >
-        {isRetrying ? (
-          <LoaderCircle aria-hidden="true" className="size-4 animate-spin" />
-        ) : (
-          <CloudOff aria-hidden="true" className="size-4" />
-        )}
-        <span>{dictionary.failed}</span>
-        <span aria-hidden="true">·</span>
-        <span>{isRetrying ? dictionary.retrying : dictionary.retry}</span>
-      </Button>
-    );
-  }
-
   return (
-    <span
-      aria-live="polite"
-      className={`inline-flex min-h-10 items-center gap-2 rounded-full px-3.5 text-xs font-medium ${
-        summary.state === 'saved'
-          ? 'inset-ring-emerald-300/20 bg-emerald-400/10 text-emerald-100'
-          : summary.state === 'syncing'
-            ? 'inset-ring-sky-300/20 bg-sky-400/10 text-sky-100'
-            : 'inset-ring-amber-300/25 bg-amber-400/12 text-amber-100'
-      }`}
-      role="status"
-    >
-      {summary.state === 'saved' ? (
-        <Check aria-hidden="true" className="size-4" />
-      ) : summary.state === 'syncing' ? (
-        <RefreshCw aria-hidden="true" className="size-4 animate-spin" />
-      ) : (
-        <Cloud aria-hidden="true" className="size-4" />
-      )}
-      {statusLabel}
-    </span>
+    <>
+      <Button
+        aria-label={`${statusLabel}. ${actionLabel}`}
+        className={`min-h-10 rounded-full px-3.5 text-xs ${stateStyles[summary.state]}`}
+        disabled={isSyncing}
+        tone="subtle"
+        onClick={() => void forceSync()}
+      >
+        {isSyncing ? (
+          <LoaderCircle aria-hidden="true" className="size-4 animate-spin" />
+        ) : summary.state === 'failed' ? (
+          <CloudOff aria-hidden="true" className="size-4" />
+        ) : summary.state === 'saved' ? (
+          <Check aria-hidden="true" className="size-4" />
+        ) : summary.state === 'syncing' ? (
+          <RefreshCw aria-hidden="true" className="size-4 animate-spin" />
+        ) : (
+          <Cloud aria-hidden="true" className="size-4" />
+        )}
+        <span>{statusLabel}</span>
+      </Button>
+      <span aria-live="polite" className="sr-only" role="status">
+        {statusLabel}
+      </span>
+    </>
   );
 }

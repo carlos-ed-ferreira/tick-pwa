@@ -722,6 +722,9 @@ declare
   stored_result jsonb;
   written_revision bigint;
 begin
+  set local lock_timeout = '3s';
+  set local statement_timeout = '20s';
+
   if authenticated_user_id is null then
     raise exception using errcode = '42501', message = 'authentication_required';
   end if;
