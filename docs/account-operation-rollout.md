@@ -32,7 +32,17 @@ PowerSync.
 - compare-and-set por revisão e rebase da próxima alteração local após sucesso;
 - estado pendente, sincronizando e falho visível pelo resumo existente.
 
-Ainda não estão concluídos backoff automático, resolução assistida de conflito
+- limite de cinco tentativas automáticas por operação, para que uma falha
+  determinística não vire tempestade de requisições;
+- `lock_timeout` de 3 s e `statement_timeout` de 20 s dentro da RPC, para que
+  contenção de lock falhe rápido em vez de expirar no gateway;
+- lock de drenagem por conta, impedindo que duas abas disputem o mesmo
+  `operation_id`;
+- sincronização forçada pelo usuário: o estado local do dispositivo é enviado
+  com `base_revision` rebaseada a partir do servidor e sobrescreve a revisão
+  remota, sem apagar linhas que só existam no remoto.
+
+Ainda não estão concluídos backoff temporal, resolução automática de conflito
 stale entre dispositivos, retenção dos recibos no servidor, métricas externas e
 rollout amplo. Por isso a liberação continua limitada a uma conta interna.
 

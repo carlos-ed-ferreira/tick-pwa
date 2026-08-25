@@ -109,6 +109,8 @@ export interface Dictionary {
   sync: {
     failed: string;
     pending: string;
+    force: string;
+    forcing: string;
     retry: string;
     retrying: string;
     saved: string;

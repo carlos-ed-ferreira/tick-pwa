@@ -17,6 +17,7 @@ import {
   softDeleteChecklistItem,
 } from '@/lib/db';
 import {
+  forceSyncAccount,
   getAccountSyncSummary,
   persistAccountEntityChange,
   resumeAccountPersistence,
@@ -73,6 +74,61 @@ function createAccountWriteClient() {
     from,
     writes,
   };
+}
+
+function createForcePushClient(remoteRevisions: Record<string, number>) {
+  const rpc = vi.fn(
+    async (
+      _functionName: string,
+      args: {
+        p_mutations: Array<{
+          base_revision: number | null;
+          entity_type: string;
+          payload: { id: string };
+        }>;
+        p_operation_id: string;
+      },
+    ) => {
+      const stale = args.p_mutations.find(
+        (mutation) =>
+          (remoteRevisions[mutation.payload.id] ?? null) !==
+          mutation.base_revision,
+      );
+
+      if (stale) {
+        return {
+          data: null,
+          error: { code: '40001', message: 'stale_revision' },
+        };
+      }
+
+      return {
+        data: {
+          operationId: args.p_operation_id,
+          mutations: args.p_mutations.map((mutation) => ({
+            entityType: mutation.entity_type,
+            id: mutation.payload.id,
+            revision: (remoteRevisions[mutation.payload.id] ?? 0) + 1,
+          })),
+        },
+        error: null,
+      };
+    },
+  );
+  const from = vi.fn(() => ({
+    select: vi.fn(() => ({
+      eq: vi.fn(() => ({
+        in: vi.fn(async (_column: string, ids: string[]) => ({
+          data: ids
+            .filter((id) => id in remoteRevisions)
+            .map((id) => ({ id, revision: remoteRevisions[id] })),
+          error: null,
+        })),
+      })),
+    })),
+  }));
+
+  return { client: { from, rpc }, rpc };
 }
 
 function createRemoteChecklistItem(
@@ -1608,5 +1664,153 @@ describe('account persistence boundaries', () => {
       add: 'menu',
       priority: 'inline',
     });
+  });
+  it('overwrites a divergent remote revision when the user forces a sync', async () => {
+    environmentMocks.shouldUseAccountOperationBatchesForUser.mockReturnValue(
+      true,
+    );
+    const scope = createUserScope('force-push-user');
+    const failingRpc = vi.fn(async () => ({
+      data: null,
+      error: { code: '40001', message: 'stale_revision' },
+    }));
+    supabaseMocks.getSupabaseBrowserClient.mockReturnValue({ rpc: failingRpc });
+
+    const entry = await openOrCreateDailyEntry({
+      scope,
+      date: '2026-08-24',
+      timezone: 'America/Sao_Paulo',
+    });
+    const item = await createChecklistItem({
+      scope,
+      dailyEntryId: entry.id,
+      text: 'Only on this device',
+    });
+    await waitForAccountPersistence(scope.id);
+
+    await expect(db.syncOutbox.count()).resolves.toBeGreaterThan(0);
+    await expect(getAccountSyncSummary(scope.id)).resolves.toMatchObject({
+      state: 'failed',
+    });
+
+    const forcePush = createForcePushClient({ [entry.id]: 7, [item.id]: 4 });
+    supabaseMocks.getSupabaseBrowserClient.mockReturnValue(forcePush.client);
+
+    await forceSyncAccount(scope);
+    await waitForAccountPersistence(scope.id);
+
+    expect(forcePush.rpc).toHaveBeenCalled();
+    await expect(db.syncOutbox.count()).resolves.toBe(0);
+    await expect(db.checklistItems.get(item.id)).resolves.toMatchObject({
+      remoteRevision: 5,
+      syncStatus: 'synced',
+    });
+    await expect(db.dailyEntries.get(entry.id)).resolves.toMatchObject({
+      remoteRevision: 8,
+      syncStatus: 'synced',
+    });
+    await expect(getAccountSyncSummary(scope.id)).resolves.toMatchObject({
+      state: 'saved',
+    });
+  });
+
+  it('sends a parent before its child when forcing a sync', async () => {
+    environmentMocks.shouldUseAccountOperationBatchesForUser.mockReturnValue(
+      true,
+    );
+    const scope = createUserScope('force-push-order-user');
+    const forcePush = createForcePushClient({});
+    supabaseMocks.getSupabaseBrowserClient.mockReturnValue(forcePush.client);
+
+    const entry = await openOrCreateDailyEntry({
+      scope,
+      date: '2026-08-24',
+      timezone: 'America/Sao_Paulo',
+    });
+    const parent = await createChecklistItem({
+      scope,
+      dailyEntryId: entry.id,
+      text: 'Parent',
+    });
+    const child = await createChecklistItem({
+      scope,
+      dailyEntryId: entry.id,
+      parentId: parent.id,
+      text: 'Child',
+    });
+    await waitForAccountPersistence(scope.id);
+    forcePush.rpc.mockClear();
+
+    await forceSyncAccount(scope);
+    await waitForAccountPersistence(scope.id);
+
+    const sentIds = forcePush.rpc.mock.calls.flatMap((call) =>
+      (
+        call[1] as {
+          p_mutations: Array<{ payload: { id: string } }>;
+        }
+      ).p_mutations.map((mutation) => mutation.payload.id),
+    );
+
+    expect(sentIds.indexOf(entry.id)).toBeLessThan(sentIds.indexOf(parent.id));
+    expect(sentIds.indexOf(parent.id)).toBeLessThan(sentIds.indexOf(child.id));
+  });
+
+  it('recovers an entity stranded in the syncing state', async () => {
+    const scope = createUserScope('stranded-syncing-user');
+    const accountClient = createAccountWriteClient();
+    supabaseMocks.getSupabaseBrowserClient.mockReturnValue(
+      accountClient.client,
+    );
+    const categoryTag = await createCategoryTag({
+      scope,
+      surface: 'calendar',
+      name: 'STRANDED',
+      colorHex: '#2563eb',
+    });
+    await waitForAccountPersistence(scope.id);
+    accountClient.writes.length = 0;
+
+    await db.categoryTags.update(categoryTag.id, { syncStatus: 'syncing' });
+    await expect(getAccountSyncSummary(scope.id)).resolves.toMatchObject({
+      state: 'syncing',
+    });
+
+    await resumeAccountPersistence(scope);
+    await waitForAccountPersistence(scope.id);
+
+    expect(accountClient.writes).toHaveLength(1);
+    await expect(getAccountSyncSummary(scope.id)).resolves.toMatchObject({
+      state: 'saved',
+    });
+  });
+
+  it('stops retrying an account operation automatically after five attempts', async () => {
+    environmentMocks.shouldUseAccountOperationBatchesForUser.mockReturnValue(
+      true,
+    );
+    const scope = createUserScope('exhausted-attempts-user');
+    const rpc = vi.fn(async () => ({
+      data: null,
+      error: { code: '40001', message: 'stale_revision' },
+    }));
+    supabaseMocks.getSupabaseBrowserClient.mockReturnValue({ rpc });
+
+    await createCategoryTag({
+      scope,
+      surface: 'calendar',
+      name: 'EXHAUSTED',
+      colorHex: '#2563eb',
+    });
+    await waitForAccountPersistence(scope.id);
+
+    for (let attempt = 0; attempt < 10; attempt += 1) {
+      await retryFailedAccountPersistence(scope);
+      await waitForAccountPersistence(scope.id);
+    }
+
+    expect(rpc).toHaveBeenCalledTimes(5);
+    const operation = (await db.syncOutbox.toArray()).at(0);
+    expect(operation?.attempts).toBe(5);
   });
 });

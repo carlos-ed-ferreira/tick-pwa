@@ -182,3 +182,52 @@ export async function restoreAccountEntity({
     goalStepFromRemote(scope, data as RemoteGoalStep),
   );
 }
+
+const REMOTE_REVISION_CHUNK_SIZE = 200;
+
+export async function fetchRemoteEntityRevisions({
+  entityIds,
+  entityType,
+  scope,
+}: {
+  scope: AppScope;
+  entityType: SyncEntityType;
+  entityIds: string[];
+}): Promise<Map<string, number>> {
+  const revisions = new Map<string, number>();
+
+  if (scope.kind !== 'user' || entityIds.length === 0) {
+    return revisions;
+  }
+
+  const client = getSupabaseBrowserClient();
+
+  if (!client) {
+    throw new Error('Supabase is not configured for account persistence.');
+  }
+
+  const tableName = getRemoteTableName(entityType);
+
+  for (
+    let offset = 0;
+    offset < entityIds.length;
+    offset += REMOTE_REVISION_CHUNK_SIZE
+  ) {
+    const chunk = entityIds.slice(offset, offset + REMOTE_REVISION_CHUNK_SIZE);
+    const { data, error } = await client
+      .from(tableName)
+      .select('id,revision')
+      .eq('user_id', scope.ownerId)
+      .in('id', chunk);
+
+    if (error) {
+      throw error;
+    }
+
+    for (const row of (data ?? []) as Array<{ id: string; revision: number }>) {
+      revisions.set(row.id, row.revision);
+    }
+  }
+
+  return revisions;
+}

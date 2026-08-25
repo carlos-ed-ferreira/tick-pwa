@@ -59,6 +59,8 @@ export const enDictionary = {
   sync: {
     failed: 'Sync failed',
     pending: 'Saved locally, waiting to send',
+    force: 'Push from this device',
+    forcing: 'Pushing',
     retry: 'Try again',
     retrying: 'Trying again',
     saved: 'Synced',

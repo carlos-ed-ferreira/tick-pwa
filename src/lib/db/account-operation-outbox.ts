@@ -1,21 +1,19 @@
-import Dexie, { type Table, type Transaction } from 'dexie';
+import Dexie, { type Transaction } from 'dexie';
 import type {
   AccountOperationOutboxItem,
   AccountOperationOutboxMutation,
   AppScope,
-  SyncEntityType,
 } from '@/lib/domain';
 import { applyAccountOperationBatch } from '@/lib/supabase/account-operations';
 import { db } from './database';
 import { createTimestamp } from './entity-metadata';
+import {
+  createOperationId,
+  getAccountEntityTable,
+  type PersistedAccountEntity,
+} from './account-entity-tables';
 
-interface PersistedAccountEntity {
-  id: string;
-  scopeId: string;
-  clientUpdatedAt: string;
-  remoteRevision: number | null;
-  syncStatus: 'local' | 'pending' | 'syncing' | 'synced' | 'failed';
-}
+const MAX_AUTOMATIC_ATTEMPTS = 5;
 
 type AccountOperationBatchResult = NonNullable<
   Awaited<ReturnType<typeof applyAccountOperationBatch>>
@@ -27,45 +25,6 @@ const transactionBatches = new WeakMap<
 >();
 const registeredTransactionScopes = new WeakMap<Transaction, Set<string>>();
 const operationQueues = new Map<string, Promise<void>>();
-
-function getAccountEntityTable(entityType: SyncEntityType) {
-  if (entityType === 'categoryTag') {
-    return db.categoryTags as Table<PersistedAccountEntity, string>;
-  }
-
-  if (entityType === 'dailyEntry') {
-    return db.dailyEntries as Table<PersistedAccountEntity, string>;
-  }
-
-  if (entityType === 'checklistItem') {
-    return db.checklistItems as Table<PersistedAccountEntity, string>;
-  }
-
-  if (entityType === 'goalGroup') {
-    return db.goalGroups as Table<PersistedAccountEntity, string>;
-  }
-
-  if (entityType === 'goal') {
-    return db.goals as Table<PersistedAccountEntity, string>;
-  }
-
-  return db.goalSteps as Table<PersistedAccountEntity, string>;
-}
-
-function createOperationId(): string {
-  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
-    return crypto.randomUUID();
-  }
-
-  const values = Array.from({ length: 16 }, () =>
-    Math.floor(Math.random() * 256),
-  );
-  values[6] = (values[6] & 0x0f) | 0x40;
-  values[8] = (values[8] & 0x3f) | 0x80;
-  const hex = values.map((value) => value.toString(16).padStart(2, '0'));
-
-  return `${hex.slice(0, 4).join('')}-${hex.slice(4, 6).join('')}-${hex.slice(6, 8).join('')}-${hex.slice(8, 10).join('')}-${hex.slice(10).join('')}`;
-}
 
 function createOutboxItem(scope: AppScope): AccountOperationOutboxItem {
   return {
@@ -437,6 +396,26 @@ async function processOperation(
   }
 }
 
+function hasExhaustedAutomaticAttempts(
+  item: AccountOperationOutboxItem,
+): boolean {
+  return item.status === 'failed' && item.attempts >= MAX_AUTOMATIC_ATTEMPTS;
+}
+
+async function withOutboxLock(
+  scopeId: string,
+  task: () => Promise<void>,
+): Promise<void> {
+  const locks = typeof navigator === 'undefined' ? undefined : navigator.locks;
+
+  if (!locks) {
+    await task();
+    return;
+  }
+
+  await locks.request(`tick-account-outbox:${scopeId}`, task);
+}
+
 async function drainOperations(
   scope: AppScope,
   includeFailed: boolean,
@@ -455,6 +434,10 @@ async function drainOperations(
 
   for (const item of items) {
     if (item.status === 'failed' && !includeFailed) {
+      break;
+    }
+
+    if (hasExhaustedAutomaticAttempts(item)) {
       break;
     }
 
@@ -518,7 +501,9 @@ export async function getAccountOperationOutboxSummary(
 }
 
 export function resumeAccountOperationOutbox(scope: AppScope): Promise<void> {
-  return enqueueOperation(scope.id, () => drainOperations(scope, false));
+  return enqueueOperation(scope.id, () =>
+    withOutboxLock(scope.id, () => drainOperations(scope, false)),
+  );
 }
 
 export async function retryFailedAccountOperationOutbox(
@@ -528,7 +513,9 @@ export async function retryFailedAccountOperationOutbox(
     return;
   }
 
-  await enqueueOperation(scope.id, () => drainOperations(scope, true));
+  await enqueueOperation(scope.id, () =>
+    withOutboxLock(scope.id, () => drainOperations(scope, true)),
+  );
 }
 
 export async function waitForAccountOperationOutbox(

@@ -91,6 +91,20 @@ métricas ainda estão pendentes.
 **Problema/lacuna — `P0`, arquitetura/código/serviço externo:** operações da
 conta podem desaparecer ao fechar ou recarregar a aba.
 
+**Incidente de 25 de agosto de 2026:** a conta interna ficou presa em
+`Sincronizando` e nada chegou ao servidor desde 23 de agosto. Os logs do
+PostgreSQL mostraram `40001 stale_revision` em volume massivo. Com dois
+dispositivos editando as mesmas entidades, o compare-and-set passou a rejeitar
+o lote; o cliente reenviava indefinidamente a mesma `base_revision` perdida, e
+cada retry bloqueava no PK de `account_operation_receipts` atrás de uma
+transação `idle in transaction (aborted)`. Sem `lock_timeout`, cada tentativa
+esperava o limite do gateway e voltava como HTTP 504. A correção adicionou
+`lock_timeout` e `statement_timeout` na RPC, limite de cinco tentativas
+automáticas, lock de drenagem por conta entre abas, recuperação de entidades
+presas em `syncing` e uma sincronização forçada em que o dispositivo do usuário
+sobrescreve a revisão remota. Backoff temporal, retenção de recibos e métricas
+continuam pendentes.
+
 **Estado atual:** contas explicitamente liberadas gravam a entidade funcional e
 o lote remoto na mesma transação Dexie. A outbox v16 mantém `operation_id`,
 tentativas, ordem e payload após reload, divide lotes acima de 100 mutações e

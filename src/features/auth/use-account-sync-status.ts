@@ -4,8 +4,8 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { useCallback } from 'react';
 import type { AppScope } from '@/lib/domain';
 import {
+  forceSyncAccount,
   getAccountSyncSummary,
-  retryFailedAccountPersistence,
   type AccountSyncSummary,
 } from '@/lib/db/account-persistence';
 
@@ -34,7 +34,7 @@ export function useAccountSyncStatus(scope: AppScope | null): {
       return;
     }
 
-    await retryFailedAccountPersistence(scope);
+    await forceSyncAccount(scope);
   }, [scope]);
 
   return {
