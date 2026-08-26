@@ -119,10 +119,10 @@ O backend contém `apply_account_operation_batch` e recibos por conta e
 `operation_id`. O contrato aceita até 100 mutações de categoria, dia, tarefa,
 grupo de metas, meta e etapa, deriva ownership do JWT, aplica compare-and-set
 por revisão e confirma o lote inteiro em uma transação. Cada chamada também
-descarta os recibos da própria conta com mais de sete dias. O consumidor funcional
-é habilitado somente para contas internas explicitamente autorizadas. O guia de
-ativação e rollback está em
-[docs/account-operation-rollout.md](docs/account-operation-rollout.md).
+descarta os recibos da própria conta com mais de sete dias. O consumidor
+funcional é habilitado somente para contas internas explicitamente autorizadas.
+A ativação, os ensaios e o rollback estão no passo 1 do
+[IMPLEMENTATION.md](IMPLEMENTATION.md).
 
 Existe uma fundação desativada para a prova de conceito do PowerSync. Ela cria
 um SQLite `v2` isolado por conta e usa tabelas PostgreSQL `powersync_poc_*`
@@ -136,8 +136,9 @@ fecha o banco local quando está lenta ou indisponível. A rota interna
 `/~powersync-poc` exercita criação, edição,
 conclusão, reordenação, exclusão e visibilidade da fila sem ler ou escrever as
 tabelas funcionais. Ela permanece bloqueada sem flag e UUID autorizado e não
-substitui a persistência funcional Dexie. O preparo externo e os limites estão em
-[docs/powersync-poc.md](docs/powersync-poc.md).
+substitui a persistência funcional Dexie. O estado, a configuração e os
+critérios da prova estão no passo 3 do
+[IMPLEMENTATION.md](IMPLEMENTATION.md).
 
 ### PWA e offline
 
@@ -312,7 +313,7 @@ As variáveis de ativação do PowerSync permanecem vazias no fluxo normal. A
 prova só é carregada quando a URL usa HTTPS, o sync Supabase está permitido e
 `NEXT_PUBLIC_TICK_ENABLE_POWERSYNC_POC=1`. Além da flag, o ID da conta precisa
 estar em `NEXT_PUBLIC_TICK_POWERSYNC_POC_USER_IDS`. Não habilite o rollout antes
-de concluir a validação descrita em `docs/powersync-poc.md`.
+de concluir a validação descrita no passo 3 do `IMPLEMENTATION.md`.
 
 As variáveis `NEXT_PUBLIC_TICK_ENABLE_ACCOUNT_BATCHES` e
 `NEXT_PUBLIC_TICK_ACCOUNT_BATCH_USER_IDS` também permanecem vazias por padrão.
@@ -361,9 +362,10 @@ desabilitado. A aplicação usa HTTP/REST pelo cliente Supabase e não mantém u
 conexão PostgreSQL direta.
 
 Comandos de produção são bloqueados pelo wrapper fora do GitHub Actions. O
-workflow de migrations faz repair do histórico conhecido, dry-run e push. A
-dependência obrigatória desse workflow em relação ao quality gate ainda é uma
-lacuna registrada no `IMPLEMENTATION.md`.
+workflow de migrations faz repair do histórico conhecido, dry-run e push. Ele
+depende do quality gate aprovado do mesmo SHA. A ordenação entre migrations e o
+deploy externo da Vercel ainda é uma lacuna registrada no passo 5 do
+`IMPLEMENTATION.md`.
 
 ## APIs e serviços externos
 
@@ -467,23 +469,19 @@ etapas: migration compatível primeiro e aplicação depois. O fluxo desejado de
 produção e as lacunas de segurança estão no `IMPLEMENTATION.md`.
 
 O projeto continuará nos planos gratuitos nesta fase: não há decisão para
-contratar Vercel Pro ou Supabase Pro agora. O racional de custos e a
-arquitetura-alvo estão em
-[docs/plano-arquitetura-producao.md](docs/plano-arquitetura-producao.md).
+contratar Vercel Pro, Supabase Pro ou PowerSync Pro agora. A arquitetura-alvo,
+os custos e os gatilhos de contratação estão no passo 8 do
+[IMPLEMENTATION.md](IMPLEMENTATION.md).
 
 ## Documentação
 
 - [AGENTS.md](AGENTS.md): regras operacionais para agentes;
 - [REVIEW.md](REVIEW.md): baselines, métricas e quality gates;
-- [IMPLEMENTATION.md](IMPLEMENTATION.md): lacunas e mudanças futuras;
+- [IMPLEMENTATION.md](IMPLEMENTATION.md): plano único de evolução, arquitetura,
+  custos, rollouts e responsabilidades externas;
 - [.agents/skills](.agents/skills): workflows reutilizáveis para agentes;
 - [docs/importacao-json.md](docs/importacao-json.md): contrato da importação;
-- [docs/account-operation-rollout.md](docs/account-operation-rollout.md):
-  ativação controlada da outbox funcional;
-- [docs/plano-arquitetura-producao.md](docs/plano-arquitetura-producao.md):
-  avaliação de arquitetura e custos;
-- [docs/proximos-passos-externos.md](docs/proximos-passos-externos.md): o que
-  decidir e como executar as pendências que dependem do desenvolvedor.
 
-`IMPLEMENTATION.md` é a fonte canônica do backlog técnico. Documentos de
-decisão e features fornecem contexto, mas não substituem esse backlog.
+`IMPLEMENTATION.md` é a fonte canônica e completa do backlog técnico. Os
+documentos em `docs/` existem somente para contratos específicos que não
+pertencem ao plano geral.
