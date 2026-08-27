@@ -1,6 +1,7 @@
 import Dexie from 'dexie';
 import type { AppScope } from '@/lib/domain';
 import { db } from '@/lib/db/database';
+import { collectPendingEntityClosure } from '@/lib/db/account-entity-tables';
 import { refreshAccountPreferences } from './account-preferences';
 import { getSupabaseBrowserClient } from './client';
 import {
@@ -129,11 +130,13 @@ async function selectRemoteRows<TRemote>(
 }
 
 async function mergeRemoteRows<TEntity extends CacheEntity, TRemote>({
+  protectedIds,
   scope,
   rows,
   table,
   toLocal,
 }: {
+  protectedIds: Set<string> | undefined;
   scope: AppScope;
   rows: TRemote[];
   table: Dexie.Table<TEntity, string>;
@@ -163,7 +166,8 @@ async function mergeRemoteRows<TEntity extends CacheEntity, TRemote>({
   for (const existingItem of existingItems) {
     if (
       existingItem.syncStatus === 'synced' &&
-      !remoteIds.has(existingItem.id)
+      !remoteIds.has(existingItem.id) &&
+      !protectedIds?.has(existingItem.id)
     ) {
       await table.delete(existingItem.id);
     }
@@ -178,6 +182,7 @@ export async function refreshAccountCache(
   }
 
   const startedAt = performance.now();
+  const protectedIds = await collectPendingEntityClosure(scope.id);
 
   const [
     ,
@@ -211,36 +216,42 @@ export async function refreshAccountCache(
     ],
     async () => {
       await mergeRemoteRows({
+        protectedIds: protectedIds.get('categoryTag'),
         scope,
         table: db.categoryTags,
         rows: categoryTagsResponse.data,
         toLocal: (row) => categoryTagFromRemote(scope, row),
       });
       await mergeRemoteRows({
+        protectedIds: protectedIds.get('dailyEntry'),
         scope,
         table: db.dailyEntries,
         rows: dailyEntriesResponse.data,
         toLocal: (row) => dailyEntryFromRemote(scope, row),
       });
       await mergeRemoteRows({
+        protectedIds: protectedIds.get('checklistItem'),
         scope,
         table: db.checklistItems,
         rows: checklistItemsResponse.data,
         toLocal: (row) => checklistItemFromRemote(scope, row),
       });
       await mergeRemoteRows({
+        protectedIds: protectedIds.get('goalGroup'),
         scope,
         table: db.goalGroups,
         rows: goalGroupsResponse.data,
         toLocal: (row) => goalGroupFromRemote(scope, row),
       });
       await mergeRemoteRows({
+        protectedIds: protectedIds.get('goal'),
         scope,
         table: db.goals,
         rows: goalsResponse.data,
         toLocal: (row) => goalFromRemote(scope, row),
       });
       await mergeRemoteRows({
+        protectedIds: protectedIds.get('goalStep'),
         scope,
         table: db.goalSteps,
         rows: goalStepsResponse.data,

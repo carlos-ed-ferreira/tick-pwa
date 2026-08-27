@@ -1,895 +1,542 @@
-# IMPLEMENTATION.md
-
-## Propósito
-
-Este é o backlog canônico de lacunas técnicas e de produto encontradas na
-auditoria de 2026-08-10. Cada item distingue o estado já entregue do trabalho
-restante; um item planejado não deve ser tratado como implementado sem status e
-evidência registrados aqui.
-
-Prioridades:
-
-- `P0`: segurança, risco de perda de dados ou bloqueio crítico;
-- `P1`: necessário antes de produção ou de uma feature dependente;
-- `P2`: melhoria importante;
-- `P3`: evolução não urgente.
-
-O plano de arquitetura e custos em
-[docs/plano-arquitetura-producao.md](docs/plano-arquitetura-producao.md) contém
-o racional da direção futura. O guia
-[docs/proximos-passos-externos.md](docs/proximos-passos-externos.md) detalha,
-para cada pendência que depende do desenvolvedor, o que decidir, como executar e
-como confirmar a conclusão. Este arquivo prevalece como lista de execução e
-estado de conformidade.
-
-## Resumo
-
-| ID         | Prioridade | Domínio      | Lacuna                                                          |
-| ---------- | ---------- | ------------ | --------------------------------------------------------------- |
-| DATA-01    | P0         | local-first  | snapshot remoto sem paginação pode apagar cache válido          |
-| SYNC-01    | P0         | local-first  | outbox controlada sem rollout amplo, Safari/iOS ou métricas     |
-| SEC-01     | P0         | dependências | 5 vulnerabilidades altas em dependências de produção            |
-| CICD-01    | P0         | CI/CD        | deploy Vercel ainda não está coordenado ao SHA migrado          |
-| API-01     | P1         | API/banco    | consumidor em rollout; faltam concorrência real e benchmark     |
-| AUTH-01    | P1         | autenticação | allowlist de protótipo, sem ciclo de vida público de conta      |
-| ACCESS-01  | P1         | guest/trial  | guest não é limitado e trial/entitlement não existem            |
-| BILLING-01 | P1         | assinatura   | pagamentos, webhooks e reconciliação inexistentes               |
-| MIGRATE-01 | P1         | dados        | migração guest para conta inexistente                           |
-| OPS-01     | P1         | operação     | observabilidade, backup e restauração insuficientes             |
-| QUALITY-01 | P1         | qualidade    | coverage, mutation, estrutura e segurança fora do gate          |
-| TEST-01    | P1         | testes       | E2E e banco já rodam no CI; falta Supabase real no autenticado  |
-| SCALE-01   | P1         | performance  | sem baseline de carga, bundle, sync ou quotas                   |
-| HOST-01    | P2         | arquitetura  | frontend depende de runtime Next e hospedagem futura pendente   |
-| MOD-01     | P2         | modularidade | hotspots extensos e complexos sem ratchet automatizado          |
-| UX-01      | P2         | UI/i18n      | acessibilidade e integridade i18n parcialmente manuais          |
-| DEPS-01    | P2         | manutenção   | atualização de dependências sem automação ou política no GitHub |
-| HYGIENE-01 | P3         | processo     | warnings de teste e módulos extraneous no ambiente atual        |
-
-## DATA-01 — Paginação e reconciliação segura
-
-**Status:** concluído em 11 de agosto de 2026.
-
-**Problema/lacuna — `P0`, código e testes:** `refreshAccountCache` trata cada
-resposta como snapshot completo, embora a API limite linhas por resposta.
-
-**Estado atual:** `src/lib/supabase/account-cache.ts` pagina todas as tabelas
-funcionais em blocos de 1.000 linhas, com ordem por `revision` e `id`. Todas as
-páginas são carregadas antes da transação Dexie; qualquer erro aborta a
-reconciliação. O resultado informa duração, páginas e linhas por tabela.
-
-**Estado desejado:** paginação determinística e reconciliação destrutiva apenas
-depois que todas as páginas de todas as entidades necessárias forem validadas.
-
-**Mudanças entregues:** paginação por revisão/ID ou range estável; resultado
-tipado como completo/incompleto; staging do snapshot; telemetria de páginas e
-linhas; testes em `tests/integration/account-persistence.test.ts`.
-
-**Dependências:** contrato de ordenação estável e decisão sobre a transição para
-sincronização incremental.
-
-**Riscos:** exclusão ou ocultação de dados, corrida com alterações pendentes,
-payload crescente e reconciliação parcial.
-
-**Critérios de aceite:** mais de 1.000 registros por tabela são carregados;
-falha em qualquer página não remove nada; itens pendentes permanecem; duas
-execuções produzem o mesmo estado.
-
-**Validação:** integração com >1.000 linhas, falha na página final, concorrência
-com write pendente, E2E autenticado e métricas de contagem.
-
-## SYNC-01 — Sincronização durável e resiliente
-
-**Status:** em andamento; proteção de refresh da Fase 0.2, estados/retry
-visíveis da Fase 0.3, configuração externa e superfície funcional isolada da
-prova PowerSync concluídos em 11 de agosto de 2026. O HTTP 409 do primeiro
-ensaio revelou escrita remota nas tabelas funcionais; a correção com tabelas
-`powersync_poc_*` e SQLite `v2` foi preparada em 14 de agosto de 2026. Migration,
-novos Sync Streams, reativação controlada, reload offline, convergência entre
-dois contextos web e ensaio Android foram concluídos em 17 de agosto de 2026.
-Em 20 de agosto, as seis entidades funcionais ganharam uma outbox Dexie durável
-e um consumidor controlado da RPC transacional. Em 25 de agosto, a fila recebeu
-backoff exponencial, limite global por conta, rebase automático de revisão
-stale e métricas locais sem PII. Rollout amplo, Safari/iOS, fallback de
-armazenamento, concorrência simultânea real e envio das métricas para
-observabilidade externa ainda estão pendentes.
-
-**Problema/lacuna — `P0`, arquitetura/código/serviço externo:** operações da
-conta podem desaparecer ao fechar ou recarregar a aba.
-
-**Incidente de 25 de agosto de 2026:** a conta interna ficou presa em
-`Sincronizando` e nada chegou ao servidor desde 23 de agosto. Os logs do
-PostgreSQL mostraram `40001 stale_revision` em volume massivo. Com dois
-dispositivos editando as mesmas entidades, o compare-and-set passou a rejeitar
-o lote; o cliente reenviava indefinidamente a mesma `base_revision` perdida, e
-cada retry bloqueava no PK de `account_operation_receipts` atrás de uma
-transação `idle in transaction (aborted)`. Sem `lock_timeout`, cada tentativa
-esperava o limite do gateway e voltava como HTTP 504. A correção adicionou
-`lock_timeout` e `statement_timeout` na RPC, limite de cinco tentativas
-automáticas, lock de drenagem por conta entre abas, recuperação de entidades
-presas em `syncing` e uma sincronização forçada em que o dispositivo do usuário
-sobrescreve a revisão remota. O backoff temporal, a retenção de recibos e as
-métricas locais foram entregues em 25 de agosto de 2026.
-
-**Estado atual:** contas explicitamente liberadas gravam a entidade funcional e
-o lote remoto na mesma transação Dexie. A outbox v16 mantém `operation_id`,
-tentativas, ordem e payload após reload, divide lotes acima de 100 mutações e
-retoma operações interrompidas ao abrir a conta. Retry reapresenta o mesmo lote
-idempotente; o sucesso atualiza a revisão e rebasa a próxima alteração da mesma
-entidade. Guest nunca registra nem envia operação. Contas fora da flag continuam
-temporariamente na fila legada em memória, sem dual-write.
-
-A retentativa automática usa espera exponencial de 1 s até 30 s, agendada por
-conta; reconexão e retry manual ignoram a espera e cancelam o agendamento. A
-fila é limitada a 200 operações por conta: ao atingir o limite, a alteração
-permanece salva no IndexedDB, nenhuma operação nova é registrada e a entidade
-fica em falha recuperável pela sincronização forçada. Uma rejeição
-`stale_revision` é rebaseada uma vez com a revisão atual do servidor e reenviada
-com o mesmo `operation_id`, política de último gravador vence por entidade; uma
-segunda rejeição deixa a operação recuperável sem novo rebase.
-
-**Estado desejado:** banco local sincronizável com fila durável, pull
-incremental, retry com backoff, idempotência, conflitos determinísticos, estado
-visível e convergência multidispositivo.
-
-**Mudanças necessárias:** concluir conflito simultâneo e métricas da prova
-PowerSync; validar em produção o backoff, o limite e o rebase stale para uma
-conta interna; enviar as métricas locais para observabilidade externa; ampliar o
-rollout gradualmente ou substituí-lo pela persistência PowerSync aprovada.
-
-**Dependências:** DATA-01 como proteção transitória, API-01, projeto PowerSync,
-JWT Supabase e decisão de navegadores suportados.
-
-**Riscos:** perda ou duplicação, conflito destrutivo, incompatibilidade de
-storage web, custo de serviço e mistura de escopos.
-
-**Critérios de aceite:** edição offline sobrevive a reload; retry é seguro;
-dois dispositivos convergem; guest não conecta; usuário A não recebe B; fila e
-falhas são visíveis e limitadas.
-
-**Validação:** testes local-first do REVIEW, E2E offline/reload, dois usuários,
-dois dispositivos, carga de conta madura e restore/rollback da feature flag.
-
-**Evidência da Fase 0.3:** integração cobre transição `syncing`, falha, resumo
-agregado, retry com o mesmo ID e proteção por versão; teste de UI cobre a ação
-acessível. O gate `make check` passou com 57 arquivos e 402 testes em 11 de
-agosto de 2026; os E2E locais passaram em 22 cenários e os autenticados em 2,
-ambos em desktop e mobile, incluindo as transições `Syncing` e `Synced` sob
-latência remota simulada.
-
-**Sincronização imperceptível em 25 de agosto de 2026:** o RED reproduziu a
-regravação de todas as linhas e de todas as preferências em um refresh sem
-novidade, que fazia cada consulta viva reemitir e a interface re-renderizar. O
-GREEN pula a escrita quando a revisão remota e o valor da preferência já são os
-atuais, mantém a aplicação de mudanças reais e atrasa em 800 ms a exibição de
-estados transitórios do indicador, preservando a falha imediata. Vitest passou
-com 65 arquivos e 485 testes; `make test-e2e` aprovou 24 cenários e
-`make test-e2e-account` aprovou 4, incluindo a transição `Syncing` sob latência
-simulada.
-
-**Evidência da fundação PowerSync:** `@powersync/web` está atrás de feature
-flag desligada por padrão; schema SQLite, normalização dos tipos Postgres,
-conector Supabase, ciclo de vida isolado por usuário e Sync Streams edition 3
-para as tabelas `powersync_poc_*` estão versionados. O
-guest não inicia o serviço e a troca de conta fecha o banco anterior. O guia de
-ativação controlada está em `docs/powersync-poc.md`. Essa entrega ainda não
-altera as leituras e escritas funcionais do produto.
-
-O rollout também exige uma lista explícita de IDs de conta. O adapter isolado
-do POC lê somente linhas do usuário autenticado, rejeita guest e gera
-`INSERT`/`UPDATE` locais com booleanos e JSON compatíveis com SQLite. Ele ainda
-não foi conectado aos comandos Dexie para impedir dual-write durante a prova.
-A rota interna `/~powersync-poc` usa esse adapter para gravar categoria, dia,
-tarefa e duas subtarefas em uma única transação local. Edição, conclusão,
-reordenação e exclusão atualizam as entidades e o resumo diário em lotes
-atômicos. A superfície mostra conexão e quantidade pendente sem expor erros
-internos, atualiza o estado remoto enquanto permanece aberta, tem textos
-pt-BR/en e permanece bloqueada para contas fora do rollout. A ativação
-controlada comprovou convergência remota no mesmo dispositivo, entre dois
-contextos web e em Android. Os critérios restantes continuam pendentes.
-
-**Evidência da superfície isolada:** `make check` passou com 60 arquivos e 429
-testes; `make test-e2e` passou em 22 cenários desktop/mobile e
-`make test-e2e-account` em 2 cenários autenticados. `make audit-prod` encontrou
-0 vulnerabilidades. Esses gates mantiveram a flag ausente e, portanto, não
-substituem os ensaios reais no PowerSync Cloud.
-
-**Incidente e correção v2:** o primeiro ensaio real retornou HTTP 409 ao criar
-outro `daily_entries` para o mesmo usuário/data e deixou 10 operações locais
-pendentes. A v2 separa as três tabelas remotas, remove as tabelas funcionais da
-publicação PowerSync, aplica RLS e chaves por usuário, permite vários cenários
-na mesma data e troca o nome do SQLite para não reabrir a fila v1. A flag deve
-permanecer desligada até migration e Sync Streams serem confirmados. Essa
-condição foi atendida antes da reativação controlada de 17 de agosto de 2026.
-
-**Evidência da correção v2:** RED do cliente com 6 falhas e GREEN com 19
-testes direcionados; RED do banco com 8 falhas e GREEN com 31 testes pgTAP.
-Banco limpo, lint e diff declarativo passaram. `make check` aprovou 60 arquivos
-e 429 testes; E2E local aprovou 22 cenários e E2E autenticado aprovou 2.
-
-**Ensaio v2 em 17 de agosto de 2026:** o primeiro cenário persistiu as cinco
-operações no SQLite isolado. A superfície mantinha o primeiro retrato da fila e
-não exibia a conclusão posterior do upload. Um teste de regressão reproduziu a
-ausência de atualização; a tela agora relê o status sem sobrepor consultas e
-transita automaticamente de pendente para sincronizado. Depois do reload, a
-fila retornou a zero e o cenário local permaneceu disponível, confirmando o
-primeiro upload remoto da v2. O teste direcionado passou com 20 cenários e
-`make check` aprovou 60 arquivos e 430 testes, lint, tipagem, formato e build.
-Depois do deploy da atualização automática, edição de texto e conclusão foram
-enviadas, a fila retornou a zero e o estado esperado permaneceu após reload no
-mesmo dispositivo. Reordenação e exclusão em cascata também convergiram e
-permaneceram após reload; a categoria isolada foi preservada como esperado.
-Um segundo contexto web no computador convergiu nos dois sentidos. O navegador
-mobile físico repetiu o ensaio com sucesso depois da correção de inicialização.
-
-**Ensaio multidispositivo em 17 de agosto de 2026:** computador e aba anônima
-baixaram o mesmo cenário e propagaram alterações nos dois sentidos. No celular,
-o formulário abriu, mas o SQLite ficou indefinidamente em loading, impedindo
-ações e o snapshot. A correção usa o adapter single-tab sem Web Worker, limita a
-inicialização a 10 segundos, fecha tentativas expiradas e só habilita escrita
-quando o banco está pronto. O RED reproduziu adapter, timeout e bloqueio da ação;
-o GREEN passou com 23 testes PowerSync e `make check` aprovou 60 arquivos e 435
-testes. Os E2E locais ficaram pendentes porque o sandbox não permitiu iniciar o
-servidor Playwright. Depois do deploy, o aparelho físico inicializou o SQLite,
-carregou o snapshot e permitiu usar os controles normalmente.
-
-**Regressão de inicialização em 18 de agosto de 2026:** a página voltou a
-permanecer em `Preparando o Tick` e terminava em erro quando a conexão remota
-não concluía em 10 segundos, mesmo com o SQLite disponível. O lifecycle agora
-aplica o timeout somente a `init()`, libera leitura e escrita depois da abertura
-local e inicia `connect()` em segundo plano. A conexão lenta ou indisponível
-passa a aparecer no estado de sincronização sem fechar o banco nem descartar a
-fila. O RED reproduziu a conexão pendente derrubando a prova; o GREEN passou
-com 24 testes direcionados. `make check` aprovou 61 arquivos e 441 testes,
-tipagem, lint, formato e build; `make test-e2e` aprovou 22 cenários desktop e
-mobile. Depois da publicação, o ensaio manual em produção foi aprovado: a rota
-deixou o estado de preparo, abriu o SQLite e permaneceu funcional sem voltar ao
-erro de acesso à prova.
-
-**Evidência de isolamento RLS em 17 de agosto de 2026:** um teste pgTAP
-comportamental autentica duas contas permitidas e uma conta fora da allowlist.
-Ele comprova leitura e escrita próprias, bloqueio de leitura, alteração,
-exclusão e inserção cruzadas, bloqueio sem acesso e ausência de linhas após
-escritas rejeitadas. A suíte local passou com 39 testes. A validação entre duas
-contas na instância PowerSync Cloud continua necessária para cobrir também os
-Sync Streams implantados.
-
-**Ensaio de isolamento no PowerSync Cloud em 17 de agosto de 2026:** duas
-contas internas autorizadas foram abertas em contextos separados. Cada conta
-permaneceu restrita aos próprios dados nas telas funcionais e na rota
-`/~powersync-poc`; nenhuma informação cruzou os escopos.
-
-**Upload remoto atômico em 18 de agosto de 2026:** o conector deixou de enviar
-uma chamada Supabase por mutação e passou a transformar cada transação CRUD do
-SQLite em uma única RPC isolada. A chave `<clientId>:<transactionId>` persiste
-no banco local e identifica retries no servidor. A tabela de recibos não é
-legível pelo cliente, o helper de mutação não é executável diretamente e o JWT
-define ownership. O lote é limitado a 100 mutações, reapresenta o resultado no
-retry e faz rollback integral. A política do POC é last-committed-wins no
-PostgreSQL; o teste sequencial preserva campos não alterados. Concorrência real
-simultânea e métricas continuam pendentes. O RED comprovou chamadas granulares
-e ausência da RPC; o GREEN passou com 23 testes PowerSync e 74 testes pgTAP.
-
-**Outbox funcional em 20 de agosto de 2026:** o RED reproduziu a ausência da
-tabela v16 e as múltiplas escritas REST de uma ação funcional. O GREEN cobre
-registro local atômico, uma RPC para tarefa e resumo diário, replay após reload
-com o mesmo UUID, resposta perdida, ordenação, falha visível, retry manual,
-rebase de edições rápidas, divisão 100+1 e as seis entidades. O caminho guest
-permanece sem rede. A ativação é dupla, por flag e UUID, e o rollback preserva a
-fila para não apagar operações. O procedimento está em
-`docs/account-operation-rollout.md`. O gate direcionado passou com 25 testes;
-`make check` aprovou 62 arquivos e 467 testes, além de tipagem, lint, formato e
-build. Os 74 testes pgTAP, lint e diff declarativo do banco passaram; E2E
-aprovou 22 cenários locais e 2 autenticados em desktop e mobile; a auditoria de
-produção encontrou 0 vulnerabilidades.
-
-**Ensaio funcional e correções em 20 de agosto de 2026:** calendário e metas
-preservaram dados offline para conta autorizada, conta no fallback legado e
-guest. O ensaio revelou retry somente manual, estado legado ocasionalmente preso
-e fallback `/~offline` no reload direto das rotas funcionais. A correção retoma
-operações falhas 500 ms após o evento `online`, não inicia escrita legada quando
-`navigator.onLine` é falso e precacheia `/`, `/calendar` e `/goals`. O RED
-reproduziu os três comportamentos. O GREEN passou com 63 arquivos e 469 testes;
-o gate direcionado passou com 26 testes. E2E específico aprovou reload offline
-em desktop/mobile e o E2E autenticado aprovou interação sob latência e retry
-automático após reconexão nos dois perfis, sem ação manual. O precache ignora
-parâmetros de busca para servir o mesmo shell em URLs de dia e meta; o E2E
-preservou uma meta no IndexedDB e reabriu `/goals?goal=...` e
-`/calendar?day=...` offline.
-
-**Resiliência da outbox em 25 de agosto de 2026:** o RED reproduziu o retry
-imediato sem espera, o enfileiramento ilimitado, a ausência de rebase após
-`stale_revision` e a falta de métricas. O GREEN cobre a janela de backoff com
-retomada agendada, o limite de 200 operações por conta com alteração local
-preservada, o rebase único e reenvio automático da revisão stale, a segunda
-rejeição sem novo rebase e o resumo de métricas sem conteúdo do usuário. A
-migration Dexie v17 acrescenta `nextAttemptAt` e `rebasedAt` sem perder
-operações enfileiradas. `make check` aprovou 64 arquivos e 479 testes, tipagem,
-lint, formato e build; `make test-e2e` aprovou 24 cenários desktop/mobile e
-`make test-e2e-account` aprovou 4. O banco passou com 77 testes pgTAP, lint sem
-erros, reset limpo e `make supabase-diff-check` sem divergência declarativa.
-
-## SEC-01 — Vulnerabilidades de dependências
-
-**Status:** concluído em 11 de agosto de 2026 para dependências de produção.
-
-**Problema/lacuna — `P0`, dependências/segurança:** o audit atual reporta cinco
-vulnerabilidades altas em dependências de produção.
-
-**Estado atual:** Next e `eslint-config-next` estão em 16.3.0; PostCSS, Nano ID,
-Sharp e Brace Expansion foram resolvidos em versões corrigidas. O comando
-`make audit-prod` reporta 0 vulnerabilidades e é obrigatório no App CI e em
-releases manuais de migrations.
-
-**Estado desejado:** vulnerabilidades analisadas e corrigidas em PR dedicada;
-nenhuma crítica/alta nova; audit recorrente no CI.
-
-**Mudanças entregues:** mapear alcance real; atualizar versões sem `--force`;
-revisar changelogs e lockfile; testar Next/PWA/imagens; adicionar audit com
-política de severidade e baseline zero.
-
-**Dependências:** releases corrigidas compatíveis e revisão de impacto da
-atualização Next.
-
-**Riscos:** regressão de framework/PWA, falsa sensação de segurança por
-advisory não alcançável e exposição enquanto não corrigido.
-
-**Critérios de aceite:** audit sem altas/críticas ou exceção documentada com
-prazo; suíte, build e E2E aprovados; nenhuma alteração automática destrutiva.
-
-**Validação:** `make audit-prod`, `make check`, dois E2E e revisão do
-grafo de dependências.
-
-## CICD-01 — Ordenar quality gate, migrations e deploy
-
-**Status:** gate do mesmo SHA concluído em 11 de agosto de 2026 e validado no
-GitHub em 17 de agosto de 2026; banco e E2E adicionados ao App CI e exigidos
-como checks obrigatórios da branch padrão em 25 de agosto de 2026; coordenação
-comprovável do deploy Vercel e ensaio de rollback pendentes.
-
-**Problema/lacuna — `P0`, CI/CD/GitHub:** migrations podem ser aplicadas por um
-workflow separado sem depender do sucesso do quality gate do mesmo commit.
-
-**Estado atual:** `app-ci.yml` roda `make audit-prod` e `make check`. Os
-workflows usam Node.js 22, `actions/checkout@v6` e `actions/setup-node@v7`,
-eliminando o aviso de runtime Node.js 20 das actions anteriores.
-`supabase-migrations.yml` é acionado por `workflow_run`, aceita somente App CI
-aprovado em push da `main`, faz checkout do `head_sha`, registra e verifica o
-SHA e só executa comandos de banco quando há caminhos relevantes alterados. A
-execução manual repete o quality gate antes de acessar secrets. O deploy Vercel
-continua externo.
-
-**Estado desejado:** nenhum SHA alcança banco ou aplicação de produção antes de
-todos os gates obrigatórios aplicáveis terminarem com sucesso.
-
-**Mudanças entregues:** `workflow_run` restrito a push aprovado da `main`, gate
-manual equivalente, checkout e registro do SHA, environment protegido,
-concurrency e detecção de caminhos de banco. O primeiro fluxo remoto validado
-concluiu `Confirm quality gate` e `Apply production migrations`.
-
-**Mudanças restantes:** alinhar o deploy Vercel ao mesmo SHA e documentar e
-ensaiar o rollback de banco. O ruleset `main-protection` já exige `Check app`,
-`Check database` e `Check end-to-end`, então um SHA reprovado em banco ou E2E não
-alcança a `main` nem o workflow de migrations.
-
-**Decisões pendentes:** qual estratégia de ordenação do deploy adotar entre
-manter o paralelo com migrations aditivas, disparar o deploy por hook depois das
-migrations ou bloquear o build pela Vercel; e onde ensaiar a restauração, já que
-o plano Free tem um único projeto. As opções, os custos e o passo a passo estão
-em [docs/proximos-passos-externos.md](docs/proximos-passos-externos.md).
-
-**Dependências:** QUALITY-01, TEST-01 e configuração manual de branch/environment
-protection no GitHub e Vercel.
-
-**Riscos:** migration aplicada com aplicação inválida, deploy antes do schema,
-deadlock de workflows e execução de SHA diferente.
-
-**Critérios de aceite:** tentativa com gate falho não migra nem publica;
-migration registra SHA aprovado; rollout aditivo mantém versões N e N+1;
-workflow manual respeita as mesmas proteções.
-
-**Validação:** testes do workflow em branch segura, dry-run, inspeção de checks
-obrigatórios e ensaio documentado de falha/rollback.
-
-## API-01 — Escrita transacional, idempotente e versionada
-
-**Status:** em andamento; contrato vertical do calendário implementado em 17 de
-agosto de 2026, estendido às metas em 18 de agosto e ligado às seis entidades
-funcionais atrás de rollout controlado em 20 de agosto.
-
-**Problema/lacuna — `P1`, arquitetura/API/banco:** o navegador executa upserts
-inteiros por entidade e operações em massa ampliam o número de requisições.
-
-**Estado atual:** o caminho legado ainda ignora `baseRevision` e faz upserts
-granulares. Para contas autorizadas, a RPC `apply_account_operation_batch` aceita
-até 100 mutações de categoria, dia, tarefa, grupo de metas, meta e etapa, deriva
-ownership do JWT, registra um recibo por conta e `operation_id`, reapresenta o
-mesmo resultado em retry, aplica o lote em uma transação e rejeita revisão
-stale. Os comandos funcionais registram o lote durável na mesma transação local
-e usam exclusivamente a RPC para a conta liberada. O caminho legado permanece
-como rollback para as demais contas; não há dual-write.
-
-**Estado desejado:** API de domínio em lote, autenticada, transacional,
-idempotente e com política explícita de conflito.
-
-**Mudanças necessárias:** concorrência real entre dispositivos e benchmark de
-lote antes de ampliar o rollout e remover os upserts legados. A retenção dos
-recibos e o tratamento de conflito stale foram entregues em 25 de agosto de
-2026: cada chamada da RPC descarta os recibos da própria conta com mais de sete
-dias e o cliente rebaseia uma vez a revisão rejeitada.
-
-**Dependências:** SYNC-01, schema aditivo e definição de conflitos por entidade.
-
-**Riscos:** dupla aplicação, deadlock, rejeição incorreta offline, escalada de
-privilégio e quebra durante rollout.
-
-**Critérios de aceite:** retry não duplica; lote é todo aplicado ou todo
-rejeitado; stale write segue regra documentada; `user_id` do cliente é ignorado;
-operação em massa usa um contrato lógico.
-
-**Validação:** integração real Supabase, concorrência, repetição, rollback,
-payload inválido, negativas de ownership e benchmark de lote.
-
-**Evidência do primeiro incremento:** pgTAP cobre criação atômica de categoria,
-dia e tarefa, ownership ignorando `user_id` do payload, replay sem nova revisão,
-reuso inválido de `operation_id`, compare-and-set, stale write, rollback total,
-referência entre contas, allowlist e limite de 100 mutações. Testes unitários
-cobrem guest sem rede, serialização para uma única RPC, limite local e
-preservação do erro estruturado. O lote de metas cobre criação atômica da
-hierarquia, ownership e compare-and-set com rejeição stale. Permanecem a
-concorrência real, política de retenção dos recibos e benchmark. Em 20 de
-agosto, a outbox funcional integrou todos os comandos atrás de flag e allowlist,
-com ação composta em uma RPC, replay idempotente e nenhuma chamada remota no
-guest. O banco havia passado com 74 testes pgTAP, lint sem erros, reset limpo e
-schema declarativo sem divergência. O gate funcional de 20 de agosto aprovou os
-mesmos 74 testes de banco, 467 testes Vitest e os E2E desktop/mobile.
-
-## AUTH-01 — Ciclo de vida público de conta
-
-**Problema/lacuna — `P1`, produto/auth/serviço externo:** o fluxo autenticado é
-um protótipo por allowlist.
-
-**Estado atual:** existem login por senha e Google, perfil e `account_access`.
-Uma autorização positiva é armazenada localmente por até 24 horas para a mesma
-combinação de usuário e e-mail; indisponibilidade remota usa somente esse grant
-recente, enquanto negativa explícita o remove. Não existem cadastro de produto,
-confirmação adequada, recuperação de senha, gestão de sessão, exportação,
-exclusão completa ou política de retenção.
-
-**Estado desejado:** onboarding e ciclo de vida de conta seguros, localizados e
-testáveis, integrados ao entitlement.
-
-**Decisões pendentes:** provedor de SMTP e domínio remetente, uso de CAPTCHA
-desde a abertura do cadastro, prazo prometido para exportação e exclusão e o
-momento de remover a allowlist.
-
-**Mudanças necessárias:** telas e contratos de signup/confirm/reset; templates
-e SMTP; OAuth production; export/delete; reautenticação para ações sensíveis;
-retenção; remover dependência da allowlist quando o entitlement assumir acesso.
-
-**Dependências:** ACCESS-01, BILLING-01, política de privacidade e configuração
-manual do Supabase Auth.
-
-**Riscos:** takeover, enumeração de e-mail, perda de conta, retenção indevida e
-redirect OAuth incorreto.
-
-**Critérios de aceite:** fluxos positivos e negativos em pt/en; rate limit;
-sessão offline não vira “não autorizado” por falha de rede; export e exclusão
-verificados.
-
-**Validação:** E2E com Supabase local real, testes de auth/RLS, segurança de
-redirect, recuperação e deleção em cascade.
-
-**Incidente offline de 17 de agosto de 2026:** o reload sem rede preservou a
-sessão Supabase, mas uma falha ao consultar `account_access` era tratada como
-negativa e mostrava “Conta ainda não permitida”. O teste de regressão passou a
-distinguir `denied` de `unavailable`; somente um grant positivo, recente e da
-mesma conta autoriza o fallback offline. O ensaio real após o deploy da correção
-foi aprovado: o cenário permaneceu após reload offline, a sessão manteve o
-escopo autenticado e, ao reconectar, a fila retornou a zero sem repetir a ação.
-O RED reproduziu a ausência do contrato e a exceção de rede; o GREEN passou com
-60 arquivos e 432 testes. `make check` aprovou lint, tipagem, formato e build;
-`make test-e2e-account` aprovou os 2 cenários desktop/mobile.
-
-## ACCESS-01 — Guest limitado, trial e entitlement
-
-**Problema/lacuna — `P1`, produto/domínio/banco:** os três estados comerciais
-desejados não existem.
-
-**Estado atual:** guest oferece as funcionalidades principais sem limite;
-usuário autenticado depende apenas da allowlist. Não há trial, assinatura ou
-entitlement.
-
-**Estado desejado:** guest oferece preview limitado; trial autenticado começa
-uma vez e dura 7 dias; assinante ativo recebe acesso completo. Trial e assinante
-usam exatamente a mesma persistência e sincronização.
-
-**Decisões pendentes:** quais capacidades o convidado perde e em que quantidade,
-o que acontece com um convidado que já excede esse limite, quando os sete dias
-começam a contar, o que muda ao expirar e se o trial é controlado por conta,
-e-mail ou dispositivo.
-
-**Mudanças necessárias:** modelo central de entitlement; relógio canônico do
-servidor; regras de limite guest no domínio; estados trial/active/grace/expired;
-UI e dicionários; autorização remota; proteção contra abuso.
-
-**Dependências:** AUTH-01, BILLING-01 e decisão de quais capacidades compõem o
-preview.
-
-**Riscos:** bypass no frontend, trial repetido, relógio local manipulado,
-arquitetura de dados paralela e bloqueio indevido de dados existentes.
-
-**Critérios de aceite:** trial dura 7 dias por tempo do servidor; expiração não
-apaga dados; frontend sozinho não libera acesso; regras guest são centralizadas;
-mesmo fluxo de dados atende trial e assinante.
-
-**Validação:** matriz de entitlement do REVIEW, timezone/fronteira temporal,
-offline, mudança de plano e testes negativos de API/RLS.
-
-## BILLING-01 — Assinatura e pagamentos
-
-**Problema/lacuna — `P1`, produto/serviço externo/API:** não existe integração
-de cobrança mensal.
-
-**Estado atual:** nenhum catálogo, checkout, customer, subscription, webhook ou
-reconciliação. Os preços provisórios são R$ 10,00/mês no Brasil e US$ 5.00/mês
-nos demais países.
-
-**Estado desejado:** catálogo centralizado por região/moeda, checkout seguro,
-status canônico de assinatura e entitlement derivado no servidor.
-
-**Decisões pendentes:** provedor de pagamento considerando emissão fiscal no
-Brasil, entidade jurídica que recebe, confirmação ou substituição dos preços
-provisórios e comportamento em falha de pagamento, incluindo tolerância e acesso
-durante ela.
-
-**Mudanças necessárias:** escolher provedor; modelar customer/subscription e
-event log; checkout/portal; webhooks assinados e idempotentes; renovação,
-cancelamento, grace period, falha de pagamento e job de reconciliação.
-
-**Dependências:** conta jurídica/comercial, políticas fiscais, AUTH-01 e
-ACCESS-01. Os preços continuam placeholders até decisão de produto.
-
-**Riscos:** cobrança duplicada, acesso indevido, webhook fora de ordem, moeda
-errada, chargeback e divergência provedor/banco.
-
-**Critérios de aceite:** preços vêm de configuração; webhook duplicado não muda
-resultado; reconciliação corrige eventos perdidos; estados comerciais concedem
-ou removem entitlement conforme contrato.
-
-**Validação:** sandbox do provedor, assinatura de webhook, replay/out-of-order,
-matriz regional, cancelamento/renovação/falha e auditoria de segurança.
-
-## MIGRATE-01 — Migração explícita de guest para conta
-
-**Problema/lacuna — `P1`, dados/local-first:** dados locais não podem ser
-transferidos para uma conta.
-
-**Estado atual:** escopos são separados e login não migra. O banco guarda
-`installationId`, mas não existe plano, operação ou registro de migração.
-
-**Estado desejado:** fluxo opcional e explícito para dados elegíveis, seguro,
-idempotente, recuperável e preservando ownership.
-
-**Decisões pendentes:** se a migração será oferecida e em que momento da
-experiência, o que fazer quando a conta de destino já tem dados e se a origem
-convidada é apagada após a confirmação.
-
-**Mudanças necessárias:** definir elegibilidade e UX; inventariar grafo guest;
-gerar `migration_id`; mapear IDs/relações; lote transacional; checkpoint local;
-relatório; retry e limpeza somente após confirmação canônica.
-
-**Dependências:** API-01, SYNC-01, AUTH-01 e decisão de merge quando a conta já
-possui dados.
-
-**Riscos:** duplicação, cruzamento de usuários, perda parcial, referências
-quebradas e exclusão prematura do guest.
-
-**Critérios de aceite:** repetir não duplica; falha parcial pode retomar;
-usuário A nunca recebe B; relações permanecem válidas; origem só é removida com
-consentimento e confirmação.
-
-**Validação:** grafos grandes, conta vazia/não vazia, interrupção em cada fase,
-dois usuários, retry e convergência posterior.
-
-## OPS-01 — Observabilidade, backup e restauração
-
-**Problema/lacuna — `P1`, infraestrutura/operação:** falhas aparecem
-principalmente em `console.error`; não há monitoramento ou restore drill.
-
-**Estado atual:** nenhum SDK de observabilidade, métricas de sync, alertas,
-backup externo documentado ou teste de restauração. Supabase Free e Vercel
-Hobby permanecem nesta fase.
-
-**Estado desejado:** erros acionáveis sem PII, métricas de sync, alertas de
-quota/falha, backup independente e restauração comprovada.
-
-**Decisões pendentes:** provedor de observabilidade, quais eventos saem do
-dispositivo, retenção, limites que geram alerta e confirmação de que nenhum
-conteúdo do usuário acompanha a métrica. A coleta local já existe em
-`src/lib/db/account-sync-metrics.ts`; falta apenas o destino. O detalhamento
-está em [docs/proximos-passos-externos.md](docs/proximos-passos-externos.md).
-
-**Mudanças necessárias:** escolher observabilidade; definir eventos e redaction;
-dashboards; alertas; export/backup automatizado; criptografia/retenção; runbooks
-de incidente, restore e rollback.
-
-**Dependências:** definição de RPO/RTO, contas externas e arquitetura SYNC-01.
-
-**Riscos:** vazamento de conteúdo em logs, custo, alerta ruidoso e backup não
-restaurável.
-
-**Critérios de aceite:** falha crítica gera alerta; nenhuma tarefa/texto privado
-vai para telemetria; backup restaurado em ambiente isolado; RPO/RTO medidos.
-
-**Validação:** teste de redaction, falha sintética, restore drill, revisão de
-acesso e simulação de quota.
-
-## QUALITY-01 — Quality gate mensurável
-
-**Problema/lacuna — `P1`, qualidade/CI:** cobertura, mutation testing,
-complexidade, tamanho, dependências arquiteturais, SAST e secrets não fazem
-parte do gate.
-
-**Estado atual:** `make check` cobre typecheck, comentários, ESLint, Vitest,
-Prettier e build. Baselines estruturais e de segurança estão no REVIEW.
-
-**Estado desejado:** gate rápido local e gate completo CI com coverage, ratchets,
-mutation em módulos críticos, arquitetura, audit e scanners apropriados.
-
-**Mudanças necessárias:** selecionar ferramentas TypeScript; gerar baselines
-versionados; configurar escopo diff-aware; relatórios de PR; agregar comandos;
-documentar exceções e custo de execução.
-
-**Dependências:** capacidade do CI e calibração com o legado, sem instalar
-ferramentas incompatíveis apenas para cumprir lista genérica.
-
-**Riscos:** CI lento/flaky, thresholds arbitrários, gaming de LOC/cobertura e
-falso positivo de scanner.
-
-**Critérios de aceite:** tabela do REVIEW reflete automação real; regressão falha
-com mensagem útil; código novo obedece thresholds; baseline só melhora por PR
-revisada.
-
-**Validação:** introduzir regressões sintéticas para cada gate, medir tempo local
-e CI e revisar relatórios gerados.
-
-## TEST-01 — CI completo, banco real e autorização negativa
-
-**Problema/lacuna — `P1`, testes/CI/banco:** E2E e checks de banco são manuais;
-o E2E autenticado intercepta HTTP e não prova integração real ou RLS.
-
-**Estado atual:** 479 Vitest, 24 E2E locais, 4 E2E autenticados simulados e 77
-pgTAP passam. Desde 25 de agosto de 2026, o App CI executa `Check database`
-(Supabase local, reset, lint, paridade declarativa e pgTAP) e `Check end-to-end`
-(E2E locais e autenticados com artefatos em falha). O E2E autenticado continua
-interceptando HTTP e não prova integração real nem RLS.
-
-**Estado desejado:** CI executa a matriz aplicável, incluindo Supabase local
-real, policies negativas, auth e migrations limpas.
-
-**Nota de estabilidade:** a primeira execução do job de banco no GitHub
-derrubou o servidor PostgreSQL durante o pgTAP, com o backend terminando e a
-instância entrando em recovery. A mesma imagem passa localmente, então a
-resposta foi reduzir a superfície: o CI passou a subir somente o container do
-Postgres por `make supabase-start-db` e a asserção de privilégio da função de
-purga deixou de executá-la como cliente autenticado, verificando o grant por
-`has_function_privilege`.
-
-**Mudanças necessárias:** E2E autenticado contra o Supabase local real;
-fixtures de dois usuários; testes de CRUD negado no fluxo de aplicação;
-sharding e cache estáveis. Job Docker/Supabase, reset, pgTAP e artifacts do
-Playwright foram entregues em 25 de agosto de 2026.
-
-**Dependências:** CICD-01 e tempo aceitável de CI.
-
-**Riscos:** flakiness, conflito de portas, teste simulado confundido com real e
-secrets de teste mal geridos.
-
-**Critérios de aceite:** PR de banco/auth não passa com policy permissiva;
-ambiente nasce do zero; E2E real usa usuários isolados; falhas guardam artifacts
-sem dados sensíveis.
-
-**Validação:** pipeline em PR, mutation manual de uma policy, execução repetida
-e medição de estabilidade.
-
-## SCALE-01 — Performance, carga e capacidade
-
-**Problema/lacuna — `P1`, performance/operação:** não há baseline para 1.000
-usuários diários, conta madura, bundle ou sincronização.
-
-**Estado atual:** build não informa budgets; refresh baixa tabelas completas;
-operações em massa podem gerar requisições sequenciais; não há load test.
-
-**Estado desejado:** cenários representativos com p95/p99, bytes, queries,
-fila, tempo de convergência, bundle e quotas monitorados.
-
-**Mudanças necessárias:** modelo de tráfego e pico; dataset com milhares de
-itens; benchmark reprodutível; instrumentar pulls/writes; budget de bundle;
-teste de carga de API/Postgres; índices orientados por queries reais.
-
-**Dependências:** SYNC-01 e API-01 estáveis.
-
-**Riscos:** benchmark artificial, custo contra SaaS, otimização prematura e
-teste destrutivo em produção.
-
-**Critérios de aceite:** arquitetura sustenta pico acordado para 1.000 DAU com
-margem; nenhuma consulta/payload ilimitado; regressão >10% falha ou exige
-justificativa; quotas têm alerta em 70%.
-
-**Validação:** ambiente isolado, carga progressiva, conta madura, rede móvel e
-relatório de gargalos/capacidade.
-
-## HOST-01 — Frontend estático e planos futuros
-
-**Problema/lacuna — `P2`, arquitetura/deploy:** rotas principais exigem runtime
-Next por locale no servidor e a hospedagem comercial futura não está resolvida.
-
-**Estado atual:** Next App Router na Vercel, rotas dinâmicas, Serwist e Supabase.
-O projeto decidiu não contratar Vercel Pro nem Supabase Pro agora.
-
-**Estado desejado:** após estabilizar sync, avaliar migração React/TypeScript
-para Vite estático na Cloudflare, mantendo PWA; Supabase continua canônico.
-
-**Mudanças necessárias:** remover dependência server-side de locale; protótipo
-de build estático; adaptar service worker, metadata e rotas; configurar
-Cloudflare; plano de DNS, cache, rollback e páginas públicas com SEO separadas.
-
-**Dependências:** SYNC-01 estável e decisão comercial.
-
-**Riscos:** update quebrado da PWA, cache antigo, perda de SEO/headers e dois
-frontends em paralelo.
-
-**Critérios de aceite:** paridade funcional/E2E, offline preservado, rollback,
-headers corretos e custo/termos adequados. Vercel Pro só é avaliado se uso
-comercial começar antes da migração.
-
-**Validação:** build estático, instalação/upgrade PWA, E2E, Lighthouse ou
-equivalente e ensaio de deploy/rollback.
-
-## MOD-01 — Hotspots de modularidade
-
-**Problema/lacuna — `P2`, arquitetura/código:** módulos e componentes concentram
-responsabilidades e complexidade elevadas.
-
-**Estado atual:** 6 módulos excedem 800 linhas lógicas; máximo 3.861. Há 40
-funções com complexidade >10 e 54 com >80 linhas. Principais hotspots incluem
-`goals-surface.tsx`, comandos de metas/checklist, `checklist-surface.tsx`,
-`database.ts` e `task-tree-editable-row.tsx`.
-
-**Estado desejado:** responsabilidades coesas, fronteiras testáveis e ratchet
-que impede crescimento sem refatoração geral.
-
-**Mudanças necessárias:** mapear responsabilidades por hotspot; extrair domínio,
-estado e UI por mudança funcional; adicionar regra diff-aware; preservar APIs e
-testes.
-
-**Dependências:** QUALITY-01. Refatorar somente quando uma tarefa tocar a área
-ou quando houver iniciativa dedicada aprovada.
-
-**Riscos:** quebra visual/comportamental, abstrações artificiais e diff grande.
-
-**Critérios de aceite:** hotspot tocado não piora baseline; extração tem
-responsabilidade nomeável; nenhum ciclo novo; comportamento permanece coberto.
-
-**Validação:** complexidade/LOC, testes direcionados, E2E da área e revisão de
-dependências.
-
-## UX-01 — Acessibilidade e integridade i18n
-
-**Problema/lacuna — `P2`, UI/qualidade:** dicionários são tipados, mas não há
-scanner de strings, axe, budget de contraste ou gate de acessibilidade.
-
-**Estado atual:** `pt-BR` e `en` satisfazem a mesma interface TypeScript;
-Playwright cobre desktop/mobile em fluxos selecionados; verificações visuais e
-de teclado são majoritariamente manuais.
-
-**Estado desejado:** nenhuma chave ausente, nenhuma string nova fora do
-mecanismo oficial e zero violação crítica/séria nova de acessibilidade.
-
-**Mudanças necessárias:** teste de paridade/uso de chaves; detector calibrado de
-string traduzível; axe ou equivalente; cenários de teclado, zoom, contraste,
-conteúdo longo e estados assíncronos.
-
-**Dependências:** QUALITY-01 e seleção de ferramenta compatível com React 19.
-
-**Riscos:** falsos positivos em termos técnicos, snapshot frágil e confiança
-excessiva em scanner automático.
-
-**Critérios de aceite:** pt/en completos; fallback testado; sem string nova
-indevida; UI alterada navegável por teclado e sem finding crítico/sério novo.
-
-**Validação:** typecheck, testes i18n, scanner, axe, E2E mobile/desktop e revisão
-manual do REVIEW.
-
-## DEPS-01 — Automação de manutenção de dependências
-
-**Problema/lacuna — `P2`, GitHub/processo:** não há Renovate/Dependabot ou
-workflow documentado para updates.
-
-**Estado atual:** npm lockfile; atualizações manuais; Supabase CLI instalada
-2.98.2 enquanto o ambiente informou versão mais nova. O `make deps-tree` local também
-mostrou módulos extraneous, sem prova de problema no lockfile.
-
-**Estado desejado:** detecção recorrente, PRs pequenas, classificação de risco,
-gates completos e auto-merge somente para mudanças elegíveis.
-
-**Mudanças necessárias:** configurar ferramenta no GitHub; agrupar com cuidado;
-separar production/dev; labels/reviewers; calendário; policy patch/minor/major e
-security; não gerar migration por atualização da CLI.
-
-**Dependências:** QUALITY-01 e configurações externas de branch protection.
-
-**Riscos:** avalanche de PRs, major automático, lockfile inconsistente e
-migration acidental.
-
-**Critérios de aceite:** update tem changelog, audit e evidência; major nunca
-auto-merge; security update recebe prioridade; CLI não altera schema sozinha.
-
-**Validação:** PR piloto patch, minor e major; falha deliberada de gate e revisão
-das regras de merge.
-
-## HYGIENE-01 — Warnings e ambiente reprodutível
-
-**Problema/lacuna — `P3`, testes/processo:** suítes verdes ainda emitem ruído e
-o ambiente instalado possui pacotes extraneous.
-
-**Estado atual:** Vitest avisa sobre `priority` não booleano em mock de
-`next/image` e imprime falhas remotas esperadas; Playwright avisa sobre
-`NO_COLOR`; após instalação limpa, `make deps-tree` lista cinco módulos
-extraneous ligados ao fallback WASM opcional do Sharp 0.35.3.
-
-**Estado desejado:** saída de teste limpa ou ruído esperado capturado
-explicitamente; `make install-ci` reproduz árvore sem drift relevante.
-
-**Mudanças necessárias:** corrigir mocks/spies de teste; investigar ambiente
-extraneous a partir de instalação limpa; evitar esconder erro real com filtros
-globais.
-
-**Dependências:** nenhuma.
-
-**Riscos:** silenciar falha legítima ou remover pacote necessário do ambiente.
-
-**Critérios de aceite:** suítes aprovam sem warnings não explicados; instalação
-limpa reproduz a árvore do lockfile.
-
-**Validação:** `make install-ci` em ambiente descartável, `make deps-tree`, Vitest e os
-dois comandos E2E.
-
-## Estado das configurações externas
-
-Concluído manualmente em 11 de agosto de 2026 para a alfa controlada:
-
-- autenticação em dois fatores nas contas dos provedores;
-- branch protection, required checks e environment `production` no GitHub;
-- vínculo do repositório, ambientes, variáveis, domínio e proteção de previews
-  na Vercel;
-- domínio canônico [https://tickapp.com.br](https://tickapp.com.br), redirects,
-  Google OAuth, allowlist, RLS e SSL no Supabase;
-- procedimento manual de backup e restauração do Supabase.
-
-Concluído manualmente em 25 de agosto de 2026:
-
-- `Check app`, `Check database` e `Check end-to-end` exigidos como checks
-  obrigatórios da branch padrão no ruleset `main-protection`;
-- revisão do SQL da migration de retenção de recibos antes da publicação.
-
-Continuam pendentes ou intencionalmente adiados:
-
-- publicação da versão com backoff, limite de fila e rebase stale, seguida do
-  ensaio descrito em `docs/account-operation-rollout.md` para uma única conta
-  interna;
-- SMTP, CAPTCHA e revisão de quotas do Supabase antes do cadastro público;
-- ordem coordenada de migrations e deploy na Vercel, coberta por `CICD-01`;
-- fechamento completo do navegador com operação pendente, Safari/iOS, fallback
-  de armazenamento, conflitos e métricas da prova gratuita;
-- conta, catálogo, moedas, webhooks e secrets do provedor de pagamento;
-- projeto, DSN, retenção, alertas e redaction da observabilidade;
-- zona, domínio, headers e rollback na Cloudflare após a migração estática;
-- políticas legais, privacidade, retenção, RPO/RTO e resposta a incidentes.
-
-Supabase Pro, Vercel Pro e PowerSync Pro não serão contratados nesta fase. Cada
-upgrade depende dos gatilhos técnicos e comerciais documentados no plano de
-arquitetura.
-
-O que decidir e como executar cada pendência acima está em
-[docs/proximos-passos-externos.md](docs/proximos-passos-externos.md).
+# Plano de implementação para produção
+
+## Propósito e autoridade
+
+Este é o único plano de evolução do Tick. Ele centraliza arquitetura, custos,
+rollouts, decisões, trabalho de código, configuração externa, validação e
+critérios de conclusão. O [README.md](README.md) descreve somente o que existe
+hoje e o [REVIEW.md](REVIEW.md) define os gates de qualidade.
+
+O objetivo é preparar o produto para aproximadamente **1.000 usuários ativos
+por dia**, sem assumir que a stack atual precisa ser preservada. A execução
+segue exatamente os oito passos abaixo, em ordem. Um passo só avança quando seus
+critérios obrigatórios forem atendidos ou quando uma exceção estiver registrada
+neste arquivo.
+
+O desenvolvedor controla commits, publicação, contas externas, secrets,
+contratações e decisões de produto. Agentes podem implementar e validar código,
+mas só executam operações de versionamento ou publicação mediante pedido
+explícito no turno atual.
+
+## Decisões vigentes
+
+- Continuar com **Vercel Hobby, Supabase Free e PowerSync gratuito** durante
+  desenvolvimento e alfa privada.
+- Não contratar Vercel Pro, Supabase Pro ou PowerSync Pro nesta fase.
+- Manter PostgreSQL/Supabase como fonte canônica das contas.
+- Manter `guest:<installationId>` exclusivamente local e isolado de
+  `user:<supabaseUserId>`.
+- Não migrar dados guest automaticamente durante login.
+- Evitar dual-write: cada conta usa um único caminho remoto por vez.
+- Usar o Makefile como única interface operacional.
+- Não introduzir Redis, Kubernetes, microsserviços ou CRDTs para a meta atual de
+  1.000 usuários diários.
+
+## Estado resumido
+
+| Passo | Estado                  | Próximo marco                                       |
+| ----- | ----------------------- | --------------------------------------------------- |
+| 1     | em validação controlada | aprovar uma conta interna em produção               |
+| 2     | pendente                | medir concorrência, lote e Safari/iOS               |
+| 3     | pendente                | registrar decisão PowerSync ou outbox própria       |
+| 4     | pendente                | escolher observabilidade e comprovar restore        |
+| 5     | parcialmente entregue   | ordenar migration e deploy do mesmo SHA             |
+| 6     | não iniciado            | fechar decisões de produto e autenticação pública   |
+| 7     | não iniciado            | criar baseline e carga para 1.000 DAU               |
+| 8     | adiado                  | avaliar frontend estático e planos no marco público |
+
+## 1. Publicar e validar o rollout controlado da outbox
+
+### Resultado esperado
+
+Comprovar em produção, para uma única conta interna, que a persistência
+funcional em lote é segura antes de ampliar sua adoção. Este passo não depende
+do PowerSync e não exige nenhum plano pago.
+
+### Estado atual
+
+As seis entidades funcionais — categorias, resumos diários, tarefas, grupos de
+metas, metas e etapas — já registram, para contas autorizadas, a alteração local
+e a operação remota na mesma transação Dexie. A outbox:
+
+- usa `operation_id` estável e sobrevive a reload;
+- envia até 100 mutações por RPC transacional;
+- preserva ordem e reapresenta retries sem duplicar efeitos;
+- limita a fila a 200 operações por conta;
+- usa até cinco tentativas automáticas com backoff de 1 s a 30 s;
+- retoma na reconexão e permite sincronização forçada;
+- rebaseia uma vez uma rejeição `stale_revision`;
+- usa lock de drenagem por conta entre abas;
+- mantém recibos remotos por sete dias;
+- registra métricas locais sem conteúdo do usuário.
+
+Guest nunca cria outbox. Contas fora da liberação continuam temporariamente no
+caminho legado de upserts diretos, sem dual-write.
+
+### Implementação necessária
+
+1. Manter o caminho novo atrás das duas flags e restrito inicialmente a um
+   UUID.
+2. Corrigir qualquer regressão encontrada com teste RED/GREEN antes de repetir
+   o ensaio.
+3. Não remover o caminho legado até os passos 2 e 3 aprovarem a estratégia
+   definitiva.
+4. Manter a sincronização forçada como recuperação explícita: primeiro baixar o
+   snapshot remoto, depois enviar somente as alterações pendentes deste
+   dispositivo, que vencem o conflito. Ela não pode reenviar entidades já
+   convergidas nem apagar linhas existentes apenas no remoto.
+5. Atualizar este passo com data e evidência de cada ensaio aprovado.
+
+### Responsabilidade externa
+
+Depois que a versão estiver publicada com as flags vazias, configurar em
+**Vercel → Production**:
+
+```dotenv
+NEXT_PUBLIC_TICK_ENABLE_ACCOUNT_BATCHES=1
+NEXT_PUBLIC_TICK_ACCOUNT_BATCH_USER_IDS=<auth.users.id-da-conta-interna>
+```
+
+O UUID é também o `profiles.id`. Essas variáveis são públicas no bundle e nunca
+devem conter token ou senha. Como são `NEXT_PUBLIC_*`, a alteração exige novo
+deploy. Não alterar as flags do PowerSync neste ensaio.
+
+Executar manualmente, na conta autorizada:
+
+1. editar calendário, categorias e metas online;
+2. editar offline, recarregar ainda offline e religar a rede sem clicar em
+   sincronizar;
+3. editar a mesma entidade em janela normal e anônima, deixando o segundo
+   contexto offline até o primeiro confirmar;
+4. opcionalmente gerar mais de 200 alterações offline para validar o limite;
+5. confirmar que conta não listada permanece funcional e que guest não envia
+   entidades.
+
+### Aprovação e rollback
+
+O passo passa quando o indicador retorna sozinho a `Sincronizado`, nenhuma
+alteração desaparece, não há rajadas de retry, o conflito converge conforme a
+regra documentada e a fila cheia continua preservando o estado local.
+
+Se reprovar, não limpar IndexedDB ou dados do site. Registrar estado e erro,
+usar sincronização forçada para reconciliar e manter somente a conta interna.
+Para rollback, esvaziar `NEXT_PUBLIC_TICK_ENABLE_ACCOUNT_BATCHES` e gerar novo
+deploy. Operações já persistidas devem permanecer disponíveis para diagnóstico.
+
+### Gates
+
+```bash
+make test-account-persistence
+make check
+make test-e2e
+make test-e2e-offline
+make test-e2e-account
+make supabase-reset
+make supabase-lint
+make supabase-diff-check
+make supabase-test-db
+```
+
+## 2. Medir conflitos reais, lotes e compatibilidade Safari/iOS
+
+### Resultado esperado
+
+Transformar a validação funcional do passo 1 em evidência de capacidade e
+compatibilidade. Este passo fecha os riscos que ainda impedem rollout amplo da
+outbox e aprovação do PowerSync.
+
+### Escopo técnico
+
+- concorrência realmente simultânea entre dois dispositivos;
+- resposta perdida e replay do mesmo `operation_id`;
+- contenção, timeouts e ausência de operações presas em `syncing`;
+- lotes com 1, 100 e mais de 100 mutações;
+- fila próxima e acima de 200 operações;
+- fechamento completo do navegador com operação pendente;
+- Chrome desktop/Android, Safari desktop/iOS e fallback quando SQLite/WASM ou
+  IndexedDB não estiver disponível;
+- primeiro pull e conta madura com milhares de itens;
+- isolamento entre dois usuários e ausência total de rede de entidades guest.
+
+### Implementação necessária
+
+1. Criar cenários automatizados de concorrência com Supabase local real e dois
+   usuários, sem interceptar a API funcional.
+2. Criar benchmark reprodutível da RPC `apply_account_operation_batch`,
+   registrando p50, p95, p99, erros, locks e throughput.
+3. Instrumentar duração, tamanho e resultado dos lotes e idade da operação mais
+   antiga, sem tarefa, meta, e-mail ou outro conteúdo privado.
+4. Testar atualização do service worker e reinício do navegador sem perder a
+   base local.
+5. Definir navegadores oficialmente suportados e uma mensagem recuperável para
+   storage incompatível ou indisponível.
+6. Verificar que a retenção de recibos de sete dias não remove a idempotência
+   dentro da janela prometida.
+
+### Responsabilidade externa
+
+- disponibilizar ao menos dois dispositivos reais, incluindo Safari/iOS;
+- autorizar somente contas internas e um ambiente de teste sem dados pessoais;
+- registrar modelo do aparelho, navegador, versão, rede e horário dos ensaios;
+- acompanhar consumo de banco, transferência e conexões nos painéis gratuitos;
+- não executar carga destrutiva no projeto de produção.
+
+### Critérios de conclusão
+
+- todos os dispositivos convergem segundo a política definida;
+- nenhuma operação se perde após fechamento completo;
+- nenhuma chamada cruza usuários ou parte de guest;
+- p95 e taxa de erro do lote têm baseline registrado;
+- não há fila, lock ou estado `syncing` permanente;
+- fallback oferece erro recuperável e não corrompe dados;
+- o volume do ensaio cabe nas quotas gratuitas com margem conhecida.
+
+## 3. Escolher definitivamente entre PowerSync e outbox própria
+
+### Resultado esperado
+
+Encerrar a arquitetura paralela. Ao final haverá uma única estratégia de
+persistência remota para contas autenticadas e um plano de migração ou remoção
+do caminho rejeitado.
+
+### Estado da prova PowerSync
+
+Existe um POC isolado, desligado por padrão, com SQLite v2 por conta, Supabase
+Auth, tabelas `powersync_poc_*`, Sync Streams filtrados, upload em uma RPC
+atômica, RLS, recibos idempotentes e rota interna `/~powersync-poc`. Reload
+offline, reconexão, dois contextos web, isolamento entre contas e Android já
+foram validados. As telas funcionais ainda usam Dexie; o POC nunca deve escrever
+nas tabelas funcionais.
+
+Configuração externa já existente:
+
+- instância PowerSync **Development** no plano gratuito;
+- usuário exclusivo de replicação no Supabase;
+- Supabase Auth habilitado no PowerSync;
+- `powersync/sync-config.yaml` implantado sobre `powersync_poc_*`;
+- `NEXT_PUBLIC_POWERSYNC_URL` cadastrado apenas em Vercel Production.
+
+A ativação interna exige simultaneamente:
+
+```dotenv
+NEXT_PUBLIC_TICK_ENABLE_POWERSYNC_POC=1
+NEXT_PUBLIC_TICK_POWERSYNC_POC_USER_IDS=<auth.users.id-da-conta-interna>
+```
+
+### Comparação obrigatória
+
+Avaliar PowerSync e outbox própria com os mesmos dados dos passos 1 e 2:
+
+| Critério         | Evidência necessária                                 |
+| ---------------- | ---------------------------------------------------- |
+| perda e retry    | reload, fechamento, resposta perdida e reconexão     |
+| conflito         | resultado simultâneo previsível em dois dispositivos |
+| incrementalidade | linhas e bytes por pull e por alteração              |
+| compatibilidade  | desktop, Android, Safari/iOS e fallback              |
+| complexidade     | código próprio, operação, diagnóstico e upgrades     |
+| custo            | alfa, 1.000 DAU e crescimento                        |
+| lock-in e saída  | exportação, reconstrução local e rollback            |
+| segurança        | JWT, ownership, RLS e isolamento negativo            |
+
+### Decisão recomendada
+
+Adotar PowerSync se ele aprovar todos os critérios e reduzir materialmente o
+código proprietário de pull, outbox e conflitos. Nesse caso:
+
+1. migrar uma superfície funcional por flag e UUID;
+2. abrir uma base local nova e reconstruível a partir do servidor;
+3. manter guest no Dexie;
+4. nunca escrever a mesma conta simultaneamente em Dexie/outbox e PowerSync;
+5. ampliar por coortes internas;
+6. remover o caminho autenticado antigo somente após estabilidade e rollback
+   comprovado.
+
+Manter a outbox própria se o PowerSync falhar em compatibilidade, custo ou
+controle operacional. Nesse caso, remover o POC, suas tabelas, publicação,
+streams, dependência e flags em rollout aditivo e reversível, e concluir pull
+incremental e observabilidade na implementação própria.
+
+### Responsabilidade externa
+
+- executar os ensaios restantes do POC em Safari/iOS e fechamento completo;
+- fornecer as métricas do dashboard gratuito do PowerSync;
+- confirmar termos, limites e preço vigentes antes de qualquer uso público;
+- aprovar por escrito a escolha e o custo aceito;
+- contratar PowerSync Pro somente antes de liberar sync a usuários externos ou
+  quando quotas/garantias do plano gratuito deixarem de atender.
+
+### Critérios de conclusão
+
+Uma decisão registrada neste passo deve conter evidências, custo estimado,
+navegadores suportados, política de conflito, plano de rollout, rollback e
+remoção da alternativa rejeitada. `SYNC-01` só pode ser considerado concluído
+depois da migração das telas reais e da retirada do caminho temporário.
+
+## 4. Implementar observabilidade, backup e restauração
+
+### Resultado esperado
+
+Permitir detectar, diagnosticar e recuperar falhas sem inspecionar manualmente
+o navegador do usuário e sem enviar conteúdo privado.
+
+### Implementação necessária
+
+1. Escolher um destino de erros e métricas compatível com o plano atual.
+2. Criar um adaptador de telemetria independente do fornecedor.
+3. Enviar agregados de fila, idade, tentativas, conflitos, rejeições, latência,
+   versão, navegador e resultado do refresh.
+4. Aplicar redaction e allowlist explícita de campos; tarefa, meta, categoria,
+   e-mail, token e payload nunca podem sair do dispositivo.
+5. Criar alertas para fila acumulada, operação antiga, aumento de erro,
+   indisponibilidade de API e 70% de quota crítica.
+6. Documentar runbooks de incidente, rollback de flag, migration compensatória
+   e comunicação ao usuário.
+7. Automatizar backup externo quando o lançamento se aproximar.
+8. Restaurar um backup em Postgres local ou projeto temporário isolado e medir
+   RPO e RTO.
+
+### Responsabilidade externa
+
+- escolher provedor, retenção, região, acesso e limites de alerta;
+- criar projeto/DSN e cadastrar secrets somente no ambiente necessário;
+- definir RPO, RTO, política de privacidade e período de retenção;
+- gerar backup e autorizar o ensaio em ambiente isolado, nunca em produção;
+- revisar no painel que uma falha sintética alerta sem conteúdo do usuário.
+
+### Critérios de conclusão
+
+- falha de sincronização aparece no painel e dispara alerta acionável;
+- teste de redaction impede PII e conteúdo funcional;
+- quotas possuem alerta antes da saturação;
+- backup é restaurado por outra pessoa seguindo o runbook;
+- RPO e RTO medidos estão registrados;
+- rollback de aplicação, flag e banco foi ensaiado.
+
+## 5. Fechar deploy ordenado entre GitHub, Supabase e Vercel
+
+### Resultado esperado
+
+Garantir a sequência `quality gate → migrations → deploy` para o mesmo SHA,
+com rollback documentado.
+
+### Estado atual
+
+O ruleset da `main` exige `Check app`, `Check database` e `Check end-to-end`.
+O workflow de migrations roda somente após App CI aprovado na `main`, usa o
+`head_sha`, faz dry-run e aplica migrations pelo environment `production`. O
+deploy automático da Vercel ainda pode começar em paralelo com as migrations.
+
+### Implementação recomendada
+
+Usar um Deploy Hook da Vercel acionado pelo workflow após a migration:
+
+1. adicionar job `deploy-production` em
+   `.github/workflows/supabase-migrations.yml`;
+2. fazê-lo depender de `migrate-production` e usar o mesmo SHA registrado;
+3. tratar corretamente commits sem mudança de banco, sem impedir deploy;
+4. falhar com mensagem clara quando o hook estiver ausente ou responder erro;
+5. registrar URL/identificador do deployment como evidência;
+6. manter migrations aditivas e compatíveis com versões N e N+1;
+7. usar migration compensatória em rollback, nunca alterar migration aplicada.
+
+### Responsabilidade externa
+
+1. Em Vercel **Settings → Git**, desativar o auto-deploy de produção da `main`.
+2. Criar Deploy Hook para `main`.
+3. Cadastrar a URL como `VERCEL_DEPLOY_HOOK_URL` no environment GitHub
+   `production`.
+4. Publicar uma mudança inócua e confirmar pelos horários que migrations
+   terminaram antes do deployment.
+5. Manter os secrets `SUPABASE_PROJECT_REF`, `SUPABASE_ACCESS_TOKEN` e
+   `SUPABASE_DB_PASSWORD` somente no environment protegido.
+
+### Critérios de conclusão
+
+- gate falho não migra nem publica;
+- banco e aplicação usam o mesmo SHA aprovado;
+- commit sem migration ainda publica corretamente;
+- migration falha impede deploy;
+- execução manual respeita os mesmos gates;
+- rollback compensatório e restauração isolada foram ensaiados.
+
+## 6. Implementar Auth, entitlement, trial, billing e migração guest
+
+### Resultado esperado
+
+Substituir a alfa por allowlist por um ciclo público completo de conta e
+assinatura. A ordem interna obrigatória é **Auth → entitlement/trial → billing
+→ migração guest**.
+
+### 6.1 Autenticação pública
+
+Implementar cadastro, confirmação de e-mail, login por senha e Google,
+recuperação de senha, gestão de sessão, reautenticação para ações sensíveis,
+exportação e exclusão completa. Preservar o grant offline recente somente para
+a mesma conta e nunca converter indisponibilidade remota em negativa explícita.
+
+Responsabilidade externa:
+
+- escolher SMTP e domínio remetente;
+- decidir CAPTCHA desde o cadastro e configurar quotas/rate limits;
+- revisar redirects OAuth, templates pt-BR/en e políticas de retenção;
+- definir prazo prometido de exportação e exclusão.
+
+### 6.2 Guest, trial e entitlement
+
+Centralizar uma política validada no servidor para `guest`, `trial`, `active`,
+`grace` e `expired`. O trial autenticado dura sete dias pelo relógio canônico do
+servidor. Expiração nunca apaga dados e trial/assinante usam o mesmo modelo de
+persistência.
+
+Decisões externas obrigatórias:
+
+- limites exatos do guest e tratamento de usuários locais acima do limite;
+- quando o trial começa e o que fica bloqueado ao expirar;
+- se o trial é controlado por conta, e-mail ou dispositivo;
+- momento de remover a allowlist.
+
+### 6.3 Billing
+
+Implementar catálogo centralizado por região/moeda, customer, checkout, portal,
+subscription, event log, webhooks assinados e idempotentes, reconciliação,
+renovação, cancelamento, grace period, falha e eventos fora de ordem.
+Entitlement é derivado no servidor, nunca aceito da UI.
+
+Decisões externas obrigatórias:
+
+- provedor e entidade jurídica recebedora, incluindo emissão fiscal no Brasil;
+- confirmar ou substituir os preços provisórios de `R$ 10,00/mês` e
+  `US$ 5.00/mês`;
+- tolerância e acesso durante falha de pagamento;
+- secrets e sandbox do provedor.
+
+### 6.4 Migração explícita de guest
+
+Oferecer fluxo opcional e consentido depois que sync e API estiverem estáveis.
+Inventariar o grafo guest, gerar `migration_id`, mapear IDs e relações, enviar
+lotes transacionais, guardar checkpoint, permitir retry e só limpar a origem
+após confirmação canônica.
+
+Decisões externas obrigatórias:
+
+- se e quando a migração será oferecida;
+- política quando a conta já possui dados: mesclar, duplicar ou bloquear;
+- preservar ou apagar a origem após confirmação.
+
+### Segurança, testes e conclusão
+
+- derivar usuário, preço e entitlement do token/servidor;
+- cobrir enumeração, redirects, rate limit, CSRF, webhooks duplicados,
+  out-of-order, ownership e deleção em cascade;
+- testar pt-BR/en, offline, expiração, renovação, cancelamento e dois usuários;
+- comprovar que repetição da migração não duplica e falha parcial retoma;
+- publicar políticas de privacidade, retenção e termos antes do cadastro
+  público.
+
+O passo termina quando uma pessoa pode criar, confirmar, recuperar, exportar e
+excluir a conta; iniciar e terminar trial; assinar, cancelar e recuperar falha
+de pagamento; e migrar dados guest sem perda ou cruzamento de ownership.
+
+## 7. Executar carga e capacidade para 1.000 usuários diários
+
+### Resultado esperado
+
+Substituir estimativas por um baseline reprodutível de capacidade, custo e
+gargalos para 1.000 DAU e picos realistas.
+
+### Implementação necessária
+
+1. Modelar sessões, leituras, edições, sincronizações e pico por minuto.
+2. Gerar dados sintéticos sem PII, incluindo contas com milhares de itens e
+   hierarquias profundas.
+3. Criar targets Make para preparação, execução e relatório da carga.
+4. Medir p50/p95/p99, taxa de erro, queries, locks, CPU, memória, linhas/bytes,
+   conexões, fila, convergência e primeiro pull.
+5. Medir bundle, abertura em rede móvel e atualização do service worker.
+6. Identificar N+1, consultas/payloads ilimitados, refresh redundante e índices
+   ausentes.
+7. Definir budgets e ratchets: regressão superior a 10% deve falhar ou exigir
+   justificativa explícita.
+8. Fazer carga progressiva somente em ambiente isolado.
+
+### Responsabilidade externa
+
+- aprovar o modelo de uso e o pico esperado;
+- fornecer projeto isolado ou janela segura de benchmark;
+- acompanhar dashboards de Vercel, Supabase e, se escolhido, PowerSync;
+- autorizar qualquer custo de ambiente temporário;
+- validar quotas e preços atuais nos sites dos fornecedores antes do lançamento.
+
+### Critérios de conclusão
+
+- pico de 1.000 DAU passa com margem definida e sem perda de dados;
+- p95/p99 e tempo de convergência atendem os limites acordados;
+- nenhuma consulta, payload ou fila cresce sem limite;
+- gargalos e índices possuem evidência antes/depois;
+- alertas disparam em 70% de quota crítica;
+- relatório reproduzível registra capacidade, margem e custo projetado.
+
+## 8. Avaliar frontend estático e planos no marco público
+
+### Resultado esperado
+
+Depois da sincronização, operação e carga estáveis, decidir a hospedagem final e
+contratar somente o que for tecnicamente ou comercialmente necessário.
+
+### Arquitetura preferida
+
+- frontend React, TypeScript, Vite e Tailwind estático;
+- PWA e service worker sem servidor Node permanente;
+- Cloudflare para o app estático;
+- Supabase Auth/PostgreSQL como backend canônico;
+- estratégia de sync escolhida no passo 3;
+- páginas públicas/SEO separadas apenas quando necessárias.
+
+### Migração técnica
+
+1. Remover dependência server-side de locale e preferências iniciais.
+2. Prototipar build Vite estático sem alterar o produto em produção.
+3. Preservar rotas instaláveis, manifest, deep links e fallback offline.
+4. Testar instalação, atualização do service worker, cache antigo e rollback.
+5. Configurar Cloudflare, domínio, DNS, headers, CSP e cache.
+6. Executar paridade funcional, E2E desktop/mobile e medição de performance.
+7. Fazer rollout reversível e remover a hospedagem antiga só após estabilidade.
+
+### Planos e gatilhos
+
+Valores são referências históricas de planejamento e devem ser conferidos
+antes de contratar:
+
+| Serviço     | Agora               | Gatilho de upgrade                                                                    |
+| ----------- | ------------------- | ------------------------------------------------------------------------------------- |
+| Vercel      | Hobby, alfa privada | Pro somente se uso comercial começar ainda hospedado na Vercel                        |
+| Supabase    | Free                | lançamento público, risco de pausa, necessidade de backup/SLA ou 70% de quota crítica |
+| PowerSync   | gratuito no POC     | sync para usuários externos, limite da prova ou necessidade de suporte/SLA            |
+| Cloudflare  | Free inicialmente   | tráfego ou recurso que exceda o plano vigente                                         |
+| Backup/PITR | ensaio local/manual | RPO/RTO público exigir automação ou recuperação ponto a ponto                         |
+
+A referência anterior da arquitetura completa paga era aproximadamente US$ 79
+por mês para Supabase Small e PowerSync Pro, sem Vercel Pro. Ela não é cotação
+nem autorização de compra.
+
+### Responsabilidade externa
+
+- revisar termos comerciais dos planos no marco de lançamento;
+- criar zona/projeto Cloudflare, configurar domínio e autorizar mudança de DNS;
+- contratar Supabase/PowerSync apenas quando um gatilho ocorrer;
+- aprovar janela de rollout e rollback;
+- confirmar políticas legais, suporte, RPO/RTO e resposta a incidentes.
+
+### Definição final de pronto
+
+A implementação total está concluída quando:
+
+- nenhuma limitação conhecida pode apagar ou ocultar dados locais;
+- operações offline sobrevivem ao fechamento e convergem entre dispositivos;
+- guest e contas permanecem rigorosamente isolados;
+- conta, trial, assinatura, exportação, exclusão e migração funcionam;
+- métricas, alertas, backup, restauração e rollback foram comprovados;
+- a carga sustenta 1.000 DAU com margem e custo conhecidos;
+- deploy e migrations usam o mesmo SHA aprovado;
+- hospedagem, termos e planos são compatíveis com uso público;
+- todos os gates aplicáveis do REVIEW passam.

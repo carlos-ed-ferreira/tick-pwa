@@ -19,7 +19,7 @@ export function LanguageSwitcher() {
   const label = `${dictionary.settings.language}: ${LOCALE_LABELS[locale]}`;
 
   return (
-    <Tooltip content={label}>
+    <Tooltip content={label} whenTruncated>
       <button
         aria-label={label}
         className="inline-flex min-h-10 shrink-0 items-center gap-1 rounded-full inset-ring-hairline inset-ring-white/10 bg-white/5 px-4 py-2 text-xs font-medium text-[#f8f3ea] shadow-sm shadow-[#253241]/10 transition hover:-translate-y-0.5 hover:inset-ring-white/20 hover:bg-white/10 hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0] active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-60 sm:text-sm"

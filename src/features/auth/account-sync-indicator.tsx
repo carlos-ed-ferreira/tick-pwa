@@ -2,7 +2,7 @@
 
 import { Check, Cloud, CloudOff, LoaderCircle, RefreshCw } from 'lucide-react';
 import { useState } from 'react';
-import { Button } from '@/components/ui';
+import { Button, Tooltip } from '@/components/ui';
 import type { AppScope } from '@/lib/domain';
 import type { Dictionary } from '@/lib/i18n';
 import { useAccountSyncStatus } from './use-account-sync-status';
@@ -50,26 +50,34 @@ export function AccountSyncIndicator({
 
   return (
     <>
-      <Button
-        aria-label={`${statusLabel}. ${actionLabel}`}
-        className={`min-h-10 rounded-full px-3.5 text-xs ${stateStyles[summary.state]}`}
-        disabled={isSyncing}
-        tone="subtle"
-        onClick={() => void forceSync()}
-      >
-        {isSyncing ? (
-          <LoaderCircle aria-hidden="true" className="size-4 animate-spin" />
-        ) : summary.state === 'failed' ? (
-          <CloudOff aria-hidden="true" className="size-4" />
-        ) : summary.state === 'saved' ? (
-          <Check aria-hidden="true" className="size-4" />
-        ) : summary.state === 'syncing' ? (
-          <RefreshCw aria-hidden="true" className="size-4 animate-spin" />
-        ) : (
-          <Cloud aria-hidden="true" className="size-4" />
-        )}
-        <span>{statusLabel}</span>
-      </Button>
+      <Tooltip content={statusLabel} whenTruncated>
+        <Button
+          aria-label={`${statusLabel}. ${actionLabel}`}
+          className={`min-h-10 max-w-[10rem] rounded-full px-3.5 text-xs shadow-sm shadow-[#253241]/10 hover:-translate-y-0.5 hover:shadow-md active:translate-y-0 ${stateStyles[summary.state]}`}
+          disabled={isSyncing}
+          tone="subtle"
+          onClick={() => void forceSync()}
+        >
+          {isSyncing ? (
+            <LoaderCircle
+              aria-hidden="true"
+              className="size-4 shrink-0 animate-spin"
+            />
+          ) : summary.state === 'failed' ? (
+            <CloudOff aria-hidden="true" className="size-4 shrink-0" />
+          ) : summary.state === 'saved' ? (
+            <Check aria-hidden="true" className="size-4 shrink-0" />
+          ) : summary.state === 'syncing' ? (
+            <RefreshCw
+              aria-hidden="true"
+              className="size-4 shrink-0 animate-spin"
+            />
+          ) : (
+            <Cloud aria-hidden="true" className="size-4 shrink-0" />
+          )}
+          <span className="truncate">{statusLabel}</span>
+        </Button>
+      </Tooltip>
       <span aria-live="polite" className="sr-only" role="status">
         {statusLabel}
       </span>

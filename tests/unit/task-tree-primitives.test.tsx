@@ -29,11 +29,12 @@ describe('task tree primitives', () => {
       'rounded-lg',
       'inset-ring-hairline',
       'inset-ring-transparent',
-      'p-0',
+      'pr-1',
       'transition',
       'hover:inset-ring-white/[0.08]',
       'hover:bg-white/[0.055]',
     );
+    expect(row).not.toHaveClass('p-0');
     expect(row).toHaveStyle({
       paddingLeft: '28px',
       backgroundColor: 'rgba(34, 197, 94, 0.12)',

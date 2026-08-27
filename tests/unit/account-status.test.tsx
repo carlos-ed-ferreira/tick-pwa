@@ -1,6 +1,20 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { AccountSyncIndicator } from '@/features/auth/account-sync-indicator';
 import { AccountStatus } from '@/features/auth/account-status';
+import type { Dictionary } from '@/lib/i18n';
+import { simulateClippedText } from '../support/truncation';
+
+const syncDictionary: Dictionary['sync'] = {
+  failed: 'Sync failed',
+  pending: 'Saved locally, waiting to send',
+  retry: 'Try again',
+  retrying: 'Trying again',
+  force: 'Sync now',
+  forcing: 'Syncing now',
+  saved: 'Synced',
+  syncing: 'Syncing',
+};
 
 const {
   openAuthEntryMock,
@@ -49,14 +63,7 @@ describe('AccountStatus', () => {
           signInWithPassword: 'Sign in',
           signOut: 'Sign out',
         },
-        sync: {
-          failed: 'Sync failed',
-          pending: 'Saved locally, waiting to send',
-          retry: 'Try again',
-          retrying: 'Trying again',
-          saved: 'Synced',
-          syncing: 'Syncing',
-        },
+        sync: syncDictionary,
       },
       openAuthEntry: openAuthEntryMock,
       scope: { id: 'guest:local', kind: 'guest', ownerId: 'local' },
@@ -88,14 +95,7 @@ describe('AccountStatus', () => {
           signInWithPassword: 'Sign in',
           signOut: 'Sign out',
         },
-        sync: {
-          failed: 'Sync failed',
-          pending: 'Saved locally, waiting to send',
-          retry: 'Try again',
-          retrying: 'Trying again',
-          saved: 'Synced',
-          syncing: 'Syncing',
-        },
+        sync: syncDictionary,
       },
       openAuthEntry: openAuthEntryMock,
       scope: {
@@ -116,11 +116,56 @@ describe('AccountStatus', () => {
     const tooltipTrigger = email.parentElement?.parentElement;
 
     expect(tooltipTrigger).not.toBeNull();
+    expect(email.parentElement).toHaveAttribute('tabindex', '0');
+    simulateClippedText(email);
     fireEvent.mouseEnter(tooltipTrigger as HTMLElement);
 
     expect(await screen.findByRole('tooltip')).toHaveTextContent(
       'a-very-long-email-address@example.com',
     );
+  });
+
+  it('keeps a sync status within its maximum width and exposes its complete label', async () => {
+    useAccountSyncStatusMock.mockReturnValue({
+      retry: retryAccountSyncMock,
+      summary: {
+        state: 'saved',
+        failedCount: 0,
+        pendingCount: 0,
+        syncingCount: 0,
+      },
+    });
+
+    render(
+      <AccountSyncIndicator
+        dictionary={syncDictionary}
+        scope={{
+          id: 'user:authenticated-user',
+          kind: 'user',
+          ownerId: 'authenticated-user',
+        }}
+      />,
+    );
+
+    const syncButton = screen.getByRole('button', {
+      name: 'Synced. Sync now',
+    });
+
+    expect(syncButton).toHaveClass('max-w-[10rem]');
+    expect(syncButton).toHaveClass(
+      'hover:-translate-y-0.5',
+      'hover:shadow-md',
+      'active:translate-y-0',
+    );
+
+    const statusLabel = syncButton.querySelector('span');
+
+    expect(statusLabel).toHaveClass('truncate');
+
+    simulateClippedText(statusLabel as HTMLElement);
+    fireEvent.mouseEnter(syncButton.parentElement as HTMLElement);
+
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('Synced');
   });
 
   it('shows a failed sync and lets the user retry it', () => {
@@ -133,35 +178,17 @@ describe('AccountStatus', () => {
         syncingCount: 0,
       },
     });
-    useAppContextMock.mockReturnValue({
-      authMode: 'authenticated',
-      authUser: { email: 'user@example.com' },
-      dictionary: {
-        auth: {
-          cloudModeBadge: 'Cloud mode',
-          localModeBadge: 'Local mode',
-          signInWithPassword: 'Sign in',
-          signOut: 'Sign out',
-        },
-        sync: {
-          failed: 'Sync failed',
-          pending: 'Saved locally, waiting to send',
-          retry: 'Try again',
-          retrying: 'Trying again',
-          saved: 'Synced',
-          syncing: 'Syncing',
-        },
-      },
-      openAuthEntry: openAuthEntryMock,
-      scope: {
-        id: 'user:authenticated-user',
-        kind: 'user',
-        ownerId: 'authenticated-user',
-      },
-      signOut: vi.fn(),
-    });
 
-    render(<AccountStatus />);
+    render(
+      <AccountSyncIndicator
+        dictionary={syncDictionary}
+        scope={{
+          id: 'user:authenticated-user',
+          kind: 'user',
+          ownerId: 'authenticated-user',
+        }}
+      />,
+    );
 
     fireEvent.click(
       screen.getByRole('button', { name: 'Sync failed. Try again' }),

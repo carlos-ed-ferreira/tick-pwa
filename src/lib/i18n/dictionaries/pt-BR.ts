@@ -59,8 +59,8 @@ export const ptBRDictionary = {
   sync: {
     failed: 'Falha ao sincronizar',
     pending: 'Salvo localmente, aguardando envio',
-    force: 'Enviar deste dispositivo',
-    forcing: 'Enviando',
+    force: 'Sincronizar agora',
+    forcing: 'Sincronizando agora',
     retry: 'Tentar novamente',
     retrying: 'Tentando novamente',
     saved: 'Sincronizado',

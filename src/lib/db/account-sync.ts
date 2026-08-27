@@ -1,4 +1,5 @@
 import type { AppScope, SyncEntityType } from '@/lib/domain';
+import { refreshAccountCache } from '@/lib/supabase/account-cache';
 import { fetchRemoteEntityRevisions } from '@/lib/supabase/account-data';
 import {
   applyAccountOperationBatch,
@@ -8,14 +9,15 @@ import {
 import { db } from './database';
 import {
   accountEntityTypes,
+  collectPendingEntityClosure,
   createOperationId,
   getAccountEntityTable,
   type PersistedAccountEntity,
 } from './account-entity-tables';
 
-const FORCE_PUSH_BATCH_SIZE = 100;
+const SYNC_BATCH_SIZE = 100;
 
-interface ForcePushMutation {
+interface SyncMutation {
   baseRevision: number | null;
   clientUpdatedAt: string;
   entityId: string;
@@ -48,29 +50,39 @@ function orderByHierarchy(
   return [...ordered, ...pending.values()];
 }
 
-async function collectForcePushMutations(
-  scope: AppScope,
-): Promise<ForcePushMutation[]> {
-  const mutations: ForcePushMutation[] = [];
+async function collectSyncMutations(scope: AppScope): Promise<SyncMutation[]> {
+  const closure = await collectPendingEntityClosure(scope.id);
+
+  if ([...closure.values()].every((ids) => ids.size === 0)) {
+    return [];
+  }
+
+  const mutations: SyncMutation[] = [];
 
   for (const entityType of accountEntityTypes) {
-    const entities = await getAccountEntityTable(entityType)
-      .where('scopeId')
-      .equals(scope.id)
-      .toArray();
+    const candidateIds = [...(closure.get(entityType) ?? [])];
 
-    if (entities.length === 0) {
+    if (candidateIds.length === 0) {
       continue;
     }
 
-    const ordered = orderByHierarchy(entities);
+    const table = getAccountEntityTable(entityType);
+    const candidates = (
+      await Promise.all(candidateIds.map((id) => table.get(id)))
+    ).filter(
+      (entity): entity is PersistedAccountEntity =>
+        entity !== undefined && entity.scopeId === scope.id,
+    );
     const revisions = await fetchRemoteEntityRevisions({
-      entityIds: ordered.map((entity) => entity.id),
+      entityIds: candidates.map((entity) => entity.id),
       entityType,
       scope,
     });
+    const selected = candidates.filter(
+      (entity) => entity.syncStatus !== 'synced' || !revisions.has(entity.id),
+    );
 
-    for (const entity of ordered) {
+    for (const entity of orderByHierarchy(selected)) {
       mutations.push({
         baseRevision: revisions.get(entity.id) ?? null,
         clientUpdatedAt: entity.clientUpdatedAt,
@@ -84,9 +96,9 @@ async function collectForcePushMutations(
   return mutations;
 }
 
-async function applyForcePushResult(
+async function applyPushResult(
   scope: AppScope,
-  mutations: ForcePushMutation[],
+  mutations: SyncMutation[],
   result: AccountOperationResult,
 ): Promise<void> {
   for (const mutation of mutations) {
@@ -119,7 +131,7 @@ async function applyForcePushResult(
 
 async function pushBatch(
   scope: AppScope,
-  mutations: ForcePushMutation[],
+  mutations: SyncMutation[],
 ): Promise<void> {
   const result = await applyAccountOperationBatch({
     mutations: mutations.map((mutation) => ({
@@ -132,17 +144,17 @@ async function pushBatch(
   });
 
   if (!result) {
-    throw new Error('Account force push did not return a result.');
+    throw new Error('Account sync did not return a result.');
   }
 
-  await applyForcePushResult(scope, mutations, result);
+  await applyPushResult(scope, mutations, result);
 }
 
 async function rebaseBatch(
   scope: AppScope,
-  mutations: ForcePushMutation[],
-): Promise<ForcePushMutation[]> {
-  const rebased: ForcePushMutation[] = [];
+  mutations: SyncMutation[],
+): Promise<SyncMutation[]> {
+  const rebased: SyncMutation[] = [];
 
   for (const entityType of accountEntityTypes) {
     const batchMutations = mutations.filter(
@@ -177,24 +189,14 @@ async function rebaseBatch(
   );
 }
 
-export async function forcePushLocalAccountState(
-  scope: AppScope,
-): Promise<void> {
-  if (scope.kind !== 'user') {
-    return;
-  }
-
+async function pushPendingAccountChanges(scope: AppScope): Promise<void> {
   const supersededOperationIds = (
     await db.syncOutbox.where('scopeId').equals(scope.id).toArray()
   ).map((item) => item.id);
-  const mutations = await collectForcePushMutations(scope);
+  const mutations = await collectSyncMutations(scope);
 
-  for (
-    let offset = 0;
-    offset < mutations.length;
-    offset += FORCE_PUSH_BATCH_SIZE
-  ) {
-    const batch = mutations.slice(offset, offset + FORCE_PUSH_BATCH_SIZE);
+  for (let offset = 0; offset < mutations.length; offset += SYNC_BATCH_SIZE) {
+    const batch = mutations.slice(offset, offset + SYNC_BATCH_SIZE);
 
     try {
       await pushBatch(scope, batch);
@@ -208,4 +210,15 @@ export async function forcePushLocalAccountState(
   }
 
   await db.syncOutbox.bulkDelete(supersededOperationIds);
+}
+
+export async function syncAccountFromThisDevice(
+  scope: AppScope,
+): Promise<void> {
+  if (scope.kind !== 'user') {
+    return;
+  }
+
+  await refreshAccountCache(scope);
+  await pushPendingAccountChanges(scope);
 }

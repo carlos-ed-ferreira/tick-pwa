@@ -1,5 +1,5 @@
-import { fireEvent, render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { afterEach, describe, expect, it } from 'vitest';
 import {
   Button,
   Checkbox,
@@ -14,8 +14,13 @@ import {
   Tooltip,
 } from '@/components/ui';
 import { fitDashedRingPathLength } from '@/components/ui/dashed-ring';
+import { simulateClippedText } from '../support/truncation';
 
 describe('UI primitives', () => {
+  afterEach(() => {
+    cleanup();
+  });
+
   it('applies the Tick visual treatment to checkboxes', () => {
     render(<Checkbox aria-label="Complete task" />);
 
@@ -201,6 +206,70 @@ describe('UI primitives', () => {
     fireEvent.focus(button);
 
     expect(screen.getByRole('tooltip')).toHaveTextContent('Change language');
+  });
+
+  it('animates transform and shadow so hover lifts stay smooth', () => {
+    render(<Button>Save</Button>);
+
+    const button = screen.getByRole('button', { name: 'Save' });
+
+    expect(button).toHaveClass('transition', 'duration-200');
+    expect(button).not.toHaveClass('transition-colors');
+  });
+
+  it('keeps the truncation tooltip closed while the text fits its container', () => {
+    render(
+      <Tooltip content="A goal name" whenTruncated>
+        <span className="truncate" tabIndex={0}>
+          A goal name
+        </span>
+      </Tooltip>,
+    );
+
+    fireEvent.focus(screen.getByText('A goal name'));
+
+    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+  });
+
+  it('opens the truncation tooltip once the text is clipped', () => {
+    render(
+      <Tooltip content="A goal name that needs truncation" whenTruncated>
+        <span className="truncate" tabIndex={0}>
+          A goal name that needs truncation
+        </span>
+      </Tooltip>,
+    );
+
+    const label = screen.getByText('A goal name that needs truncation');
+
+    simulateClippedText(label);
+    fireEvent.focus(label);
+
+    expect(screen.getByRole('tooltip')).toHaveTextContent(
+      'A goal name that needs truncation',
+    );
+  });
+
+  it('ignores overflow that is not clipped by the container', () => {
+    render(
+      <Tooltip content="A goal name that needs truncation" whenTruncated>
+        <span tabIndex={0}>A goal name that needs truncation</span>
+      </Tooltip>,
+    );
+
+    const label = screen.getByText('A goal name that needs truncation');
+
+    Object.defineProperty(label, 'clientWidth', {
+      configurable: true,
+      value: 120,
+    });
+    Object.defineProperty(label, 'scrollWidth', {
+      configurable: true,
+      value: 320,
+    });
+    fireEvent.focus(label);
+
+    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
   });
 
   it('keeps danger styling reserved for destructive confirmation dialogs', () => {

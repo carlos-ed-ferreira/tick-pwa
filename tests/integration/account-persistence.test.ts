@@ -78,7 +78,14 @@ function createAccountWriteClient() {
   };
 }
 
-function createForcePushClient(remoteRevisions: Record<string, number>) {
+function createSyncClient({
+  remoteRevisions = {},
+  snapshot = {},
+}: {
+  remoteRevisions?: Record<string, number>;
+  snapshot?: Partial<Record<RemoteEntityTable, unknown[]>>;
+} = {}) {
+  const pushedIds: string[] = [];
   const rpc = vi.fn(
     async (
       _functionName: string,
@@ -104,6 +111,10 @@ function createForcePushClient(remoteRevisions: Record<string, number>) {
         };
       }
 
+      for (const mutation of args.p_mutations) {
+        pushedIds.push(mutation.payload.id);
+      }
+
       return {
         data: {
           operationId: args.p_operation_id,
@@ -117,20 +128,33 @@ function createForcePushClient(remoteRevisions: Record<string, number>) {
       };
     },
   );
-  const from = vi.fn(() => ({
-    select: vi.fn(() => ({
-      eq: vi.fn(() => ({
-        in: vi.fn(async (_column: string, ids: string[]) => ({
-          data: ids
-            .filter((id) => id in remoteRevisions)
-            .map((id) => ({ id, revision: remoteRevisions[id] })),
-          error: null,
+  const from = vi.fn((table: string) => ({
+    select: vi.fn((columns: string) => {
+      if (table === 'user_preferences' && columns === 'key,value') {
+        return Promise.resolve({ data: [], error: null });
+      }
+
+      if (columns === '*') {
+        return createPagedSelectQuery({
+          rows: snapshot[table as RemoteEntityTable] ?? [],
+          table,
+        });
+      }
+
+      return {
+        eq: vi.fn(() => ({
+          in: vi.fn(async (_column: string, ids: string[]) => ({
+            data: ids
+              .filter((id) => id in remoteRevisions)
+              .map((id) => ({ id, revision: remoteRevisions[id] })),
+            error: null,
+          })),
         })),
-      })),
-    })),
+      };
+    }),
   }));
 
-  return { client: { from, rpc }, rpc };
+  return { client: { from, rpc }, pushedIds, rpc };
 }
 
 function createRemoteChecklistItem(
@@ -1695,13 +1719,15 @@ describe('account persistence boundaries', () => {
       state: 'failed',
     });
 
-    const forcePush = createForcePushClient({ [entry.id]: 7, [item.id]: 4 });
-    supabaseMocks.getSupabaseBrowserClient.mockReturnValue(forcePush.client);
+    const sync = createSyncClient({
+      remoteRevisions: { [entry.id]: 7, [item.id]: 4 },
+    });
+    supabaseMocks.getSupabaseBrowserClient.mockReturnValue(sync.client);
 
     await forceSyncAccount(scope);
     await waitForAccountPersistence(scope.id);
 
-    expect(forcePush.rpc).toHaveBeenCalled();
+    expect(sync.rpc).toHaveBeenCalled();
     await expect(db.syncOutbox.count()).resolves.toBe(0);
     await expect(db.checklistItems.get(item.id)).resolves.toMatchObject({
       remoteRevision: 5,
@@ -1716,13 +1742,16 @@ describe('account persistence boundaries', () => {
     });
   });
 
-  it('sends a parent before its child when forcing a sync', async () => {
+  it('sends a parent before its child when syncing', async () => {
     environmentMocks.shouldUseAccountOperationBatchesForUser.mockReturnValue(
       true,
     );
-    const scope = createUserScope('force-push-order-user');
-    const forcePush = createForcePushClient({});
-    supabaseMocks.getSupabaseBrowserClient.mockReturnValue(forcePush.client);
+    const scope = createUserScope('sync-order-user');
+    const failingRpc = vi.fn(async () => ({
+      data: null,
+      error: { code: '40001', message: 'stale_revision' },
+    }));
+    supabaseMocks.getSupabaseBrowserClient.mockReturnValue({ rpc: failingRpc });
 
     const entry = await openOrCreateDailyEntry({
       scope,
@@ -1741,21 +1770,19 @@ describe('account persistence boundaries', () => {
       text: 'Child',
     });
     await waitForAccountPersistence(scope.id);
-    forcePush.rpc.mockClear();
+
+    const sync = createSyncClient();
+    supabaseMocks.getSupabaseBrowserClient.mockReturnValue(sync.client);
 
     await forceSyncAccount(scope);
     await waitForAccountPersistence(scope.id);
 
-    const sentIds = forcePush.rpc.mock.calls.flatMap((call) =>
-      (
-        call[1] as {
-          p_mutations: Array<{ payload: { id: string } }>;
-        }
-      ).p_mutations.map((mutation) => mutation.payload.id),
+    expect(sync.pushedIds.indexOf(entry.id)).toBeLessThan(
+      sync.pushedIds.indexOf(parent.id),
     );
-
-    expect(sentIds.indexOf(entry.id)).toBeLessThan(sentIds.indexOf(parent.id));
-    expect(sentIds.indexOf(parent.id)).toBeLessThan(sentIds.indexOf(child.id));
+    expect(sync.pushedIds.indexOf(parent.id)).toBeLessThan(
+      sync.pushedIds.indexOf(child.id),
+    );
   });
 
   it('recovers an entity stranded in the syncing state', async () => {
@@ -2214,6 +2241,176 @@ describe('account persistence boundaries', () => {
     );
     await expect(getLocalPreference('checklistViewMode', scope)).resolves.toBe(
       'tabs',
+    );
+  });
+  it('pulls remote entities without sending them back', async () => {
+    environmentMocks.shouldUseAccountOperationBatchesForUser.mockReturnValue(
+      true,
+    );
+    const scope = createUserScope('sync-pull-user');
+    const remoteTag = {
+      ...createRemoteBaseRow(scope, 'remote-tag', 0),
+      name: 'REMOTE TAG',
+      color_hex: '#2563eb',
+      position: 'position-0',
+      surface: 'checklist_item',
+      use_own_name: false,
+    };
+    const sync = createSyncClient({ snapshot: { category_tags: [remoteTag] } });
+    supabaseMocks.getSupabaseBrowserClient.mockReturnValue(sync.client);
+
+    await forceSyncAccount(scope);
+    await waitForAccountPersistence(scope.id);
+
+    await expect(db.categoryTags.get(remoteTag.id)).resolves.toMatchObject({
+      name: 'REMOTE TAG',
+      syncStatus: 'synced',
+    });
+    expect(sync.rpc).not.toHaveBeenCalled();
+  });
+
+  it('keeps the local version when the same entity diverged remotely', async () => {
+    environmentMocks.shouldUseAccountOperationBatchesForUser.mockReturnValue(
+      true,
+    );
+    const scope = createUserScope('sync-tiebreak-user');
+    const failingRpc = vi.fn(async () => ({
+      data: null,
+      error: { code: '40001', message: 'stale_revision' },
+    }));
+    supabaseMocks.getSupabaseBrowserClient.mockReturnValue({ rpc: failingRpc });
+
+    const categoryTag = await createCategoryTag({
+      scope,
+      surface: 'calendar',
+      name: 'LOCAL WINS',
+      colorHex: '#2563eb',
+    });
+    await waitForAccountPersistence(scope.id);
+
+    const divergentRemoteTag = {
+      ...createRemoteBaseRow(scope, 'ignored', 0),
+      id: categoryTag.id,
+      name: 'REMOTE LOSES',
+      color_hex: '#111111',
+      position: 'position-9',
+      surface: 'checklist_item',
+      use_own_name: false,
+      revision: 12,
+    };
+    const sync = createSyncClient({
+      remoteRevisions: { [categoryTag.id]: 12 },
+      snapshot: { category_tags: [divergentRemoteTag] },
+    });
+    supabaseMocks.getSupabaseBrowserClient.mockReturnValue(sync.client);
+
+    await forceSyncAccount(scope);
+    await waitForAccountPersistence(scope.id);
+
+    expect(sync.pushedIds).toContain(categoryTag.id);
+    await expect(db.categoryTags.get(categoryTag.id)).resolves.toMatchObject({
+      name: 'LOCAL WINS',
+      remoteRevision: 13,
+      syncStatus: 'synced',
+    });
+  });
+
+  it('sends nothing on a second sync once the device converged', async () => {
+    environmentMocks.shouldUseAccountOperationBatchesForUser.mockReturnValue(
+      true,
+    );
+    const scope = createUserScope('sync-convergence-user');
+    const failingRpc = vi.fn(async () => ({
+      data: null,
+      error: { code: '40001', message: 'stale_revision' },
+    }));
+    supabaseMocks.getSupabaseBrowserClient.mockReturnValue({ rpc: failingRpc });
+
+    const categoryTag = await createCategoryTag({
+      scope,
+      surface: 'calendar',
+      name: 'CONVERGES',
+      colorHex: '#2563eb',
+    });
+    await waitForAccountPersistence(scope.id);
+
+    const remoteTag = {
+      ...createRemoteBaseRow(scope, 'remote-tag', 0),
+      name: 'REMOTE TAG',
+      color_hex: '#2563eb',
+      position: 'position-0',
+      surface: 'checklist_item',
+      use_own_name: false,
+    };
+    const sync = createSyncClient({ snapshot: { category_tags: [remoteTag] } });
+    supabaseMocks.getSupabaseBrowserClient.mockReturnValue(sync.client);
+
+    await forceSyncAccount(scope);
+    await waitForAccountPersistence(scope.id);
+
+    expect(sync.pushedIds).toEqual([categoryTag.id]);
+
+    sync.rpc.mockClear();
+
+    await forceSyncAccount(scope);
+    await waitForAccountPersistence(scope.id);
+
+    expect(sync.rpc).not.toHaveBeenCalled();
+  });
+  it('resends an ancestor that disappeared from the remote', async () => {
+    environmentMocks.shouldUseAccountOperationBatchesForUser.mockReturnValue(
+      true,
+    );
+    const scope = createUserScope('sync-ancestor-user');
+    const seedRpc = vi.fn(
+      async (
+        _functionName: string,
+        args: {
+          p_mutations: Array<{ entity_type: string; payload: { id: string } }>;
+          p_operation_id: string;
+        },
+      ) => ({
+        data: {
+          operationId: args.p_operation_id,
+          mutations: args.p_mutations.map((mutation) => ({
+            entityType: mutation.entity_type,
+            id: mutation.payload.id,
+            revision: 1,
+          })),
+        },
+        error: null,
+      }),
+    );
+    supabaseMocks.getSupabaseBrowserClient.mockReturnValue({ rpc: seedRpc });
+
+    const entry = await openOrCreateDailyEntry({
+      scope,
+      date: '2026-08-24',
+      timezone: 'America/Sao_Paulo',
+    });
+    const item = await createChecklistItem({
+      scope,
+      dailyEntryId: entry.id,
+      text: 'Orphan candidate',
+    });
+    await waitForAccountPersistence(scope.id);
+
+    await expect(db.dailyEntries.get(entry.id)).resolves.toMatchObject({
+      syncStatus: 'synced',
+    });
+
+    await db.checklistItems.update(item.id, { syncStatus: 'pending' });
+
+    const sync = createSyncClient({ remoteRevisions: { [item.id]: 1 } });
+    supabaseMocks.getSupabaseBrowserClient.mockReturnValue(sync.client);
+
+    await forceSyncAccount(scope);
+    await waitForAccountPersistence(scope.id);
+
+    await expect(db.dailyEntries.get(entry.id)).resolves.toBeDefined();
+    expect(sync.pushedIds).toContain(entry.id);
+    expect(sync.pushedIds.indexOf(entry.id)).toBeLessThan(
+      sync.pushedIds.indexOf(item.id),
     );
   });
 });

@@ -50,6 +50,27 @@ Use a Skill correspondente em `.agents/skills` quando a tarefa envolver TDD,
 persistência local-first, UI, i18n ou dependências. A Skill operacionaliza o
 workflow, mas não substitui este arquivo nem os gates do REVIEW.
 
+Antes de iniciar qualquer tarefa, o agente deve inspecionar os diretórios de
+skills existentes no repositório, inclusive os específicos de cada agente. Se
+encontrar uma skill aplicável para outro agente, mas não houver equivalente no
+diretório do agente em execução, deve criar uma cópia espelhada antes de
+prosseguir. Preserve o mesmo nome, conteúdo e estrutura, adaptando apenas o
+formato ou metadados estritamente exigidos pelo agente de destino. Por exemplo,
+uma skill em `.agents/skills/<nome>/SKILL.md` deve ter o equivalente em
+`.claude/skills/<nome>/SKILL.md` para o Claude Code; o mesmo princípio vale
+para os demais diretórios de agentes, como Codex. Depois de criar ou atualizar
+um espelho, mantenha as versões sincronizadas em alterações futuras.
+
+Todo texto que possa ser truncado visualmente deve expor seu conteúdo completo
+em um tooltip acessível por mouse e teclado. Use o primitive `Tooltip` do
+projeto e preserve o texto integral como conteúdo do tooltip; não dependa do
+atributo HTML `title`.
+
+Quando o tooltip apenas repete um texto já visível, use `whenTruncated` para
+que ele apareça somente enquanto o conteúdo estiver cortado. Tooltip que
+acrescenta informação, como rótulo de controle apenas com ícone, continua
+sempre visível.
+
 ## Arquitetura e simplicidade
 
 Respeite as fronteiras documentadas no README e a direção das dependências.
