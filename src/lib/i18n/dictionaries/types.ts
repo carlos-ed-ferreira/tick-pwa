@@ -276,6 +276,8 @@ export interface Dictionary {
     categoryTabs: string;
     categoryTabAll: string;
     categoryTabUncategorized: string;
+    goalProgressStep: string;
+    goalProgressSteps: string;
     ignoredStep: string;
     ignoredSteps: string;
     moveTo: string;

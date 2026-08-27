@@ -209,6 +209,8 @@ vi.mock('@/providers', () => ({
         createGroupConfirm: 'Create group',
         ignoredStep: '{count} ignored',
         ignoredSteps: '{count} ignored',
+        goalProgressStep: '{completed} of {total} completed',
+        goalProgressSteps: '{completed} of {total} completed',
         moveTo: 'Move to',
         newGoalTitle: 'New goal',
         newGroupName: 'New group',
@@ -420,8 +422,22 @@ describe('GoalsSurface', () => {
     render(<GoalsSurface />);
 
     expect(screen.getByText('3 ignored')).toBeInTheDocument();
-    expect(screen.queryByText('0/0')).toBeNull();
+    expect(screen.queryByText('0 of 0 completed')).toBeNull();
+    expect(screen.getByTestId('goal-progress-track')).toBeInTheDocument();
     expect(screen.queryByTestId('goal-progress-fill')).toBeNull();
+    expect(screen.getByTestId('goal-progress-ignored-segment')).toHaveStyle({
+      flexGrow: '3',
+    });
+  });
+
+  it('keeps an empty progress track when the goal has no steps', () => {
+    useGoalStepSummariesMock.mockReturnValue(new Map());
+
+    render(<GoalsSurface />);
+
+    expect(screen.getByTestId('goal-progress-track')).toBeInTheDocument();
+    expect(screen.queryByTestId('goal-progress-fill')).toBeNull();
+    expect(screen.queryByTestId('goal-progress-ignored-segment')).toBeNull();
   });
 
   it('shows the ignored step count when no step is completed yet', () => {
@@ -442,19 +458,19 @@ describe('GoalsSurface', () => {
 
     render(<GoalsSurface />);
 
-    expect(screen.getByText('0/4')).toBeInTheDocument();
+    expect(screen.getByText('0 of 4 completed')).toBeInTheDocument();
     expect(screen.getByText('2 ignored')).toBeInTheDocument();
   });
 
-  it('keeps the goal progress bar neutral beside the ignored step count', () => {
+  it('splits progress between counted and ignored steps', () => {
     useGoalStepSummariesMock.mockReturnValue(
       new Map([
         [
           'goal-1',
           {
-            completedCount: 2,
-            itemCount: 3,
-            ignoredCount: 2,
+            completedCount: 3,
+            itemCount: 5,
+            ignoredCount: 5,
             categoryTagIds: [],
             categorySummaries: new Map(),
           },
@@ -464,17 +480,34 @@ describe('GoalsSurface', () => {
 
     render(<GoalsSurface />);
 
+    const countedSegment = screen.getByTestId('goal-progress-counted-segment');
+    const ignoredSegment = screen.getByTestId('goal-progress-ignored-segment');
+    const track = screen.getByTestId('goal-progress-track');
     const fill = screen.getByTestId('goal-progress-fill');
+    const badge = screen.getByText('3 of 5 completed');
 
-    expect(screen.getByText('2/3')).toBeInTheDocument();
-    expect(screen.getByText('2 ignored')).toBeInTheDocument();
-    expect(fill).toHaveStyle({
-      backgroundColor: 'rgba(174, 186, 200, 0.55)',
-      width: '67%',
+    expect(badge).toHaveStyle({
+      backgroundColor: 'rgba(245, 158, 11, 0.14)',
     });
+    expect(screen.getByText('5 ignored')).toBeInTheDocument();
+    expect(countedSegment).toHaveStyle({ flexGrow: '5' });
+    expect(ignoredSegment).toHaveStyle({ flexGrow: '5' });
+    expect(fill).toHaveStyle({
+      width: '60%',
+    });
+    expect(fill.style.backgroundColor).toBe(badge.style.backgroundColor);
+    expect(track).toHaveStyle({
+      backgroundColor: 'rgba(255, 255, 255, 0.07)',
+    });
+    expect(ignoredSegment).toHaveStyle({
+      backgroundColor: 'rgba(192, 199, 209, 0.46)',
+    });
+    expect(countedSegment.compareDocumentPosition(ignoredSegment)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
   });
 
-  it('drops the goal progress bar once every step is complete', () => {
+  it('keeps the goal progress bar when every step is complete', () => {
     useGoalStepSummariesMock.mockReturnValue(
       new Map([
         [
@@ -492,8 +525,33 @@ describe('GoalsSurface', () => {
 
     render(<GoalsSurface />);
 
-    expect(screen.getByText('3/3')).toBeInTheDocument();
-    expect(screen.queryByTestId('goal-progress-fill')).not.toBeInTheDocument();
+    expect(screen.getByText('3 of 3 completed')).toBeInTheDocument();
+    expect(screen.getByTestId('goal-progress-fill')).toHaveStyle({
+      width: '100%',
+    });
+  });
+
+  it('does not reserve card space for goal step category dots', () => {
+    useGoalStepSummariesMock.mockReturnValue(
+      new Map([
+        [
+          'goal-1',
+          {
+            completedCount: 1,
+            itemCount: 2,
+            ignoredCount: 0,
+            categoryTagIds: ['step-category'],
+            categorySummaries: new Map(),
+          },
+        ],
+      ]),
+    );
+
+    render(<GoalsSurface />);
+
+    const goalCard = screen.getByRole('button', { name: 'Focus' });
+
+    expect(goalCard.querySelector('.size-3.rounded-full')).toBeNull();
   });
 
   it('renders active goals with a New goal action and no New group action', () => {
@@ -512,6 +570,10 @@ describe('GoalsSurface', () => {
     expect(screen.getByRole('button', { name: 'Focus' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Focus' })).toHaveClass(
       'cursor-pointer',
+      'h-32',
+    );
+    expect(screen.getByRole('button', { name: 'New goal' })).toHaveClass(
+      'h-32',
     );
     expect(screen.getByRole('button', { name: 'Focus' })).toHaveClass('p-4');
     expect(screen.getByLabelText('Drag goal')).toHaveClass(
@@ -523,7 +585,7 @@ describe('GoalsSurface', () => {
       'hover:bg-background',
     );
     expect(screen.getByText('Focus')).toHaveClass('text-base');
-    expect(screen.getByText('2/3')).toBeInTheDocument();
+    expect(screen.getByText('2 of 3 completed')).toBeInTheDocument();
   });
 
   it('creates a real ungrouped goal from the primary action', async () => {
@@ -874,7 +936,7 @@ describe('GoalsSurface', () => {
       'px-4',
       'leading-tight',
     );
-    expect(screen.queryByText('2/3')).not.toBeInTheDocument();
+    expect(screen.queryByText('2 of 3 completed')).not.toBeInTheDocument();
   });
 
   it('keeps goal and group cards borderless at rest and draws the hover edge as a hairline', () => {
@@ -894,6 +956,9 @@ describe('GoalsSurface', () => {
 
     const groupCard = screen.getByRole('button', { name: /LifeHealth/ });
     const goalCard = screen.getByRole('button', { name: 'Work' });
+
+    expect(groupCard).toHaveClass('h-32');
+    expect(goalCard).toHaveClass('h-32');
 
     for (const card of [groupCard, goalCard]) {
       expect(card).not.toHaveClass('ring-1');
@@ -1687,7 +1752,9 @@ describe('GoalsSurface', () => {
     fireEvent.click(screen.getByRole('button', { name: /LifeHealth/i }));
 
     const newGoalCard = screen.getByRole('button', { name: 'New goal' });
+    const goalCard = screen.getByRole('button', { name: 'Health' });
 
+    expect(goalCard).toHaveClass('h-32');
     expect(newGoalCard).toHaveClass(
       'h-32',
       'justify-center',
