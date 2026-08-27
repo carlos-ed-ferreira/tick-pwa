@@ -66,6 +66,7 @@ export async function publishDevelopmentBranch({
   await execute('gh', ['pr', 'merge', pullRequest, '--auto', '--squash']);
   await waitForRequiredChecks(pullRequest, execute, wait);
   await waitForMergedPullRequest(pullRequest, execute, wait);
+  await markPullRequestNotificationAsDone(pullRequest, execute, write);
   await execute('git', ['fetch', 'origin', 'main']);
   await execute('git', ['merge', '--no-edit', 'origin/main']);
   await execute('git', ['push', 'origin', 'dev']);
@@ -101,6 +102,40 @@ async function ignorePullRequestNotifications(pullRequest, execute, write) {
     ]);
   } catch {
     write('Não foi possível silenciar as notificações do pull request.');
+  }
+}
+
+async function markPullRequestNotificationAsDone(pullRequest, execute, write) {
+  const pullRequestNumber = pullRequest.split('/').pop();
+
+  try {
+    const notificationThreadId = (
+      await execute('gh', [
+        'api',
+        '--method',
+        'GET',
+        'repos/{owner}/{repo}/notifications',
+        '-F',
+        'all=true',
+        '--paginate',
+        '--jq',
+        `.[] | select(.subject.type == "PullRequest" and (.subject.url | endswith("/pulls/${pullRequestNumber}"))) | .id`,
+      ])
+    ).trim();
+
+    if (!notificationThreadId) {
+      return;
+    }
+
+    await execute('gh', [
+      'api',
+      '--method',
+      'DELETE',
+      '--silent',
+      `notifications/threads/${notificationThreadId}`,
+    ]);
+  } catch {
+    write('Não foi possível remover a notificação do pull request.');
   }
 }
 
