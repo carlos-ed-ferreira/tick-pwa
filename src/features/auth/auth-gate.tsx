@@ -11,7 +11,7 @@ function LoadingAuthState() {
   const { dictionary } = useAppContext();
 
   return (
-    <main className="flex min-h-dvh items-center justify-center bg-background px-5 py-10 text-foreground">
+    <main className="app-safe-padding flex min-h-dvh items-center justify-center bg-background pt-10 text-foreground [--app-safe-padding-block-end:2.5rem] [--app-safe-padding-inline:1.25rem]">
       <Text tone="muted">{dictionary.auth.loading}</Text>
     </main>
   );

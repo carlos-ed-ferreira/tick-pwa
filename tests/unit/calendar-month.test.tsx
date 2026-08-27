@@ -106,6 +106,17 @@ function getDayCells(container: HTMLElement) {
   return Array.from(container.querySelectorAll('.calendar-day-cell'));
 }
 
+function stubPointerCapability(isCoarse: boolean) {
+  vi.stubGlobal(
+    'matchMedia',
+    vi.fn().mockReturnValue({
+      matches: isCoarse,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    }),
+  );
+}
+
 describe('CalendarMonth', () => {
   beforeEach(() => {
     window.history.replaceState({}, '', '/calendar');
@@ -114,19 +125,44 @@ describe('CalendarMonth', () => {
     useDayEntryMock.mockReturnValue({ id: 'entry-1' });
     useMonthEntriesMock.mockReturnValue([]);
     useMonthDayPreviewsMock.mockReturnValue(new Map());
-    vi.stubGlobal(
-      'matchMedia',
-      vi.fn().mockReturnValue({
-        matches: false,
-        addEventListener: vi.fn(),
-        removeEventListener: vi.fn(),
-      }),
-    );
+    stubPointerCapability(false);
   });
 
   afterEach(() => {
     cleanup();
     vi.unstubAllGlobals();
+  });
+
+  it('opens the day with a single tap on a coarse pointer', () => {
+    stubPointerCapability(true);
+
+    const { container } = render(<CalendarMonth />);
+    const dayCell = getDayCells(container).find((cell) =>
+      cell.textContent?.trim().startsWith('15'),
+    );
+
+    fireEvent.click(dayCell as Element);
+
+    expect(routerPushMock).toHaveBeenCalledWith(
+      expect.stringContaining('day=2026-08-15'),
+    );
+  });
+
+  it('keeps the double click to open on a fine pointer', () => {
+    const { container } = render(<CalendarMonth />);
+    const dayCell = getDayCells(container).find((cell) =>
+      cell.textContent?.trim().startsWith('15'),
+    );
+
+    fireEvent.click(dayCell as Element);
+
+    expect(routerPushMock).not.toHaveBeenCalled();
+
+    fireEvent.doubleClick(dayCell as Element);
+
+    expect(routerPushMock).toHaveBeenCalledWith(
+      expect.stringContaining('day=2026-08-15'),
+    );
   });
 
   it('keeps the day progress bar at 100% and shows the ignored task count', () => {

@@ -2,7 +2,7 @@ import { Text } from '@/components/ui';
 
 export default function OfflinePage() {
   return (
-    <main className="flex min-h-dvh items-center bg-background px-5 py-10 text-foreground">
+    <main className="app-safe-padding flex min-h-dvh items-center bg-background pt-10 text-foreground [--app-safe-padding-block-end:2.5rem] [--app-safe-padding-inline:1.25rem]">
       <section className="card-surface mx-auto w-full max-w-md p-5">
         <Text tone="muted" weight="medium">
           Offline

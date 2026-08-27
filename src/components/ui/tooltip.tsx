@@ -3,13 +3,18 @@
 import {
   cloneElement,
   useCallback,
+  useEffect,
   useId,
   useLayoutEffect,
   useRef,
   useState,
 } from 'react';
 import { createPortal } from 'react-dom';
-import type { ReactElement, ReactNode } from 'react';
+import type {
+  PointerEvent as ReactPointerEvent,
+  ReactElement,
+  ReactNode,
+} from 'react';
 
 type TooltipSide = 'bottom' | 'top';
 
@@ -21,6 +26,7 @@ interface TooltipPosition {
 }
 
 const tooltipGap = 10;
+const touchHoldDelay = 380;
 const viewportPadding = 10;
 const clippingOverflow = new Set(['auto', 'clip', 'hidden', 'scroll']);
 
@@ -61,6 +67,7 @@ export function Tooltip({
   const containerRef = useRef<HTMLSpanElement | null>(null);
   const tooltipRef = useRef<HTMLSpanElement | null>(null);
   const openTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const touchHoldRef = useRef(false);
   const [isOpen, setIsOpen] = useState(false);
   const [position, setPosition] = useState<TooltipPosition | null>(null);
 
@@ -73,6 +80,7 @@ export function Tooltip({
 
   const closeTooltip = useCallback(() => {
     clearOpenTimer();
+    touchHoldRef.current = false;
     setIsOpen(false);
     setPosition(null);
   }, [clearOpenTimer]);
@@ -91,6 +99,34 @@ export function Tooltip({
     clearOpenTimer();
     openTimerRef.current = setTimeout(openTooltip, delay);
   }, [clearOpenTimer, delay, openTooltip]);
+
+  const handlePointerDown = useCallback(
+    (event: ReactPointerEvent<HTMLSpanElement>) => {
+      if (event.pointerType === 'mouse') {
+        closeTooltip();
+        return;
+      }
+
+      clearOpenTimer();
+      touchHoldRef.current = false;
+      openTimerRef.current = setTimeout(() => {
+        touchHoldRef.current = true;
+        openTooltip();
+      }, touchHoldDelay);
+    },
+    [clearOpenTimer, closeTooltip, openTooltip],
+  );
+
+  const handlePointerRelease = useCallback(
+    (event: ReactPointerEvent<HTMLSpanElement>) => {
+      if (event.pointerType === 'mouse') {
+        return;
+      }
+
+      clearOpenTimer();
+    },
+    [clearOpenTimer],
+  );
 
   const updatePosition = useCallback(() => {
     const container = containerRef.current;
@@ -151,6 +187,29 @@ export function Tooltip({
     };
   }, [isOpen, updatePosition]);
 
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    function handleDocumentPointerDown(event: globalThis.PointerEvent) {
+      if (event.pointerType === 'mouse') {
+        return;
+      }
+
+      const container = containerRef.current;
+
+      if (container && !container.contains(event.target as Node)) {
+        closeTooltip();
+      }
+    }
+
+    document.addEventListener('pointerdown', handleDocumentPointerDown);
+
+    return () =>
+      document.removeEventListener('pointerdown', handleDocumentPointerDown);
+  }, [closeTooltip, isOpen]);
+
   useLayoutEffect(() => clearOpenTimer, [clearOpenTimer]);
 
   const childProps = children.props as { 'aria-describedby'?: string };
@@ -170,7 +229,16 @@ export function Tooltip({
           closeTooltip();
         }
       }}
-      onClickCapture={closeTooltip}
+      onClickCapture={(event) => {
+        if (touchHoldRef.current) {
+          touchHoldRef.current = false;
+          event.preventDefault();
+          event.stopPropagation();
+          return;
+        }
+
+        closeTooltip();
+      }}
       onFocusCapture={openTooltip}
       onKeyDownCapture={(event) => {
         if (event.key === 'Escape') {
@@ -179,7 +247,9 @@ export function Tooltip({
       }}
       onMouseEnter={scheduleTooltip}
       onMouseLeave={closeTooltip}
-      onPointerDown={closeTooltip}
+      onPointerCancel={handlePointerRelease}
+      onPointerDown={handlePointerDown}
+      onPointerUp={handlePointerRelease}
     >
       {trigger}
       {isOpen && typeof document !== 'undefined'

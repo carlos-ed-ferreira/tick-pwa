@@ -55,8 +55,21 @@ vi.mock('@/components/ui', () => ({
   }) => <button {...props}>{children}</button>,
 }));
 
-vi.mock('@/components/app', () => ({
+vi.mock('@/components/app/language-switcher', () => ({
   LanguageSwitcher: () => null,
+}));
+
+vi.mock('@/components/app', async () => ({
+  AppHeader: (await import('@/components/app/app-header')).AppHeader,
+  LanguageSwitcher: () => null,
+}));
+
+vi.mock('@/features/auth/account-status', () => ({
+  AccountStatus: () => null,
+}));
+
+vi.mock('@/features/auth/account-sync-indicator', () => ({
+  AccountSyncIndicator: () => <span data-testid="sync-control" />,
 }));
 
 vi.mock('@/features/auth', () => ({

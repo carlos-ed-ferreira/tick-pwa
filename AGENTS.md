@@ -163,6 +163,21 @@ overflow, scroll, conteúdo longo, loading, vazio, erro e desktop. Quando mobile
 precisar de composição diferente, preserve semântica e regra de negócio em vez
 de comprimir o desktop.
 
+A adaptação mobile não pode alterar o desenho desktop existente. Use os dois
+sinais já adotados pelo projeto em vez de criar breakpoints novos:
+
+- `(pointer: coarse)`, por CSS ou pelo hook `useCoarsePointer`, para interação
+  e área de toque;
+- largura medida em runtime, para densidade, quando o layout já mede o
+  container.
+
+Toda composição mobile escrita com utilitários deve restaurar o valor desktop
+atual a partir de `sm:`, de modo que nada mude de 640px para cima. Alvo de toque
+mínimo é 44px em ponteiro grosso e deve ser obtido ampliando a área de acerto,
+com `touch-target`, sem aumentar o tamanho pintado do controle. Controle com
+desenho menor que 44px precisa de `touch-target`. Interação por arrasto precisa
+de caminho equivalente no toque; HTML5 drag and drop sozinho não atende.
+
 Reutilize primitives, tokens e padrões antes de criar componentes. Não force
 reutilização sem equivalência semântica. Preserve a linguagem visual e não
 redesenhe telas sem pedido.

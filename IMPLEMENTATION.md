@@ -44,6 +44,7 @@ explícito no turno atual.
 | 6     | não iniciado            | fechar decisões de produto e autenticação pública   |
 | 7     | não iniciado            | criar baseline e carga para 1.000 DAU               |
 | 8     | adiado                  | avaliar frontend estático e planos no marco público |
+| 9     | pendente                | validar a interface de toque em aparelho real       |
 
 ## 1. Publicar e validar o rollout controlado da outbox
 
@@ -540,3 +541,35 @@ A implementação total está concluída quando:
 - deploy e migrations usam o mesmo SHA aprovado;
 - hospedagem, termos e planos são compatíveis com uso público;
 - todos os gates aplicáveis do REVIEW passam.
+
+## 9. Validar a interface de toque em aparelho real
+
+### Resultado esperado
+
+A adaptação mobile entregue por `(pointer: coarse)`, área de acerto de 44px,
+drag de árvore por Pointer Events e densidade compacta do calendário precisa de
+confirmação em aparelho físico, não apenas em emulação do Playwright.
+
+### Estado atual
+
+A cobertura automatizada roda no perfil Pixel 7 do Chromium, em
+`tests/e2e/mobile-layout.spec.ts`, junto de testes unitários para o hook de
+ponteiro, o contrato de placement do drag e a densidade do calendário. Nada
+disso exercita Safari/iOS, teclado virtual real, gesto de arrasto com dedo nem
+`env(safe-area-inset-*)` em aparelho com notch.
+
+### Implementação necessária
+
+1. Executar ensaio manual em Android e em iOS cobrindo criação de tarefa,
+   reordenação por arrasto, abertura de dia por toque, tooltip por toque longo
+   e teclado virtual sobre campos no fim da tela.
+2. Confirmar que o recuo de safe area não corta cabeçalho nem ações.
+3. Confirmar que `interactiveWidget: 'resizes-content'` se comporta como
+   esperado no Safari/iOS, que ainda não implementa a propriedade.
+4. Registrar o resultado no REVIEW e abrir correção dedicada por divergência.
+
+### Critérios de conclusão
+
+- ensaio aprovado em pelo menos um Android e um iOS;
+- divergências corrigidas ou registradas com plano;
+- nenhuma regressão no desenho desktop.
