@@ -125,6 +125,20 @@ describe('publishDevelopmentBranch', () => {
           '.state',
         ],
       ],
+      [
+        'gh',
+        [
+          'api',
+          '--method',
+          'GET',
+          'repos/{owner}/{repo}/notifications',
+          '-F',
+          'all=true',
+          '--paginate',
+          '--jq',
+          expect.stringContaining('/pulls/1'),
+        ],
+      ],
       ['git', ['fetch', 'origin', 'main']],
       ['git', ['merge', '--no-edit', 'origin/main']],
       ['git', ['push', 'origin', 'dev']],
@@ -223,7 +237,7 @@ describe('publishDevelopmentBranch', () => {
     expect(execute).toHaveBeenLastCalledWith('git', ['push', 'origin', 'dev']);
   });
 
-  it('mutes the pull request notifications for the author', async () => {
+  it('ignores future pull request notifications and marks the existing thread as done', async () => {
     const execute = createExecutor([
       'dev\n',
       '',
@@ -237,6 +251,8 @@ describe('publishDevelopmentBranch', () => {
       '',
       '',
       'MERGED\n',
+      'thread-7\n',
+      '',
       '',
       '',
       '',
@@ -261,6 +277,20 @@ describe('publishDevelopmentBranch', () => {
       'gh',
       expect.arrayContaining(['repos/{owner}/{repo}/issues/7/subscription']),
     );
+    expect(execute).toHaveBeenCalledWith(
+      'gh',
+      expect.arrayContaining([
+        'repos/{owner}/{repo}/notifications',
+        expect.stringContaining('/pulls/7'),
+      ]),
+    );
+    expect(execute).toHaveBeenCalledWith('gh', [
+      'api',
+      '--method',
+      'DELETE',
+      '--silent',
+      'notifications/threads/thread-7',
+    ]);
   });
 
   it('keeps publishing when GitHub refuses to mute the pull request', async () => {
