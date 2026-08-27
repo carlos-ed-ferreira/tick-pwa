@@ -148,6 +148,12 @@ import { useGoals } from './use-goals';
 
 const goalStepInputSelector = '[data-goal-step-input="true"]';
 const visibleCategoryLimit = 4;
+const neutralProgressTrackStyle: CSSProperties = {
+  backgroundColor: 'rgba(255, 255, 255, 0.07)',
+};
+const neutralProgressFillStyle: CSSProperties = {
+  backgroundColor: 'rgba(174, 186, 200, 0.55)',
+};
 const goalMenuItemClassName =
   'flex min-h-10 w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-medium text-[#e5ebf3] transition hover:bg-white/[0.08] hover:text-[#fff9f2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e]';
 const goalMenuDangerItemClassName =
@@ -459,52 +465,31 @@ type PendingGoalCombine = {
   targetGoalId: string;
 };
 
-function getProgressTone(summary: GoalStepSummary) {
+function getProgressBadgeStyle(summary: GoalStepSummary): CSSProperties {
   const ratio =
     summary.itemCount > 0 ? summary.completedCount / summary.itemCount : 0;
 
   if (ratio >= 1 && summary.itemCount > 0) {
     return {
-      badgeStyle: {
-        color: '#15803d',
-        backgroundColor: 'rgba(34, 197, 94, 0.14)',
-        '--chip-edge': 'rgba(34, 197, 94, 0.22)',
-      },
-      fillStyle: {
-        background: 'linear-gradient(90deg, #4ade80 0%, #22c55e 100%)',
-        boxShadow: '0 0 14px rgba(34, 197, 94, 0.28)',
-      },
-      trackStyle: { backgroundColor: 'rgba(34, 197, 94, 0.16)' },
-    };
+      color: '#15803d',
+      backgroundColor: 'rgba(34, 197, 94, 0.14)',
+      '--chip-edge': 'rgba(34, 197, 94, 0.22)',
+    } as CSSProperties;
   }
 
   if (ratio > 0) {
     return {
-      badgeStyle: {
-        color: '#b45309',
-        backgroundColor: 'rgba(245, 158, 11, 0.14)',
-        '--chip-edge': 'rgba(245, 158, 11, 0.24)',
-      },
-      fillStyle: {
-        background: 'linear-gradient(90deg, #fcd34d 0%, #f59e0b 100%)',
-        boxShadow: '0 0 14px rgba(245, 158, 11, 0.24)',
-      },
-      trackStyle: { backgroundColor: 'rgba(245, 158, 11, 0.16)' },
-    };
+      color: '#b45309',
+      backgroundColor: 'rgba(245, 158, 11, 0.14)',
+      '--chip-edge': 'rgba(245, 158, 11, 0.24)',
+    } as CSSProperties;
   }
 
   return {
-    badgeStyle: {
-      color: 'var(--muted)',
-      backgroundColor: 'rgba(113, 113, 122, 0.12)',
-      '--chip-edge': 'rgba(113, 113, 122, 0.18)',
-    },
-    fillStyle: {
-      background: 'linear-gradient(90deg, #a1a1aa 0%, #71717a 100%)',
-      boxShadow: 'none',
-    },
-    trackStyle: { backgroundColor: 'rgba(113, 113, 122, 0.14)' },
-  };
+    color: 'var(--muted)',
+    backgroundColor: 'rgba(113, 113, 122, 0.12)',
+    '--chip-edge': 'rgba(113, 113, 122, 0.18)',
+  } as CSSProperties;
 }
 
 function isCategoryComplete(summary: GoalStepSummary, categoryTagId: string) {
@@ -2141,7 +2126,7 @@ function GoalCard({
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const colorInputRef = useRef<HTMLInputElement | null>(null);
-  const progressTone = getProgressTone(summary);
+  const progressBadgeStyle = getProgressBadgeStyle(summary);
   const goalPayload = { id: goal.id, type: 'goal' } satisfies DragPayload;
   const isDragging = isSameDragPayload(activeDragPayload, goalPayload);
   const showDropTarget =
@@ -2602,9 +2587,9 @@ function GoalCard({
         />
 
         <GoalPreview
+          badgeStyle={progressBadgeStyle}
           categoryTagMap={stepCategoryMap}
           summary={summary}
-          tone={progressTone}
         />
       </article>
     </>
@@ -2877,14 +2862,16 @@ function MoveGoalMenu({
 }
 
 function GoalPreview({
+  badgeStyle,
   categoryTagMap,
   summary,
-  tone,
 }: {
+  badgeStyle: CSSProperties;
   categoryTagMap: Map<string, CategoryTag>;
   summary: GoalStepSummary;
-  tone: ReturnType<typeof getProgressTone>;
 }) {
+  const { dictionary } = useAppContext();
+
   if (summary.itemCount === 0) {
     return null;
   }
@@ -2893,27 +2880,47 @@ function GoalPreview({
     0,
     summary.categoryTagIds.length - visibleCategoryLimit,
   );
+  const isComplete = summary.completedCount >= summary.itemCount;
 
   return (
     <div className="mt-auto grid gap-2">
-      <span
-        className="w-fit rounded-full inset-ring-hairline inset-ring-(--chip-edge) px-2 py-1 text-[11px] font-semibold leading-none tabular-nums text-[#f7e8ce]"
-        style={tone.badgeStyle}
-      >
-        {summary.completedCount}/{summary.itemCount}
-      </span>
-      <span
-        className="h-2 w-full overflow-hidden rounded-full bg-white/6"
-        style={tone.trackStyle}
-      >
+      <span className="flex flex-wrap items-center gap-1.5">
         <span
-          className="block h-full rounded-full transition-[width] duration-200"
-          style={{
-            ...tone.fillStyle,
-            width: `${Math.round((summary.completedCount / summary.itemCount) * 100)}%`,
-          }}
-        />
+          className="rounded-full inset-ring-hairline inset-ring-(--chip-edge) px-2 py-1 text-[11px] font-semibold leading-none tabular-nums text-[#f7e8ce]"
+          style={badgeStyle}
+        >
+          {summary.completedCount}/{summary.itemCount}
+        </span>
+        {summary.ignoredCount > 0 ? (
+          <>
+            <span aria-hidden="true" className="text-[11px] text-[#63748a]">
+              ·
+            </span>
+            <span className="text-[11px] font-medium leading-none tabular-nums text-[#8fa0b3]">
+              {formatCountLabel({
+                count: summary.ignoredCount,
+                plural: dictionary.goals.ignoredSteps,
+                singular: dictionary.goals.ignoredStep,
+              })}
+            </span>
+          </>
+        ) : null}
       </span>
+      {isComplete ? null : (
+        <span
+          className="h-1 w-full overflow-hidden rounded-full"
+          style={neutralProgressTrackStyle}
+        >
+          <span
+            className="block h-full rounded-full transition-[width] duration-200"
+            data-testid="goal-progress-fill"
+            style={{
+              ...neutralProgressFillStyle,
+              width: `${Math.round((summary.completedCount / summary.itemCount) * 100)}%`,
+            }}
+          />
+        </span>
+      )}
       {summary.categoryTagIds.length > 0 ? (
         <span className="flex items-center gap-1.5 pt-0.5">
           {summary.categoryTagIds.slice(0, visibleCategoryLimit).map((id) => {
