@@ -8,13 +8,19 @@ const scope = {
   ownerId: 'test',
 };
 
-const { routerPushMock, routerReplaceMock, useDayEntryMock } = vi.hoisted(
-  () => ({
-    routerPushMock: vi.fn(),
-    routerReplaceMock: vi.fn(),
-    useDayEntryMock: vi.fn(),
-  }),
-);
+const {
+  routerPushMock,
+  routerReplaceMock,
+  useDayEntryMock,
+  useMonthDayPreviewsMock,
+  useMonthEntriesMock,
+} = vi.hoisted(() => ({
+  routerPushMock: vi.fn(),
+  routerReplaceMock: vi.fn(),
+  useDayEntryMock: vi.fn(),
+  useMonthDayPreviewsMock: vi.fn(),
+  useMonthEntriesMock: vi.fn(),
+}));
 
 vi.mock('next/navigation', () => ({
   usePathname: () => '/calendar',
@@ -35,6 +41,8 @@ vi.mock('@/providers', () => ({
     dictionary: {
       calendar: {
         today: 'Today',
+        ignoredItem: '{count} ignored',
+        ignoredItems: '{count} ignored',
         previousYear: 'Previous year',
         nextYear: 'Next year',
         bulkCreate: 'Plan period',
@@ -55,11 +63,21 @@ vi.mock('@/providers', () => ({
 }));
 
 vi.mock('@/features/categories', () => ({
-  useCategoryTags: () => [],
+  useCategoryTags: () => [
+    { id: 'category-1', colorHex: '#f43f5e' },
+    { id: 'category-2', colorHex: '#22c55e' },
+    { id: 'category-3', colorHex: '#3b82f6' },
+    { id: 'category-4', colorHex: '#a855f7' },
+    { id: 'category-5', colorHex: '#f59e0b' },
+  ],
 }));
 
 vi.mock('@/features/calendar/use-month-entries', () => ({
-  useMonthEntries: () => [],
+  useMonthEntries: useMonthEntriesMock,
+}));
+
+vi.mock('@/features/calendar/use-month-day-previews', () => ({
+  useMonthDayPreviews: useMonthDayPreviewsMock,
 }));
 
 vi.mock('@/features/calendar/bulk-calendar-editor', () => ({
@@ -94,6 +112,8 @@ describe('CalendarMonth', () => {
     routerPushMock.mockClear();
     routerReplaceMock.mockClear();
     useDayEntryMock.mockReturnValue({ id: 'entry-1' });
+    useMonthEntriesMock.mockReturnValue([]);
+    useMonthDayPreviewsMock.mockReturnValue(new Map());
     vi.stubGlobal(
       'matchMedia',
       vi.fn().mockReturnValue({
@@ -107,6 +127,72 @@ describe('CalendarMonth', () => {
   afterEach(() => {
     cleanup();
     vi.unstubAllGlobals();
+  });
+
+  it('keeps the day progress bar at 100% and shows the ignored task count', () => {
+    useMonthEntriesMock.mockReturnValue([
+      {
+        id: 'entry-1',
+        date: '2026-08-15',
+        itemCount: 14,
+        completedCount: 14,
+        categoryTagIds: ['category-1'],
+        categorySummaries: [
+          { categoryTagId: 'category-1', itemCount: 14, completedCount: 14 },
+        ],
+      },
+    ]);
+    useMonthDayPreviewsMock.mockReturnValue(
+      new Map([
+        ['2026-08-15', { categoryTagIds: ['category-1'], ignoredCount: 2 }],
+      ]),
+    );
+
+    render(<CalendarMonth />);
+
+    expect(screen.getByText('14/14')).toBeInTheDocument();
+    expect(screen.getByText('2 ignored')).toBeInTheDocument();
+    expect(screen.getByTestId('calendar-day-progress-fill')).toHaveStyle({
+      width: '100%',
+    });
+  });
+
+  it('previews every distinct category of the day', () => {
+    useMonthEntriesMock.mockReturnValue([
+      {
+        id: 'entry-1',
+        date: '2026-08-15',
+        itemCount: 5,
+        completedCount: 1,
+        categoryTagIds: ['category-1', 'category-2'],
+        categorySummaries: [
+          { categoryTagId: 'category-1', itemCount: 1, completedCount: 1 },
+        ],
+      },
+    ]);
+    useMonthDayPreviewsMock.mockReturnValue(
+      new Map([
+        [
+          '2026-08-15',
+          {
+            categoryTagIds: [
+              'category-1',
+              'category-2',
+              'category-3',
+              'category-4',
+              'category-5',
+            ],
+            ignoredCount: 0,
+          },
+        ],
+      ]),
+    );
+
+    render(<CalendarMonth />);
+
+    expect(screen.getByTestId('calendar-day-categories').children).toHaveLength(
+      5,
+    );
   });
 
   it('renders the month grid with 42 day cells when no day is open', () => {

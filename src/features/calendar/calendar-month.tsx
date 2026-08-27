@@ -8,19 +8,30 @@ import {
   Plus,
   Trash2,
 } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { IconButton } from '@/components/ui';
 import { useCategoryTags } from '@/features/categories';
 import { BulkCalendarEditor } from '@/features/calendar/bulk-calendar-editor';
 import { CalendarImportDialog } from '@/features/calendar/calendar-import-dialog';
 import { DayDetail } from '@/features/day-editor';
+import {
+  useMonthDayPreviews,
+  type DayItemPreview,
+} from '@/features/calendar/use-month-day-previews';
 import type {
   DailyEntry,
   DailyEntryCategorySummary,
   LocalDateString,
 } from '@/lib/domain';
-import { formatMonthLabel } from '@/lib/i18n';
+import { formatCountLabel, formatMonthLabel } from '@/lib/i18n';
 import {
   createLocalDateKey,
   createMonthGrid,
@@ -127,6 +138,25 @@ function getProgressTone(completedRatio: number) {
   };
 }
 
+const categoryDotSize = 10;
+const categoryDotGap = 8;
+const dayCellHorizontalPadding = 10;
+
+function getVisibleCategoryLimit(cellWidth: number): number {
+  if (cellWidth <= 0) {
+    return Number.POSITIVE_INFINITY;
+  }
+
+  const availableWidth = cellWidth - dayCellHorizontalPadding * 2;
+
+  return Math.max(
+    1,
+    Math.floor(
+      (availableWidth + categoryDotGap) / (categoryDotSize + categoryDotGap),
+    ),
+  );
+}
+
 function isCategoryComplete(
   summary: DailyEntryCategorySummary | undefined,
 ): boolean {
@@ -170,7 +200,10 @@ export function CalendarMonth() {
     [visibleMonthIndex, visibleYear],
   );
   const entries = useMonthEntries(scope, visibleMonth);
+  const dayPreviews = useMonthDayPreviews(scope, entries);
   const categoryTags = useCategoryTags(scope, 'checklist_item');
+  const gridRef = useRef<HTMLDivElement | null>(null);
+  const [dayCellWidth, setDayCellWidth] = useState(0);
   const entryMap = useMemo(() => entriesByDate(entries), [entries]);
   const categoryTagMap = useMemo(
     () => new Map(categoryTags.map((tag) => [tag.id, tag])),
@@ -180,6 +213,23 @@ export function CalendarMonth() {
     () => createMonthGrid(visibleMonth),
     [visibleMonth],
   );
+  const visibleCategoryLimit = getVisibleCategoryLimit(dayCellWidth);
+
+  useLayoutEffect(() => {
+    const grid = gridRef.current;
+
+    if (!grid) {
+      return;
+    }
+
+    const measureDayCell = () =>
+      setDayCellWidth(grid.getBoundingClientRect().width / 7);
+
+    measureDayCell();
+    window.addEventListener('resize', measureDayCell);
+
+    return () => window.removeEventListener('resize', measureDayCell);
+  }, [openDayDate]);
   const monthLabel = formatMonthLabel(
     createMonthLabelDate(visibleMonth),
     locale,
@@ -361,13 +411,18 @@ export function CalendarMonth() {
           ))}
         </div>
 
-        <div className="calendar-day-grid grid min-h-0 flex-1 grid-cols-7 auto-rows-fr">
+        <div
+          ref={gridRef}
+          className="calendar-day-grid grid min-h-0 flex-1 grid-cols-7 auto-rows-fr"
+        >
           {monthGrid.map((day) => (
             <DayCell
               key={day.date}
               date={day.date}
               entry={entryMap.get(day.date) ?? null}
               categoryTagMap={categoryTagMap}
+              dayPreview={dayPreviews.get(day.date) ?? null}
+              visibleCategoryLimit={visibleCategoryLimit}
               inCurrentMonth={day.inCurrentMonth}
               isSelected={activeDay === day.date}
               isToday={todayKey === day.date}
@@ -392,6 +447,7 @@ export function CalendarMonth() {
 
 function DayCell({
   date,
+  dayPreview,
   entry,
   categoryTagMap,
   inCurrentMonth,
@@ -399,8 +455,10 @@ function DayCell({
   isToday,
   onOpenDay,
   onSelectDay,
+  visibleCategoryLimit,
 }: {
   date: LocalDateString;
+  dayPreview: DayItemPreview | null;
   entry: DailyEntry | null;
   categoryTagMap: Map<string, { colorHex: string }>;
   inCurrentMonth: boolean;
@@ -408,11 +466,21 @@ function DayCell({
   isToday: boolean;
   onOpenDay: (date: LocalDateString) => void;
   onSelectDay: (date: LocalDateString) => void;
+  visibleCategoryLimit: number;
 }) {
+  const { dictionary } = useAppContext();
   const parsedDate = parseLocalDateKey(date);
   const completedRatio =
     entry && entry.itemCount > 0 ? entry.completedCount / entry.itemCount : 0;
-  const categoryTagIds = entry?.categoryTagIds ?? [];
+  const categoryTagIds =
+    dayPreview?.categoryTagIds ?? entry?.categoryTagIds ?? [];
+  const ignoredCount = dayPreview?.ignoredCount ?? 0;
+  const visibleCategoryTagIds =
+    categoryTagIds.length > visibleCategoryLimit
+      ? categoryTagIds.slice(0, Math.max(1, visibleCategoryLimit - 1))
+      : categoryTagIds;
+  const hiddenCategoryCount =
+    categoryTagIds.length - visibleCategoryTagIds.length;
   const categorySummaryMap = new Map(
     (entry?.categorySummaries ?? []).map((summary) => [
       summary.categoryTagId,
@@ -456,33 +524,62 @@ function DayCell({
         {parsedDate.getDate()}
       </span>
 
-      <div className="mt-auto flex flex-col gap-1 pt-1.5">
-        {entry && entry.itemCount > 0 ? (
-          <span className="flex flex-col gap-1 pt-1 text-xs">
-            <span
-              className="calendar-chip w-fit px-2 py-0.5 text-[11px] font-semibold leading-none tabular-nums text-[#f7e8ce]"
-              style={progressTone.badgeStyle}
-            >
-              {entry.completedCount}/{entry.itemCount}
+      <div className="mt-auto flex flex-col gap-2.5 pt-2">
+        {entry && (entry.itemCount > 0 || ignoredCount > 0) ? (
+          <span className="flex flex-col gap-2 text-xs">
+            <span className="flex flex-wrap items-center gap-1.5">
+              {entry.itemCount > 0 ? (
+                <span
+                  className="calendar-chip px-2 py-0.5 text-[11px] font-semibold leading-none tabular-nums text-[#f7e8ce]"
+                  style={progressTone.badgeStyle}
+                >
+                  {entry.completedCount}/{entry.itemCount}
+                </span>
+              ) : null}
+              {ignoredCount > 0 ? (
+                <>
+                  {entry.itemCount > 0 ? (
+                    <span
+                      aria-hidden="true"
+                      className="text-[10px] text-[#63748a]"
+                    >
+                      ·
+                    </span>
+                  ) : null}
+                  <span className="text-[10px] font-medium leading-none tabular-nums text-[#8fa0b3]">
+                    {formatCountLabel({
+                      count: ignoredCount,
+                      plural: dictionary.calendar.ignoredItems,
+                      singular: dictionary.calendar.ignoredItem,
+                    })}
+                  </span>
+                </>
+              ) : null}
             </span>
-            <span
-              className="h-1.5 w-full overflow-hidden rounded-full bg-white/6"
-              style={progressTone.trackStyle}
-            >
+            {entry.itemCount > 0 ? (
               <span
-                className="block h-full rounded-full transition-[width] duration-200"
-                style={{
-                  ...progressTone.fillStyle,
-                  width: `${Math.round(completedRatio * 100)}%`,
-                }}
-              />
-            </span>
+                className="h-1.5 w-full overflow-hidden rounded-full bg-white/6"
+                style={progressTone.trackStyle}
+              >
+                <span
+                  className="block h-full rounded-full transition-[width] duration-200"
+                  data-testid="calendar-day-progress-fill"
+                  style={{
+                    ...progressTone.fillStyle,
+                    width: `${Math.round(completedRatio * 100)}%`,
+                  }}
+                />
+              </span>
+            ) : null}
           </span>
         ) : null}
 
         {categoryTagIds.length > 0 ? (
-          <span className="flex gap-1.5">
-            {categoryTagIds.slice(0, 4).map((categoryTagId) =>
+          <span
+            className="flex items-center gap-2 pb-0.5"
+            data-testid="calendar-day-categories"
+          >
+            {visibleCategoryTagIds.map((categoryTagId) =>
               (() => {
                 const colorHex = categoryTagMap.get(categoryTagId)?.colorHex;
                 const completed = isCategoryComplete(
@@ -492,7 +589,7 @@ function DayCell({
                 return (
                   <span
                     key={categoryTagId}
-                    className="size-2.5 rounded-full inset-ring-hairline inset-ring-white/35 transition-opacity"
+                    className="size-2.5 shrink-0 rounded-full inset-ring-hairline inset-ring-white/35 transition-opacity"
                     style={{
                       backgroundColor: colorHex,
                       opacity: completed ? 1 : 0.28,
@@ -505,6 +602,11 @@ function DayCell({
                 );
               })(),
             )}
+            {hiddenCategoryCount > 0 ? (
+              <span className="text-[10px] font-semibold leading-none text-[#aebac8]">
+                +{hiddenCategoryCount}
+              </span>
+            ) : null}
           </span>
         ) : null}
       </div>

@@ -207,7 +207,9 @@ vi.mock('@/providers', () => ({
         createGroupTitle: 'Create group',
         createGroupDescription: 'Choose the initial name for this group.',
         createGroupConfirm: 'Create group',
-        moveTo: 'Move goal to group:',
+        ignoredStep: '{count} ignored',
+        ignoredSteps: '{count} ignored',
+        moveTo: 'Move to',
         newGoalTitle: 'New goal',
         newGroupName: 'New group',
         removeFromGroup: 'Remove from group',
@@ -333,7 +335,7 @@ describe('GoalsSurface', () => {
     expect(ptBRDictionary.goals.clearGoalCategory).toBe(
       'Limpar cor/categoria da meta',
     );
-    expect(ptBRDictionary.goals.moveTo).toBe('Mover meta para o grupo:');
+    expect(ptBRDictionary.goals.moveTo).toBe('Mover para');
   });
 
   beforeEach(() => {
@@ -397,6 +399,56 @@ describe('GoalsSurface', () => {
 
   afterEach(() => {
     cleanup();
+  });
+
+  it('keeps the goal progress bar neutral beside the ignored step count', () => {
+    useGoalStepSummariesMock.mockReturnValue(
+      new Map([
+        [
+          'goal-1',
+          {
+            completedCount: 2,
+            itemCount: 3,
+            ignoredCount: 2,
+            categoryTagIds: [],
+            categorySummaries: new Map(),
+          },
+        ],
+      ]),
+    );
+
+    render(<GoalsSurface />);
+
+    const fill = screen.getByTestId('goal-progress-fill');
+
+    expect(screen.getByText('2/3')).toBeInTheDocument();
+    expect(screen.getByText('2 ignored')).toBeInTheDocument();
+    expect(fill).toHaveStyle({
+      backgroundColor: 'rgba(174, 186, 200, 0.55)',
+      width: '67%',
+    });
+  });
+
+  it('drops the goal progress bar once every step is complete', () => {
+    useGoalStepSummariesMock.mockReturnValue(
+      new Map([
+        [
+          'goal-1',
+          {
+            completedCount: 3,
+            itemCount: 3,
+            ignoredCount: 0,
+            categoryTagIds: [],
+            categorySummaries: new Map(),
+          },
+        ],
+      ]),
+    );
+
+    render(<GoalsSurface />);
+
+    expect(screen.getByText('3/3')).toBeInTheDocument();
+    expect(screen.queryByTestId('goal-progress-fill')).not.toBeInTheDocument();
   });
 
   it('renders active goals with a New goal action and no New group action', () => {
@@ -1406,7 +1458,7 @@ describe('GoalsSurface', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Goal actions' }));
 
-    expect(screen.getByText('Move goal to group:')).toBeVisible();
+    expect(screen.getByText('Move to')).toBeVisible();
   });
 
   it('renders the delete action with a clearly visible red tone in the card menu', () => {

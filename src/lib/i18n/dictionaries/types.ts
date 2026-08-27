@@ -226,6 +226,8 @@ export interface Dictionary {
     nextYear: string;
     selectDate: string;
     emptyDay: string;
+    ignoredItem: string;
+    ignoredItems: string;
     weekdays: readonly [string, string, string, string, string, string, string];
   };
   dayEditor: TreeEditorDictionary;
@@ -274,6 +276,8 @@ export interface Dictionary {
     categoryTabs: string;
     categoryTabAll: string;
     categoryTabUncategorized: string;
+    ignoredStep: string;
+    ignoredSteps: string;
     moveTo: string;
     removeFromGroup: string;
     noGroup: string;
