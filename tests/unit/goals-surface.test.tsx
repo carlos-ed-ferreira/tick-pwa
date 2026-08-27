@@ -9,12 +9,14 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { GoalsSurface } from '@/features/goals';
 import { db } from '@/lib/db/database';
+import { setScopedPreference } from '@/lib/db/scoped-preferences';
+import type { AppScope } from '@/lib/domain';
 import { ptBRDictionary } from '@/lib/i18n/dictionaries/pt-BR';
 import { simulateClippedText } from '../support/truncation';
 
-const scope = {
+const scope: AppScope = {
   id: 'guest:test',
-  kind: 'guest' as const,
+  kind: 'guest',
   ownerId: 'test',
 };
 
@@ -134,6 +136,15 @@ vi.mock('@/providers', () => ({
         expandItem: 'Expand step',
         collapseItem: 'Collapse step',
         toggleItem: 'Change step status',
+        chooseCompletionState: 'Choose marking state',
+        completionIgnoredState: 'Ignored state',
+        completionLevels: 'Marking levels',
+        completionStateCompleted: 'Marked',
+        completionStateIgnored: 'Ignored',
+        completionStateLevel: 'Level {level} of {levels}',
+        completionStateUnchecked: 'Unchecked',
+        settingDisabled: 'Disabled',
+        settingEnabled: 'Enabled',
         itemPlaceholder: 'Write a step',
         addChild: 'Create substep',
         indentItem: 'Make substep',
@@ -299,6 +310,8 @@ function goalStep(overrides: Record<string, unknown> = {}) {
       parentId: null,
       text: 'Existing step',
       completed: false,
+      ignored: false,
+      markLevel: 0,
       collapsed: false,
       categoryTagId: null,
       scheduledDate: null,
@@ -2036,11 +2049,12 @@ describe('GoalsSurface', () => {
         goalStepIds: ['goal-step-1', 'goal-step-2'],
         completed: true,
         ignored: false,
+        markLevel: 1,
       });
     });
   });
 
-  it('bulk advances selected completed goal steps to ignored', async () => {
+  it('bulk clears selected completed goal steps with the default marking states', async () => {
     useGoalStepTreeMock.mockReturnValue([
       goalStep({ completed: true }),
       goalStep({
@@ -2060,7 +2074,8 @@ describe('GoalsSurface', () => {
         scope,
         goalStepIds: ['goal-step-1'],
         completed: false,
-        ignored: true,
+        ignored: false,
+        markLevel: 0,
       });
     });
   });
@@ -2090,11 +2105,17 @@ describe('GoalsSurface', () => {
         goalStepIds: ['goal-step-1', 'goal-step-2'],
         completed: true,
         ignored: false,
+        markLevel: 1,
       });
     });
   });
 
-  it('advances the collective completion action of goal steps to ignored', async () => {
+  it('advances the collective completion action of goal steps to the next configured marking level', async () => {
+    await setScopedPreference({
+      key: 'goalStepCompletionStates',
+      scope,
+      value: { ignored: false, levels: 2 },
+    });
     useGoalStepTreeMock.mockReturnValue([
       goalStep({ completed: true }),
       goalStep({
@@ -2107,6 +2128,12 @@ describe('GoalsSurface', () => {
 
     render(<GoalsSurface />);
     fireEvent.click(screen.getByRole('button', { name: 'Focus' }));
+    await waitFor(() => {
+      expect(screen.getAllByRole('checkbox')[0]).toHaveAttribute(
+        'data-mark-level',
+        '1',
+      );
+    });
     const selectionButtons = screen.getAllByLabelText('Select step');
     fireEvent.click(selectionButtons[0]);
     fireEvent.click(selectionButtons[1]);
@@ -2118,8 +2145,9 @@ describe('GoalsSurface', () => {
       expect(setGoalStepsCompletedMock).toHaveBeenCalledWith({
         scope,
         goalStepIds: ['goal-step-1', 'goal-step-2'],
-        completed: false,
-        ignored: true,
+        completed: true,
+        ignored: false,
+        markLevel: 2,
       });
     });
   });

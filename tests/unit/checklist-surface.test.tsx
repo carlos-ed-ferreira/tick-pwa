@@ -9,6 +9,7 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ChecklistSurface } from '@/features/checklist/checklist-surface';
 import { db } from '@/lib/db/database';
+import { setScopedPreference } from '@/lib/db/scoped-preferences';
 
 const {
   assignChecklistItemCategoryMock,
@@ -89,6 +90,15 @@ vi.mock('@/providers', () => ({
         expandItem: 'Expand task',
         collapseItem: 'Collapse task',
         toggleItem: 'Change task status',
+        chooseCompletionState: 'Choose marking state',
+        completionIgnoredState: 'Ignored state',
+        completionLevels: 'Marking levels',
+        completionStateCompleted: 'Marked',
+        completionStateIgnored: 'Ignored',
+        completionStateLevel: 'Level {level} of {levels}',
+        completionStateUnchecked: 'Unchecked',
+        settingDisabled: 'Disabled',
+        settingEnabled: 'Enabled',
         itemPlaceholder: 'Write a task',
         addChild: 'Create subtask',
         indentItem: 'Make subtask',
@@ -155,6 +165,7 @@ function createRow(
   overrides: Partial<{
     checked: boolean;
     ignored: boolean;
+    markLevel: number;
     priority: boolean;
     categoryTagId: string | null;
   }> = {},
@@ -171,6 +182,7 @@ function createRow(
       scheduledTime: null,
       checked: overrides.checked ?? false,
       ignored: overrides.ignored ?? false,
+      markLevel: overrides.markLevel ?? (overrides.checked ? 1 : 0),
       priority: overrides.priority ?? false,
       collapsed: false,
       categoryTagId: overrides.categoryTagId ?? null,
@@ -795,11 +807,12 @@ describe('ChecklistSurface delete confirmation', () => {
         itemIds: ['item-First task', 'item-Second task'],
         checked: true,
         ignored: false,
+        markLevel: 1,
       });
     });
   });
 
-  it('bulk advances selected completed checklist items to ignored', async () => {
+  it('bulk clears selected completed checklist items with the default marking states', async () => {
     useChecklistTreeMock.mockReturnValue([
       createRow('First task', { checked: true }),
       createRow('Second task'),
@@ -819,7 +832,46 @@ describe('ChecklistSurface delete confirmation', () => {
         },
         itemIds: ['item-First task'],
         checked: false,
-        ignored: true,
+        ignored: false,
+        markLevel: 0,
+      });
+    });
+  });
+
+  it('advances selected checklist items to the next marking level configured by the preference', async () => {
+    await setScopedPreference({
+      key: 'checklistCompletionStates',
+      scope: { id: 'guest:test', kind: 'guest', ownerId: 'test' },
+      value: { ignored: false, levels: 3 },
+    });
+    useChecklistTreeMock.mockReturnValue([
+      createRow('First task', { checked: true }),
+      createRow('Second task'),
+    ]);
+
+    render(<ChecklistSurface dailyEntryId="entry-1" />);
+
+    await waitFor(() => {
+      expect(screen.getAllByRole('checkbox')[0]).toHaveAttribute(
+        'data-mark-level',
+        '1',
+      );
+    });
+
+    fireEvent.click(screen.getAllByLabelText('Select task')[0]);
+    fireEvent.click(screen.getAllByRole('checkbox')[0]);
+
+    await waitFor(() => {
+      expect(setChecklistItemsCheckedMock).toHaveBeenCalledWith({
+        scope: {
+          id: 'guest:test',
+          kind: 'guest',
+          ownerId: 'test',
+        },
+        itemIds: ['item-First task'],
+        checked: true,
+        ignored: false,
+        markLevel: 2,
       });
     });
   });
@@ -849,11 +901,12 @@ describe('ChecklistSurface delete confirmation', () => {
         itemIds: ['item-First task', 'item-Second task'],
         checked: true,
         ignored: false,
+        markLevel: 1,
       });
     });
   });
 
-  it('advances the collective completion action from completed to ignored', async () => {
+  it('clears the collective completion action from completed with the default marking states', async () => {
     useChecklistTreeMock.mockReturnValue([
       createRow('First task', { checked: true }),
       createRow('Second task', { checked: true }),
@@ -877,7 +930,8 @@ describe('ChecklistSurface delete confirmation', () => {
         },
         itemIds: ['item-First task', 'item-Second task'],
         checked: false,
-        ignored: true,
+        ignored: false,
+        markLevel: 0,
       });
     });
   });

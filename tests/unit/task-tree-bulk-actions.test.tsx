@@ -48,7 +48,8 @@ describe('TaskTreeBulkActions', () => {
       <TaskTreeBulkActions
         allBold={false}
         allPriority={false}
-        completionState="unchecked"
+        completionSettings={{ ignored: true, levels: 1 }}
+        completionValues={{ completed: false, ignored: false, markLevel: 0 }}
         labels={{
           bold: 'Bold',
           category: 'Category',
@@ -80,6 +81,7 @@ describe('TaskTreeBulkActions', () => {
       expect(onToggleChecked).toHaveBeenCalledWith({
         completed: true,
         ignored: false,
+        markLevel: 1,
       });
     });
 
@@ -87,7 +89,8 @@ describe('TaskTreeBulkActions', () => {
       <TaskTreeBulkActions
         allBold={false}
         allPriority={false}
-        completionState="completed"
+        completionSettings={{ ignored: true, levels: 1 }}
+        completionValues={{ completed: true, ignored: false, markLevel: 1 }}
         labels={{
           bold: 'Bold',
           category: 'Category',
@@ -117,6 +120,7 @@ describe('TaskTreeBulkActions', () => {
       expect(onToggleChecked).toHaveBeenLastCalledWith({
         completed: false,
         ignored: true,
+        markLevel: 0,
       });
     });
 
@@ -124,7 +128,8 @@ describe('TaskTreeBulkActions', () => {
       <TaskTreeBulkActions
         allBold={false}
         allPriority={false}
-        completionState="ignored"
+        completionSettings={{ ignored: true, levels: 1 }}
+        completionValues={{ completed: false, ignored: true, markLevel: 0 }}
         labels={{
           bold: 'Bold',
           category: 'Category',
@@ -154,6 +159,7 @@ describe('TaskTreeBulkActions', () => {
       expect(onToggleChecked).toHaveBeenLastCalledWith({
         completed: false,
         ignored: false,
+        markLevel: 0,
       });
     });
   });
@@ -165,7 +171,7 @@ describe('TaskTreeBulkActions', () => {
       <TaskTreeBulkActions
         allBold={false}
         allPriority={false}
-        completionState="unchecked"
+        completionValues={{ completed: false, ignored: false, markLevel: 0 }}
         labels={{
           bold: 'Bold',
           category: 'Category',
@@ -228,7 +234,7 @@ describe('TaskTreeBulkActions', () => {
         }}
         allBold={false}
         allPriority={false}
-        completionState="unchecked"
+        completionValues={{ completed: false, ignored: false, markLevel: 0 }}
         labels={{
           bold: 'Bold',
           category: 'Category',

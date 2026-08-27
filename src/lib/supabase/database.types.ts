@@ -111,6 +111,7 @@ export type Database = {
           deleted_at: string | null;
           id: string;
           ignored: boolean;
+          mark_level: number;
           parent_id: string | null;
           priority: boolean;
           revision: number;
@@ -131,6 +132,7 @@ export type Database = {
           deleted_at?: string | null;
           id: string;
           ignored?: boolean;
+          mark_level?: number;
           parent_id?: string | null;
           priority?: boolean;
           revision?: number;
@@ -151,6 +153,7 @@ export type Database = {
           deleted_at?: string | null;
           id?: string;
           ignored?: boolean;
+          mark_level?: number;
           parent_id?: string | null;
           priority?: boolean;
           revision?: number;
@@ -291,6 +294,7 @@ export type Database = {
           goal_id: string;
           id: string;
           ignored: boolean;
+          mark_level: number;
           parent_id: string | null;
           priority: boolean;
           revision: number;
@@ -311,6 +315,7 @@ export type Database = {
           goal_id: string;
           id: string;
           ignored?: boolean;
+          mark_level?: number;
           parent_id?: string | null;
           priority?: boolean;
           revision?: number;
@@ -331,6 +336,7 @@ export type Database = {
           goal_id?: string;
           id?: string;
           ignored?: boolean;
+          mark_level?: number;
           parent_id?: string | null;
           priority?: boolean;
           revision?: number;
@@ -701,6 +707,10 @@ export type Database = {
         Returns: Json;
       };
       current_user_has_app_access: { Args: never; Returns: boolean };
+      purge_account_operation_receipts: {
+        Args: { p_retention?: string; p_user_id?: string };
+        Returns: number;
+      };
     };
     Enums: {
       [_ in never]: never;

@@ -38,6 +38,38 @@ test('persists a daily task in local mode', async ({ page }) => {
   );
 });
 
+test('picks a marking level from the checkbox context menu', async ({
+  page,
+}) => {
+  await enterLocalMode(page);
+  await page.goto('/calendar?day=2026-05-22');
+  await page.getByRole('button', { name: labels.checklistEmpty }).click();
+
+  const itemInput = firstChecklistInput(page);
+  await itemInput.fill('Spaced repetition');
+  await itemInput.press('Enter');
+
+  await page
+    .getByRole('button', { name: labels.configureTaskPreferences })
+    .click();
+  await page.getByRole('radio', { name: labels.markingLevelsThree }).click();
+  await page.getByRole('button', { name: labels.closeDialog }).first().click();
+
+  const checkbox = page.getByRole('checkbox').first();
+  await checkbox.click({ button: 'right' });
+  await page
+    .getByRole('menuitemradio', { name: labels.markingLevelTwoOfThree })
+    .click();
+
+  await expect(checkbox).toHaveAttribute('data-mark-level', '2');
+
+  await page.reload();
+  await expect(page.getByRole('checkbox').first()).toHaveAttribute(
+    'data-mark-level',
+    '2',
+  );
+});
+
 test('fits the month calendar in the viewport without page scroll on desktop', async ({
   page,
 }) => {

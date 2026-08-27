@@ -1,5 +1,5 @@
 begin;
-select plan(20);
+select plan(23);
 
 insert into auth.users (
   instance_id,
@@ -292,6 +292,57 @@ select is(
   ),
   '2',
   'a matching base revision applies and returns the server revision'
+);
+
+select is(
+  (
+    select mark_level
+    from public.checklist_items
+    where id = 'operation-item'
+  ),
+  0::smallint,
+  'a task without a marking level is stored at level zero'
+);
+
+select lives_ok(
+  $$
+    select public.apply_account_operation_batch(
+      '81000000-0000-0000-0000-000000000081',
+      '[
+        {
+          "entity_type": "checklistItem",
+          "base_revision": 1,
+          "payload": {
+            "id": "operation-item",
+            "daily_entry_id": "operation-entry",
+            "parent_id": null,
+            "category_tag_id": "operation-category",
+            "text": "Atomic task",
+            "scheduled_time": null,
+            "checked": true,
+            "ignored": false,
+            "mark_level": 3,
+            "bold": false,
+            "priority": false,
+            "collapsed": false,
+            "sort_rank": "a0",
+            "client_updated_at": "2026-08-18T14:00:00.000Z"
+          }
+        }
+      ]'::jsonb
+    )
+  $$,
+  'a marking level applies through the account operation batch'
+);
+
+select is(
+  (
+    select mark_level
+    from public.checklist_items
+    where id = 'operation-item'
+  ),
+  3::smallint,
+  'the applied marking level is stored for the task'
 );
 
 select throws_ok(

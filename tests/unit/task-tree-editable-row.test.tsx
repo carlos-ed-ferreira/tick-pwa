@@ -82,6 +82,11 @@ const labels = {
   clearCategory: 'Clear category',
   collapseItem: 'Collapse item',
   confirmDeleteItem: 'Confirm delete',
+  chooseCompletionState: 'Choose marking state',
+  completionStateCompleted: 'Marked',
+  completionStateIgnored: 'Ignored',
+  completionStateLevel: 'Level {level} of {levels}',
+  completionStateUnchecked: 'Unchecked',
   delete: 'Delete',
   deleteItem: 'Delete item',
   deselectItem: 'Deselect item',
@@ -980,15 +985,17 @@ describe('TaskTreeEditableRow', () => {
       expect(onBulkToggleChecked).toHaveBeenCalledWith({
         completed: true,
         ignored: false,
+        markLevel: 1,
       });
       expect(callbacks.onToggleChecked).not.toHaveBeenCalled();
     });
   });
 
-  it('advances selected rows from completed to ignored in bulk', async () => {
+  it('advances selected rows from completed to ignored in bulk when the ignored state is enabled', async () => {
     const onBulkToggleChecked = vi.fn().mockResolvedValue(undefined);
     const callbacks = renderRow({
       checked: true,
+      completionSettings: { ignored: true, levels: 1 },
       ignored: false,
       selection: {
         isSelected: true,
@@ -1006,6 +1013,7 @@ describe('TaskTreeEditableRow', () => {
       expect(onBulkToggleChecked).toHaveBeenCalledWith({
         completed: false,
         ignored: true,
+        markLevel: 0,
       });
       expect(callbacks.onToggleChecked).not.toHaveBeenCalled();
     });
@@ -1032,6 +1040,7 @@ describe('TaskTreeEditableRow', () => {
       expect(onBulkToggleChecked).toHaveBeenCalledWith({
         completed: false,
         ignored: false,
+        markLevel: 0,
       });
     });
   });

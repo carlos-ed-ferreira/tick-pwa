@@ -14,6 +14,7 @@ function item(overrides: Partial<ChecklistItem>): ChecklistItem {
     scheduledTime: null,
     checked: false,
     ignored: false,
+    markLevel: 0,
     bold: false,
     priority: false,
     collapsed: false,

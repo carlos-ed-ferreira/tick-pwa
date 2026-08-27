@@ -1,9 +1,15 @@
-import type { AppScope, ChecklistItem, LocalDateString } from '@/lib/domain';
+import type {
+  AppScope,
+  ChecklistItem,
+  LocalDateString,
+  TaskCompletionSettings,
+} from '@/lib/domain';
 import {
   createRankAfter,
   createId,
   createReorderedRank,
   createSortRankBetween,
+  defaultTaskCompletionSettings,
   getNextTaskCompletionValues,
   sortByRank,
 } from '@/lib/domain';
@@ -179,6 +185,7 @@ async function cloneChecklistChildrenToDailyEntry({
       scheduledTime: sourceItem.scheduledTime,
       checked: sourceItem.checked,
       ignored: sourceItem.ignored,
+      markLevel: sourceItem.markLevel,
       bold: sourceItem.bold,
       priority: sourceItem.priority,
       collapsed: sourceItem.collapsed,
@@ -267,6 +274,7 @@ export interface ChecklistTemplateItem {
   text: string;
   scheduledTime?: string | null;
   checked: boolean;
+  markLevel: number;
   ignored: boolean;
   bold: boolean;
   priority: boolean;
@@ -355,6 +363,7 @@ export async function createChecklistItem({
         scheduledTime: normalizeScheduledTime(scheduledTime),
         checked: false,
         ignored: false,
+        markLevel: 0,
         bold,
         priority: false,
         collapsed: false,
@@ -521,9 +530,11 @@ export async function updateChecklistItemScheduledTime({
 export async function toggleChecklistItemChecked({
   scope,
   itemId,
+  completionSettings = defaultTaskCompletionSettings,
 }: {
   scope: AppScope;
   itemId: string;
+  completionSettings?: TaskCompletionSettings;
 }): Promise<void> {
   await db.transaction(
     'rw',
@@ -538,17 +549,23 @@ export async function toggleChecklistItemChecked({
       }
 
       const nextState = getNextTaskCompletionValues(
-        item.checked,
-        item.ignored ?? false,
+        {
+          completed: item.checked,
+          ignored: item.ignored,
+          markLevel: item.markLevel,
+        },
+        completionSettings,
       );
       const updatedItem = touchChecklistItem(scope, {
         ...item,
         checked: nextState.completed,
         ignored: nextState.ignored,
+        markLevel: nextState.markLevel,
       });
       await persistChecklistItemUpdate(scope, updatedItem, [
         'checked',
         'ignored',
+        'markLevel',
       ]);
       await recalculateDailyEntrySummary({
         scope,
@@ -563,11 +580,13 @@ export async function setChecklistItemsChecked({
   itemIds,
   checked,
   ignored = false,
+  markLevel = checked ? 1 : 0,
 }: {
   scope: AppScope;
   itemIds: string[];
   checked: boolean;
   ignored?: boolean;
+  markLevel?: number;
 }): Promise<void> {
   if (itemIds.length === 0) {
     return;
@@ -586,7 +605,9 @@ export async function setChecklistItemsChecked({
 
         if (
           !item ||
-          (item.checked === checked && Boolean(item.ignored) === ignored)
+          (item.checked === checked &&
+            Boolean(item.ignored) === ignored &&
+            item.markLevel === markLevel)
         ) {
           continue;
         }
@@ -595,10 +616,12 @@ export async function setChecklistItemsChecked({
           ...item,
           checked,
           ignored,
+          markLevel,
         });
         await persistChecklistItemUpdate(scope, updatedItem, [
           'checked',
           'ignored',
+          'markLevel',
         ]);
         dailyEntryIds.add(item.dailyEntryId);
       }
@@ -1167,6 +1190,7 @@ async function cloneChecklistItemDescendants({
       scheduledTime: sourceItem.scheduledTime,
       checked: sourceItem.checked,
       ignored: sourceItem.ignored,
+      markLevel: sourceItem.markLevel,
       bold: sourceItem.bold,
       priority: sourceItem.priority,
       collapsed: sourceItem.collapsed,
@@ -1274,6 +1298,7 @@ export async function duplicateChecklistItemToDate({
         scheduledTime: sourceItem.scheduledTime,
         checked: sourceItem.checked,
         ignored: sourceItem.ignored,
+        markLevel: sourceItem.markLevel,
         bold: sourceItem.bold,
         priority: sourceItem.priority,
         collapsed: sourceItem.collapsed,
@@ -1608,6 +1633,7 @@ export async function applyChecklistTemplateToDateRange({
               scheduledTime: templateItem.scheduledTime ?? null,
               checked: templateItem.checked,
               ignored: templateItem.ignored,
+              markLevel: templateItem.markLevel,
               bold: templateItem.bold,
               priority: templateItem.priority,
               collapsed: templateItem.collapsed,

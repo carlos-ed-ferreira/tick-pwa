@@ -4,10 +4,12 @@ import {
   ArrowDown,
   ArrowUp,
   CalendarDays,
+  CircleSlash,
   Clock3,
   GripVertical,
   IndentDecrease,
   IndentIncrease,
+  ListOrdered,
   Plus,
   RotateCcw,
   SlidersHorizontal,
@@ -17,6 +19,11 @@ import {
 } from 'lucide-react';
 import { useState, type ComponentType } from 'react';
 import { Checkbox, Dialog, IconButton } from '@/components/ui';
+import {
+  defaultTaskCompletionSettings,
+  maxTaskCompletionLevels,
+  type TaskCompletionSettings,
+} from '@/lib/domain';
 import {
   defaultTaskTreeRowActionPreferences,
   type TaskTreeRowActionPlacement,
@@ -32,6 +39,55 @@ export interface TaskTreePreferenceSetting {
   label: string;
   value: string;
   onChange: (value: string) => void;
+}
+
+export function buildCompletionStateSettings({
+  completionSettings,
+  labels,
+  onChange,
+}: {
+  completionSettings: TaskCompletionSettings;
+  labels: {
+    completionIgnoredState: string;
+    completionLevels: string;
+    settingDisabled: string;
+    settingEnabled: string;
+  };
+  onChange: (
+    update: (current: TaskCompletionSettings) => TaskCompletionSettings,
+  ) => void;
+}): TaskTreePreferenceSetting[] {
+  return [
+    {
+      choices: Array.from({ length: maxTaskCompletionLevels }, (_, index) => ({
+        label: String(index + 1),
+        value: String(index + 1),
+      })),
+      defaultValue: String(defaultTaskCompletionSettings.levels),
+      icon: ListOrdered,
+      key: 'completionLevels',
+      label: labels.completionLevels,
+      value: String(completionSettings.levels),
+      onChange: (nextLevels) =>
+        onChange((current) => ({ ...current, levels: Number(nextLevels) })),
+    },
+    {
+      choices: [
+        { label: labels.settingEnabled, value: 'true' },
+        { label: labels.settingDisabled, value: 'false' },
+      ],
+      defaultValue: String(defaultTaskCompletionSettings.ignored),
+      icon: CircleSlash,
+      key: 'completionIgnored',
+      label: labels.completionIgnoredState,
+      value: String(completionSettings.ignored),
+      onChange: (nextIgnored) =>
+        onChange((current) => ({
+          ...current,
+          ignored: nextIgnored === 'true',
+        })),
+    },
+  ];
 }
 
 interface TaskTreeRowActionsMenuLabels {
@@ -271,7 +327,9 @@ function PreferenceSettingRow({
       <div
         role="radiogroup"
         aria-label={label}
-        className="grid w-full grid-cols-3 gap-1 sm:w-[24rem]"
+        className={`grid w-full gap-1 sm:w-[24rem] ${
+          choices.length > 3 ? 'grid-cols-5' : 'grid-cols-3'
+        }`}
       >
         {choices.map((choice) => {
           const checked = value === choice.value;

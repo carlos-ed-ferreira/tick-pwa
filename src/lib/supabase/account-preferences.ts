@@ -12,11 +12,17 @@ export const GOAL_STEP_TREE_ROW_ACTIONS_PREFERENCE_KEY =
   'goalStepTreeRowActions';
 export const CHECKLIST_VIEW_MODE_PREFERENCE_KEY = 'checklistViewMode';
 export const GOAL_STEP_VIEW_MODE_PREFERENCE_KEY = 'goalStepViewMode';
+export const CHECKLIST_COMPLETION_STATES_PREFERENCE_KEY =
+  'checklistCompletionStates';
+export const GOAL_STEP_COMPLETION_STATES_PREFERENCE_KEY =
+  'goalStepCompletionStates';
 export const ACCOUNT_PREFERENCE_KEYS = [
   TASK_TREE_ROW_ACTIONS_PREFERENCE_KEY,
   GOAL_STEP_TREE_ROW_ACTIONS_PREFERENCE_KEY,
   CHECKLIST_VIEW_MODE_PREFERENCE_KEY,
   GOAL_STEP_VIEW_MODE_PREFERENCE_KEY,
+  CHECKLIST_COMPLETION_STATES_PREFERENCE_KEY,
+  GOAL_STEP_COMPLETION_STATES_PREFERENCE_KEY,
 ] as const;
 
 export function getTaskTreeRowActionsPreferenceKey(
@@ -25,6 +31,14 @@ export function getTaskTreeRowActionsPreferenceKey(
   return surface === 'goal_step'
     ? GOAL_STEP_TREE_ROW_ACTIONS_PREFERENCE_KEY
     : TASK_TREE_ROW_ACTIONS_PREFERENCE_KEY;
+}
+
+export function getCompletionStatesPreferenceKey(
+  surface: 'checklist_item' | 'goal_step',
+) {
+  return surface === 'goal_step'
+    ? GOAL_STEP_COMPLETION_STATES_PREFERENCE_KEY
+    : CHECKLIST_COMPLETION_STATES_PREFERENCE_KEY;
 }
 
 export function getCategoryViewModePreferenceKey(

@@ -11,6 +11,7 @@ import type {
   SyncCursor,
   SyncOutboxItem,
 } from '@/lib/domain';
+import { normalizeTaskCompletionValues } from '@/lib/domain';
 import { createDeterministicDailyEntryId } from './daily-entry-id';
 
 type LegacyDailyEntry = Omit<
@@ -36,6 +37,7 @@ type LegacyChecklistItem = Omit<
   | 'scheduledTime'
   | 'ignored'
   | 'bold'
+  | 'markLevel'
 > & {
   categoryTagId?: string | null;
   colorTagId?: string | null;
@@ -45,6 +47,7 @@ type LegacyChecklistItem = Omit<
   scheduledTime?: string | null;
   ignored?: boolean;
   bold?: boolean;
+  markLevel?: number;
 };
 
 type LegacyGoal = Omit<Goal, 'categoryTagId' | 'dueDate'> & {
@@ -62,6 +65,7 @@ type LegacyGoalStep = Omit<
   | 'ignored'
   | 'bold'
   | 'scheduledDate'
+  | 'markLevel'
 > & {
   parentId?: string | null;
   collapsed?: boolean;
@@ -70,6 +74,7 @@ type LegacyGoalStep = Omit<
   colorTagId?: string | null;
   ignored?: boolean;
   bold?: boolean;
+  markLevel?: number;
   scheduledDate?: GoalStep['scheduledDate'];
 };
 
@@ -120,6 +125,7 @@ function migrateChecklistItem(item: LegacyChecklistItem): ChecklistItem {
     scheduledTime,
     ignored,
     bold,
+    markLevel,
     ...rest
   } = item;
 
@@ -132,6 +138,11 @@ function migrateChecklistItem(item: LegacyChecklistItem): ChecklistItem {
     scheduledTime: scheduledTime ?? null,
     ignored: ignored ?? false,
     bold: bold ?? false,
+    markLevel: normalizeTaskCompletionValues({
+      completed: rest.checked,
+      ignored,
+      markLevel,
+    }).markLevel,
   };
 }
 
@@ -164,6 +175,7 @@ function migrateGoalStep(goalStep: LegacyGoalStep): GoalStep {
     priority,
     ignored,
     bold,
+    markLevel,
     scheduledDate,
     ...rest
   } = goalStep;
@@ -175,6 +187,11 @@ function migrateGoalStep(goalStep: LegacyGoalStep): GoalStep {
     priority: priority ?? false,
     ignored: ignored ?? false,
     bold: bold ?? false,
+    markLevel: normalizeTaskCompletionValues({
+      completed: rest.completed,
+      ignored,
+      markLevel,
+    }).markLevel,
     categoryTagId: categoryTagId ?? colorTagId ?? null,
     scheduledDate: scheduledDate ?? null,
   };
@@ -1074,6 +1091,27 @@ export class TickDatabase extends Dexie {
           nextAttemptAt: outboxItem.nextAttemptAt ?? null,
           rebasedAt: outboxItem.rebasedAt ?? null,
         });
+      }
+    });
+
+    this.version(18).upgrade(async (transaction) => {
+      const checklistItemsTable = transaction.table('checklistItems') as Table<
+        LegacyChecklistItem,
+        string
+      >;
+      const goalStepsTable = transaction.table('goalSteps') as Table<
+        LegacyGoalStep,
+        string
+      >;
+
+      for (const item of await checklistItemsTable.toArray()) {
+        await checklistItemsTable.put(
+          migrateChecklistItem(item) as LegacyChecklistItem,
+        );
+      }
+
+      for (const goalStep of await goalStepsTable.toArray()) {
+        await goalStepsTable.put(migrateGoalStep(goalStep) as LegacyGoalStep);
       }
     });
 

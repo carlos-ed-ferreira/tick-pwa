@@ -56,6 +56,15 @@ export interface TreeEditorDictionary {
   bulkCategory: string;
   bulkDelete: string;
   bulkMark: string;
+  chooseCompletionState: string;
+  completionIgnoredState: string;
+  completionLevels: string;
+  completionStateCompleted: string;
+  completionStateIgnored: string;
+  completionStateLevel: string;
+  completionStateUnchecked: string;
+  settingDisabled: string;
+  settingEnabled: string;
 }
 
 export interface Dictionary {

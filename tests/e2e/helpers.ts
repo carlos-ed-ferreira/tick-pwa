@@ -11,6 +11,12 @@ export const labels = {
     /continue without syncing|continuar sem sincronizar|use local mode|usar em modo local/i,
   checklistEmpty: /start this day with a task|comece este dia com uma tarefa/i,
   backToCalendar: /back to calendar|voltar para o calendário/i,
+  configureTaskPreferences:
+    /configure task preferences|configurar preferências das tarefas/i,
+  enableIgnoredState: /^(ignored state|estado ignorado): (enabled|ativado)$/i,
+  closeDialog: /^cancel$|^cancelar$/i,
+  markingLevelsThree: /^(marking levels|níveis de marcação): 3$/i,
+  markingLevelTwoOfThree: /^level 2 of 3$|^nível 2 de 3$/i,
 };
 
 export async function enterLocalMode(page: Page) {

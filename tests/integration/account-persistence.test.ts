@@ -442,11 +442,28 @@ describe('account persistence boundaries', () => {
       goalId: goal.id,
       text: 'Cloud goal step',
     });
-    await toggleChecklistItemChecked({ scope, itemId: item.id });
-    await toggleChecklistItemChecked({ scope, itemId: item.id });
+    const completionSettings = { ignored: true, levels: 1 };
+    await toggleChecklistItemChecked({
+      scope,
+      itemId: item.id,
+      completionSettings,
+    });
+    await toggleChecklistItemChecked({
+      scope,
+      itemId: item.id,
+      completionSettings,
+    });
     await toggleChecklistItemBold({ scope, itemId: item.id });
-    await toggleGoalStepChecked({ scope, goalStepId: goalStep.id });
-    await toggleGoalStepChecked({ scope, goalStepId: goalStep.id });
+    await toggleGoalStepChecked({
+      scope,
+      goalStepId: goalStep.id,
+      completionSettings,
+    });
+    await toggleGoalStepChecked({
+      scope,
+      goalStepId: goalStep.id,
+      completionSettings,
+    });
     await toggleGoalStepBold({ scope, goalStepId: goalStep.id });
     await waitForAccountPersistence(scope.id);
 
@@ -471,6 +488,14 @@ describe('account persistence boundaries', () => {
           write.table === 'checklist_items' &&
           write.payload.ignored === true &&
           write.payload.checked === false,
+      ),
+    ).toBe(true);
+    expect(
+      accountClient.writes.some(
+        (write) =>
+          write.table === 'checklist_items' &&
+          write.payload.checked === true &&
+          write.payload.mark_level === 1,
       ),
     ).toBe(true);
     expect(

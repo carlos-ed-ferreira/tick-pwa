@@ -2,21 +2,13 @@
 
 import { Palette, X } from 'lucide-react';
 import { createPortal } from 'react-dom';
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  type CSSProperties,
-  type ReactNode,
-} from 'react';
+import { useCallback, type CSSProperties, type ReactNode } from 'react';
 import { Tooltip } from '@/components/ui';
+import { useAnchoredMenu } from '@/hooks/use-anchored-menu';
 import type { CategoryTagSurface } from '@/lib/domain';
 import { useAppContext } from '@/providers';
 import { useCategoryTags } from './use-category-tags';
 
-const menuOffset = 8;
-const viewportPadding = 16;
 const defaultMenuPreferredWidth = 248;
 
 export function CategoryAssignmentMenu({
@@ -59,141 +51,28 @@ export function CategoryAssignmentMenu({
 }) {
   const { scope } = useAppContext();
   const categoryTags = useCategoryTags(scope, surface);
-  const [isOpen, setIsOpen] = useState(false);
-  const [menuStyle, setMenuStyle] = useState<CSSProperties | null>(null);
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const menuRef = useRef<HTMLDivElement | null>(null);
-  const triggerRef = useRef<HTMLButtonElement | null>(null);
   const selectedCategory = categoryTags.find(
     (tag) => tag.id === selectedCategoryTagId,
   );
   const assignableCategoryTags = categoryTags.filter((tag) => !tag.useOwnName);
   const hasMenuActions = assignableCategoryTags.length > 0 || showClearInMenu;
   const isTriggerDisabled = disabled || !hasMenuActions;
-
-  const getMenuStyle = useCallback(() => {
-    const trigger = triggerRef.current;
-
-    if (!trigger || typeof window === 'undefined') {
-      return null;
-    }
-
-    const triggerRect = trigger.getBoundingClientRect();
-    const menuWidth = Math.min(
-      menuPreferredWidth,
-      Math.max(0, window.innerWidth - viewportPadding * 2),
-    );
-    const left = Math.min(
-      Math.max(viewportPadding, triggerRect.left),
-      window.innerWidth - viewportPadding - menuWidth,
-    );
-    const estimatedMenuHeight = Math.min(
-      16 + (assignableCategoryTags.length + (showClearInMenu ? 1 : 0)) * 40,
-      window.innerHeight - viewportPadding * 2,
-    );
-    const shouldOpenUpward =
-      triggerRect.bottom + menuOffset + estimatedMenuHeight >
-        window.innerHeight - viewportPadding &&
-      triggerRect.top > window.innerHeight - triggerRect.bottom;
-    const width = menuWidth;
-
-    if (shouldOpenUpward) {
-      return {
-        bottom: Math.max(
-          viewportPadding,
-          window.innerHeight - triggerRect.top + menuOffset,
-        ),
-        left,
-        width,
-      };
-    }
-
-    return {
-      left,
-      top: Math.max(viewportPadding, triggerRect.bottom + menuOffset),
-      width,
-    };
-  }, [assignableCategoryTags.length, menuPreferredWidth, showClearInMenu]);
-
-  const closeMenu = useCallback(
-    ({ restoreFocus = false }: { restoreFocus?: boolean } = {}) => {
-      setIsOpen(false);
-      setMenuStyle(null);
-
-      if (restoreFocus) {
-        triggerRef.current?.focus();
-      }
-    },
-    [],
+  const estimateMenuHeight = useCallback(
+    () => 16 + (assignableCategoryTags.length + (showClearInMenu ? 1 : 0)) * 40,
+    [assignableCategoryTags.length, showClearInMenu],
   );
-
-  useEffect(() => {
-    if (!isOpen) {
-      return;
-    }
-
-    function handlePointerDown(event: PointerEvent) {
-      const target = event.target as Node;
-
-      if (
-        !containerRef.current?.contains(target) &&
-        !menuRef.current?.contains(target)
-      ) {
-        closeMenu();
-      }
-    }
-
-    function handleFocusIn(event: FocusEvent) {
-      const target = event.target as Node;
-
-      if (
-        !containerRef.current?.contains(target) &&
-        !menuRef.current?.contains(target)
-      ) {
-        closeMenu();
-      }
-    }
-
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key !== 'Escape') {
-        return;
-      }
-
-      closeMenu({ restoreFocus: true });
-    }
-
-    document.addEventListener('pointerdown', handlePointerDown);
-    document.addEventListener('focusin', handleFocusIn);
-    document.addEventListener('keydown', handleKeyDown);
-
-    return () => {
-      document.removeEventListener('pointerdown', handlePointerDown);
-      document.removeEventListener('focusin', handleFocusIn);
-      document.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [closeMenu, isOpen]);
-
-  useEffect(() => {
-    if (!isOpen) {
-      return;
-    }
-
-    function updateMenuStyle() {
-      const nextMenuStyle = getMenuStyle();
-
-      if (nextMenuStyle) {
-        setMenuStyle(nextMenuStyle);
-      }
-    }
-
-    window.addEventListener('resize', updateMenuStyle);
-    window.addEventListener('scroll', updateMenuStyle, true);
-
-    return () => {
-      window.removeEventListener('resize', updateMenuStyle);
-      window.removeEventListener('scroll', updateMenuStyle, true);
-    };
-  }, [getMenuStyle, isOpen]);
+  const {
+    closeMenu,
+    containerRef,
+    isOpen,
+    menuRef,
+    menuStyle,
+    openMenu,
+    triggerRef,
+  } = useAnchoredMenu<HTMLButtonElement>({
+    estimateMenuHeight,
+    preferredWidth: menuPreferredWidth,
+  });
 
   async function assignCategory(categoryTagId: string | null) {
     await onAssign(categoryTagId);
@@ -262,8 +141,7 @@ export function CategoryAssignmentMenu({
               return;
             }
 
-            setMenuStyle(getMenuStyle());
-            setIsOpen(true);
+            openMenu();
           }}
         >
           {renderTriggerContent ? (

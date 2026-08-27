@@ -39,6 +39,7 @@ import {
   dropdownJoinOverlap,
   getDropdownJoinShape,
   moveTreeItemToTarget,
+  buildCompletionStateSettings,
   TaskTreeBulkActions,
   TaskTreeCategoryChip,
   TaskTreeCategoryTabs,
@@ -71,6 +72,7 @@ import {
   useCategoryViewMode,
   type CategoryViewMode,
 } from '@/hooks/use-category-view-mode';
+import { useCompletionStates } from '@/hooks/use-completion-states';
 import { useTreeBulkActions } from '@/hooks/use-tree-bulk-actions';
 import { useTreeSelection } from '@/hooks/use-tree-selection';
 import { useTaskTreeRowActionPreferences } from '@/hooks/use-task-tree-row-action-visibility';
@@ -129,6 +131,7 @@ import type {
   Goal,
   GoalGroup,
   GoalStep,
+  TaskCompletionSettings,
   TaskCompletionValues,
 } from '@/lib/domain';
 import {
@@ -136,7 +139,7 @@ import {
   buildCategoryTabs,
   createId,
   filterRowsByCategoryTab,
-  getSelectionCompletionState,
+  getSelectionCompletionValues,
   resolveActiveCategoryTab,
 } from '@/lib/domain';
 import { useAppContext } from '@/providers';
@@ -196,6 +199,7 @@ function createGoalStepDraft({
     text: '',
     completed: false,
     ignored: false,
+    markLevel: 0,
     bold: false,
     priority: false,
     collapsed: false,
@@ -3491,6 +3495,8 @@ function GoalDetailCard({
     ],
   );
   const { setViewMode, viewMode } = useCategoryViewMode('goal_step');
+  const { completionSettings, setCompletionSettings } =
+    useCompletionStates('goal_step');
   const [requestedCategoryTabId, setRequestedCategoryTabId] =
     useState(ALL_CATEGORY_TAB_ID);
   const categoryTabs = useMemo(
@@ -3673,10 +3679,11 @@ function GoalDetailCard({
   const allSelectedBold =
     selectedGoalSteps.length > 0 &&
     selectedGoalSteps.every((goalStep) => goalStep.bold);
-  const selectedCompletionState = getSelectionCompletionState(
+  const selectedCompletionValues = getSelectionCompletionValues(
     selectedGoalSteps.map((goalStep) => ({
       completed: goalStep.completed,
       ignored: goalStep.ignored,
+      markLevel: goalStep.markLevel,
     })),
   );
   const toggleSelectedGoalStepsCompleted = useCallback(
@@ -3690,6 +3697,7 @@ function GoalDetailCard({
         goalStepIds: [...selectedIds],
         completed: nextValues.completed,
         ignored: nextValues.ignored,
+        markLevel: nextValues.markLevel,
       });
     },
     [scope, selectedIds],
@@ -3739,7 +3747,8 @@ function GoalDetailCard({
             actionPreferences={actionPreferences}
             allBold={allSelectedBold}
             allPriority={allSelectedPriority}
-            completionState={selectedCompletionState}
+            completionSettings={completionSettings}
+            completionValues={selectedCompletionValues}
             labels={{
               bold: dictionary.goalStepEditor.bulkBold,
               category: dictionary.goalStepEditor.bulkCategory,
@@ -3839,6 +3848,17 @@ function GoalDetailCard({
                 onChange: (nextViewMode) =>
                   setViewMode(nextViewMode as CategoryViewMode),
               },
+              ...buildCompletionStateSettings({
+                completionSettings,
+                labels: {
+                  completionIgnoredState:
+                    dictionary.goalStepEditor.completionIgnoredState,
+                  completionLevels: dictionary.goalStepEditor.completionLevels,
+                  settingDisabled: dictionary.goalStepEditor.settingDisabled,
+                  settingEnabled: dictionary.goalStepEditor.settingEnabled,
+                },
+                onChange: setCompletionSettings,
+              }),
             ]}
             showScheduledTime={false}
             showScheduledDate={true}
@@ -3855,6 +3875,7 @@ function GoalDetailCard({
             key={row.goalStep.id}
             actionPreferences={actionPreferences}
             categoryTagMap={categoryTagMap}
+            completionSettings={completionSettings}
             deletedDraftGoalStepIdsRef={deletedDraftGoalStepIdsRef}
             goalId={goal.id}
             isSelected={isSelected(row.goalStep.id)}
@@ -3878,6 +3899,7 @@ function GoalDetailCard({
 function GoalStepRow({
   actionPreferences,
   categoryTagMap,
+  completionSettings,
   deletedDraftGoalStepIdsRef,
   goalId,
   isSelected,
@@ -3894,6 +3916,7 @@ function GoalStepRow({
 }: {
   actionPreferences: TaskTreeRowActionPreferences;
   categoryTagMap: Map<string, { colorHex: string; name: string }>;
+  completionSettings: TaskCompletionSettings;
   deletedDraftGoalStepIdsRef: MutableRefObject<Set<string>>;
   goalId: string;
   isSelected: boolean;
@@ -4175,7 +4198,9 @@ function GoalStepRow({
       categoryTagId={goalStep.categoryTagId}
       categoryTagMap={categoryTagMap}
       checked={goalStep.completed}
+      completionSettings={completionSettings}
       ignored={goalStep.ignored}
+      markLevel={goalStep.markLevel}
       collapsed={goalStep.collapsed}
       depth={depth}
       hasChildren={hasChildren}
@@ -4261,10 +4286,25 @@ function GoalStepRow({
           ? persistDraftGoalStep(text)
           : updateGoalStepText({ scope, goalStepId: goalStep.id, text })
       }
+      onSetCompletion={(nextValues) =>
+        isDraft
+          ? Promise.resolve()
+          : setGoalStepsCompleted({
+              scope,
+              goalStepIds: [goalStep.id],
+              completed: nextValues.completed,
+              ignored: nextValues.ignored,
+              markLevel: nextValues.markLevel,
+            })
+      }
       onToggleChecked={() =>
         isDraft
           ? Promise.resolve()
-          : toggleGoalStepChecked({ scope, goalStepId: goalStep.id })
+          : toggleGoalStepChecked({
+              scope,
+              goalStepId: goalStep.id,
+              completionSettings,
+            })
       }
       onToggleBold={() =>
         isDraft

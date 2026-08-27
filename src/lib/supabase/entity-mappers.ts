@@ -10,6 +10,7 @@ import type {
   GoalStep,
   SyncEntityType,
 } from '@/lib/domain';
+import { normalizeTaskCompletionValues } from '@/lib/domain';
 
 export type RemoteEntityTable =
   | 'category_tags'
@@ -53,6 +54,7 @@ export interface RemoteChecklistItem extends RemoteBaseRow {
   scheduled_time: string | null;
   checked: boolean;
   ignored: boolean;
+  mark_level?: number | null;
   bold: boolean;
   priority: boolean;
   collapsed: boolean;
@@ -81,6 +83,7 @@ export interface RemoteGoalStep extends RemoteBaseRow {
   text: string;
   completed: boolean;
   ignored: boolean;
+  mark_level?: number | null;
   bold: boolean;
   priority: boolean;
   collapsed: boolean;
@@ -218,6 +221,7 @@ export function toRemotePayload(
       scheduled_time: item.scheduledTime,
       checked: item.checked,
       ignored: item.ignored,
+      mark_level: item.markLevel,
       bold: item.bold,
       priority: item.priority,
       collapsed: item.collapsed,
@@ -260,6 +264,7 @@ export function toRemotePayload(
     text: goalStep.text,
     completed: goalStep.completed,
     ignored: goalStep.ignored,
+    mark_level: goalStep.markLevel,
     bold: goalStep.bold,
     priority: goalStep.priority,
     collapsed: goalStep.collapsed,
@@ -338,6 +343,11 @@ export function checklistItemFromRemote(
     scheduledTime: row.scheduled_time ?? null,
     checked: row.checked,
     ignored: row.ignored ?? false,
+    markLevel: normalizeTaskCompletionValues({
+      completed: row.checked,
+      ignored: row.ignored,
+      markLevel: row.mark_level,
+    }).markLevel,
     bold: row.bold ?? false,
     priority: row.priority ?? false,
     collapsed: row.collapsed,
@@ -375,6 +385,11 @@ export function goalStepFromRemote(
     text: row.text,
     completed: row.completed,
     ignored: row.ignored ?? false,
+    markLevel: normalizeTaskCompletionValues({
+      completed: row.completed,
+      ignored: row.ignored,
+      markLevel: row.mark_level,
+    }).markLevel,
     bold: row.bold ?? false,
     priority: row.priority ?? false,
     collapsed: row.collapsed,
