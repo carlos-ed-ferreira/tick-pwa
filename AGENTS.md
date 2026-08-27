@@ -61,6 +61,11 @@ uma skill em `.agents/skills/<nome>/SKILL.md` deve ter o equivalente em
 para os demais diretórios de agentes, como Codex. Depois de criar ou atualizar
 um espelho, mantenha as versões sincronizadas em alterações futuras.
 
+Todo texto que possa ser truncado visualmente deve expor seu conteúdo completo
+em um tooltip acessível por mouse e teclado. Use o primitive `Tooltip` do
+projeto e preserve o texto integral como conteúdo do tooltip; não dependa do
+atributo HTML `title`.
+
 ## Arquitetura e simplicidade
 
 Respeite as fronteiras documentadas no README e a direção das dependências.

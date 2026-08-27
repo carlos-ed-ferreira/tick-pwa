@@ -7,13 +7,13 @@ import { useState } from 'react';
 import { TbTargetArrow } from 'react-icons/tb';
 import { Button } from '@/components/ui';
 import { LanguageSwitcher } from '@/components/app';
-import { AccountStatus, AuthGate } from '@/features/auth';
+import { AccountStatus, AccountSyncIndicator, AuthGate } from '@/features/auth';
 import { GoalsSurface } from '@/features/goals';
 import { CategoryManagerDialog } from '@/features/categories';
 import { useAppContext } from '@/providers';
 
 export default function GoalsPage() {
-  const { dictionary } = useAppContext();
+  const { authMode, dictionary, scope } = useAppContext();
   const [isCategoryManagerOpen, setIsCategoryManagerOpen] = useState(false);
   const activeNavigationItemClassName =
     'inline-flex min-h-9 items-center gap-2 rounded-[0.875rem] inset-ring-hairline inset-ring-[#f8d7aa]/70 bg-[#f0c38e] px-3.5 text-sm font-semibold text-[#253241] shadow-[0_12px_28px_rgba(240,195,142,0.16)] transition hover:-translate-y-0.5 hover:inset-ring-[#ffe0b8] hover:bg-[#f5d09f] hover:shadow-[0_16px_34px_rgba(240,195,142,0.22)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0]';
@@ -52,19 +52,27 @@ export default function GoalsPage() {
               <AccountStatus />
             </div>
 
-            <nav className="flex w-full flex-wrap items-center justify-start gap-1 rounded-[1rem] inset-ring-hairline inset-ring-white/10 bg-white/6 p-1.5 shadow-sm shadow-[#253241]/10 backdrop-blur-md sm:w-fit lg:justify-self-center">
-              <Link href="/calendar" className={navigationItemClassName}>
-                <CalendarDays aria-hidden="true" className="size-4" />
-                {dictionary.navigation.calendar}
-              </Link>
-              <Link
-                href="/goals"
-                aria-current="page"
-                className={activeNavigationItemClassName}
-              >
-                <TbTargetArrow aria-hidden="true" className="size-4" />
-                {dictionary.navigation.goals}
-              </Link>
+            <nav className="flex w-full flex-wrap items-center gap-2 sm:w-fit lg:justify-self-center">
+              {authMode === 'authenticated' ? (
+                <AccountSyncIndicator
+                  dictionary={dictionary.sync}
+                  scope={scope}
+                />
+              ) : null}
+              <div className="flex flex-wrap items-center justify-start gap-1 rounded-[1rem] inset-ring-hairline inset-ring-white/10 bg-white/6 p-1.5 shadow-sm shadow-[#253241]/10 backdrop-blur-md">
+                <Link href="/calendar" className={navigationItemClassName}>
+                  <CalendarDays aria-hidden="true" className="size-4" />
+                  {dictionary.navigation.calendar}
+                </Link>
+                <Link
+                  href="/goals"
+                  aria-current="page"
+                  className={activeNavigationItemClassName}
+                >
+                  <TbTargetArrow aria-hidden="true" className="size-4" />
+                  {dictionary.navigation.goals}
+                </Link>
+              </div>
             </nav>
 
             <div className="flex flex-wrap items-center gap-2 lg:justify-between">

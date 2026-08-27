@@ -61,6 +61,7 @@ vi.mock('@/components/app', () => ({
 
 vi.mock('@/features/auth', () => ({
   AccountStatus: () => null,
+  AccountSyncIndicator: () => <span data-testid="sync-control" />,
   AuthGate: ({ children }: { children: ReactNode }) => <>{children}</>,
 }));
 
@@ -78,7 +79,9 @@ vi.mock('@/features/goals', () => ({
 
 vi.mock('@/providers', () => ({
   useAppContext: () => ({
+    authMode: 'authenticated',
     dictionary: ptBRDictionary,
+    scope: { id: 'user:test', kind: 'user', ownerId: 'test' },
   }),
 }));
 
@@ -108,5 +111,24 @@ describe('navigation labels and icons', () => {
         .getByRole('link', { name: 'Metas' })
         .querySelector('svg[data-icon="TbTargetArrow"]'),
     ).toBeTruthy();
+  });
+
+  it('places the sync control before the calendar and goals selector', async () => {
+    const { default: CalendarPage } = await import('@/app/calendar/page');
+    const { default: GoalsPage } = await import('@/app/goals/page');
+
+    const { container: calendarContainer, unmount } = render(<CalendarPage />);
+
+    expect(
+      calendarContainer.querySelector('nav')?.firstElementChild,
+    ).toHaveAttribute('data-testid', 'sync-control');
+
+    unmount();
+
+    const { container: goalsContainer } = render(<GoalsPage />);
+
+    expect(
+      goalsContainer.querySelector('nav')?.firstElementChild,
+    ).toHaveAttribute('data-testid', 'sync-control');
   });
 });
