@@ -62,6 +62,7 @@ export async function publishDevelopmentBranch({
     throw new Error('O GitHub não retornou a URL do pull request.');
   }
 
+  await ignorePullRequestNotifications(pullRequest, execute, write);
   await execute('gh', ['pr', 'merge', pullRequest, '--auto', '--squash']);
   await waitForRequiredChecks(pullRequest, execute, wait);
   await waitForMergedPullRequest(pullRequest, execute, wait);
@@ -69,6 +70,24 @@ export async function publishDevelopmentBranch({
   await execute('git', ['merge', '--no-edit', 'origin/main']);
   await execute('git', ['push', 'origin', 'dev']);
   write(`Main atualizada: ${pullRequest}`);
+}
+
+async function ignorePullRequestNotifications(pullRequest, execute, write) {
+  const pullRequestNumber = pullRequest.split('/').pop();
+
+  try {
+    await execute('gh', [
+      'api',
+      '--method',
+      'PUT',
+      '--silent',
+      `repos/{owner}/{repo}/issues/${pullRequestNumber}/subscription`,
+      '-F',
+      'ignored=true',
+    ]);
+  } catch {
+    write('Não foi possível silenciar as notificações do pull request.');
+  }
 }
 
 async function waitForRequiredChecks(pullRequest, execute, wait) {
