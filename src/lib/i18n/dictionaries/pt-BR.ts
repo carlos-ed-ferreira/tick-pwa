@@ -360,6 +360,8 @@ export const ptBRDictionary = {
     categoryTabs: 'Categorias das etapas',
     categoryTabAll: 'Todas',
     categoryTabUncategorized: 'Sem categoria',
+    goalProgressStep: '{completed} de {total} concluída',
+    goalProgressSteps: '{completed} de {total} concluídas',
     ignoredStep: '{count} ignorada',
     ignoredSteps: '{count} ignoradas',
     moveTo: 'Mover para',

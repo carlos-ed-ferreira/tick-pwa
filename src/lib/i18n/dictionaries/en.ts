@@ -351,6 +351,8 @@ export const enDictionary = {
     categoryTabs: 'Step categories',
     categoryTabAll: 'All',
     categoryTabUncategorized: 'No category',
+    goalProgressStep: '{completed} of {total} completed',
+    goalProgressSteps: '{completed} of {total} completed',
     ignoredStep: '{count} ignored',
     ignoredSteps: '{count} ignored',
     moveTo: 'Move to',

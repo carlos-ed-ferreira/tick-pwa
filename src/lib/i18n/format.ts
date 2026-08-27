@@ -14,6 +14,22 @@ export function formatCountLabel({
 
 export const formatSelectionLabel = formatCountLabel;
 
+export function formatProgressLabel({
+  completed,
+  plural,
+  singular,
+  total,
+}: {
+  completed: number;
+  plural: string;
+  singular: string;
+  total: number;
+}): string {
+  return (total === 1 ? singular : plural)
+    .replace('{completed}', String(completed))
+    .replace('{total}', String(total));
+}
+
 export function formatMonthLabel(
   date: Date,
   locale: SupportedLocale,

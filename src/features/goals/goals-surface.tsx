@@ -75,7 +75,11 @@ import { useTreeBulkActions } from '@/hooks/use-tree-bulk-actions';
 import { useTreeSelection } from '@/hooks/use-tree-selection';
 import { useTaskTreeRowActionPreferences } from '@/hooks/use-task-tree-row-action-visibility';
 import { toAlphaColor } from '@/lib/color';
-import { formatCountLabel, formatSelectionLabel } from '@/lib/i18n';
+import {
+  formatCountLabel,
+  formatProgressLabel,
+  formatSelectionLabel,
+} from '@/lib/i18n';
 import {
   formatDateInputValue,
   parseDateInputValue,
@@ -147,12 +151,11 @@ import { useGoalStepTree } from './use-goal-step-tree';
 import { useGoals } from './use-goals';
 
 const goalStepInputSelector = '[data-goal-step-input="true"]';
-const visibleCategoryLimit = 4;
 const neutralProgressTrackStyle: CSSProperties = {
   backgroundColor: 'rgba(255, 255, 255, 0.07)',
 };
-const neutralProgressFillStyle: CSSProperties = {
-  backgroundColor: 'rgba(174, 186, 200, 0.55)',
+const ignoredProgressFillStyle: CSSProperties = {
+  backgroundColor: 'rgba(192, 199, 209, 0.46)',
 };
 const goalMenuItemClassName =
   'flex min-h-10 w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-medium text-[#e5ebf3] transition hover:bg-white/[0.08] hover:text-[#fff9f2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e]';
@@ -490,16 +493,6 @@ function getProgressBadgeStyle(summary: GoalStepSummary): CSSProperties {
     backgroundColor: 'rgba(113, 113, 122, 0.12)',
     '--chip-edge': 'rgba(113, 113, 122, 0.18)',
   } as CSSProperties;
-}
-
-function isCategoryComplete(summary: GoalStepSummary, categoryTagId: string) {
-  const categorySummary = summary.categorySummaries.get(categoryTagId);
-
-  return Boolean(
-    categorySummary &&
-    categorySummary.itemCount > 0 &&
-    categorySummary.completedCount >= categorySummary.itemCount,
-  );
 }
 
 function isSameDragPayload(
@@ -1104,7 +1097,6 @@ export function GoalsSurface() {
           goals={groupGoals}
           groups={groups}
           goalCategoryMap={goalCategoryMap}
-          stepCategoryMap={stepCategoryMap}
           summaries={goalStepSummaries}
           onBeginPointerDrag={beginPointerDrag}
           onComplete={archiveGoalAndOpenArchived}
@@ -1183,7 +1175,6 @@ export function GoalsSurface() {
                       groups={groups}
                       goalCategoryMap={goalCategoryMap}
                       layout="overview"
-                      stepCategoryMap={stepCategoryMap}
                       summaries={goalStepSummaries}
                       onBeginPointerDrag={beginPointerDrag}
                       onOpenGoal={openGoal}
@@ -1239,7 +1230,6 @@ export function GoalsSurface() {
                   goal={goal}
                   goalCategory={goalCategoryMap.get(goal.categoryTagId ?? '')}
                   groups={groups}
-                  stepCategoryMap={stepCategoryMap}
                   summary={getGoalStepSummary(goalStepSummaries, goal.id)}
                   onBeginPointerDrag={beginPointerDrag}
                   onComplete={archiveGoalAndOpenArchived}
@@ -2014,7 +2004,6 @@ function GoalGrid({
   groups,
   goalCategoryMap,
   layout = 'default',
-  stepCategoryMap,
   summaries,
   onBeginPointerDrag,
   onComplete,
@@ -2029,7 +2018,6 @@ function GoalGrid({
   groups: GoalGroup[];
   goalCategoryMap: Map<string, CategoryTag>;
   layout?: 'default' | 'overview';
-  stepCategoryMap: Map<string, CategoryTag>;
   summaries: Map<string, GoalStepSummary>;
   onComplete?: (goalId: string) => Promise<void> | void;
   onBeginPointerDrag?: (
@@ -2062,7 +2050,6 @@ function GoalGrid({
           goal={goal}
           goalCategory={goalCategoryMap.get(goal.categoryTagId ?? '')}
           groups={groups}
-          stepCategoryMap={stepCategoryMap}
           summary={getGoalStepSummary(summaries, goal.id)}
           onBeginPointerDrag={onBeginPointerDrag}
           onComplete={onComplete}
@@ -2083,7 +2070,6 @@ function GoalCard({
   goal,
   goalCategory,
   groups,
-  stepCategoryMap,
   summary,
   onBeginPointerDrag,
   onComplete,
@@ -2098,7 +2084,6 @@ function GoalCard({
   goal: Goal;
   goalCategory?: CategoryTag | null;
   groups: GoalGroup[];
-  stepCategoryMap: Map<string, CategoryTag>;
   summary: GoalStepSummary;
   onComplete?: (goalId: string) => Promise<void> | void;
   onBeginPointerDrag?: (
@@ -2586,11 +2571,7 @@ function GoalCard({
           onConfirm={() => void deleteGoal()}
         />
 
-        <GoalPreview
-          badgeStyle={progressBadgeStyle}
-          categoryTagMap={stepCategoryMap}
-          summary={summary}
-        />
+        <GoalPreview badgeStyle={progressBadgeStyle} summary={summary} />
       </article>
     </>
   );
@@ -2863,97 +2844,82 @@ function MoveGoalMenu({
 
 function GoalPreview({
   badgeStyle,
-  categoryTagMap,
   summary,
 }: {
   badgeStyle: CSSProperties;
-  categoryTagMap: Map<string, CategoryTag>;
   summary: GoalStepSummary;
 }) {
   const { dictionary } = useAppContext();
-
-  if (summary.itemCount === 0 && summary.ignoredCount === 0) {
-    return null;
-  }
-
-  const hiddenCount = Math.max(
-    0,
-    summary.categoryTagIds.length - visibleCategoryLimit,
-  );
   const hasCountedSteps = summary.itemCount > 0;
-  const isComplete =
-    hasCountedSteps && summary.completedCount >= summary.itemCount;
+  const hasSummary = hasCountedSteps || summary.ignoredCount > 0;
 
   return (
-    <div className="mt-auto grid gap-2">
-      <span className="flex flex-wrap items-center gap-1.5">
-        {hasCountedSteps ? (
-          <span
-            className="rounded-full inset-ring-hairline inset-ring-(--chip-edge) px-2 py-1 text-[11px] font-semibold leading-none tabular-nums text-[#f7e8ce]"
-            style={badgeStyle}
-          >
-            {summary.completedCount}/{summary.itemCount}
-          </span>
-        ) : null}
-        {summary.ignoredCount > 0 ? (
-          <>
-            {hasCountedSteps ? (
-              <span aria-hidden="true" className="text-[11px] text-[#63748a]">
-                ·
-              </span>
-            ) : null}
-            <span className="text-[11px] font-medium leading-none tabular-nums text-[#8fa0b3]">
-              {formatCountLabel({
-                count: summary.ignoredCount,
-                plural: dictionary.goals.ignoredSteps,
-                singular: dictionary.goals.ignoredStep,
+    <div className="mt-auto grid gap-2 pt-2">
+      {hasSummary ? (
+        <span className="flex flex-wrap items-center gap-1.5">
+          {hasCountedSteps ? (
+            <span
+              className="rounded-full inset-ring-hairline inset-ring-(--chip-edge) px-2 py-1 text-[11px] font-semibold leading-none tabular-nums text-[#f7e8ce]"
+              style={badgeStyle}
+            >
+              {formatProgressLabel({
+                completed: summary.completedCount,
+                plural: dictionary.goals.goalProgressSteps,
+                singular: dictionary.goals.goalProgressStep,
+                total: summary.itemCount,
               })}
             </span>
-          </>
-        ) : null}
-      </span>
-      {isComplete || !hasCountedSteps ? null : (
-        <span
-          className="h-1 w-full overflow-hidden rounded-full"
-          style={neutralProgressTrackStyle}
-        >
-          <span
-            className="block h-full rounded-full transition-[width] duration-200"
-            data-testid="goal-progress-fill"
-            style={{
-              ...neutralProgressFillStyle,
-              width: `${Math.round((summary.completedCount / summary.itemCount) * 100)}%`,
-            }}
-          />
-        </span>
-      )}
-      {summary.categoryTagIds.length > 0 ? (
-        <span className="flex items-center gap-1.5 pt-0.5">
-          {summary.categoryTagIds.slice(0, visibleCategoryLimit).map((id) => {
-            const colorHex = categoryTagMap.get(id)?.colorHex;
-
-            return (
-              <span
-                key={id}
-                className="size-3 rounded-full inset-ring-hairline inset-ring-white/35 transition-opacity"
-                style={{
-                  backgroundColor: colorHex,
-                  opacity: isCategoryComplete(summary, id) ? 1 : 0.28,
-                  boxShadow:
-                    isCategoryComplete(summary, id) && colorHex
-                      ? `0 0 0 1px rgba(255, 255, 255, 0.28), 0 0 10px ${colorHex}33`
-                      : 'none',
-                }}
-              />
-            );
-          })}
-          {hiddenCount > 0 ? (
-            <span className="text-[11px] font-semibold text-[#aebac8]">
-              +{hiddenCount}
-            </span>
+          ) : null}
+          {summary.ignoredCount > 0 ? (
+            <>
+              {hasCountedSteps ? (
+                <span aria-hidden="true" className="text-[11px] text-[#63748a]">
+                  ·
+                </span>
+              ) : null}
+              <span className="text-[11px] font-medium leading-none tabular-nums text-[#8fa0b3]">
+                {formatCountLabel({
+                  count: summary.ignoredCount,
+                  plural: dictionary.goals.ignoredSteps,
+                  singular: dictionary.goals.ignoredStep,
+                })}
+              </span>
+            </>
           ) : null}
         </span>
       ) : null}
+      <span
+        className="flex h-1 w-full overflow-hidden rounded-full"
+        data-testid="goal-progress-track"
+        style={neutralProgressTrackStyle}
+      >
+        {hasCountedSteps ? (
+          <span
+            className="block min-w-0 basis-0 overflow-hidden"
+            data-testid="goal-progress-counted-segment"
+            style={{ flexGrow: summary.itemCount }}
+          >
+            <span
+              className="block h-full rounded-full transition-[width] duration-200"
+              data-testid="goal-progress-fill"
+              style={{
+                backgroundColor: badgeStyle.backgroundColor,
+                width: `${Math.round((summary.completedCount / summary.itemCount) * 100)}%`,
+              }}
+            />
+          </span>
+        ) : null}
+        {summary.ignoredCount > 0 ? (
+          <span
+            className="block min-w-0 basis-0"
+            data-testid="goal-progress-ignored-segment"
+            style={{
+              ...ignoredProgressFillStyle,
+              flexGrow: summary.ignoredCount,
+            }}
+          />
+        ) : null}
+      </span>
     </div>
   );
 }

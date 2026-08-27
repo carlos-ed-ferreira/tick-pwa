@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { formatProgressLabel } from '@/lib/i18n';
 import { enDictionary } from '@/lib/i18n/dictionaries/en';
 import { ptBRDictionary } from '@/lib/i18n/dictionaries/pt-BR';
 
@@ -51,6 +52,20 @@ describe('product terminology', () => {
     expect(ptBRDictionary.goals.emptyGoal).toBe(
       'Comece esta meta adicionando uma etapa',
     );
+    expect(ptBRDictionary.goals.goalProgressStep).toBe(
+      '{completed} de {total} concluída',
+    );
+    expect(ptBRDictionary.goals.goalProgressSteps).toBe(
+      '{completed} de {total} concluídas',
+    );
+    expect(
+      formatProgressLabel({
+        completed: 7,
+        plural: ptBRDictionary.goals.goalProgressSteps,
+        singular: ptBRDictionary.goals.goalProgressStep,
+        total: 12,
+      }),
+    ).toBe('7 de 12 concluídas');
     expect(ptBRDictionary.goalStepEditor.addChild).toBe('Criar subetapa');
     expect(ptBRDictionary.goalStepEditor.itemPlaceholder).toBe(
       'Escreva uma etapa',
@@ -61,6 +76,12 @@ describe('product terminology', () => {
 
     expect(enDictionary.goals.addStep).toBe('Add step');
     expect(enDictionary.goals.itemCategories).toBe('Steps');
+    expect(enDictionary.goals.goalProgressStep).toBe(
+      '{completed} of {total} completed',
+    );
+    expect(enDictionary.goals.goalProgressSteps).toBe(
+      '{completed} of {total} completed',
+    );
     expect(enDictionary.goalStepEditor.addChild).toBe('Create substep');
     expect(enDictionary.goalStepEditor.itemPlaceholder).toBe('Write a step');
     expect(enDictionary.goalStepEditor.preferencesTitle).toBe(
