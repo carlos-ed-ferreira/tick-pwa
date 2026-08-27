@@ -22,7 +22,6 @@ import {
 } from 'react';
 import {
   AutoResizeTextarea,
-  Checkbox,
   ConfirmationDialog,
   IconButton,
 } from '@/components/ui';
@@ -31,14 +30,17 @@ import { useDebouncedInlineEdit } from '@/hooks/use-debounced-inline-edit';
 import { useFocusAfterCreate } from '@/hooks/use-focus-after-create';
 import { requiresDeleteConfirmation } from '@/lib/confirm-delete';
 import {
+  defaultTaskCompletionSettings,
   getNextTaskCompletionValues,
-  getTaskCompletionState,
+  normalizeTaskCompletionValues,
   type CategoryTagSurface,
   type LocalDateString,
+  type TaskCompletionSettings,
   type TaskCompletionValues,
 } from '@/lib/domain';
 import { formatDateInputValue, parseDateInputValue } from '@/lib/time';
 import { DatePicker } from './date-picker';
+import { TaskCompletionCheckbox } from './task-completion-checkbox';
 import { TaskTreeActionGroup } from './task-tree-action-group';
 import { TaskTreeCategoryChip } from './task-tree-category-chip';
 import { TaskTreeCollapseButton } from './task-tree-collapse-button';
@@ -65,6 +67,11 @@ let activeTreeDrag: TreeDragSource | null = null;
 interface TaskTreeRowLabels {
   addChild: string;
   assignCategory: string;
+  chooseCompletionState: string;
+  completionStateCompleted: string;
+  completionStateIgnored: string;
+  completionStateLevel: string;
+  completionStateUnchecked: string;
   bulkBold: string;
   bulkCategory: string;
   bulkDelete: string;
@@ -103,6 +110,16 @@ interface TaskTreeSelection {
     nextValues: TaskCompletionValues,
   ) => Promise<void> | void;
   onToggle: (shiftKey: boolean) => void;
+}
+
+function toCompletionKey(values: TaskCompletionValues): string {
+  return values.ignored ? 'ignored' : String(values.markLevel);
+}
+
+function fromCompletionKey(key: string): TaskCompletionValues {
+  return normalizeTaskCompletionValues(
+    key === 'ignored' ? { ignored: true } : { markLevel: Number(key) },
+  );
 }
 
 function formatShortDate(date: LocalDateString): string {
@@ -147,7 +164,9 @@ export function TaskTreeEditableRow({
   categoryTagId,
   categoryTagMap,
   checked,
+  completionSettings = defaultTaskCompletionSettings,
   ignored = false,
+  markLevel = 0,
   collapsed,
   depth,
   hasChildren,
@@ -176,6 +195,7 @@ export function TaskTreeEditableRow({
   onSaveDate,
   onSaveTime,
   onSaveText,
+  onSetCompletion,
   onTextChange,
   onToggleBold,
   onToggleChecked,
@@ -191,7 +211,9 @@ export function TaskTreeEditableRow({
   categoryTagId: string | null;
   categoryTagMap: Map<string, { colorHex: string; name: string }>;
   checked: boolean;
+  completionSettings?: TaskCompletionSettings;
   ignored?: boolean;
+  markLevel?: number;
   collapsed: boolean;
   depth: number;
   hasChildren: boolean;
@@ -227,6 +249,7 @@ export function TaskTreeEditableRow({
   onSaveDate?: (scheduledDate: LocalDateString | null) => Promise<void> | void;
   onSaveTime?: (scheduledTime: string | null) => Promise<void> | void;
   onSaveText: (text: string) => Promise<void> | void;
+  onSetCompletion?: (nextValues: TaskCompletionValues) => Promise<void> | void;
   onTextChange?: (text: string) => void;
   onToggleBold: () => Promise<void> | void;
   onToggleChecked: () => Promise<void> | void;
@@ -254,18 +277,16 @@ export function TaskTreeEditableRow({
   const selectedCategory = categoryTagId
     ? (categoryTagMap.get(categoryTagId) ?? null)
     : null;
-  const normalizedChecked = checked ?? false;
   const normalizedBold = bold ?? false;
-  const normalizedIgnored = ignored ?? false;
   const normalizedPriority = priority ?? false;
-  const completionState = getTaskCompletionState(
-    normalizedChecked,
-    normalizedIgnored,
+  const completionKey = toCompletionKey(
+    normalizeTaskCompletionValues({ completed: checked, ignored, markLevel }),
   );
-  const [displayedCompletionState, setOptimisticCompletion] =
-    useOptimisticValue(completionState);
-  const displayedChecked = displayedCompletionState === 'completed';
-  const displayedIgnored = displayedCompletionState === 'ignored';
+  const [displayedCompletionKey, setOptimisticCompletion] =
+    useOptimisticValue(completionKey);
+  const displayedCompletion = fromCompletionKey(displayedCompletionKey);
+  const displayedChecked = displayedCompletion.completed;
+  const displayedIgnored = displayedCompletion.ignored;
   const [displayedPriority, setOptimisticPriority] =
     useOptimisticValue(normalizedPriority);
   const [displayedBold, setOptimisticBold] = useOptimisticValue(normalizedBold);
@@ -308,40 +329,53 @@ export function TaskTreeEditableRow({
     return false;
   }, [flushText, isDraft, resetText, text]);
 
-  const toggleChecked = useCallback(async () => {
-    const nextValues = getNextTaskCompletionValues(
-      displayedChecked,
-      displayedIgnored,
-    );
+  const applyCompletion = useCallback(
+    async (
+      nextValues: TaskCompletionValues,
+      persist: () => Promise<void> | void,
+    ) => {
+      if (selection?.isSelectionMode) {
+        if (!selection.isSelected) {
+          return;
+        }
 
-    if (selection?.isSelectionMode) {
-      if (!selection.isSelected) {
+        await selection.onBulkToggleChecked(nextValues);
         return;
       }
 
-      await selection.onBulkToggleChecked(nextValues);
-      return;
-    }
+      setOptimisticCompletion({
+        base: completionKey,
+        value: toCompletionKey(nextValues),
+      });
 
-    setOptimisticCompletion({
-      base: completionState,
-      value: getTaskCompletionState(nextValues.completed, nextValues.ignored),
-    });
+      try {
+        await persist();
+      } catch (error) {
+        setOptimisticCompletion(null);
+        throw error;
+      }
+    },
+    [completionKey, selection, setOptimisticCompletion],
+  );
 
-    try {
-      await onToggleChecked();
-    } catch (error) {
-      setOptimisticCompletion(null);
-      throw error;
-    }
+  const toggleChecked = useCallback(async () => {
+    await applyCompletion(
+      getNextTaskCompletionValues(displayedCompletion, completionSettings),
+      onToggleChecked,
+    );
   }, [
-    completionState,
-    displayedChecked,
-    displayedIgnored,
+    applyCompletion,
+    completionSettings,
+    displayedCompletion,
     onToggleChecked,
-    selection,
-    setOptimisticCompletion,
   ]);
+
+  const selectCompletion = useCallback(
+    async (nextValues: TaskCompletionValues) => {
+      await applyCompletion(nextValues, () => onSetCompletion?.(nextValues));
+    },
+    [applyCompletion, onSetCompletion],
+  );
 
   const togglePriority = useCallback(async () => {
     setOptimisticPriority({
@@ -669,14 +703,19 @@ export function TaskTreeEditableRow({
           </IconButton>
         ) : null}
 
-        <Checkbox
-          aria-label={labels.toggleItem}
-          checked={displayedChecked}
-          indeterminate={displayedIgnored}
+        <TaskCompletionCheckbox
+          completionSettings={completionSettings}
           disabled={
             selection?.isSelectionMode === true && !selection.isSelected
           }
-          onChange={() => void toggleChecked()}
+          labels={labels}
+          values={displayedCompletion}
+          onSelect={
+            onSetCompletion || selection?.isSelectionMode
+              ? selectCompletion
+              : undefined
+          }
+          onToggle={toggleChecked}
         />
 
         {showScheduledTime && actionPreferences.scheduledTime ? (

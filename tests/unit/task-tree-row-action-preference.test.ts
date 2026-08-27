@@ -5,9 +5,12 @@ import {
 } from '@/components/app';
 import {
   ACCOUNT_PREFERENCE_KEYS,
+  CHECKLIST_COMPLETION_STATES_PREFERENCE_KEY,
   CHECKLIST_VIEW_MODE_PREFERENCE_KEY,
   getCategoryViewModePreferenceKey,
+  getCompletionStatesPreferenceKey,
   getTaskTreeRowActionsPreferenceKey,
+  GOAL_STEP_COMPLETION_STATES_PREFERENCE_KEY,
   GOAL_STEP_TREE_ROW_ACTIONS_PREFERENCE_KEY,
   GOAL_STEP_VIEW_MODE_PREFERENCE_KEY,
   TASK_TREE_ROW_ACTIONS_PREFERENCE_KEY,
@@ -27,11 +30,19 @@ describe('task tree row action preference keys', () => {
     expect(getCategoryViewModePreferenceKey('goal_step')).toBe(
       GOAL_STEP_VIEW_MODE_PREFERENCE_KEY,
     );
+    expect(getCompletionStatesPreferenceKey('checklist_item')).toBe(
+      CHECKLIST_COMPLETION_STATES_PREFERENCE_KEY,
+    );
+    expect(getCompletionStatesPreferenceKey('goal_step')).toBe(
+      GOAL_STEP_COMPLETION_STATES_PREFERENCE_KEY,
+    );
     expect(ACCOUNT_PREFERENCE_KEYS).toEqual([
       TASK_TREE_ROW_ACTIONS_PREFERENCE_KEY,
       GOAL_STEP_TREE_ROW_ACTIONS_PREFERENCE_KEY,
       CHECKLIST_VIEW_MODE_PREFERENCE_KEY,
       GOAL_STEP_VIEW_MODE_PREFERENCE_KEY,
+      CHECKLIST_COMPLETION_STATES_PREFERENCE_KEY,
+      GOAL_STEP_COMPLETION_STATES_PREFERENCE_KEY,
     ]);
   });
 

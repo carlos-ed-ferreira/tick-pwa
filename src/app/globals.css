@@ -240,6 +240,22 @@ body {
     transform: rotate(45deg);
   }
 
+  .tick-checkbox[data-mark-level]::after {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    width: auto;
+    height: auto;
+    content: attr(data-mark-level);
+    border: 0;
+    color: var(--accent-foreground);
+    font-size: 0.6875rem;
+    font-weight: 700;
+    line-height: 1;
+    place-items: center;
+    transform: none;
+  }
+
   .tick-checkbox:disabled {
     cursor: not-allowed;
     opacity: 0.45;

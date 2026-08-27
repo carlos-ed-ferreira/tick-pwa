@@ -21,6 +21,7 @@ import {
 import { Dialog, IconButton, ModalActionButton, toast } from '@/components/ui';
 import { useCategoryTags } from '@/features/categories';
 import { useTreeSelection } from '@/hooks/use-tree-selection';
+import { useCompletionStates } from '@/hooks/use-completion-states';
 import { useTaskTreeRowActionPreferences } from '@/hooks/use-task-tree-row-action-visibility';
 import {
   applyChecklistTemplateToDateRange,
@@ -28,7 +29,8 @@ import {
 } from '@/lib/db';
 import {
   createId,
-  getSelectionCompletionState,
+  getSelectionCompletionValues,
+  type TaskCompletionSettings,
   type TaskCompletionValues,
 } from '@/lib/domain';
 import { formatSelectionLabel } from '@/lib/i18n';
@@ -373,6 +375,7 @@ function BulkChecklistSurface({
     applyActionPreferencesToOtherSurface,
     setActionPreferences,
   } = useTaskTreeRowActionPreferences('checklist_item');
+  const { completionSettings } = useCompletionStates('checklist_item');
   const categoryTags = useCategoryTags(scope, 'checklist_item');
   const categoryTagMap = new Map(categoryTags.map((tag) => [tag.id, tag]));
   const rows = useMemo(
@@ -401,10 +404,11 @@ function BulkChecklistSurface({
     selectedItems.length > 0 && selectedItems.every((item) => item.priority);
   const allSelectedBold =
     selectedItems.length > 0 && selectedItems.every((item) => item.bold);
-  const selectedCompletionState = getSelectionCompletionState(
+  const selectedCompletionValues = getSelectionCompletionValues(
     selectedItems.map((item) => ({
       completed: item.checked,
       ignored: item.ignored,
+      markLevel: item.markLevel,
     })),
   );
   const toggleSelectedItemsChecked = useCallback(
@@ -416,6 +420,7 @@ function BulkChecklistSurface({
                 ...currentItem,
                 checked: nextValues.completed,
                 ignored: nextValues.ignored,
+                markLevel: nextValues.markLevel,
               }
             : currentItem,
         ),
@@ -445,7 +450,8 @@ function BulkChecklistSurface({
             actionPreferences={actionPreferences}
             allBold={allSelectedBold}
             allPriority={allSelectedPriority}
-            completionState={selectedCompletionState}
+            completionSettings={completionSettings}
+            completionValues={selectedCompletionValues}
             labels={{
               bold: dictionary.dayEditor.bulkBold,
               category: dictionary.dayEditor.bulkCategory,
@@ -547,6 +553,7 @@ function BulkChecklistSurface({
       >
         {rows.map((row) => (
           <BulkChecklistRow
+            completionSettings={completionSettings}
             key={row.item.id}
             actionPreferences={actionPreferences}
             categoryTagMap={categoryTagMap}
@@ -569,6 +576,7 @@ function BulkChecklistSurface({
 function BulkChecklistRow({
   actionPreferences,
   categoryTagMap,
+  completionSettings,
   isSelected,
   isSelectionMode,
   row,
@@ -581,6 +589,7 @@ function BulkChecklistRow({
 }: {
   actionPreferences: TaskTreeRowActionPreferences;
   categoryTagMap: Map<string, { colorHex: string; name: string }>;
+  completionSettings: TaskCompletionSettings;
   isSelected: boolean;
   isSelectionMode: boolean;
   row: VisibleBulkChecklistDraftRow;
@@ -626,7 +635,9 @@ function BulkChecklistRow({
       categoryTagId={item.categoryTagId}
       categoryTagMap={categoryTagMap}
       checked={item.checked}
+      completionSettings={completionSettings}
       ignored={item.ignored}
+      markLevel={item.markLevel}
       collapsed={item.collapsed}
       depth={depth}
       hasChildren={hasChildren}
@@ -746,9 +757,27 @@ function BulkChecklistRow({
           ),
         )
       }
+      onSetCompletion={(nextValues) =>
+        setDraftItems((currentItems) =>
+          currentItems.map((currentItem) =>
+            currentItem.id === item.id
+              ? {
+                  ...currentItem,
+                  checked: nextValues.completed,
+                  ignored: nextValues.ignored,
+                  markLevel: nextValues.markLevel,
+                }
+              : currentItem,
+          ),
+        )
+      }
       onToggleChecked={() =>
         setDraftItems((currentItems) =>
-          toggleBulkChecklistDraftItemChecked(currentItems, item.id),
+          toggleBulkChecklistDraftItemChecked(
+            currentItems,
+            item.id,
+            completionSettings,
+          ),
         )
       }
       onToggleBold={() =>

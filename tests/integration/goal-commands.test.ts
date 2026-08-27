@@ -332,6 +332,52 @@ describe('goal commands', () => {
     });
   });
 
+  it('walks the configured marking levels on goal steps', async () => {
+    const scope = createGuestScope('goal-step-marking-levels');
+    const completionSettings = { ignored: true, levels: 2 };
+    const goal = await createGoal({ scope, title: 'Learn Spanish' });
+    const step = await createGoalStep({
+      scope,
+      goalId: goal.id,
+      text: 'Review vocabulary',
+    });
+
+    for (const markLevel of [1, 2]) {
+      await toggleGoalStepChecked({
+        scope,
+        goalStepId: step.id,
+        completionSettings,
+      });
+      await expect(db.goalSteps.get(step.id)).resolves.toMatchObject({
+        completed: true,
+        ignored: false,
+        markLevel,
+      });
+    }
+
+    await toggleGoalStepChecked({
+      scope,
+      goalStepId: step.id,
+      completionSettings,
+    });
+    await expect(db.goalSteps.get(step.id)).resolves.toMatchObject({
+      completed: false,
+      ignored: true,
+      markLevel: 0,
+    });
+
+    await toggleGoalStepChecked({
+      scope,
+      goalStepId: step.id,
+      completionSettings,
+    });
+    await expect(db.goalSteps.get(step.id)).resolves.toMatchObject({
+      completed: false,
+      ignored: false,
+      markLevel: 0,
+    });
+  });
+
   it('groups goals together and deletes a source group when it becomes empty', async () => {
     const scope = createGuestScope('goals-grouping-test');
     const firstGoal = await createGoal({ scope, title: 'Health' });
@@ -414,7 +460,7 @@ describe('goal commands', () => {
     });
   });
 
-  it('cycles goal steps through completed, ignored, and unchecked', async () => {
+  it('cycles goal steps through completed, ignored, and unchecked when the ignored state is enabled', async () => {
     const scope = createGuestScope('goal-step-ignore-cycle');
     const goal = await createGoal({ scope, title: 'Flexible goal' });
     const step = await createGoalStep({
@@ -423,19 +469,31 @@ describe('goal commands', () => {
       text: 'Optional step',
     });
 
-    await toggleGoalStepChecked({ scope, goalStepId: step.id });
+    await toggleGoalStepChecked({
+      scope,
+      goalStepId: step.id,
+      completionSettings: { ignored: true, levels: 1 },
+    });
     await expect(db.goalSteps.get(step.id)).resolves.toMatchObject({
       completed: true,
       ignored: false,
     });
 
-    await toggleGoalStepChecked({ scope, goalStepId: step.id });
+    await toggleGoalStepChecked({
+      scope,
+      goalStepId: step.id,
+      completionSettings: { ignored: true, levels: 1 },
+    });
     await expect(db.goalSteps.get(step.id)).resolves.toMatchObject({
       completed: false,
       ignored: true,
     });
 
-    await toggleGoalStepChecked({ scope, goalStepId: step.id });
+    await toggleGoalStepChecked({
+      scope,
+      goalStepId: step.id,
+      completionSettings: { ignored: true, levels: 1 },
+    });
     await expect(db.goalSteps.get(step.id)).resolves.toMatchObject({
       completed: false,
       ignored: false,

@@ -30,6 +30,20 @@ export function formatProgressLabel({
     .replace('{total}', String(total));
 }
 
+export function formatCompletionLevelLabel({
+  label,
+  level,
+  levels,
+}: {
+  label: string;
+  level: number;
+  levels: number;
+}): string {
+  return label
+    .replace('{level}', String(level))
+    .replace('{levels}', String(levels));
+}
+
 export function formatMonthLabel(
   date: Date,
   locale: SupportedLocale,

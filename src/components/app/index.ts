@@ -3,6 +3,7 @@ export * from './language-switcher';
 export * from './date-picker';
 export * from './dropdown-join-shape';
 export * from './move-tree-item-to-target';
+export * from './task-completion-checkbox';
 export * from './task-tree-action-group';
 export * from './task-tree-bulk-actions';
 export * from './task-tree-category-chip';

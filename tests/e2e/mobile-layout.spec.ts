@@ -47,6 +47,12 @@ test.describe('mobile layout', () => {
     await input.fill('Ignored on mobile');
     await input.press('Enter');
 
+    await page
+      .getByRole('button', { name: labels.configureTaskPreferences })
+      .tap();
+    await page.getByRole('radio', { name: labels.enableIgnoredState }).tap();
+    await page.getByRole('button', { name: labels.closeDialog }).first().tap();
+
     const checkbox = page.getByRole('checkbox').first();
     await checkbox.tap();
     await checkbox.tap();

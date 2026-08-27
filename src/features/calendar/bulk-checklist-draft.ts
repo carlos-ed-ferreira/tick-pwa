@@ -3,8 +3,11 @@ import {
   createId,
   createReorderedRank,
   createSortRankBetween,
+  defaultTaskCompletionSettings,
+  getNextTaskCompletionValues,
   sortByRank,
   buildVisibleTreeRows,
+  type TaskCompletionSettings,
   type VisibleTreeRow,
 } from '@/lib/domain';
 
@@ -15,6 +18,7 @@ export interface BulkChecklistDraftItem {
   scheduledTime: string | null;
   checked: boolean;
   ignored: boolean;
+  markLevel: number;
   bold: boolean;
   priority: boolean;
   collapsed: boolean;
@@ -117,6 +121,7 @@ export function createBulkChecklistDraftItem(
     scheduledTime: null,
     checked: false,
     ignored: false,
+    markLevel: 0,
     bold: false,
     priority: false,
     collapsed: false,
@@ -222,17 +227,24 @@ export function reorderBulkChecklistDraftItemsByScheduledTime(
 export function toggleBulkChecklistDraftItemChecked(
   items: BulkChecklistDraftItem[],
   itemId: string,
+  completionSettings: TaskCompletionSettings = defaultTaskCompletionSettings,
 ): BulkChecklistDraftItem[] {
   return updateDraftItem(items, itemId, (item) => {
-    if (item.ignored) {
-      return { ...item, checked: false, ignored: false };
-    }
+    const nextValues = getNextTaskCompletionValues(
+      {
+        completed: item.checked,
+        ignored: item.ignored,
+        markLevel: item.markLevel,
+      },
+      completionSettings,
+    );
 
-    if (item.checked) {
-      return { ...item, checked: false, ignored: true };
-    }
-
-    return { ...item, checked: true, ignored: false };
+    return {
+      ...item,
+      checked: nextValues.completed,
+      ignored: nextValues.ignored,
+      markLevel: nextValues.markLevel,
+    };
   });
 }
 

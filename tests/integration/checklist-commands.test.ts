@@ -69,7 +69,7 @@ describe('checklist commands', () => {
     });
   });
 
-  it('cycles checklist tasks through completed, ignored, and unchecked without counting ignored tasks', async () => {
+  it('cycles checklist tasks through completed, ignored, and unchecked when the ignored state is enabled', async () => {
     const scope = createGuestScope('checklist-ignore-cycle');
     const entry = await openOrCreateDailyEntry({
       scope,
@@ -82,13 +82,21 @@ describe('checklist commands', () => {
       text: 'Optional task',
     });
 
-    await toggleChecklistItemChecked({ scope, itemId: item.id });
+    await toggleChecklistItemChecked({
+      scope,
+      itemId: item.id,
+      completionSettings: { ignored: true, levels: 1 },
+    });
     await expect(db.checklistItems.get(item.id)).resolves.toMatchObject({
       checked: true,
       ignored: false,
     });
 
-    await toggleChecklistItemChecked({ scope, itemId: item.id });
+    await toggleChecklistItemChecked({
+      scope,
+      itemId: item.id,
+      completionSettings: { ignored: true, levels: 1 },
+    });
     await expect(db.checklistItems.get(item.id)).resolves.toMatchObject({
       checked: false,
       ignored: true,
@@ -98,7 +106,11 @@ describe('checklist commands', () => {
       completedCount: 0,
     });
 
-    await toggleChecklistItemChecked({ scope, itemId: item.id });
+    await toggleChecklistItemChecked({
+      scope,
+      itemId: item.id,
+      completionSettings: { ignored: true, levels: 1 },
+    });
     await expect(db.checklistItems.get(item.id)).resolves.toMatchObject({
       checked: false,
       ignored: false,
@@ -106,6 +118,106 @@ describe('checklist commands', () => {
     await expect(db.dailyEntries.get(entry.id)).resolves.toMatchObject({
       itemCount: 1,
       completedCount: 0,
+    });
+  });
+
+  it('cycles between unchecked and completed with the default marking states', async () => {
+    const scope = createGuestScope('checklist-default-cycle');
+    const entry = await openOrCreateDailyEntry({
+      scope,
+      date: '2026-05-14',
+      timezone: 'America/Sao_Paulo',
+    });
+    const item = await createChecklistItem({
+      scope,
+      dailyEntryId: entry.id,
+      text: 'Plain task',
+    });
+
+    await toggleChecklistItemChecked({ scope, itemId: item.id });
+    await expect(db.checklistItems.get(item.id)).resolves.toMatchObject({
+      checked: true,
+      ignored: false,
+      markLevel: 1,
+    });
+
+    await toggleChecklistItemChecked({ scope, itemId: item.id });
+    await expect(db.checklistItems.get(item.id)).resolves.toMatchObject({
+      checked: false,
+      ignored: false,
+      markLevel: 0,
+    });
+  });
+
+  it('walks the configured marking levels and counts every level as completed', async () => {
+    const scope = createGuestScope('checklist-marking-levels');
+    const completionSettings = { ignored: false, levels: 3 };
+    const entry = await openOrCreateDailyEntry({
+      scope,
+      date: '2026-05-14',
+      timezone: 'America/Sao_Paulo',
+    });
+    const item = await createChecklistItem({
+      scope,
+      dailyEntryId: entry.id,
+      text: 'Spaced repetition',
+    });
+
+    for (const markLevel of [1, 2, 3]) {
+      await toggleChecklistItemChecked({
+        scope,
+        itemId: item.id,
+        completionSettings,
+      });
+      await expect(db.checklistItems.get(item.id)).resolves.toMatchObject({
+        checked: true,
+        ignored: false,
+        markLevel,
+      });
+      await expect(db.dailyEntries.get(entry.id)).resolves.toMatchObject({
+        itemCount: 1,
+        completedCount: 1,
+      });
+    }
+
+    await toggleChecklistItemChecked({
+      scope,
+      itemId: item.id,
+      completionSettings,
+    });
+    await expect(db.checklistItems.get(item.id)).resolves.toMatchObject({
+      checked: false,
+      markLevel: 0,
+    });
+  });
+
+  it('assigns an explicit marking level to selected checklist tasks', async () => {
+    const scope = createGuestScope('checklist-explicit-level');
+    const entry = await openOrCreateDailyEntry({
+      scope,
+      date: '2026-05-14',
+      timezone: 'America/Sao_Paulo',
+    });
+    const item = await createChecklistItem({
+      scope,
+      dailyEntryId: entry.id,
+      text: 'Review deck',
+    });
+
+    await setChecklistItemsChecked({
+      scope,
+      itemIds: [item.id],
+      checked: true,
+      markLevel: 4,
+    });
+
+    await expect(db.checklistItems.get(item.id)).resolves.toMatchObject({
+      checked: true,
+      ignored: false,
+      markLevel: 4,
+    });
+    await expect(db.dailyEntries.get(entry.id)).resolves.toMatchObject({
+      completedCount: 1,
     });
   });
 
@@ -1117,6 +1229,7 @@ describe('checklist commands', () => {
           text: 'Root task',
           checked: false,
           ignored: false,
+          markLevel: 0,
           bold: false,
           priority: false,
           collapsed: false,
@@ -1129,6 +1242,7 @@ describe('checklist commands', () => {
           text: 'Nested task',
           checked: true,
           ignored: false,
+          markLevel: 1,
           bold: true,
           priority: true,
           collapsed: false,
@@ -1141,6 +1255,7 @@ describe('checklist commands', () => {
           text: 'Later task',
           checked: false,
           ignored: false,
+          markLevel: 0,
           bold: false,
           priority: true,
           collapsed: true,

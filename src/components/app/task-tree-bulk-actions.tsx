@@ -4,9 +4,10 @@ import { Star, Tag, Trash2 } from 'lucide-react';
 import { CheckboxIndicator } from '@/components/ui';
 import { CategoryAssignmentMenu } from '@/features/categories';
 import {
+  defaultTaskCompletionSettings,
   getNextTaskCompletionValues,
   type CategoryTagSurface,
-  type TaskCompletionState,
+  type TaskCompletionSettings,
   type TaskCompletionValues,
 } from '@/lib/domain';
 import { TaskTreeClearCategoryIcon } from './task-tree-clear-category-icon';
@@ -34,7 +35,8 @@ export function TaskTreeBulkActions({
   actionPreferences = defaultTaskTreeRowActionPreferences,
   allBold,
   allPriority,
-  completionState,
+  completionSettings = defaultTaskCompletionSettings,
+  completionValues,
   labels,
   surface,
   onAssignCategory,
@@ -46,7 +48,8 @@ export function TaskTreeBulkActions({
   actionPreferences?: TaskTreeRowActionPreferences;
   allBold: boolean;
   allPriority: boolean;
-  completionState: TaskCompletionState;
+  completionSettings?: TaskCompletionSettings;
+  completionValues: TaskCompletionValues;
   labels: TaskTreeBulkActionLabels;
   surface: CategoryTagSurface;
   onAssignCategory: (categoryTagId: string | null) => Promise<void> | void;
@@ -76,16 +79,15 @@ export function TaskTreeBulkActions({
         className={buttonClassName}
         onClick={() =>
           void onToggleChecked(
-            getNextTaskCompletionValues(
-              completionState === 'completed',
-              completionState === 'ignored',
-            ),
+            getNextTaskCompletionValues(completionValues, completionSettings),
           )
         }
       >
         <CheckboxIndicator
-          checked={completionState === 'completed'}
-          indeterminate={completionState === 'ignored'}
+          checked={completionValues.completed}
+          indeterminate={completionValues.ignored}
+          level={completionValues.markLevel}
+          levels={completionSettings.levels}
           size="compact"
         />
         <span>{labels.mark}</span>

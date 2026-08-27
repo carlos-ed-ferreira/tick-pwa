@@ -5,12 +5,14 @@ import type {
   GoalGroup,
   GoalStep,
   LocalDateString,
+  TaskCompletionSettings,
 } from '@/lib/domain';
 import {
   createRankAfter,
   createId,
   createReorderedRank,
   createSortRankBetween,
+  defaultTaskCompletionSettings,
   getNextTaskCompletionValues,
   sortByRank,
 } from '@/lib/domain';
@@ -1173,6 +1175,7 @@ export async function createGoalStep({
         text,
         completed: false,
         ignored: false,
+        markLevel: 0,
         bold,
         priority: false,
         collapsed: false,
@@ -1281,9 +1284,11 @@ export async function updateGoalStepScheduledDate({
 export async function toggleGoalStepChecked({
   scope,
   goalStepId,
+  completionSettings = defaultTaskCompletionSettings,
 }: {
   scope: AppScope;
   goalStepId: string;
+  completionSettings?: TaskCompletionSettings;
 }): Promise<void> {
   await db.transaction(
     'rw',
@@ -1298,17 +1303,23 @@ export async function toggleGoalStepChecked({
       }
 
       const nextState = getNextTaskCompletionValues(
-        goalStep.completed,
-        goalStep.ignored ?? false,
+        {
+          completed: goalStep.completed,
+          ignored: goalStep.ignored,
+          markLevel: goalStep.markLevel,
+        },
+        completionSettings,
       );
       const updatedGoalStep = touchGoalStep(scope, {
         ...goalStep,
         completed: nextState.completed,
         ignored: nextState.ignored,
+        markLevel: nextState.markLevel,
       });
       await persistGoalStepUpdate(scope, updatedGoalStep, [
         'completed',
         'ignored',
+        'markLevel',
       ]);
     },
   );
@@ -1319,11 +1330,13 @@ export async function setGoalStepsCompleted({
   goalStepIds,
   completed,
   ignored = false,
+  markLevel = completed ? 1 : 0,
 }: {
   scope: AppScope;
   goalStepIds: string[];
   completed: boolean;
   ignored?: boolean;
+  markLevel?: number;
 }): Promise<void> {
   if (goalStepIds.length === 0) {
     return;
@@ -1341,7 +1354,8 @@ export async function setGoalStepsCompleted({
         if (
           !goalStep ||
           (goalStep.completed === completed &&
-            Boolean(goalStep.ignored) === ignored)
+            Boolean(goalStep.ignored) === ignored &&
+            goalStep.markLevel === markLevel)
         ) {
           continue;
         }
@@ -1350,10 +1364,12 @@ export async function setGoalStepsCompleted({
           ...goalStep,
           completed,
           ignored,
+          markLevel,
         });
         await persistGoalStepUpdate(scope, updatedGoalStep, [
           'completed',
           'ignored',
+          'markLevel',
         ]);
       }
     },

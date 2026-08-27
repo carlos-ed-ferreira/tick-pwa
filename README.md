@@ -15,6 +15,9 @@ com persistência remota.
 - importação JSON;
 - categorias separadas por superfície;
 - visualização de tarefas e etapas em lista única ou em abas por categoria;
+- estados de marcação configuráveis por superfície, com até cinco níveis e
+  estado ignorado opcional, e seleção direta do estado por clique direito ou
+  toque longo no checkbox;
 - grupos de metas, metas e etapas hierárquicas;
 - instalação como PWA e fallback de navegação offline;
 - interface adaptada a toque, com alvos de 44px, drag por toque e calendário
@@ -229,18 +232,20 @@ containers; o projeto não possui Dockerfile nem Compose próprios.
 
 ## Terminologia
 
-| Termo            | Significado no produto                                     |
-| ---------------- | ---------------------------------------------------------- |
-| Tarefa           | item de checklist associado a um dia em `/calendar`        |
-| Subtarefa        | descendente hierárquico de uma tarefa                      |
-| Categoria        | marcador visual pertencente a uma superfície específica    |
-| Grupo de metas   | agrupador opcional de metas                                |
-| Meta             | resultado acompanhado em `/goals`                          |
-| Etapa            | item hierárquico dentro de uma meta                        |
-| Subetapa         | descendente de uma etapa                                   |
-| Modo local       | uso sem conta, no escopo `guest:<installationId>`          |
-| Modo autenticado | uso no escopo `user:<supabaseUserId>`                      |
-| Allowlist        | tabela `account_access` que libera o protótipo autenticado |
+| Termo             | Significado no produto                                     |
+| ----------------- | ---------------------------------------------------------- |
+| Tarefa            | item de checklist associado a um dia em `/calendar`        |
+| Subtarefa         | descendente hierárquico de uma tarefa                      |
+| Categoria         | marcador visual pertencente a uma superfície específica    |
+| Grupo de metas    | agrupador opcional de metas                                |
+| Meta              | resultado acompanhado em `/goals`                          |
+| Etapa             | item hierárquico dentro de uma meta                        |
+| Subetapa          | descendente de uma etapa                                   |
+| Nível de marcação | grau de conclusão da tarefa ou etapa, de 1 até o máximo    |
+| Estado ignorado   | marcação opcional que exclui a tarefa das contagens        |
+| Modo local        | uso sem conta, no escopo `guest:<installationId>`          |
+| Modo autenticado  | uso no escopo `user:<supabaseUserId>`                      |
+| Allowlist         | tabela `account_access` que libera o protótipo autenticado |
 
 Os nomes técnicos principais continuam `ChecklistItem`, `Goal`, `GoalGroup` e
 `GoalStep`. Menus de overflow são chamados de **opções extras**.

@@ -11,6 +11,7 @@ import {
   type SetStateAction,
 } from 'react';
 import {
+  buildCompletionStateSettings,
   moveTreeItemToTarget,
   TaskTreeBulkActions,
   TaskTreeCategoryTabs,
@@ -26,12 +27,14 @@ import {
   useCategoryViewMode,
   type CategoryViewMode,
 } from '@/hooks/use-category-view-mode';
+import { useCompletionStates } from '@/hooks/use-completion-states';
 import { useTreeBulkActions } from '@/hooks/use-tree-bulk-actions';
 import { useTreeSelection } from '@/hooks/use-tree-selection';
 import { useTaskTreeRowActionPreferences } from '@/hooks/use-task-tree-row-action-visibility';
 import type {
   AppScopeId,
   ChecklistItem,
+  TaskCompletionSettings,
   TaskCompletionValues,
 } from '@/lib/domain';
 import {
@@ -57,7 +60,7 @@ import {
   buildCategoryTabs,
   createId,
   filterRowsByCategoryTab,
-  getSelectionCompletionState,
+  getSelectionCompletionValues,
   resolveActiveCategoryTab,
 } from '@/lib/domain';
 import { formatCountLabel, formatSelectionLabel } from '@/lib/i18n';
@@ -102,6 +105,7 @@ function createChecklistDraftItem({
     scheduledTime: null,
     checked: false,
     ignored: false,
+    markLevel: 0,
     bold: false,
     priority: false,
     collapsed: false,
@@ -388,6 +392,8 @@ export function ChecklistSurface({ dailyEntryId }: { dailyEntryId: string }) {
     [pendingCollapsedItemIds, pendingDeletedItemIds, rowsWithDrafts],
   );
   const { setViewMode, viewMode } = useCategoryViewMode('checklist_item');
+  const { completionSettings, setCompletionSettings } =
+    useCompletionStates('checklist_item');
   const [requestedCategoryTabId, setRequestedCategoryTabId] =
     useState(ALL_CATEGORY_TAB_ID);
   const categoryTabs = useMemo(
@@ -561,10 +567,11 @@ export function ChecklistSurface({ dailyEntryId }: { dailyEntryId: string }) {
     selectedItems.length > 0 && selectedItems.every((item) => item.priority);
   const allSelectedBold =
     selectedItems.length > 0 && selectedItems.every((item) => item.bold);
-  const selectedCompletionState = getSelectionCompletionState(
+  const selectedCompletionValues = getSelectionCompletionValues(
     selectedItems.map((item) => ({
       completed: item.checked,
       ignored: item.ignored,
+      markLevel: item.markLevel,
     })),
   );
   const toggleSelectedItemsChecked = useCallback(
@@ -578,6 +585,7 @@ export function ChecklistSurface({ dailyEntryId }: { dailyEntryId: string }) {
         itemIds: [...selectedIds],
         checked: nextValues.completed,
         ignored: nextValues.ignored,
+        markLevel: nextValues.markLevel,
       });
     },
     [scope, selectedIds],
@@ -629,7 +637,8 @@ export function ChecklistSurface({ dailyEntryId }: { dailyEntryId: string }) {
             actionPreferences={actionPreferences}
             allBold={allSelectedBold}
             allPriority={allSelectedPriority}
-            completionState={selectedCompletionState}
+            completionSettings={completionSettings}
+            completionValues={selectedCompletionValues}
             labels={{
               bold: dictionary.dayEditor.bulkBold,
               category: dictionary.dayEditor.bulkCategory,
@@ -727,6 +736,17 @@ export function ChecklistSurface({ dailyEntryId }: { dailyEntryId: string }) {
                   onChange: (nextViewMode) =>
                     setViewMode(nextViewMode as CategoryViewMode),
                 },
+                ...buildCompletionStateSettings({
+                  completionSettings,
+                  labels: {
+                    completionIgnoredState:
+                      dictionary.dayEditor.completionIgnoredState,
+                    completionLevels: dictionary.dayEditor.completionLevels,
+                    settingDisabled: dictionary.dayEditor.settingDisabled,
+                    settingEnabled: dictionary.dayEditor.settingEnabled,
+                  },
+                  onChange: setCompletionSettings,
+                }),
               ]}
               value={actionPreferences}
               onApplyToOtherSurface={(nextPreferences) =>
@@ -742,6 +762,7 @@ export function ChecklistSurface({ dailyEntryId }: { dailyEntryId: string }) {
             key={row.item.id}
             actionPreferences={actionPreferences}
             categoryTagMap={categoryTagMap}
+            completionSettings={completionSettings}
             dailyEntryId={dailyEntryId}
             deletedDraftItemIdsRef={deletedDraftItemIdsRef}
             isSelected={isSelected(row.item.id)}
@@ -765,6 +786,7 @@ export function ChecklistSurface({ dailyEntryId }: { dailyEntryId: string }) {
 function ChecklistRow({
   actionPreferences,
   categoryTagMap,
+  completionSettings,
   dailyEntryId,
   deletedDraftItemIdsRef,
   isSelected,
@@ -781,6 +803,7 @@ function ChecklistRow({
 }: {
   actionPreferences: TaskTreeRowActionPreferences;
   categoryTagMap: Map<string, { colorHex: string; name: string }>;
+  completionSettings: TaskCompletionSettings;
   dailyEntryId: string;
   deletedDraftItemIdsRef: MutableRefObject<Set<string>>;
   isSelected: boolean;
@@ -1052,7 +1075,9 @@ function ChecklistRow({
       categoryTagId={item.categoryTagId}
       categoryTagMap={categoryTagMap}
       checked={item.checked}
+      completionSettings={completionSettings}
       ignored={item.ignored}
+      markLevel={item.markLevel}
       collapsed={item.collapsed}
       depth={depth}
       hasChildren={hasChildren}
@@ -1138,10 +1163,25 @@ function ChecklistRow({
               scheduledTime,
             })
       }
+      onSetCompletion={(nextValues) =>
+        isDraft
+          ? Promise.resolve()
+          : setChecklistItemsChecked({
+              scope,
+              itemIds: [item.id],
+              checked: nextValues.completed,
+              ignored: nextValues.ignored,
+              markLevel: nextValues.markLevel,
+            })
+      }
       onToggleChecked={() =>
         isDraft
           ? Promise.resolve()
-          : toggleChecklistItemChecked({ scope, itemId: item.id })
+          : toggleChecklistItemChecked({
+              scope,
+              itemId: item.id,
+              completionSettings,
+            })
       }
       onToggleBold={() =>
         isDraft
