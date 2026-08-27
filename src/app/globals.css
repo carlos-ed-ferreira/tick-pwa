@@ -367,7 +367,7 @@ body {
 
   @media (max-width: 639px) {
     .calendar-day-cell {
-      min-height: 4.25rem;
+      min-height: 5.5rem;
       padding: 0.4rem 0.4rem;
     }
 

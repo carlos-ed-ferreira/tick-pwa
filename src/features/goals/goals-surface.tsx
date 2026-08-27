@@ -2872,7 +2872,7 @@ function GoalPreview({
 }) {
   const { dictionary } = useAppContext();
 
-  if (summary.itemCount === 0) {
+  if (summary.itemCount === 0 && summary.ignoredCount === 0) {
     return null;
   }
 
@@ -2880,22 +2880,28 @@ function GoalPreview({
     0,
     summary.categoryTagIds.length - visibleCategoryLimit,
   );
-  const isComplete = summary.completedCount >= summary.itemCount;
+  const hasCountedSteps = summary.itemCount > 0;
+  const isComplete =
+    hasCountedSteps && summary.completedCount >= summary.itemCount;
 
   return (
     <div className="mt-auto grid gap-2">
       <span className="flex flex-wrap items-center gap-1.5">
-        <span
-          className="rounded-full inset-ring-hairline inset-ring-(--chip-edge) px-2 py-1 text-[11px] font-semibold leading-none tabular-nums text-[#f7e8ce]"
-          style={badgeStyle}
-        >
-          {summary.completedCount}/{summary.itemCount}
-        </span>
+        {hasCountedSteps ? (
+          <span
+            className="rounded-full inset-ring-hairline inset-ring-(--chip-edge) px-2 py-1 text-[11px] font-semibold leading-none tabular-nums text-[#f7e8ce]"
+            style={badgeStyle}
+          >
+            {summary.completedCount}/{summary.itemCount}
+          </span>
+        ) : null}
         {summary.ignoredCount > 0 ? (
           <>
-            <span aria-hidden="true" className="text-[11px] text-[#63748a]">
-              ·
-            </span>
+            {hasCountedSteps ? (
+              <span aria-hidden="true" className="text-[11px] text-[#63748a]">
+                ·
+              </span>
+            ) : null}
             <span className="text-[11px] font-medium leading-none tabular-nums text-[#8fa0b3]">
               {formatCountLabel({
                 count: summary.ignoredCount,
@@ -2906,7 +2912,7 @@ function GoalPreview({
           </>
         ) : null}
       </span>
-      {isComplete ? null : (
+      {isComplete || !hasCountedSteps ? null : (
         <span
           className="h-1 w-full overflow-hidden rounded-full"
           style={neutralProgressTrackStyle}

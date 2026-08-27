@@ -165,6 +165,52 @@ describe('CalendarMonth', () => {
     );
   });
 
+  it('shows the ignored count when every task of the day is ignored', () => {
+    useMonthEntriesMock.mockReturnValue([
+      {
+        id: 'entry-1',
+        date: '2026-08-15',
+        itemCount: 0,
+        completedCount: 0,
+        categoryTagIds: [],
+        categorySummaries: [],
+      },
+    ]);
+    useMonthDayPreviewsMock.mockReturnValue(
+      new Map([['2026-08-15', { categoryTagIds: [], ignoredCount: 3 }]]),
+    );
+
+    render(<CalendarMonth />);
+
+    expect(screen.getByText('3 ignored')).toBeInTheDocument();
+    expect(screen.queryByText('0/0')).toBeNull();
+    expect(screen.queryByTestId('calendar-day-progress-fill')).toBeNull();
+  });
+
+  it('shows the ignored count when no task of the day is completed', () => {
+    useMonthEntriesMock.mockReturnValue([
+      {
+        id: 'entry-1',
+        date: '2026-08-15',
+        itemCount: 4,
+        completedCount: 0,
+        categoryTagIds: [],
+        categorySummaries: [],
+      },
+    ]);
+    useMonthDayPreviewsMock.mockReturnValue(
+      new Map([['2026-08-15', { categoryTagIds: [], ignoredCount: 2 }]]),
+    );
+
+    render(<CalendarMonth />);
+
+    expect(screen.getByText('0/4')).toBeInTheDocument();
+    expect(screen.getByText('2 ignored')).toBeInTheDocument();
+    expect(screen.getByTestId('calendar-day-progress-fill')).toHaveStyle({
+      width: '0%',
+    });
+  });
+
   it('keeps the day progress bar at 100% and shows the ignored task count', () => {
     useMonthEntriesMock.mockReturnValue([
       {

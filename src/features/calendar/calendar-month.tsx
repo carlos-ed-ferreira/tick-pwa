@@ -569,7 +569,9 @@ function DayCell({
           >
             <span
               className={
-                isCompact ? 'sr-only' : 'flex flex-wrap items-center gap-1.5'
+                isCompact
+                  ? 'flex flex-col items-start gap-1'
+                  : 'flex flex-wrap items-center gap-1.5'
               }
             >
               {entry.itemCount > 0 ? (
@@ -582,7 +584,7 @@ function DayCell({
               ) : null}
               {ignoredCount > 0 ? (
                 <>
-                  {entry.itemCount > 0 ? (
+                  {!isCompact && entry.itemCount > 0 ? (
                     <span
                       aria-hidden="true"
                       className="text-[10px] text-[#63748a]"

@@ -34,6 +34,28 @@ test.describe('mobile layout', () => {
     expect(box?.height).toBeGreaterThanOrEqual(60);
   });
 
+  test('keeps the ignored count visible in the compact density', async ({
+    page,
+  }) => {
+    await enterLocalMode(page);
+    await page.goto('/calendar');
+
+    await page.locator('.calendar-day-cell').nth(15).tap();
+    await page.getByRole('button', { name: labels.checklistEmpty }).tap();
+
+    const input = firstChecklistInput(page);
+    await input.fill('Ignored on mobile');
+    await input.press('Enter');
+
+    const checkbox = page.getByRole('checkbox').first();
+    await checkbox.tap();
+    await checkbox.tap();
+
+    await page.getByRole('button', { name: labels.backToCalendar }).tap();
+
+    await expect(page.getByText(/1 ignored|1 ignorada/).first()).toBeVisible();
+  });
+
   test('opens the day with a single tap', async ({ page }) => {
     await enterLocalMode(page);
     await page.goto('/calendar');

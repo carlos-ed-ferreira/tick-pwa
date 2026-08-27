@@ -118,7 +118,7 @@ cor do processo. Eles não falham o gate atual.
 - pgTAP: 74 testes aprovados, lint PostgreSQL sem erros e schema declarativo sem
   divergência;
 - audit de produção: 0 vulnerabilidades;
-- Playwright local: 24 cenários aprovados em desktop e mobile, mais 6 cenários
+- Playwright local: 24 cenários aprovados em desktop e mobile, mais 7 cenários
   exclusivos de layout mobile em `tests/e2e/mobile-layout.spec.ts`;
 - Playwright autenticado: 4 cenários aprovados em desktop e mobile, incluindo
   retry automático da outbox após reconexão;
@@ -181,7 +181,7 @@ cor do processo. Eles não falham o gate atual.
 | Performance        | p95 e bundle não pioram mais de 10% sem justificativa                               | caminho medido                      | planned        | baseline por cenário                      | sim após estabilidade       |
 | Local-first        | nenhum dado perdido; retry idempotente; reconexão converge                          | persistência alterada               | manual/planned | limitações no IMPLEMENTATION              | sim quando aplicável        |
 | i18n               | tipos válidos e chaves pt/en presentes; 0 string nova fora do mecanismo             | UI alterada                         | manual         | shape tipado já existe                    | sim quando aplicável        |
-| UI responsiva      | cenários mobile e desktop aprovados                                                 | UI alterada                         | enforced no CI | manter baseline de 6 no layout mobile     | sim quando aplicável        |
+| UI responsiva      | cenários mobile e desktop aprovados                                                 | UI alterada                         | enforced no CI | manter baseline de 7 no layout mobile     | sim quando aplicável        |
 
 `make check` é o gate local. O App CI acrescenta `make audit-prod`, o job de
 banco e o job de E2E. Coverage, segurança, complexidade e performance continuam
