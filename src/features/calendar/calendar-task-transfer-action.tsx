@@ -85,7 +85,7 @@ export function CalendarTaskTransferAction({
       <Button
         tone="subtle"
         aria-label={dictionary.calendar.transferItem}
-        className="rounded-full inset-ring-white/10 bg-white/5 px-4 text-[#fff9f2] hover:bg-white/10 hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
+        className="rounded-full inset-ring-white/10 bg-white/5 px-4 text-[#fff9f2] shadow-sm shadow-[#253241]/10 hover:-translate-y-0.5 hover:inset-ring-white/20 hover:bg-white/10 hover:text-[#fff9f2] hover:shadow-md focus-visible:outline-[#f0c38e] active:translate-y-0"
         onClick={() => setIsOpen(true)}
       >
         <ArrowRightLeft aria-hidden="true" className="size-4" />

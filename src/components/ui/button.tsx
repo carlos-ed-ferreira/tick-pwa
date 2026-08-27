@@ -33,7 +33,7 @@ export function Button({
   return (
     <button
       type={type}
-      className={`inline-flex min-h-10 items-center justify-center gap-2 rounded-[1rem] px-4 text-sm font-medium shadow-none transition-colors duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${buttonToneClassNames[tone]} ${className}`}
+      className={`inline-flex min-h-10 items-center justify-center gap-2 rounded-[1rem] px-4 text-sm font-medium shadow-none transition duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${buttonToneClassNames[tone]} ${className}`}
       {...props}
     >
       {children}

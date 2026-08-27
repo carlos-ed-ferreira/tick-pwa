@@ -103,7 +103,7 @@ export function DayDetail({
 
       <section
         aria-label={title}
-        className="flex min-h-0 flex-col rounded-[1.25rem] bg-white/[0.035] p-3 shadow-[0_18px_44px_rgba(5,8,13,0.16)] sm:p-4"
+        className="flex min-h-0 flex-col rounded-[0.75rem] bg-white/[0.035] p-3 shadow-[0_18px_44px_rgba(5,8,13,0.16)] sm:p-4"
       >
         {entry ? (
           <ChecklistSurface dailyEntryId={entry.id} />

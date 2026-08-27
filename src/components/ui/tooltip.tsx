@@ -22,6 +22,25 @@ interface TooltipPosition {
 
 const tooltipGap = 10;
 const viewportPadding = 10;
+const clippingOverflow = new Set(['auto', 'clip', 'hidden', 'scroll']);
+
+function isTextClipped(element: HTMLElement) {
+  if (element.scrollWidth <= element.clientWidth + 1) {
+    return false;
+  }
+
+  return clippingOverflow.has(window.getComputedStyle(element).overflowX);
+}
+
+function hasClippedText(container: HTMLElement | null) {
+  if (!container) {
+    return false;
+  }
+
+  return [container, ...container.querySelectorAll('*')].some(
+    (element) => element instanceof HTMLElement && isTextClipped(element),
+  );
+}
 
 export function Tooltip({
   children,
@@ -29,12 +48,14 @@ export function Tooltip({
   content,
   delay = 320,
   side = 'top',
+  whenTruncated = false,
 }: {
   children: ReactElement;
   className?: string;
   content: ReactNode;
   delay?: number;
   side?: TooltipSide;
+  whenTruncated?: boolean;
 }) {
   const tooltipId = useId();
   const containerRef = useRef<HTMLSpanElement | null>(null);
@@ -58,8 +79,13 @@ export function Tooltip({
 
   const openTooltip = useCallback(() => {
     clearOpenTimer();
+
+    if (whenTruncated && !hasClippedText(containerRef.current)) {
+      return;
+    }
+
     setIsOpen(true);
-  }, [clearOpenTimer]);
+  }, [clearOpenTimer, whenTruncated]);
 
   const scheduleTooltip = useCallback(() => {
     clearOpenTimer();

@@ -10,6 +10,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { GoalsSurface } from '@/features/goals';
 import { db } from '@/lib/db/database';
 import { ptBRDictionary } from '@/lib/i18n/dictionaries/pt-BR';
+import { simulateClippedText } from '../support/truncation';
 
 const scope = {
   id: 'guest:test',
@@ -821,7 +822,7 @@ describe('GoalsSurface', () => {
 
     expect(stepSurface).toBeInTheDocument();
     expect(stepSurface).not.toHaveClass('ring-1');
-    expect(stepSurface).toHaveClass('rounded-[1.25rem]', 'bg-white/[0.035]');
+    expect(stepSurface).toHaveClass('rounded-[0.75rem]', 'bg-white/[0.035]');
   });
 
   it('opens group actions from a three-dot button without opening the group card', async () => {
@@ -934,6 +935,7 @@ describe('GoalsSurface', () => {
     expect(title).toHaveClass('truncate');
     expect(header).toHaveClass('flex', 'items-center');
     expect(menu.parentElement?.parentElement).toBe(header);
+    simulateClippedText(title);
     fireEvent.mouseEnter(title.parentElement!);
 
     expect(await screen.findByRole('tooltip')).toHaveTextContent(
@@ -1055,6 +1057,7 @@ describe('GoalsSurface', () => {
       Node.DOCUMENT_POSITION_FOLLOWING,
     );
 
+    simulateClippedText(title);
     fireEvent.mouseEnter(title.parentElement!);
     expect(await screen.findByRole('tooltip')).toHaveTextContent(
       'A group name that needs truncation',

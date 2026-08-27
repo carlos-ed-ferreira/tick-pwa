@@ -66,6 +66,11 @@ em um tooltip acessível por mouse e teclado. Use o primitive `Tooltip` do
 projeto e preserve o texto integral como conteúdo do tooltip; não dependa do
 atributo HTML `title`.
 
+Quando o tooltip apenas repete um texto já visível, use `whenTruncated` para
+que ele apareça somente enquanto o conteúdo estiver cortado. Tooltip que
+acrescenta informação, como rótulo de controle apenas com ícone, continua
+sempre visível.
+
 ## Arquitetura e simplicidade
 
 Respeite as fronteiras documentadas no README e a direção das dependências.

@@ -57,6 +57,26 @@ describe('CalendarTaskTransferAction', () => {
     toastErrorMock.mockClear();
   });
 
+  it('lifts the transfer trigger on hover like the other pill actions', () => {
+    render(
+      <CalendarTaskTransferAction
+        sourceDate="2026-05-21"
+        onDuplicateToDate={vi.fn()}
+        onMoveToDate={vi.fn()}
+      />,
+    );
+
+    const trigger = screen.getByRole('button', {
+      name: 'Move or duplicate day',
+    });
+
+    expect(trigger).toHaveClass(
+      'hover:-translate-y-0.5',
+      'hover:shadow-md',
+      'active:translate-y-0',
+    );
+  });
+
   it('validates the destination date before transferring', async () => {
     const onMoveToDate = vi.fn().mockResolvedValue(undefined);
     const onDuplicateToDate = vi.fn().mockResolvedValue(undefined);

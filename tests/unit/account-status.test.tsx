@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AccountSyncIndicator } from '@/features/auth/account-sync-indicator';
 import { AccountStatus } from '@/features/auth/account-status';
 import type { Dictionary } from '@/lib/i18n';
+import { simulateClippedText } from '../support/truncation';
 
 const syncDictionary: Dictionary['sync'] = {
   failed: 'Sync failed',
@@ -116,6 +117,7 @@ describe('AccountStatus', () => {
 
     expect(tooltipTrigger).not.toBeNull();
     expect(email.parentElement).toHaveAttribute('tabindex', '0');
+    simulateClippedText(email);
     fireEvent.mouseEnter(tooltipTrigger as HTMLElement);
 
     expect(await screen.findByRole('tooltip')).toHaveTextContent(
@@ -150,8 +152,17 @@ describe('AccountStatus', () => {
     });
 
     expect(syncButton).toHaveClass('max-w-[10rem]');
-    expect(syncButton.querySelector('span')).toHaveClass('truncate');
+    expect(syncButton).toHaveClass(
+      'hover:-translate-y-0.5',
+      'hover:shadow-md',
+      'active:translate-y-0',
+    );
 
+    const statusLabel = syncButton.querySelector('span');
+
+    expect(statusLabel).toHaveClass('truncate');
+
+    simulateClippedText(statusLabel as HTMLElement);
     fireEvent.mouseEnter(syncButton.parentElement as HTMLElement);
 
     expect(await screen.findByRole('tooltip')).toHaveTextContent('Synced');

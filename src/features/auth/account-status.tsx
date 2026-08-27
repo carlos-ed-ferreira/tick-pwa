@@ -13,7 +13,7 @@ export function AccountStatus() {
 
     return (
       <div className="flex max-w-full flex-wrap items-center gap-3">
-        <Tooltip content={email}>
+        <Tooltip content={email} whenTruncated>
           <span
             className="inline-flex min-h-10 max-w-[11rem] items-center gap-2 rounded-full inset-ring-hairline inset-ring-white/10 bg-white/6 px-3.5 text-xs font-medium text-[#cbd5e0] shadow-sm shadow-[#253241]/10"
             tabIndex={0}

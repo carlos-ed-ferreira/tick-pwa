@@ -1898,6 +1898,7 @@ function GoalGroupCard({
             <Tooltip
               className="min-w-0 flex-1"
               content={group.title || dictionary.goals.newGroupName}
+              whenTruncated
             >
               {category?.useOwnName ? (
                 <span
@@ -1920,7 +1921,11 @@ function GoalGroupCard({
               )}
             </Tooltip>
             {category && !category.useOwnName ? (
-              <Tooltip className="max-w-[45%] shrink" content={category.name}>
+              <Tooltip
+                className="max-w-[45%] shrink"
+                content={category.name}
+                whenTruncated
+              >
                 <span
                   className="inline-flex min-h-7 min-w-0 max-w-full items-center gap-2 rounded-full inset-ring-hairline inset-ring-(--chip-edge) px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.24em] text-[#f7e8ce] shadow-sm shadow-[#253241]/10"
                   style={
@@ -2518,6 +2523,7 @@ function GoalCard({
           <Tooltip
             className="min-w-0 flex-1"
             content={goal.title || dictionary.goals.newGoalTitle}
+            whenTruncated
           >
             <span className="min-w-0 truncate text-base font-semibold leading-tight text-[#fff9f2]">
               {goal.title || dictionary.goals.newGoalTitle}
@@ -2526,7 +2532,11 @@ function GoalCard({
           {goalCategory &&
           !goalCategory.useOwnName &&
           goalCategory.name.trim().length > 0 ? (
-            <Tooltip className="max-w-[40%] shrink" content={goalCategory.name}>
+            <Tooltip
+              className="max-w-[40%] shrink"
+              content={goalCategory.name}
+              whenTruncated
+            >
               <span
                 className="min-w-0 truncate text-xs font-semibold leading-tight"
                 style={{ color: goalCategory.colorHex }}
@@ -3396,7 +3406,7 @@ function ArchivedGoalDetailCard({
   return (
     <section
       aria-label={goal.title}
-      className="flex min-h-0 flex-col rounded-[1.25rem] bg-white/[0.035] p-3 shadow-[0_18px_44px_rgba(5,8,13,0.16)] sm:p-4"
+      className="flex min-h-0 flex-col rounded-[0.75rem] bg-white/[0.035] p-3 shadow-[0_18px_44px_rgba(5,8,13,0.16)] sm:p-4"
       data-archived-goal-read-only="true"
     >
       {goalStepRows.length > 0 ? (
@@ -3714,7 +3724,7 @@ function GoalDetailCard({
   return (
     <section
       aria-label={goal.title}
-      className="flex min-h-0 flex-col gap-3 rounded-[1.25rem] bg-white/[0.035] p-3 shadow-[0_18px_44px_rgba(5,8,13,0.16)] sm:p-4"
+      className="flex min-h-0 flex-col gap-3 rounded-[0.75rem] bg-white/[0.035] p-3 shadow-[0_18px_44px_rgba(5,8,13,0.16)] sm:p-4"
     >
       {isTabView ? (
         <TaskTreeCategoryTabs

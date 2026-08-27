@@ -1,5 +1,5 @@
-import { fireEvent, render, screen } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { LanguageSwitcher } from '@/components/app';
 
 const { setLocaleMock } = vi.hoisted(() => ({
@@ -18,6 +18,10 @@ vi.mock('@/providers', () => ({
 }));
 
 describe('LanguageSwitcher', () => {
+  afterEach(() => {
+    cleanup();
+  });
+
   beforeEach(() => {
     setLocaleMock.mockClear();
   });
@@ -35,5 +39,13 @@ describe('LanguageSwitcher', () => {
     fireEvent.click(button);
 
     expect(setLocaleMock).toHaveBeenCalledWith('pt-BR');
+  });
+
+  it('does not repeat the visible locale label in a tooltip', () => {
+    render(<LanguageSwitcher />);
+
+    fireEvent.focus(screen.getByRole('button', { name: 'Language: English' }));
+
+    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
   });
 });

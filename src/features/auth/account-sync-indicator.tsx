@@ -50,10 +50,10 @@ export function AccountSyncIndicator({
 
   return (
     <>
-      <Tooltip content={statusLabel}>
+      <Tooltip content={statusLabel} whenTruncated>
         <Button
           aria-label={`${statusLabel}. ${actionLabel}`}
-          className={`min-h-10 max-w-[10rem] rounded-full px-3.5 text-xs ${stateStyles[summary.state]}`}
+          className={`min-h-10 max-w-[10rem] rounded-full px-3.5 text-xs shadow-sm shadow-[#253241]/10 hover:-translate-y-0.5 hover:shadow-md active:translate-y-0 ${stateStyles[summary.state]}`}
           disabled={isSyncing}
           tone="subtle"
           onClick={() => void forceSync()}
