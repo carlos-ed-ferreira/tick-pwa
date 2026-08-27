@@ -1,0 +1,62 @@
+name: Report failure
+description: Abre ou comenta uma issue de falha atribuída ao responsável.
+
+inputs:
+  token:
+    description: Token com permissão de escrita em issues.
+    required: true
+  repository:
+    description: Repositório alvo no formato owner/repo.
+    required: true
+  label:
+    description: Rótulo que identifica e agrupa a falha.
+    required: true
+  title:
+    description: Título da issue de falha.
+    required: true
+  assignee:
+    description: Login que recebe a atribuição e a notificação.
+    required: true
+  run-url:
+    description: URL da execução que falhou.
+    required: true
+  commit-sha:
+    description: SHA avaliado pela execução que falhou.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Open or update the failure issue
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+        GH_REPO: ${{ inputs.repository }}
+        LABEL: ${{ inputs.label }}
+        TITLE: ${{ inputs.title }}
+        ASSIGNEE: ${{ inputs.assignee }}
+        RUN_URL: ${{ inputs.run-url }}
+        COMMIT_SHA: ${{ inputs.commit-sha }}
+      run: |
+        gh label create "$LABEL" \
+          --color b60205 \
+          --description "$TITLE" \
+          --force
+
+        body="$(printf 'Run: %s\nCommit: %s' "$RUN_URL" "$COMMIT_SHA")"
+        issue="$(gh issue list \
+          --label "$LABEL" \
+          --state open \
+          --limit 1 \
+          --json number \
+          --jq '.[0].number // empty')"
+
+        if [ -n "$issue" ]; then
+          gh issue comment "$issue" --body "$body"
+        else
+          gh issue create \
+            --title "$TITLE" \
+            --body "$body" \
+            --label "$LABEL" \
+            --assignee "$ASSIGNEE"
+        fi

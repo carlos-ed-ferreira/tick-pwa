@@ -86,8 +86,14 @@ jobs:
       - name: Install dependencies
         run: make install-ci
 
+      - name: Disable unavailable apt repositories
+        run: |
+          sudo rm -f /etc/apt/sources.list.d/microsoft*.list \
+            /etc/apt/sources.list.d/microsoft*.sources \
+            /etc/apt/sources.list.d/*azure-cli*
+
       - name: Install Playwright browsers
-        run: npx playwright install --with-deps chromium
+        run: make test-e2e-browsers
 
       - name: Run local end-to-end tests
         run: make test-e2e
@@ -105,3 +111,31 @@ jobs:
             .next/playwright-results
             .next/playwright-account-results
           retention-days: 7
+
+  report-failure:
+    name: Report failed run
+    needs:
+      - check
+      - database
+      - end-to-end
+    if: failure() && github.event_name == 'push'
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      issues: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Report the failed run
+        uses: ./.github/actions/report-failure
+        with:
+          token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          label: ci-failure
+          title: App CI falhou na main
+          assignee: ${{ github.repository_owner }}
+          run-url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          commit-sha: ${{ github.sha }}

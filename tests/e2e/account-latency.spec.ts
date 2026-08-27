@@ -1,6 +1,7 @@
 import { expect, test, type Page, type Route } from '@playwright/test';
 import { firstChecklistInput, labels } from './helpers';
 
+const remoteResponseDelayMs = 2_500;
 const userId = '00000000-0000-4000-8000-000000000001';
 const accessToken =
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjoyMDAwMDAwMDAwLCJzdWIiOiIwMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiLCJlbWFpbCI6ImRldkBlbWFpbC5jb20iLCJyb2xlIjoiYXV0aGVudGljYXRlZCJ9.signature';
@@ -66,7 +67,9 @@ async function mockDelayedSupabase(page: Page) {
         }>;
         p_operation_id: string;
       };
-      await new Promise((resolve) => setTimeout(resolve, 1_000));
+      await new Promise((resolve) =>
+        setTimeout(resolve, remoteResponseDelayMs),
+      );
       revision += 1;
       await fulfillJson(route, {
         operationId: payload.p_operation_id,
@@ -84,7 +87,7 @@ async function mockDelayedSupabase(page: Page) {
       return;
     }
 
-    await new Promise((resolve) => setTimeout(resolve, 1_000));
+    await new Promise((resolve) => setTimeout(resolve, remoteResponseDelayMs));
     revision += 1;
     await fulfillJson(route, { revision });
   });
@@ -116,12 +119,12 @@ test('keeps authenticated checklist interactions responsive while Supabase is de
     page.getByRole('button', { name: labels.backToCalendar }),
   ).toBeVisible();
   await page.getByRole('button', { name: labels.checklistEmpty }).click();
-  await expect(page.getByRole('status')).toHaveText('Syncing');
 
   const itemInput = firstChecklistInput(page);
   await itemInput.fill('Authenticated delayed item');
   await itemInput.press('Enter');
 
+  await expect(page.getByRole('status')).toHaveText('Syncing');
   await expect(page.locator('[data-checklist-input="true"]')).toHaveCount(2);
   await expect(
     page.locator('[data-checklist-input="true"]').nth(1),
