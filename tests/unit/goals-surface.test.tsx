@@ -401,6 +401,51 @@ describe('GoalsSurface', () => {
     cleanup();
   });
 
+  it('shows the ignored step count when every step of the goal is ignored', () => {
+    useGoalStepSummariesMock.mockReturnValue(
+      new Map([
+        [
+          'goal-1',
+          {
+            completedCount: 0,
+            itemCount: 0,
+            ignoredCount: 3,
+            categoryTagIds: [],
+            categorySummaries: new Map(),
+          },
+        ],
+      ]),
+    );
+
+    render(<GoalsSurface />);
+
+    expect(screen.getByText('3 ignored')).toBeInTheDocument();
+    expect(screen.queryByText('0/0')).toBeNull();
+    expect(screen.queryByTestId('goal-progress-fill')).toBeNull();
+  });
+
+  it('shows the ignored step count when no step is completed yet', () => {
+    useGoalStepSummariesMock.mockReturnValue(
+      new Map([
+        [
+          'goal-1',
+          {
+            completedCount: 0,
+            itemCount: 4,
+            ignoredCount: 2,
+            categoryTagIds: [],
+            categorySummaries: new Map(),
+          },
+        ],
+      ]),
+    );
+
+    render(<GoalsSurface />);
+
+    expect(screen.getByText('0/4')).toBeInTheDocument();
+    expect(screen.getByText('2 ignored')).toBeInTheDocument();
+  });
+
   it('keeps the goal progress bar neutral beside the ignored step count', () => {
     useGoalStepSummariesMock.mockReturnValue(
       new Map([

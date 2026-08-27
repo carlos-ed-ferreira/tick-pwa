@@ -1,3 +1,4 @@
+export * from './app-header';
 export * from './language-switcher';
 export * from './date-picker';
 export * from './dropdown-join-shape';

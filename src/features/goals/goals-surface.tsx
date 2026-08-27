@@ -1872,7 +1872,7 @@ function GoalGroupCard({
             <button
               type="button"
               aria-label={dictionary.goals.dragGoal}
-              className="inline-flex size-7 shrink-0 touch-none cursor-grab items-center justify-center rounded-full inset-ring-hairline inset-ring-white/10 bg-white/[0.045] text-[#aebac8] transition hover:-translate-y-0.5 hover:inset-ring-[#f0c38e]/50 hover:bg-[#f0c38e]/14 hover:text-[#fff9f2] hover:shadow-[0_10px_22px_rgba(240,195,142,0.16)] active:translate-y-0 active:cursor-grabbing focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0]"
+              className="touch-target inline-flex size-7 shrink-0 touch-none cursor-grab items-center justify-center rounded-full inset-ring-hairline inset-ring-white/10 bg-white/[0.045] text-[#aebac8] transition hover:-translate-y-0.5 hover:inset-ring-[#f0c38e]/50 hover:bg-[#f0c38e]/14 hover:text-[#fff9f2] hover:shadow-[0_10px_22px_rgba(240,195,142,0.16)] active:translate-y-0 active:cursor-grabbing focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0]"
               onClick={(event) => event.stopPropagation()}
               onPointerDown={(event) => onBeginPointerDrag(groupPayload, event)}
             >
@@ -2495,7 +2495,7 @@ function GoalCard({
               <button
                 type="button"
                 aria-label={dictionary.goals.dragGoal}
-                className="inline-flex size-7 shrink-0 touch-none cursor-grab items-center justify-center rounded-full inset-ring-hairline inset-ring-white/10 bg-white/[0.045] text-[#aebac8] transition hover:-translate-y-0.5 hover:inset-ring-[#f0c38e]/50 hover:bg-[#f0c38e]/14 hover:text-[#fff9f2] hover:shadow-[0_10px_22px_rgba(240,195,142,0.16)] active:translate-y-0 active:cursor-grabbing focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0]"
+                className="touch-target inline-flex size-7 shrink-0 touch-none cursor-grab items-center justify-center rounded-full inset-ring-hairline inset-ring-white/10 bg-white/[0.045] text-[#aebac8] transition hover:-translate-y-0.5 hover:inset-ring-[#f0c38e]/50 hover:bg-[#f0c38e]/14 hover:text-[#fff9f2] hover:shadow-[0_10px_22px_rgba(240,195,142,0.16)] active:translate-y-0 active:cursor-grabbing focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0]"
                 onClick={(event) => event.stopPropagation()}
                 onPointerDown={(event) =>
                   onBeginPointerDrag?.(goalPayload, event)
@@ -2872,7 +2872,7 @@ function GoalPreview({
 }) {
   const { dictionary } = useAppContext();
 
-  if (summary.itemCount === 0) {
+  if (summary.itemCount === 0 && summary.ignoredCount === 0) {
     return null;
   }
 
@@ -2880,22 +2880,28 @@ function GoalPreview({
     0,
     summary.categoryTagIds.length - visibleCategoryLimit,
   );
-  const isComplete = summary.completedCount >= summary.itemCount;
+  const hasCountedSteps = summary.itemCount > 0;
+  const isComplete =
+    hasCountedSteps && summary.completedCount >= summary.itemCount;
 
   return (
     <div className="mt-auto grid gap-2">
       <span className="flex flex-wrap items-center gap-1.5">
-        <span
-          className="rounded-full inset-ring-hairline inset-ring-(--chip-edge) px-2 py-1 text-[11px] font-semibold leading-none tabular-nums text-[#f7e8ce]"
-          style={badgeStyle}
-        >
-          {summary.completedCount}/{summary.itemCount}
-        </span>
+        {hasCountedSteps ? (
+          <span
+            className="rounded-full inset-ring-hairline inset-ring-(--chip-edge) px-2 py-1 text-[11px] font-semibold leading-none tabular-nums text-[#f7e8ce]"
+            style={badgeStyle}
+          >
+            {summary.completedCount}/{summary.itemCount}
+          </span>
+        ) : null}
         {summary.ignoredCount > 0 ? (
           <>
-            <span aria-hidden="true" className="text-[11px] text-[#63748a]">
-              ·
-            </span>
+            {hasCountedSteps ? (
+              <span aria-hidden="true" className="text-[11px] text-[#63748a]">
+                ·
+              </span>
+            ) : null}
             <span className="text-[11px] font-medium leading-none tabular-nums text-[#8fa0b3]">
               {formatCountLabel({
                 count: summary.ignoredCount,
@@ -2906,7 +2912,7 @@ function GoalPreview({
           </>
         ) : null}
       </span>
-      {isComplete ? null : (
+      {isComplete || !hasCountedSteps ? null : (
         <span
           className="h-1 w-full overflow-hidden rounded-full"
           style={neutralProgressTrackStyle}

@@ -22,7 +22,7 @@ export function AuthShell({
   const { dictionary } = useAppContext();
 
   return (
-    <main className="relative isolate flex min-h-dvh overflow-hidden bg-background px-5 py-10 text-foreground sm:px-8 md:items-center">
+    <main className="app-safe-padding relative isolate flex min-h-dvh overflow-hidden bg-background pt-10 text-foreground [--app-safe-padding-block-end:2.5rem] [--app-safe-padding-inline:1.25rem] sm:[--app-safe-padding-inline:2rem] md:items-center">
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 opacity-80"

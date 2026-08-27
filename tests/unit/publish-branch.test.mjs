@@ -32,6 +32,7 @@ describe('publishDevelopmentBranch', () => {
       'https://github.com/example/tick/pull/1\n',
       '',
       '',
+      '',
       'MERGED\n',
       '',
       '',
@@ -66,6 +67,18 @@ describe('publishDevelopmentBranch', () => {
         ],
       ],
       ['gh', ['pr', 'create', '--base', 'main', '--head', 'dev', '--fill']],
+      [
+        'gh',
+        [
+          'api',
+          '--method',
+          'PUT',
+          '--silent',
+          'repos/{owner}/{repo}/issues/1/subscription',
+          '-F',
+          'ignored=true',
+        ],
+      ],
       [
         'gh',
         [
@@ -119,6 +132,7 @@ describe('publishDevelopmentBranch', () => {
       'https://github.com/example/tick/pull/2\n',
       '',
       '',
+      '',
       'MERGED\n',
       '',
       '',
@@ -152,6 +166,7 @@ describe('publishDevelopmentBranch', () => {
       'https://github.com/example/tick/pull/3\n',
       '',
       '',
+      '',
       'OPEN\n',
       'MERGED\n',
       '',
@@ -176,6 +191,7 @@ describe('publishDevelopmentBranch', () => {
       '',
       'https://github.com/example/tick/pull/4\n',
       '',
+      '',
       createMissingChecksError(),
       '',
       'MERGED\n',
@@ -188,6 +204,64 @@ describe('publishDevelopmentBranch', () => {
     await publishDevelopmentBranch({ execute, wait, write: vi.fn() });
 
     expect(wait).toHaveBeenCalledWith(2_000);
+    expect(execute).toHaveBeenLastCalledWith('git', ['push', 'origin', 'dev']);
+  });
+
+  it('mutes the pull request notifications for the author', async () => {
+    const execute = createExecutor([
+      'dev\n',
+      '',
+      '',
+      '',
+      '',
+      '',
+      'https://github.com/example/tick/pull/7\n',
+      '',
+      '',
+      '',
+      'MERGED\n',
+      '',
+      '',
+      '',
+    ]);
+
+    await publishDevelopmentBranch({ execute, write: vi.fn() });
+
+    expect(execute).toHaveBeenCalledWith('gh', [
+      'api',
+      '--method',
+      'PUT',
+      '--silent',
+      'repos/{owner}/{repo}/issues/7/subscription',
+      '-F',
+      'ignored=true',
+    ]);
+  });
+
+  it('keeps publishing when GitHub refuses to mute the pull request', async () => {
+    const execute = createExecutor([
+      'dev\n',
+      '',
+      '',
+      '',
+      '',
+      '',
+      'https://github.com/example/tick/pull/8\n',
+      new Error('HTTP 403'),
+      '',
+      '',
+      'MERGED\n',
+      '',
+      '',
+      '',
+    ]);
+    const write = vi.fn();
+
+    await publishDevelopmentBranch({ execute, wait: vi.fn(), write });
+
+    expect(write).toHaveBeenCalledWith(
+      'Não foi possível silenciar as notificações do pull request.',
+    );
     expect(execute).toHaveBeenLastCalledWith('git', ['push', 'origin', 'dev']);
   });
 

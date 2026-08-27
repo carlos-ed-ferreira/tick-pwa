@@ -17,6 +17,8 @@ com persistência remota.
 - visualização de tarefas e etapas em lista única ou em abas por categoria;
 - grupos de metas, metas e etapas hierárquicas;
 - instalação como PWA e fallback de navegação offline;
+- interface adaptada a toque, com alvos de 44px, drag por toque e calendário
+  de densidade compacta em telas estreitas;
 - interface em português do Brasil e inglês;
 - modo local e modo autenticado por allowlist.
 
@@ -66,6 +68,40 @@ Browser
 - `supabase/schemas/tick.sql` é o estado declarativo canônico do Postgres;
 - `tests/unit`, `tests/integration`, `tests/e2e` e `supabase/tests` cobrem níveis
   diferentes do sistema.
+
+### Responsividade e adaptação mobile
+
+O produto é mobile-first e mantém uma única linguagem visual nos dois tamanhos.
+Cores, tokens, superfícies, sombras, tipografia e primitives são idênticos em
+mobile e desktop; o que muda é densidade, área de toque e composição.
+
+A adaptação usa dois sinais, e não breakpoints novos que alterem o desktop:
+
+- capacidade do ponteiro, por `(pointer: coarse)`, para comportamento de
+  interação e área de toque;
+- largura real medida em runtime, para densidade do calendário.
+
+Convenções em vigor:
+
+| Sinal                      | Onde                               | Efeito                                              |
+| -------------------------- | ---------------------------------- | --------------------------------------------------- |
+| `useCoarsePointer`         | `src/hooks/use-coarse-pointer.ts`  | toque abre o dia; drag de árvore por ponteiro       |
+| `@media (pointer: coarse)` | `src/app/globals.css`              | área de toque de 44px e descrição sempre visível    |
+| `.touch-target`            | primitives `Button` e `IconButton` | amplia só a área de acerto, sem mudar o desenho     |
+| `getCalendarDayDensity`    | `src/features/calendar`            | célula do calendário compacta abaixo de 72px        |
+| `sm:` restaurando o valor  | composições mobile                 | preserva o desenho desktop existente                |
+| `.app-safe-padding`        | shells de página                   | respeita `env(safe-area-inset-*)` com `viewportFit` |
+
+Regras derivadas:
+
+- alvo de toque mínimo de 44px em ponteiro grosso, obtido por área de acerto e
+  não por aumento visual do controle;
+- todo controle com desenho menor que 44px usa `touch-target`;
+- reordenação de árvore funciona por HTML5 drag no mouse e por Pointer Events
+  no toque, com o mesmo contrato de placement em `tree-touch-drag.ts`;
+- `interactiveWidget: 'resizes-content'` no viewport para o teclado virtual;
+- composição mobile própria só quando comprimir o desktop não atende, sempre
+  restaurando o desenho desktop a partir de `sm:`.
 
 ### Fluxo de leitura e escrita
 
@@ -180,6 +216,7 @@ quando o Supabase está indisponível.
 | i18n               | dicionários tipados `pt-BR` e `en`                            |
 | Unit/integration   | Vitest 4, Testing Library, jsdom e fake-indexeddb             |
 | E2E                | Playwright 1.60, Chromium desktop e perfil Pixel 7            |
+| Responsividade     | mobile-first por `(pointer: coarse)` e largura medida         |
 | Banco              | Supabase CLI e pgTAP                                          |
 | Análise            | TypeScript, ESLint 9 e verificador próprio de comentários     |
 | Formatação         | Prettier 3 e EditorConfig                                     |
@@ -408,6 +445,7 @@ recorrente sem target, adicione-a ao `Makefile` e ao `make help` primeiro.
 | testes da outbox   | `make test-account-persistence`     |
 | testes PowerSync   | `make test-powersync`               |
 | E2E padrão         | `make test-e2e`                     |
+| E2E layout mobile  | `make test-e2e-mobile`              |
 | E2E reload offline | `make test-e2e-offline`             |
 | E2E autenticado    | `make test-e2e-account`             |
 | publicar em `main` | `make publish`                      |
@@ -467,9 +505,10 @@ detecta mudanças de banco, faz dry-run e então aplica migrations.
 
 A publicação cotidiana parte da branch `dev`. Depois de criar o commit, execute
 `make publish`. O comando exige worktree limpo, envia `dev`, cria ou reutiliza
-o pull request para `main` e habilita squash automático. O comando aguarda o
-check obrigatório `Check app`, confirma o merge e reconcilia `dev` com a nova
-`main` para preparar a publicação seguinte. Não faça push direto para `main` nem
+o pull request para `main`, silencia as notificações desse pull request para o
+autor e habilita squash automático. O comando aguarda o check obrigatório
+`Check app`, confirma o merge e reconcilia `dev` com a nova `main` para preparar
+a publicação seguinte. Não faça push direto para `main` nem
 use force push para contornar essa proteção.
 
 Commits e `make publish` são decisões manuais do desenvolvedor. Agentes devem

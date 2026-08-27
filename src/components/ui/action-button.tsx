@@ -101,7 +101,7 @@ export const ActionButton = forwardRef<HTMLButtonElement, ActionButtonProps>(
         {description ? (
           <p
             id={descriptionId}
-            className={`grid max-h-0 cursor-pointer select-none overflow-hidden px-3.5 text-xs leading-5 opacity-0 transition-all duration-200 ease-out group-hover:max-h-14 group-hover:pb-3 group-hover:opacity-100 ${toneStyles.description}`}
+            className={`action-button-description grid max-h-0 cursor-pointer select-none overflow-hidden px-3.5 text-xs leading-5 opacity-0 transition-all duration-200 ease-out group-hover:max-h-14 group-hover:pb-3 group-hover:opacity-100 ${toneStyles.description}`}
           >
             <span className="block pt-0.5">{description}</span>
           </p>

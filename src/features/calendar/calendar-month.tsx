@@ -39,7 +39,13 @@ import {
   isLocalDateString,
   parseLocalDateKey,
 } from '@/lib/time';
+import { useCoarsePointer } from '@/hooks/use-coarse-pointer';
 import { useAppContext } from '@/providers';
+import {
+  getCalendarDayDensity,
+  getVisibleCategoryLimit,
+  type CalendarDayDensity,
+} from './calendar-day-density';
 import { useMonthEntries } from './use-month-entries';
 
 function createMonthLabelDate(monthDate: LocalDateString): Date {
@@ -138,25 +144,6 @@ function getProgressTone(completedRatio: number) {
   };
 }
 
-const categoryDotSize = 10;
-const categoryDotGap = 8;
-const dayCellHorizontalPadding = 10;
-
-function getVisibleCategoryLimit(cellWidth: number): number {
-  if (cellWidth <= 0) {
-    return Number.POSITIVE_INFINITY;
-  }
-
-  const availableWidth = cellWidth - dayCellHorizontalPadding * 2;
-
-  return Math.max(
-    1,
-    Math.floor(
-      (availableWidth + categoryDotGap) / (categoryDotSize + categoryDotGap),
-    ),
-  );
-}
-
 function isCategoryComplete(
   summary: DailyEntryCategorySummary | undefined,
 ): boolean {
@@ -202,7 +189,9 @@ export function CalendarMonth() {
   const entries = useMonthEntries(scope, visibleMonth);
   const dayPreviews = useMonthDayPreviews(scope, entries);
   const categoryTags = useCategoryTags(scope, 'checklist_item');
+  const isCoarsePointer = useCoarsePointer();
   const gridRef = useRef<HTMLDivElement | null>(null);
+  const monthStripRef = useRef<HTMLDivElement | null>(null);
   const [dayCellWidth, setDayCellWidth] = useState(0);
   const entryMap = useMemo(() => entriesByDate(entries), [entries]);
   const categoryTagMap = useMemo(
@@ -214,6 +203,7 @@ export function CalendarMonth() {
     [visibleMonth],
   );
   const visibleCategoryLimit = getVisibleCategoryLimit(dayCellWidth);
+  const dayDensity = getCalendarDayDensity(dayCellWidth);
 
   useLayoutEffect(() => {
     const grid = gridRef.current;
@@ -226,9 +216,17 @@ export function CalendarMonth() {
       setDayCellWidth(grid.getBoundingClientRect().width / 7);
 
     measureDayCell();
-    window.addEventListener('resize', measureDayCell);
 
-    return () => window.removeEventListener('resize', measureDayCell);
+    if (typeof ResizeObserver === 'undefined') {
+      window.addEventListener('resize', measureDayCell);
+
+      return () => window.removeEventListener('resize', measureDayCell);
+    }
+
+    const observer = new ResizeObserver(measureDayCell);
+    observer.observe(grid);
+
+    return () => observer.disconnect();
   }, [openDayDate]);
   const monthLabel = formatMonthLabel(
     createMonthLabelDate(visibleMonth),
@@ -269,6 +267,34 @@ export function CalendarMonth() {
   const selectDay = useCallback((date: LocalDateString) => {
     setSelectedDay(date);
   }, []);
+
+  useEffect(() => {
+    const strip = monthStripRef.current;
+
+    if (!strip || strip.scrollWidth <= strip.clientWidth) {
+      return;
+    }
+
+    const activeTab = strip.querySelector<HTMLElement>(
+      '[aria-selected="true"]',
+    );
+
+    if (!activeTab) {
+      return;
+    }
+
+    const left = Math.max(
+      0,
+      activeTab.offsetLeft - (strip.clientWidth - activeTab.offsetWidth) / 2,
+    );
+
+    if (typeof strip.scrollTo === 'function') {
+      strip.scrollTo({ behavior: 'smooth', left });
+      return;
+    }
+
+    strip.scrollLeft = left;
+  }, [visibleMonthIndex]);
 
   useEffect(() => {
     const clearNavigationOverride = () => {
@@ -340,6 +366,7 @@ export function CalendarMonth() {
 
           <div className="flex flex-col gap-2 xl:flex-row xl:items-center xl:justify-between">
             <div
+              ref={monthStripRef}
               role="tablist"
               aria-label={periodLabel}
               className="calendar-month-strip flex flex-1 items-center gap-1 overflow-x-auto rounded-full inset-ring-hairline inset-ring-white/8 bg-white/[0.025] p-0.5 sm:justify-between"
@@ -419,9 +446,11 @@ export function CalendarMonth() {
             <DayCell
               key={day.date}
               date={day.date}
+              density={dayDensity}
               entry={entryMap.get(day.date) ?? null}
               categoryTagMap={categoryTagMap}
               dayPreview={dayPreviews.get(day.date) ?? null}
+              opensOnSingleTap={isCoarsePointer}
               visibleCategoryLimit={visibleCategoryLimit}
               inCurrentMonth={day.inCurrentMonth}
               isSelected={activeDay === day.date}
@@ -448,6 +477,7 @@ export function CalendarMonth() {
 function DayCell({
   date,
   dayPreview,
+  density,
   entry,
   categoryTagMap,
   inCurrentMonth,
@@ -455,10 +485,12 @@ function DayCell({
   isToday,
   onOpenDay,
   onSelectDay,
+  opensOnSingleTap,
   visibleCategoryLimit,
 }: {
   date: LocalDateString;
   dayPreview: DayItemPreview | null;
+  density: CalendarDayDensity;
   entry: DailyEntry | null;
   categoryTagMap: Map<string, { colorHex: string }>;
   inCurrentMonth: boolean;
@@ -466,6 +498,7 @@ function DayCell({
   isToday: boolean;
   onOpenDay: (date: LocalDateString) => void;
   onSelectDay: (date: LocalDateString) => void;
+  opensOnSingleTap: boolean;
   visibleCategoryLimit: number;
 }) {
   const { dictionary } = useAppContext();
@@ -488,6 +521,7 @@ function DayCell({
     ]),
   );
   const progressTone = getProgressTone(completedRatio);
+  const isCompact = density === 'compact';
 
   return (
     <button
@@ -503,7 +537,7 @@ function DayCell({
           : 'shadow-none'
       }`}
       onClick={() => {
-        if (window.matchMedia('(pointer: coarse)').matches) {
+        if (opensOnSingleTap) {
           onOpenDay(date);
           return;
         }
@@ -524,10 +558,22 @@ function DayCell({
         {parsedDate.getDate()}
       </span>
 
-      <div className="mt-auto flex flex-col gap-2.5 pt-2">
+      <div
+        className={`mt-auto flex flex-col ${
+          isCompact ? 'gap-1.5 pt-1' : 'gap-2.5 pt-2'
+        }`}
+      >
         {entry && (entry.itemCount > 0 || ignoredCount > 0) ? (
-          <span className="flex flex-col gap-2 text-xs">
-            <span className="flex flex-wrap items-center gap-1.5">
+          <span
+            className={`flex flex-col text-xs ${isCompact ? 'gap-1' : 'gap-2'}`}
+          >
+            <span
+              className={
+                isCompact
+                  ? 'flex flex-col items-start gap-1'
+                  : 'flex flex-wrap items-center gap-1.5'
+              }
+            >
               {entry.itemCount > 0 ? (
                 <span
                   className="calendar-chip px-2 py-0.5 text-[11px] font-semibold leading-none tabular-nums text-[#f7e8ce]"
@@ -538,7 +584,7 @@ function DayCell({
               ) : null}
               {ignoredCount > 0 ? (
                 <>
-                  {entry.itemCount > 0 ? (
+                  {!isCompact && entry.itemCount > 0 ? (
                     <span
                       aria-hidden="true"
                       className="text-[10px] text-[#63748a]"

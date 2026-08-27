@@ -52,13 +52,15 @@ import {
   type TaskTreeRowActionPreferences,
 } from './task-tree-row-action-visibility';
 import type { TreeMovePlacement } from './move-tree-item-to-target';
+import {
+  createTreeDragSource,
+  resolveTreeDropPlacement,
+  useTreeTouchDrag,
+  validateTreeDrop,
+  type TreeDragSource,
+} from './tree-touch-drag';
 
-let activeTreeDrag: {
-  itemId: string;
-  nextSiblingId: string | null;
-  parentId: string | null;
-  previousSiblingId: string | null;
-} | null = null;
+let activeTreeDrag: TreeDragSource | null = null;
 
 interface TaskTreeRowLabels {
   addChild: string;
@@ -518,38 +520,31 @@ export function TaskTreeEditableRow({
     });
   }
 
+  const { isTouchDragging, startTouchDrag, touchDropPosition } =
+    useTreeTouchDrag({
+      enabled: actionPreferences.drag && !isSelectionMode,
+      itemId,
+      onMoveTo,
+      parentId,
+      siblingIds,
+    });
+
   function getDropPosition(
     event: DragEvent<HTMLDivElement>,
   ): TreeMovePlacement {
     const rect = event.currentTarget.getBoundingClientRect();
 
-    if (rect.height <= 0) {
-      return 'after';
-    }
-
-    const relativeY = event.clientY - rect.top;
-
-    if (relativeY < rect.height * 0.25) {
-      return 'before';
-    }
-
-    if (isLastSibling && relativeY > rect.height * 0.75) {
-      return 'after';
-    }
-
-    return 'child';
+    return resolveTreeDropPlacement({
+      height: rect.height,
+      isLastSibling,
+      offsetY: event.clientY - rect.top,
+    });
   }
 
   function handleDragStart(event: DragEvent<HTMLButtonElement>) {
     setIsDragging(true);
     setDropPosition(null);
-    const siblingIndex = siblingIds.indexOf(itemId);
-    activeTreeDrag = {
-      itemId,
-      nextSiblingId: siblingIds[siblingIndex + 1] ?? null,
-      parentId,
-      previousSiblingId: siblingIds[siblingIndex - 1] ?? null,
-    };
+    activeTreeDrag = createTreeDragSource({ itemId, parentId, siblingIds });
     event.dataTransfer.effectAllowed = 'move';
     event.dataTransfer.setData('application/x-tick-task-id', itemId);
     event.dataTransfer.setData(
@@ -573,36 +568,26 @@ export function TaskTreeEditableRow({
   ): TreeMovePlacement | null {
     const draggedItemId = getDraggedItemId(event);
 
-    if (!draggedItemId || draggedItemId === itemId) {
+    if (!draggedItemId) {
       return null;
     }
 
-    const placement = getDropPosition(event);
     const serializedParentId = event.dataTransfer.getData(
       'application/x-tick-task-parent-id',
     );
-    const draggedParentId = serializedParentId
-      ? serializedParentId
-      : (activeTreeDrag?.parentId ?? null);
 
-    if (placement === 'child' && draggedParentId === itemId) {
-      return null;
-    }
-
-    if (draggedParentId === parentId) {
-      if (placement === 'before' && activeTreeDrag?.nextSiblingId === itemId) {
-        return null;
-      }
-
-      if (
-        placement === 'after' &&
-        activeTreeDrag?.previousSiblingId === itemId
-      ) {
-        return null;
-      }
-    }
-
-    return placement;
+    return validateTreeDrop({
+      dragged: {
+        itemId: draggedItemId,
+        nextSiblingId: activeTreeDrag?.nextSiblingId ?? null,
+        parentId: serializedParentId
+          ? serializedParentId
+          : (activeTreeDrag?.parentId ?? null),
+        previousSiblingId: activeTreeDrag?.previousSiblingId ?? null,
+      },
+      placement: getDropPosition(event),
+      target: { itemId, parentId },
+    });
   }
 
   function handleDrop(event: DragEvent<HTMLDivElement>) {
@@ -633,10 +618,17 @@ export function TaskTreeEditableRow({
       <TaskTreeRowLayout
         categoryColorHex={selectedCategory?.colorHex}
         depth={depth}
+        isLastSibling={isLastSibling}
         isPriority={displayedPriority}
         isSelected={selection?.isSelected}
-        dropPosition={isDragging ? null : dropPosition}
-        isDragging={isDragging}
+        itemId={itemId}
+        parentId={parentId}
+        dropPosition={
+          isDragging || isTouchDragging
+            ? null
+            : (dropPosition ?? touchDropPosition)
+        }
+        isDragging={isDragging || isTouchDragging}
         onDragOver={(event) => {
           if (onMoveTo) {
             event.preventDefault();
@@ -662,7 +654,7 @@ export function TaskTreeEditableRow({
         {actionPreferences.drag ? (
           <IconButton
             aria-label={labels.dragItem}
-            className="cursor-grab rounded-full hover:bg-white/[0.08] hover:text-[#fff9f2] active:cursor-grabbing focus-visible:outline-[#f0c38e]"
+            className="tree-drag-handle cursor-grab rounded-full hover:bg-white/[0.08] hover:text-[#fff9f2] active:cursor-grabbing focus-visible:outline-[#f0c38e]"
             disabled={isSelectionMode}
             draggable={!isSelectionMode}
             onDragEnd={() => {
@@ -671,6 +663,7 @@ export function TaskTreeEditableRow({
               activeTreeDrag = null;
             }}
             onDragStart={handleDragStart}
+            onPointerDown={startTouchDrag}
           >
             <GripVertical aria-hidden="true" className="size-4 opacity-70" />
           </IconButton>

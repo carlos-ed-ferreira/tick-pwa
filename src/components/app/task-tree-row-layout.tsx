@@ -1,5 +1,10 @@
 import type { CSSProperties, DragEventHandler, ReactNode } from 'react';
 import type { TreeMovePlacement } from './move-tree-item-to-target';
+import {
+  treeRowIdAttribute,
+  treeRowLastSiblingAttribute,
+  treeRowParentIdAttribute,
+} from './tree-touch-drag';
 import { toAlphaColor } from '@/lib/color';
 
 export function TaskTreeRowLayout({
@@ -8,22 +13,28 @@ export function TaskTreeRowLayout({
   depth,
   dropPosition,
   isDragging = false,
+  isLastSibling = false,
   isPriority = false,
   isSelected = false,
+  itemId,
   onDragOver,
   onDragLeave,
   onDrop,
+  parentId = null,
 }: {
   categoryColorHex?: string;
   children: ReactNode;
   depth: number;
   dropPosition?: TreeMovePlacement | null;
   isDragging?: boolean;
+  isLastSibling?: boolean;
   isPriority?: boolean;
   isSelected?: boolean;
+  itemId?: string;
   onDragOver?: DragEventHandler<HTMLDivElement>;
   onDragLeave?: DragEventHandler<HTMLDivElement>;
   onDrop?: DragEventHandler<HTMLDivElement>;
+  parentId?: string | null;
 }) {
   const style: CSSProperties = {
     paddingLeft: `${depth * 14}px`,
@@ -50,6 +61,11 @@ export function TaskTreeRowLayout({
       } ${dropPosition ? 'z-10' : ''}`}
       data-tree-row
       data-drop-position={dropPosition ?? undefined}
+      {...{
+        [treeRowIdAttribute]: itemId,
+        [treeRowParentIdAttribute]: parentId ?? undefined,
+        [treeRowLastSiblingAttribute]: isLastSibling ? 'true' : undefined,
+      }}
       style={style}
       onDragOver={onDragOver}
       onDragLeave={onDragLeave}

@@ -28,6 +28,29 @@ semanticamente diferentes.
    experiência.
 5. Preservar semântica e regra de negócio entre layouts.
 
+## Adaptar para mobile sem alterar o desktop
+
+O desenho desktop existente é intocável. Toda adaptação mobile usa os sinais já
+adotados pelo projeto, nunca breakpoints novos que mudem 640px para cima:
+
+- `(pointer: coarse)` em CSS, ou o hook `useCoarsePointer`, para interação e
+  área de toque;
+- largura medida em runtime, quando o layout já mede o container, para
+  densidade.
+
+Regras práticas:
+
+- ao escrever utilitário mobile, restaure o valor desktop atual em `sm:`;
+- alvo de toque mínimo de 44px vem de `touch-target`, que amplia só a área de
+  acerto e não altera o tamanho pintado do controle;
+- interação por arrasto precisa de caminho equivalente no toque;
+- conteúdo que depende de hover precisa de alternativa no toque;
+- tooltip continua acessível por mouse, teclado e toque longo;
+- respeite `env(safe-area-inset-*)` nas superfícies de borda com
+  `.app-safe-padding`.
+
+Registre a evidência mobile com `make test-e2e-mobile`.
+
 ## Compor a interface
 
 - Preferir primitives e composição existentes.
