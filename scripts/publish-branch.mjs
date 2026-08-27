@@ -73,17 +73,31 @@ export async function publishDevelopmentBranch({
 }
 
 async function ignorePullRequestNotifications(pullRequest, execute, write) {
-  const pullRequestNumber = pullRequest.split('/').pop();
-
   try {
+    const pullRequestId = (
+      await execute('gh', [
+        'pr',
+        'view',
+        pullRequest,
+        '--json',
+        'id',
+        '--jq',
+        '.id',
+      ])
+    ).trim();
+
+    if (!pullRequestId) {
+      throw new Error('O GitHub não retornou o identificador do pull request.');
+    }
+
     await execute('gh', [
       'api',
-      '--method',
-      'PUT',
+      'graphql',
       '--silent',
-      `repos/{owner}/{repo}/issues/${pullRequestNumber}/subscription`,
+      '-f',
+      'query=mutation($subscribableId: ID!) { updateSubscription(input: { subscribableId: $subscribableId, state: IGNORED }) { subscribable { viewerSubscription } } }',
       '-F',
-      'ignored=true',
+      `subscribableId=${pullRequestId}`,
     ]);
   } catch {
     write('Não foi possível silenciar as notificações do pull request.');

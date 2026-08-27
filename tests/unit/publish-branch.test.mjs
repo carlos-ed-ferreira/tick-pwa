@@ -30,6 +30,7 @@ describe('publishDevelopmentBranch', () => {
       '',
       '',
       'https://github.com/example/tick/pull/1\n',
+      'PR_example\n',
       '',
       '',
       '',
@@ -70,13 +71,25 @@ describe('publishDevelopmentBranch', () => {
       [
         'gh',
         [
+          'pr',
+          'view',
+          'https://github.com/example/tick/pull/1',
+          '--json',
+          'id',
+          '--jq',
+          '.id',
+        ],
+      ],
+      [
+        'gh',
+        [
           'api',
-          '--method',
-          'PUT',
+          'graphql',
           '--silent',
-          'repos/{owner}/{repo}/issues/1/subscription',
+          '-f',
+          expect.stringContaining('updateSubscription'),
           '-F',
-          'ignored=true',
+          'subscribableId=PR_example',
         ],
       ],
       [
@@ -130,6 +143,7 @@ describe('publishDevelopmentBranch', () => {
       '',
       '',
       'https://github.com/example/tick/pull/2\n',
+      'PR_example\n',
       '',
       '',
       '',
@@ -164,6 +178,7 @@ describe('publishDevelopmentBranch', () => {
       '',
       '',
       'https://github.com/example/tick/pull/3\n',
+      'PR_example\n',
       '',
       '',
       '',
@@ -190,6 +205,7 @@ describe('publishDevelopmentBranch', () => {
       '',
       '',
       'https://github.com/example/tick/pull/4\n',
+      'PR_example\n',
       '',
       '',
       createMissingChecksError(),
@@ -216,6 +232,7 @@ describe('publishDevelopmentBranch', () => {
       '',
       '',
       'https://github.com/example/tick/pull/7\n',
+      'PR_example\n',
       '',
       '',
       '',
@@ -228,14 +245,22 @@ describe('publishDevelopmentBranch', () => {
     await publishDevelopmentBranch({ execute, write: vi.fn() });
 
     expect(execute).toHaveBeenCalledWith('gh', [
-      'api',
-      '--method',
-      'PUT',
-      '--silent',
-      'repos/{owner}/{repo}/issues/7/subscription',
-      '-F',
-      'ignored=true',
+      'pr',
+      'view',
+      'https://github.com/example/tick/pull/7',
+      '--json',
+      'id',
+      '--jq',
+      '.id',
     ]);
+    expect(execute).toHaveBeenCalledWith(
+      'gh',
+      expect.arrayContaining(['graphql', 'subscribableId=PR_example']),
+    );
+    expect(execute).not.toHaveBeenCalledWith(
+      'gh',
+      expect.arrayContaining(['repos/{owner}/{repo}/issues/7/subscription']),
+    );
   });
 
   it('keeps publishing when GitHub refuses to mute the pull request', async () => {
@@ -247,6 +272,7 @@ describe('publishDevelopmentBranch', () => {
       '',
       '',
       'https://github.com/example/tick/pull/8\n',
+      'PR_example\n',
       new Error('HTTP 403'),
       '',
       '',
