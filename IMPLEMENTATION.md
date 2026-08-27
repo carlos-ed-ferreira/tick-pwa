@@ -81,8 +81,10 @@ caminho legado de upserts diretos, sem dual-write.
    o ensaio.
 3. Não remover o caminho legado até os passos 2 e 3 aprovarem a estratégia
    definitiva.
-4. Manter a sincronização forçada como recuperação explícita; ela deve enviar o
-   estado local do dispositivo sem apagar linhas existentes apenas no remoto.
+4. Manter a sincronização forçada como recuperação explícita: primeiro baixar o
+   snapshot remoto, depois enviar somente as alterações pendentes deste
+   dispositivo, que vencem o conflito. Ela não pode reenviar entidades já
+   convergidas nem apagar linhas existentes apenas no remoto.
 5. Atualizar este passo com data e evidência de cada ensaio aprovado.
 
 ### Responsabilidade externa

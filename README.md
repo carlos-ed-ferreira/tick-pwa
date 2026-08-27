@@ -90,11 +90,23 @@ operações remotas e aparece como falha recuperável, resolvida pela
 sincronização forçada. Uma rejeição `stale_revision` é rebaseada uma vez pela
 revisão atual do servidor e reenviada automaticamente; se ainda assim falhar, a
 operação permanece visível e recuperável. A drenagem da outbox usa um lock por
-conta para que abas do mesmo navegador não disputem o mesmo `operation_id`. O indicador de sincronização é acionável em
-qualquer estado: a ação envia o estado local deste dispositivo e sobrescreve a
-revisão remota, rebaseando `base_revision` a partir do servidor. Ela nunca
-apaga linhas que existam apenas no remoto, e é a saída para um `stale_revision`
-que o retry automático não resolve sozinho.
+conta para que abas do mesmo navegador não disputem o mesmo `operation_id`.
+
+O indicador de sincronização é acionável em qualquer estado. A ação baixa o
+snapshot remoto e depois envia o que este dispositivo alterou, nessa ordem. O
+pull aceita o valor remoto apenas para entidades já sincronizadas localmente e
+nunca sobrescreve uma alteração local ainda pendente. O push envia somente
+essas alterações pendentes, com `base_revision` rebaseada a partir do servidor,
+de modo que o dispositivo atual vence o conflito. Entidades já convergidas não
+são reenviadas, o que impede que dois dispositivos fiquem revertendo o valor um
+do outro. A ação nunca apaga linhas que existam apenas no remoto, e é a saída
+para um `stale_revision` que o retry automático não resolve sozinho.
+
+Alterações pendentes carregam junto as entidades que referenciam. O pull não
+remove um pai já sincronizado enquanto um filho pendente depender dele, e o
+push reenvia esse pai quando ele não existe mais no servidor, antes do filho.
+Sem isso, uma exclusão física no outro dispositivo deixaria a alteração local
+presa em violação de chave estrangeira.
 
 Refreshes de uma mesma conta são deduplicados. Foco e reconexão usam debounce
 de 500 ms e só atualizam dados com pelo menos 60 segundos; refresh manual ignora

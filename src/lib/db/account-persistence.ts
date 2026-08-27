@@ -15,7 +15,7 @@ import {
   accountEntityTypes,
   getAccountEntityTable,
 } from './account-entity-tables';
-import { forcePushLocalAccountState } from './account-force-push';
+import { syncAccountFromThisDevice } from './account-sync';
 
 const persistenceQueues = new Map<string, Promise<void>>();
 
@@ -275,7 +275,7 @@ export async function forceSyncAccount(scope: AppScope): Promise<void> {
   }
 
   await enqueueAccountPersistence(scope.id, () =>
-    forcePushLocalAccountState(scope),
+    syncAccountFromThisDevice(scope),
   );
 }
 
