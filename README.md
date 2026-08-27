@@ -448,6 +448,7 @@ recorrente sem target, adicione-a ao `Makefile` e ao `make help` primeiro.
 | E2E layout mobile  | `make test-e2e-mobile`              |
 | E2E reload offline | `make test-e2e-offline`             |
 | E2E autenticado    | `make test-e2e-account`             |
+| navegador E2E      | `make test-e2e-browsers`            |
 | publicar em `main` | `make publish`                      |
 | auditar produção   | `make audit-prod`                   |
 | dependências       | `make deps-tree`                    |
@@ -498,7 +499,14 @@ Postgres local com `make supabase-start-db`, recria o banco pelas migrations,
 roda lint, `make supabase-diff-check` e pgTAP; `Check end-to-end` roda os E2E locais e
 autenticados e guarda os artefatos do Playwright em caso de falha. Desde 25 de
 agosto de 2026, o ruleset `main-protection` exige os três checks, de modo que um
-SHA reprovado em banco ou E2E não alcança a `main`. `.github/workflows/supabase-migrations.yml` só aceita
+SHA reprovado em banco ou E2E não alcança a `main`. Quando um push na `main`
+falha, o job `Report failed run` abre a issue `App CI falhou na main` com o
+rótulo `ci-failure`, atribuída ao dono do repositório, e comenta o link do run
+nas falhas seguintes enquanto a issue continuar aberta; execuções bem-sucedidas
+e pull requests não geram aviso. O workflow de migrations usa a mesma action
+composta `.github/actions/report-failure` com o rótulo `migration-failure`. Os
+dois avisos cobrem apenas execução que falhou: pipeline que nunca começa ainda
+não é detectado, conforme o passo 5 do `IMPLEMENTATION.md`. `.github/workflows/supabase-migrations.yml` só aceita
 o SHA de um `App CI` aprovado na `main`; execução manual roda o mesmo quality
 gate antes de acessar o environment `production`. O workflow registra o SHA,
 detecta mudanças de banco, faz dry-run e então aplica migrations.

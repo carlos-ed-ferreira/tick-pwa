@@ -40,7 +40,7 @@ explícito no turno atual.
 | 2     | pendente                | medir concorrência, lote e Safari/iOS               |
 | 3     | pendente                | registrar decisão PowerSync ou outbox própria       |
 | 4     | pendente                | escolher observabilidade e comprovar restore        |
-| 5     | parcialmente entregue   | ordenar migration e deploy do mesmo SHA             |
+| 5     | parcialmente entregue   | ordenar deploy e detectar pipeline parado           |
 | 6     | não iniciado            | fechar decisões de produto e autenticação pública   |
 | 7     | não iniciado            | criar baseline e carga para 1.000 DAU               |
 | 8     | adiado                  | avaliar frontend estático e planos no marco público |
@@ -327,6 +327,26 @@ O workflow de migrations roda somente após App CI aprovado na `main`, usa o
 `head_sha`, faz dry-run e aplica migrations pelo environment `production`. O
 deploy automático da Vercel ainda pode começar em paralelo com as migrations.
 
+Desde 27 de agosto de 2026, App CI e o workflow de migrations avisam falha pela
+action composta `.github/actions/report-failure`, que abre ou comenta uma issue
+atribuída ao dono do repositório. O aviso cobre somente execução que falhou.
+Execução que nunca começa, por evento `workflow_run` não entregue ou por
+indisponibilidade do GitHub Actions, continua sem detecção.
+
+### Modos de falha do pipeline
+
+Com o Actions indisponível antes do merge, o ruleset impede o merge e a produção
+não muda. O risco vive depois do merge: a Vercel publica pela integração Git,
+que não depende do Actions, enquanto a migration depende. Um App CI reprovado na
+`main`, mesmo por falha de infraestrutura alheia ao código, publica o frontend e
+não aplica a migration daquele SHA. Enquanto o deploy não for ordenado, a
+compatibilidade N/N+1 é a única proteção dessa janela.
+
+O `make publish` também degrada de forma pouco previsível: `gh pr merge --auto`
+é armado antes da espera dos checks, então interromper o comando deixa o merge
+armado para acontecer sem acompanhamento, e a espera pelo merge expira em
+sessenta segundos mesmo quando o merge ainda vai ocorrer.
+
 ### Implementação recomendada
 
 Usar um Deploy Hook da Vercel acionado pelo workflow após a migration:
@@ -338,7 +358,13 @@ Usar um Deploy Hook da Vercel acionado pelo workflow após a migration:
 4. falhar com mensagem clara quando o hook estiver ausente ou responder erro;
 5. registrar URL/identificador do deployment como evidência;
 6. manter migrations aditivas e compatíveis com versões N e N+1;
-7. usar migration compensatória em rollback, nunca alterar migration aplicada.
+7. usar migration compensatória em rollback, nunca alterar migration aplicada;
+8. detectar SHA da `main` sem migration aplicada, por verificação agendada que
+   compare migrations do repositório com o histórico de produção e avise pela
+   mesma action de falha, cobrindo evento perdido e workflow que nunca começou;
+9. decidir e documentar o comportamento do `make publish` sob degradação do
+   GitHub, definindo se o auto-merge é desarmado ao interromper o comando e
+   separando merge lento de merge falho em vez de expirar em sessenta segundos.
 
 ### Responsabilidade externa
 
@@ -358,7 +384,12 @@ Usar um Deploy Hook da Vercel acionado pelo workflow após a migration:
 - commit sem migration ainda publica corretamente;
 - migration falha impede deploy;
 - execução manual respeita os mesmos gates;
-- rollback compensatório e restauração isolada foram ensaiados.
+- rollback compensatório e restauração isolada foram ensaiados;
+- falha do pipeline gera aviso acionável sem depender da subscription do pull
+  request silenciada pelo `make publish`;
+- pipeline que não executa é detectado, e nenhum SHA da `main` permanece com
+  migration pendente em silêncio;
+- interrupção do `make publish` deixa estado previsível e documentado.
 
 ## 6. Implementar Auth, entitlement, trial, billing e migração guest
 
@@ -539,6 +570,7 @@ A implementação total está concluída quando:
 - métricas, alertas, backup, restauração e rollback foram comprovados;
 - a carga sustenta 1.000 DAU com margem e custo conhecidos;
 - deploy e migrations usam o mesmo SHA aprovado;
+- falha ou parada do pipeline de publicação é detectada e avisada;
 - hospedagem, termos e planos são compatíveis com uso público;
 - todos os gates aplicáveis do REVIEW passam.
 
