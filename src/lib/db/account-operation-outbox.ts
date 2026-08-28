@@ -44,6 +44,10 @@ const registeredTransactionScopes = new WeakMap<Transaction, Set<string>>();
 const operationQueues = new Map<string, Promise<void>>();
 const retryTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
+function isBrowserOffline(): boolean {
+  return typeof navigator !== 'undefined' && navigator.onLine === false;
+}
+
 function createOutboxItem(scope: AppScope): AccountOperationOutboxItem {
   return {
     id: createOperationId(),
@@ -372,6 +376,41 @@ async function markOperationFailed(
   }
 }
 
+async function returnOperationToPending(
+  item: AccountOperationOutboxItem,
+): Promise<void> {
+  await db.transaction(
+    'rw',
+    [
+      db.syncOutbox,
+      db.categoryTags,
+      db.dailyEntries,
+      db.checklistItems,
+      db.goalGroups,
+      db.goals,
+      db.goalSteps,
+    ],
+    async () => {
+      const current = await db.syncOutbox.get(item.id);
+
+      if (!current || current.scopeId !== item.scopeId) {
+        return;
+      }
+
+      await db.syncOutbox.put({
+        ...current,
+        lastError: null,
+        nextAttemptAt: null,
+        status: 'pending',
+      });
+
+      for (const mutation of current.mutations) {
+        await updateMutationEntityStatus(mutation, 'pending');
+      }
+    },
+  );
+}
+
 function validateOperationResult(
   item: AccountOperationOutboxItem,
   result: AccountOperationBatchResult,
@@ -557,6 +596,11 @@ async function processOperation(
   try {
     await sendOperation(scope, syncingItem);
   } catch (error) {
+    if (isBrowserOffline()) {
+      await returnOperationToPending(syncingItem);
+      return;
+    }
+
     console.error('Failed to persist Tick account operation.', error);
 
     if (!isStaleRevisionError(error) || syncingItem.rebasedAt) {
@@ -570,6 +614,11 @@ async function processOperation(
         await rebaseStaleOperation(scope, syncingItem),
       );
     } catch (rebaseError) {
+      if (isBrowserOffline()) {
+        await returnOperationToPending(syncingItem);
+        return;
+      }
+
       console.error(
         'Failed to reapply a stale Tick account operation.',
         rebaseError,
@@ -606,7 +655,7 @@ async function drainOperations(
     includeFailed,
   }: { ignoreBackoff: boolean; includeFailed: boolean },
 ): Promise<void> {
-  if (scope.kind === 'guest') {
+  if (scope.kind === 'guest' || isBrowserOffline()) {
     return;
   }
 

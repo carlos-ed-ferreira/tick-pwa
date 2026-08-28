@@ -23,6 +23,8 @@ export class AccountRefreshCoordinator {
     ) => Promise<AccountCacheRefreshResult | null>,
     private readonly now: () => number = Date.now,
     private readonly staleAfterMs = 60_000,
+    private readonly isOnline: () => boolean = () =>
+      typeof navigator === 'undefined' || navigator.onLine !== false,
   ) {}
 
   refresh(
@@ -30,6 +32,10 @@ export class AccountRefreshCoordinator {
     reason: AccountRefreshReason,
     force = false,
   ): Promise<AccountRefreshRun | null> {
+    if (!this.isOnline()) {
+      return Promise.resolve(null);
+    }
+
     const inFlight = this.inFlightByScope.get(scope.id);
 
     if (inFlight) {

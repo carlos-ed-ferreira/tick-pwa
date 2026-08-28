@@ -34,17 +34,17 @@ explícito no turno atual.
 
 ## Estado resumido
 
-| Passo | Estado                  | Próximo marco                                       |
-| ----- | ----------------------- | --------------------------------------------------- |
-| 1     | em validação controlada | aprovar uma conta interna em produção               |
-| 2     | pendente                | medir concorrência, lote e Safari/iOS               |
-| 3     | pendente                | registrar decisão PowerSync ou outbox própria       |
-| 4     | pendente                | escolher observabilidade e comprovar restore        |
-| 5     | parcialmente entregue   | ordenar deploy e detectar pipeline parado           |
-| 6     | não iniciado            | fechar decisões de produto e autenticação pública   |
-| 7     | não iniciado            | criar baseline e carga para 1.000 DAU               |
-| 8     | adiado                  | avaliar frontend estático e planos no marco público |
-| 9     | pendente                | validar a interface de toque em aparelho real       |
+| Passo | Estado                     | Próximo marco                                       |
+| ----- | -------------------------- | --------------------------------------------------- |
+| 1     | código aprovado localmente | aprovar uma conta interna em produção               |
+| 2     | pendente                   | medir concorrência, lote e Safari/iOS               |
+| 3     | pendente                   | registrar decisão PowerSync ou outbox própria       |
+| 4     | pendente                   | escolher observabilidade e comprovar restore        |
+| 5     | parcialmente entregue      | ordenar deploy e detectar pipeline parado           |
+| 6     | não iniciado               | fechar decisões de produto e autenticação pública   |
+| 7     | não iniciado               | criar baseline e carga para 1.000 DAU               |
+| 8     | adiado                     | avaliar frontend estático e planos no marco público |
+| 9     | pendente                   | validar a interface de toque em aparelho real       |
 
 ## 1. Publicar e validar o rollout controlado da outbox
 
@@ -87,6 +87,52 @@ caminho legado de upserts diretos, sem dual-write.
    dispositivo, que vencem o conflito. Ela não pode reenviar entidades já
    convergidas nem apagar linhas existentes apenas no remoto.
 5. Atualizar este passo com data e evidência de cada ensaio aprovado.
+
+### Evidência automatizada de 28 de agosto de 2026
+
+A parte executável pelo repositório está concluída. A revisão encontrou
+cobertura para commit local, isolamento guest, seis entidades funcionais,
+resposta perdida, reload, retry automático, lote limitado, fila cheia, backoff,
+rebase stale, sincronização forçada, dependências pai/filho, ausência de
+reenvio depois da convergência e métricas sem conteúdo privado. Nenhum teste RED
+válido revelou comportamento ausente, portanto não houve alteração artificial
+da lógica.
+
+Os gates da etapa foram executados no estado atual:
+
+- `make test-account-persistence`: 3 arquivos e 41 testes aprovados;
+- `make test-e2e-account`: 4 cenários aprovados em desktop e mobile;
+- `make test-e2e-offline`: 2 cenários aprovados em desktop e mobile;
+- `make test-e2e`: 33 cenários aprovados e 7 cenários desktop específicos de
+  toque ignorados conforme configuração;
+- `make supabase-reset`, `make supabase-lint` e
+  `make supabase-diff-check`: banco limpo, sem erros e sem divergência;
+- `make supabase-test-db`: 80 testes pgTAP aprovados;
+- `make check`: 73 arquivos e 566 testes aprovados, além de tipagem, lint,
+  formatação e build.
+
+A etapa permanece aberta somente para a ativação restrita, o novo deploy e os
+ensaios reais descritos abaixo. Evidência simulada ou local não substitui essa
+validação de produção.
+
+### Correção da inconsistência offline em 28 de agosto de 2026
+
+O primeiro ensaio controlado confirmou toda a lógica funcional, mas revelou uma
+corrida intermitente: depois de desligar a internet, um refresh de foco ainda
+podia consultar o Supabase e a outbox podia iniciar a RPC antes de observar o
+estado offline. O service worker registrava `no-response` e a operação aparecia
+como `Falha ao sincronizar`, embora reload ou retry após reconexão convergissem.
+
+O RED reproduziu os dois contratos ausentes: não iniciar refresh remoto offline
+e manter uma escrita durável offline como pendente sem chamar a RPC. Um terceiro
+caso cobriu a queda da conexão durante uma chamada já iniciada. O GREEN impede
+novos refreshes e drenos enquanto `navigator.onLine` é falso e devolve operações
+em voo para `pending` quando a conexão cai, preservando payload, ordem e
+`operation_id`. A reconexão continua retomando automaticamente. A correção
+foi validada localmente por 43 testes de persistência, 569 testes da suíte,
+quatro cenários E2E de conta, dois cenários E2E offline e pelo gate completo
+`make check`. Ela aguarda publicação e repetição do ensaio real antes de concluir
+a etapa.
 
 ### Responsabilidade externa
 
