@@ -134,6 +134,21 @@ quatro cenários E2E de conta, dois cenários E2E offline e pelo gate completo
 `make check`. Ela aguarda publicação e repetição do ensaio real antes de concluir
 a etapa.
 
+Um segundo ensaio expôs o caso em que o Chromium devolve
+`ERR_INTERNET_DISCONNECTED`, mas `navigator.onLine` ainda permanece `true`. O
+erro estruturado do Supabase chega sem código e com `TypeError: Failed to fetch`;
+por isso ainda era tratado como rejeição remota. A outbox agora reconhece esse
+erro de transporte, mantém a operação em `pending`, interrompe o restante do
+lote e agenda retry com backoff. Isso evita disparar uma RPC para cada operação
+pendente durante a indisponibilidade. Erros de domínio, autorização, validação e
+conflito continuam no fluxo de falha recuperável. O aviso de PowerSync sobre
+múltiplas abas é independente: a prova permanece intencionalmente em modo
+single-tab e não participa da persistência funcional dessas telas.
+
+A segunda correção foi validada por 44 testes direcionados de persistência, 570
+testes da suíte, quatro cenários E2E autenticados em desktop e mobile, dois
+cenários E2E de reload offline e pelo gate completo `make check`.
+
 ### Responsabilidade externa
 
 Depois que a versão estiver publicada com as flags vazias, configurar em

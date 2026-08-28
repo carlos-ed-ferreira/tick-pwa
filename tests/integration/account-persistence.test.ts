@@ -893,6 +893,69 @@ describe('account persistence boundaries', () => {
     online.mockRestore();
   });
 
+  it('keeps transport failures pending when the browser still reports online', async () => {
+    environmentMocks.shouldUseAccountOperationBatchesForUser.mockReturnValue(
+      true,
+    );
+    const scope = createUserScope('stale-online-signal-user');
+    const sync = createSyncClient();
+    const rpc = vi.fn().mockResolvedValue({
+      data: null,
+      error: {
+        code: '',
+        details: 'TypeError: Failed to fetch',
+        hint: '',
+        message: 'TypeError: Failed to fetch',
+      },
+    });
+    supabaseMocks.getSupabaseBrowserClient.mockReturnValue({ rpc });
+    const online = vi
+      .spyOn(window.navigator, 'onLine', 'get')
+      .mockReturnValue(false);
+
+    await createCategoryTag({
+      scope,
+      surface: 'calendar',
+      name: 'First transport failure',
+      colorHex: '#2563eb',
+    });
+    await createCategoryTag({
+      scope,
+      surface: 'calendar',
+      name: 'Second transport failure',
+      colorHex: '#16a34a',
+    });
+    await waitForAccountPersistence(scope.id);
+    online.mockReturnValue(true);
+
+    await resumeAccountPersistence(scope);
+    await waitForAccountPersistence(scope.id);
+
+    expect(rpc).toHaveBeenCalledOnce();
+    await expect(db.syncOutbox.orderBy('createdAt').toArray()).resolves.toEqual(
+      [
+        expect.objectContaining({
+          attempts: 1,
+          nextAttemptAt: expect.any(String),
+          status: 'pending',
+        }),
+        expect.objectContaining({ attempts: 0, status: 'pending' }),
+      ],
+    );
+    await expect(getAccountSyncSummary(scope.id)).resolves.toMatchObject({
+      failedCount: 0,
+      pendingCount: 2,
+      state: 'pending',
+    });
+
+    rpc.mockImplementation(sync.rpc);
+    await retryFailedAccountPersistence(scope);
+
+    expect(rpc).toHaveBeenCalledTimes(3);
+    await expect(db.syncOutbox.count()).resolves.toBe(0);
+    online.mockRestore();
+  });
+
   it('uses the durable RPC path for categories and the complete goal hierarchy', async () => {
     environmentMocks.shouldUseAccountOperationBatchesForUser.mockReturnValue(
       true,
