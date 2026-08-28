@@ -52,7 +52,8 @@ export type AuthMode =
   | 'entry'
   | 'guest'
   | 'authenticated'
-  | 'unauthorized';
+  | 'unauthorized'
+  | 'storage_error';
 export type PasswordSignInResult =
   | { status: 'authenticated' }
   | { status: 'not_allowed' }
@@ -234,6 +235,14 @@ export function AppProvider({
     setIsReady(true);
   }, [applyScopedPreferences]);
 
+  const activateStorageErrorMode = useCallback(() => {
+    setScope(null);
+    setAuthUser(null);
+    setAuthError(null);
+    setAuthMode('storage_error');
+    setIsReady(true);
+  }, []);
+
   const activateUnauthorizedMode = useCallback(
     async (user: User) => {
       await applyScopedPreferences(null);
@@ -334,7 +343,7 @@ export function AppProvider({
       }
 
       didResolveInitialScope = true;
-      void activateEntryMode();
+      void activateEntryMode().catch(activateStorageErrorMode);
     }, APP_INITIALIZATION_TIMEOUT_MS);
 
     async function resolveInitialScope(action: () => Promise<void>) {
@@ -382,7 +391,9 @@ export function AppProvider({
         console.error('Failed to initialize Tick app scope.', error);
 
         if (isActive) {
-          await resolveInitialScope(activateEntryMode);
+          didResolveInitialScope = true;
+          window.clearTimeout(initializationTimeoutId);
+          activateStorageErrorMode();
         }
       }
     }
@@ -393,7 +404,12 @@ export function AppProvider({
       isActive = false;
       window.clearTimeout(initializationTimeoutId);
     };
-  }, [activateAuthenticatedMode, activateEntryMode, activateLocalMode]);
+  }, [
+    activateAuthenticatedMode,
+    activateEntryMode,
+    activateLocalMode,
+    activateStorageErrorMode,
+  ]);
 
   useEffect(() => {
     const client = getSupabaseBrowserClient();

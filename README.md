@@ -166,9 +166,11 @@ re-render da interface. O indicador de sincronização também só sai de
 invisíveis, enquanto falha aparece imediatamente. A duração, páginas, linhas e motivo ficam disponíveis no
 resultado estruturado do refresh, ainda sem envio para observabilidade externa.
 
-Métricas de fila, tentativas, rejeições, conflitos e latência de confirmação
-são acumuladas por conta em `src/lib/db/account-sync-metrics.ts`, sem conteúdo
-do usuário. Elas ainda não têm destino externo.
+Métricas de fila, tentativas, rejeições, falhas de transporte, conflitos,
+tamanho e duração dos lotes, idade da operação mais antiga e latência de
+confirmação são acumuladas por conta em
+`src/lib/db/account-sync-metrics.ts`, sem conteúdo do usuário. Elas ainda não
+têm destino externo.
 
 O estado atual ainda tem limitações conhecidas de rollout amplo, cobertura de
 Safari/iOS e observabilidade externa. Elas estão
@@ -210,6 +212,20 @@ locais, como o dia ou a meta selecionada, reutilizam o mesmo shell precacheado e
 são reconstruídos do IndexedDB. O modo local continua funcional sem Supabase. A
 sessão e o refresh do modo autenticado ainda dependem do grant local válido
 quando o Supabase está indisponível.
+
+### Navegadores suportados na alfa
+
+- Chrome desktop e Chrome Android nas versões estáveis atual e anterior são o
+  alvo primário e têm cobertura automatizada;
+- Safari macOS e Safari iOS nas versões estáveis atual e anterior são alvo
+  oficial, com validação manual obrigatória antes de ampliar o rollout;
+- outros navegadores Chromium podem funcionar, mas não compõem a matriz oficial;
+- Firefox não faz parte da matriz da alfa;
+- o produto exige IndexedDB, service worker e WebAssembly. Se o armazenamento
+  local estiver bloqueado ou indisponível, uma tela traduzida orienta a liberar
+  dados de site, fechar outras abas e tentar novamente sem limpar os dados;
+- a prova PowerSync permanece single-tab. Calendário e metas usam lock por conta
+  quando o navegador oferece Web Locks e preservam a outbox em sua ausência.
 
 ## Stack verificada
 
@@ -448,27 +464,28 @@ O `Makefile` é a interface única para operações do projeto. Não execute
 `npm`, `npx`, CLIs de serviço ou scripts diretamente. Se surgir uma rotina
 recorrente sem target, adicione-a ao `Makefile` e ao `make help` primeiro.
 
-| Objetivo           | Comando                             |
-| ------------------ | ----------------------------------- |
-| instalar           | `make install` ou `make install-ci` |
-| desenvolver        | `make dev`                          |
-| build/start        | `make build`, `make start`          |
-| typecheck          | `make typecheck`                    |
-| lint               | `make lint`                         |
-| testes             | `make test`                         |
-| testes da outbox   | `make test-account-persistence`     |
-| testes PowerSync   | `make test-powersync`               |
-| E2E padrão         | `make test-e2e`                     |
-| E2E layout mobile  | `make test-e2e-mobile`              |
-| E2E reload offline | `make test-e2e-offline`             |
-| E2E autenticado    | `make test-e2e-account`             |
-| navegador E2E      | `make test-e2e-browsers`            |
-| publicar em `main` | `make publish`                      |
-| auditar produção   | `make audit-prod`                   |
-| dependências       | `make deps-tree`                    |
-| formatar/verificar | `make format`, `make format-check`  |
-| gate atual         | `make check`                        |
-| limpar gerados     | `make clean`                        |
+| Objetivo            | Comando                             |
+| ------------------- | ----------------------------------- |
+| instalar            | `make install` ou `make install-ci` |
+| desenvolver         | `make dev`                          |
+| build/start         | `make build`, `make start`          |
+| typecheck           | `make typecheck`                    |
+| lint                | `make lint`                         |
+| testes              | `make test`                         |
+| testes da outbox    | `make test-account-persistence`     |
+| testes PowerSync    | `make test-powersync`               |
+| E2E padrão          | `make test-e2e`                     |
+| E2E layout mobile   | `make test-e2e-mobile`              |
+| E2E reload offline  | `make test-e2e-offline`             |
+| E2E autenticado     | `make test-e2e-account`             |
+| navegador E2E       | `make test-e2e-browsers`            |
+| benchmark RPC local | `make benchmark-account-rpc`        |
+| publicar em `main`  | `make publish`                      |
+| auditar produção    | `make audit-prod`                   |
+| dependências        | `make deps-tree`                    |
+| formatar/verificar  | `make format`, `make format-check`  |
+| gate atual          | `make check`                        |
+| limpar gerados      | `make clean`                        |
 
 Supabase:
 

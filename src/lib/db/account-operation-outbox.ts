@@ -23,6 +23,7 @@ import {
   recordAccountOperationExhausted,
   recordAccountOperationRejected,
   recordAccountOperationSent,
+  recordAccountOperationTransportUnavailable,
 } from './account-sync-metrics';
 
 const MAX_AUTOMATIC_ATTEMPTS = 5;
@@ -343,6 +344,14 @@ function getSafeErrorCode(error: unknown): string {
   return 'account_operation_failed';
 }
 
+function getAttemptDurationMs(item: AccountOperationOutboxItem): number {
+  const startedAt = item.lastAttemptAt
+    ? Date.parse(item.lastAttemptAt)
+    : Date.now();
+
+  return Math.max(Date.now() - startedAt, 0);
+}
+
 async function markOperationFailed(
   scope: AppScope,
   item: AccountOperationOutboxItem,
@@ -352,7 +361,11 @@ async function markOperationFailed(
   const canRetryAutomatically = item.attempts < MAX_AUTOMATIC_ATTEMPTS;
   const retryDelayMs = computeAccountOperationRetryDelayMs(item.attempts);
 
-  recordAccountOperationRejected(scope.id, errorCode);
+  recordAccountOperationRejected(
+    scope.id,
+    errorCode,
+    getAttemptDurationMs(item),
+  );
 
   if (!canRetryAutomatically) {
     recordAccountOperationExhausted(scope.id);
@@ -441,6 +454,11 @@ async function deferOperationAfterTransportFailure(
   const nextAttemptAt = canRetryAutomatically
     ? new Date(Date.now() + retryDelayMs).toISOString()
     : null;
+
+  recordAccountOperationTransportUnavailable(
+    scope.id,
+    getAttemptDurationMs(item),
+  );
 
   await returnOperationToPending(item, nextAttemptAt);
 
@@ -556,7 +574,9 @@ async function sendOperation(
   scope: AppScope,
   item: AccountOperationOutboxItem,
 ): Promise<void> {
-  recordAccountOperationSent(scope.id);
+  const startedAt = Date.now();
+
+  recordAccountOperationSent(scope.id, item.mutations.length);
 
   const result = await applyAccountOperationBatch({
     mutations: item.mutations.map((mutation) => ({
@@ -576,6 +596,7 @@ async function sendOperation(
   recordAccountOperationConfirmed(
     scope.id,
     Date.now() - Date.parse(item.createdAt),
+    Date.now() - startedAt,
   );
 }
 

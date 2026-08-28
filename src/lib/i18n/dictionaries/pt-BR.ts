@@ -54,6 +54,10 @@ export const ptBRDictionary = {
     unauthorizedTitle: 'Conta ainda não permitida',
     unauthorizedDescription:
       'Esta conta não está na lista de usuários permitidos para salvar dados na nuvem. Você ainda pode testar o protótipo em modo local.',
+    storageUnavailableTitle: 'Armazenamento local indisponível',
+    storageUnavailableDescription:
+      'O Tick não conseguiu abrir o armazenamento deste navegador. Verifique se cookies e dados de sites estão permitidos, feche outras abas do Tick e tente novamente. Seus dados existentes não foram apagados.',
+    storageUnavailableRetry: 'Tentar abrir novamente',
     loading: 'Preparando o Tick',
   },
   sync: {

@@ -54,6 +54,10 @@ export const enDictionary = {
     unauthorizedTitle: 'Account is not approved yet',
     unauthorizedDescription:
       'This account is not on the approved user list for saving cloud data. You can still test the prototype in local mode.',
+    storageUnavailableTitle: 'Local storage unavailable',
+    storageUnavailableDescription:
+      'Tick could not open storage in this browser. Check that cookies and site data are allowed, close other Tick tabs, and try again. Your existing data was not deleted.',
+    storageUnavailableRetry: 'Try opening again',
     loading: 'Preparing Tick',
   },
   sync: {

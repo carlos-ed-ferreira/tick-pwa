@@ -113,6 +113,9 @@ export interface Dictionary {
     switchToLogin: string;
     unauthorizedTitle: string;
     unauthorizedDescription: string;
+    storageUnavailableTitle: string;
+    storageUnavailableDescription: string;
+    storageUnavailableRetry: string;
     loading: string;
   };
   sync: {

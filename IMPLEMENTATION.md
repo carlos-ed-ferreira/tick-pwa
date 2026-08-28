@@ -34,17 +34,17 @@ explícito no turno atual.
 
 ## Estado resumido
 
-| Passo | Estado                     | Próximo marco                                       |
-| ----- | -------------------------- | --------------------------------------------------- |
-| 1     | código aprovado localmente | aprovar uma conta interna em produção               |
-| 2     | pendente                   | medir concorrência, lote e Safari/iOS               |
-| 3     | pendente                   | registrar decisão PowerSync ou outbox própria       |
-| 4     | pendente                   | escolher observabilidade e comprovar restore        |
-| 5     | parcialmente entregue      | ordenar deploy e detectar pipeline parado           |
-| 6     | não iniciado               | fechar decisões de produto e autenticação pública   |
-| 7     | não iniciado               | criar baseline e carga para 1.000 DAU               |
-| 8     | adiado                     | avaliar frontend estático e planos no marco público |
-| 9     | pendente                   | validar a interface de toque em aparelho real       |
+| Passo | Estado                | Próximo marco                                       |
+| ----- | --------------------- | --------------------------------------------------- |
+| 1     | concluído             | manter rollout restrito durante a etapa 2           |
+| 2     | código concluído      | validar Safari/iOS e quotas em aparelhos reais      |
+| 3     | pendente              | registrar decisão PowerSync ou outbox própria       |
+| 4     | pendente              | escolher observabilidade e comprovar restore        |
+| 5     | parcialmente entregue | ordenar deploy e detectar pipeline parado           |
+| 6     | não iniciado          | fechar decisões de produto e autenticação pública   |
+| 7     | não iniciado          | criar baseline e carga para 1.000 DAU               |
+| 8     | adiado                | avaliar frontend estático e planos no marco público |
+| 9     | pendente              | validar a interface de toque em aparelho real       |
 
 ## 1. Publicar e validar o rollout controlado da outbox
 
@@ -149,6 +149,17 @@ A segunda correção foi validada por 44 testes direcionados de persistência, 5
 testes da suíte, quatro cenários E2E autenticados em desktop e mobile, dois
 cenários E2E de reload offline e pelo gate completo `make check`.
 
+### Conclusão em 28 de agosto de 2026
+
+O rollout restrito foi publicado e validado em produção com a conta interna
+autorizada. Calendário e metas preservaram alterações após reload offline, a
+reconexão convergiu, a sincronização entre janela normal e contexto anônimo
+funcionou e contas guest ou fora da allowlist mantiveram seus respectivos
+escopos. As duas corridas de transporte encontradas durante o ensaio foram
+reproduzidas por testes e corrigidas antes da aprovação. A etapa 1 está
+concluída; a flag permanece restrita à conta interna durante as medições da
+etapa 2.
+
 ### Responsabilidade externa
 
 Depois que a versão estiver publicada com as flags vazias, configurar em
@@ -201,6 +212,8 @@ make supabase-test-db
 
 ## 2. Medir conflitos reais, lotes e compatibilidade Safari/iOS
 
+**Estado:** código concluído; ensaios externos Safari/iOS e quotas pendentes.
+
 ### Resultado esperado
 
 Transformar a validação funcional do passo 1 em evidência de capacidade e
@@ -235,6 +248,47 @@ outbox e aprovação do PowerSync.
 6. Verificar que a retenção de recibos de sete dias não remove a idempotência
    dentro da janela prometida.
 
+### Evidência implementada
+
+- as métricas locais agora distinguem confirmação, rejeição e indisponibilidade
+  de transporte;
+- cada tentativa registra duração e quantidade de mutações, incluindo máximos
+  observados;
+- idade da operação mais antiga, tamanho atual da fila, conflitos, tentativas e
+  latência total de confirmação permanecem disponíveis sem conteúdo do usuário;
+- o teste de regressão do transporte atrasado comprova que uma fila com duas
+  operações faz somente uma tentativa antes do backoff e conserva ambas.
+- `make benchmark-account-rpc` inicia somente o Supabase local, rejeita URL não
+  local, usa dados sintéticos, mede lotes de 1 e 100, concorrência, p50, p95,
+  p99, throughput, erros, timeouts, conflito simultâneo e replay idempotente;
+- baseline local de 28 de agosto de 2026, com 30 iterações e concorrência 4:
+  lote de 1 com p50 4,7 ms, p95 57,6 ms, p99 59,7 ms e 317,7 lotes/s; lote de
+  100 com p50 16,8 ms, p95 27,4 ms, p99 68,0 ms e 196,0 lotes/s; zero erros,
+  zero timeouts, um vencedor e um conflito stale na disputa simultânea;
+- pgTAP cobre lote exato de 100 e rejeição de 101, ownership de dois usuários,
+  rollback integral, replay, reutilização inválida do identificador e retenção
+  de recibos dentro dos sete dias; são 81 testes de banco;
+- snapshot paginado já cobre 1.001 linhas por tabela e falha da página final sem
+  reconciliação parcial; a fila cobre o limite de 200 sem descartar a mudança;
+- reload offline e fechamento sem perda são cobertos em desktop e mobile, e o
+  service worker tem teste explícito de `skipWaiting`, `clientsClaim` e
+  `navigationPreload` sem operação de limpeza do IndexedDB;
+- a matriz oficial de navegadores está no README e o fallback de storage agora
+  sai do loading para uma tela traduzida, acessível e recuperável.
+
+Gates executados no fechamento da parte automatizável:
+
+- `make benchmark-account-rpc`: baseline concluído sem erro ou timeout;
+- `make supabase-reset`, `make supabase-lint` e
+  `make supabase-diff-check`: banco limpo, sem erro e sem divergência;
+- `make supabase-test-db`: 4 arquivos e 81 testes aprovados;
+- `make test-e2e`: 33 cenários aprovados em desktop e mobile e 7 cenários de
+  toque corretamente ignorados no projeto desktop;
+- `make test-e2e-account`: 4 cenários autenticados aprovados em desktop e
+  mobile;
+- `make check`: 76 arquivos e 573 testes aprovados, além de tipagem, lint,
+  formatação e build.
+
 ### Responsabilidade externa
 
 - disponibilizar ao menos dois dispositivos reais, incluindo Safari/iOS;
@@ -242,6 +296,14 @@ outbox e aprovação do PowerSync.
 - registrar modelo do aparelho, navegador, versão, rede e horário dos ensaios;
 - acompanhar consumo de banco, transferência e conexões nos painéis gratuitos;
 - não executar carga destrutiva no projeto de produção.
+
+Executar a matriz manual em Chrome Android, Safari macOS e Safari iOS com uma
+conta interna e dados sintéticos. Para cada ensaio, registrar modelo, versão do
+sistema, versão do navegador, tipo de rede e horário; testar fechamento total
+com operação pendente, retorno online, atualização da PWA e duas sessões da
+mesma conta. Nos painéis gratuitos do Supabase e da Vercel, registrar banco,
+transferência, conexões e funções antes e depois. Não ativar planos pagos nem
+executar o benchmark contra produção.
 
 ### Critérios de conclusão
 
