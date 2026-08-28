@@ -133,9 +133,12 @@ conta para que abas do mesmo navegador não disputem o mesmo `operation_id`.
 Quando o navegador informa que está offline, uma operação nova permanece
 pendente sem iniciar RPC. Se a conexão cai durante uma chamada, a operação volta
 de `syncing` para `pending` e conserva o mesmo identificador para a retomada na
-reconexão. Refreshes remotos disparados por foco ou sessão também não começam
-enquanto o navegador está offline; indisponibilidade esperada não é apresentada
-como falha definitiva de sincronização.
+reconexão. O mesmo vale quando a RPC devolve um erro de transporte antes de
+`navigator.onLine` refletir a queda: a primeira operação permanece pendente, o
+dreno para e uma tentativa limitada usa o backoff da outbox. Refreshes remotos
+disparados por foco ou sessão também não começam enquanto o navegador está
+offline; indisponibilidade esperada não é apresentada como falha definitiva de
+sincronização.
 
 O indicador de sincronização é acionável em qualquer estado. A ação baixa o
 snapshot remoto e depois envia o que este dispositivo alterou, nessa ordem. O

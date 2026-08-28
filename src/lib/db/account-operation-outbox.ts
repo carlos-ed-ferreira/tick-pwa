@@ -48,6 +48,26 @@ function isBrowserOffline(): boolean {
   return typeof navigator !== 'undefined' && navigator.onLine === false;
 }
 
+function isTransportUnavailableError(error: unknown): boolean {
+  if (error instanceof TypeError) {
+    return /failed to fetch|load failed|networkerror/i.test(error.message);
+  }
+
+  if (typeof error !== 'object' || error === null) {
+    return false;
+  }
+
+  const values = ['message', 'details']
+    .filter((key) => key in error)
+    .map((key) => String(Reflect.get(error, key)));
+
+  return values.some((value) =>
+    /failed to fetch|load failed|networkerror|network request failed/i.test(
+      value,
+    ),
+  );
+}
+
 function createOutboxItem(scope: AppScope): AccountOperationOutboxItem {
   return {
     id: createOperationId(),
@@ -378,6 +398,7 @@ async function markOperationFailed(
 
 async function returnOperationToPending(
   item: AccountOperationOutboxItem,
+  nextAttemptAt: string | null = null,
 ): Promise<void> {
   await db.transaction(
     'rw',
@@ -400,7 +421,7 @@ async function returnOperationToPending(
       await db.syncOutbox.put({
         ...current,
         lastError: null,
-        nextAttemptAt: null,
+        nextAttemptAt,
         status: 'pending',
       });
 
@@ -409,6 +430,23 @@ async function returnOperationToPending(
       }
     },
   );
+}
+
+async function deferOperationAfterTransportFailure(
+  scope: AppScope,
+  item: AccountOperationOutboxItem,
+): Promise<void> {
+  const canRetryAutomatically = item.attempts < MAX_AUTOMATIC_ATTEMPTS;
+  const retryDelayMs = computeAccountOperationRetryDelayMs(item.attempts);
+  const nextAttemptAt = canRetryAutomatically
+    ? new Date(Date.now() + retryDelayMs).toISOString()
+    : null;
+
+  await returnOperationToPending(item, nextAttemptAt);
+
+  if (canRetryAutomatically) {
+    scheduleRetry(scope, retryDelayMs);
+  }
 }
 
 function validateOperationResult(
@@ -601,6 +639,11 @@ async function processOperation(
       return;
     }
 
+    if (isTransportUnavailableError(error)) {
+      await deferOperationAfterTransportFailure(scope, syncingItem);
+      return;
+    }
+
     console.error('Failed to persist Tick account operation.', error);
 
     if (!isStaleRevisionError(error) || syncingItem.rebasedAt) {
@@ -616,6 +659,11 @@ async function processOperation(
     } catch (rebaseError) {
       if (isBrowserOffline()) {
         await returnOperationToPending(syncingItem);
+        return;
+      }
+
+      if (isTransportUnavailableError(rebaseError)) {
+        await deferOperationAfterTransportFailure(scope, syncingItem);
         return;
       }
 
@@ -691,7 +739,10 @@ async function drainOperations(
     await processOperation(scope, item);
     const remainingItem = await db.syncOutbox.get(item.id);
 
-    if (remainingItem?.status === 'failed') {
+    if (
+      remainingItem?.status === 'failed' ||
+      remainingItem?.status === 'pending'
+    ) {
       break;
     }
   }
