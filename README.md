@@ -130,6 +130,12 @@ sincronização forçada. Uma rejeição `stale_revision` é rebaseada uma vez p
 revisão atual do servidor e reenviada automaticamente; se ainda assim falhar, a
 operação permanece visível e recuperável. A drenagem da outbox usa um lock por
 conta para que abas do mesmo navegador não disputem o mesmo `operation_id`.
+Quando o navegador informa que está offline, uma operação nova permanece
+pendente sem iniciar RPC. Se a conexão cai durante uma chamada, a operação volta
+de `syncing` para `pending` e conserva o mesmo identificador para a retomada na
+reconexão. Refreshes remotos disparados por foco ou sessão também não começam
+enquanto o navegador está offline; indisponibilidade esperada não é apresentada
+como falha definitiva de sincronização.
 
 O indicador de sincronização é acionável em qualquer estado. A ação baixa o
 snapshot remoto e depois envia o que este dispositivo alterou, nessa ordem. O

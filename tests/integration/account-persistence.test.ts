@@ -343,6 +343,7 @@ describe('account persistence boundaries', () => {
   });
 
   afterEach(async () => {
+    vi.restoreAllMocks();
     supabaseMocks.getSupabaseBrowserClient.mockReset();
     await db.delete();
   });
@@ -749,7 +750,9 @@ describe('account persistence boundaries', () => {
     supabaseMocks.getSupabaseBrowserClient.mockReturnValue(
       accountClient.client,
     );
-    vi.spyOn(window.navigator, 'onLine', 'get').mockReturnValue(false);
+    const online = vi
+      .spyOn(window.navigator, 'onLine', 'get')
+      .mockReturnValue(false);
 
     const categoryTag = await createCategoryTag({
       scope,
@@ -764,7 +767,7 @@ describe('account persistence boundaries', () => {
       syncStatus: 'failed',
     });
 
-    vi.spyOn(window.navigator, 'onLine', 'get').mockReturnValue(true);
+    online.mockReturnValue(true);
     await resumeAccountPersistence(scope);
 
     expect(accountClient.from).toHaveBeenCalledOnce();
@@ -772,6 +775,122 @@ describe('account persistence boundaries', () => {
       remoteRevision: 1,
       syncStatus: 'synced',
     });
+    online.mockRestore();
+  });
+
+  it('keeps a durable offline write pending until the browser reconnects', async () => {
+    environmentMocks.shouldUseAccountOperationBatchesForUser.mockReturnValue(
+      true,
+    );
+    const scope = createUserScope('durable-offline-user');
+    const sync = createSyncClient();
+    supabaseMocks.getSupabaseBrowserClient.mockReturnValue(sync.client);
+    const online = vi
+      .spyOn(window.navigator, 'onLine', 'get')
+      .mockReturnValue(false);
+
+    const categoryTag = await createCategoryTag({
+      scope,
+      surface: 'calendar',
+      name: 'Offline durable',
+      colorHex: '#2563eb',
+    });
+    await waitForAccountPersistence(scope.id);
+
+    expect(sync.rpc).not.toHaveBeenCalled();
+    await expect(db.syncOutbox.toCollection().first()).resolves.toMatchObject({
+      attempts: 0,
+      status: 'pending',
+    });
+    await expect(db.categoryTags.get(categoryTag.id)).resolves.toMatchObject({
+      syncStatus: 'pending',
+    });
+    await expect(getAccountSyncSummary(scope.id)).resolves.toMatchObject({
+      failedCount: 0,
+      pendingCount: 1,
+      state: 'pending',
+    });
+
+    online.mockReturnValue(true);
+    await resumeAccountPersistence(scope);
+    await waitForAccountPersistence(scope.id);
+
+    expect(sync.rpc).toHaveBeenCalledOnce();
+    await expect(db.syncOutbox.count()).resolves.toBe(0);
+    await expect(db.categoryTags.get(categoryTag.id)).resolves.toMatchObject({
+      remoteRevision: 1,
+      syncStatus: 'synced',
+    });
+    online.mockRestore();
+  });
+
+  it('returns an in-flight durable write to pending when the browser goes offline', async () => {
+    environmentMocks.shouldUseAccountOperationBatchesForUser.mockReturnValue(
+      true,
+    );
+    const scope = createUserScope('durable-disconnect-user');
+    let browserOnline = true;
+    let requestCount = 0;
+    const sync = createSyncClient();
+    const rpc = vi.fn(
+      async (
+        _functionName: string,
+        args: {
+          p_mutations: Array<{
+            base_revision: number | null;
+            entity_type: string;
+            payload: { id: string };
+          }>;
+          p_operation_id: string;
+        },
+      ) => {
+        requestCount += 1;
+
+        if (requestCount === 1) {
+          browserOnline = false;
+          return {
+            data: null,
+            error: { code: 'network_error', message: 'offline' },
+          };
+        }
+
+        return sync.rpc(_functionName, args);
+      },
+    );
+    supabaseMocks.getSupabaseBrowserClient.mockReturnValue({
+      ...sync.client,
+      rpc,
+    });
+    const online = vi
+      .spyOn(window.navigator, 'onLine', 'get')
+      .mockImplementation(() => browserOnline);
+
+    const categoryTag = await createCategoryTag({
+      scope,
+      surface: 'calendar',
+      name: 'Disconnect durable',
+      colorHex: '#2563eb',
+    });
+    await waitForAccountPersistence(scope.id);
+
+    expect(rpc).toHaveBeenCalledOnce();
+    await expect(db.syncOutbox.toCollection().first()).resolves.toMatchObject({
+      status: 'pending',
+    });
+    await expect(db.categoryTags.get(categoryTag.id)).resolves.toMatchObject({
+      syncStatus: 'pending',
+    });
+
+    browserOnline = true;
+    await resumeAccountPersistence(scope);
+    await waitForAccountPersistence(scope.id);
+
+    expect(rpc).toHaveBeenCalledTimes(2);
+    await expect(db.categoryTags.get(categoryTag.id)).resolves.toMatchObject({
+      remoteRevision: 1,
+      syncStatus: 'synced',
+    });
+    online.mockRestore();
   });
 
   it('uses the durable RPC path for categories and the complete goal hierarchy', async () => {

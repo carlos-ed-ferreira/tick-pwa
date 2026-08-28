@@ -155,7 +155,7 @@ test('automatically retries a durable account operation after reconnect', async 
   await firstChecklistInput(page).fill('Reconnect automatically');
   await firstChecklistInput(page).press('Enter');
   await expect(
-    page.getByRole('button', { name: /sync failed/i }),
+    page.getByRole('button', { name: /saved locally, waiting to send/i }),
   ).toBeVisible();
 
   remote.setRemoteOffline(false);

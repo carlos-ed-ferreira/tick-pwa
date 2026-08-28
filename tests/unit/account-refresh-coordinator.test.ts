@@ -62,4 +62,18 @@ describe('AccountRefreshCoordinator', () => {
     expect(refreshCache).toHaveBeenCalledTimes(3);
     expect(refreshCache).toHaveBeenLastCalledWith(secondScope);
   });
+
+  it('does not start a remote refresh while the browser is offline', async () => {
+    const scope = createUserScope('offline-refresh-user');
+    const refreshCache = vi.fn().mockResolvedValue(null);
+    const coordinator = new AccountRefreshCoordinator(
+      refreshCache,
+      Date.now,
+      60_000,
+      () => false,
+    );
+
+    await expect(coordinator.refresh(scope, 'focus')).resolves.toBeNull();
+    expect(refreshCache).not.toHaveBeenCalled();
+  });
 });
