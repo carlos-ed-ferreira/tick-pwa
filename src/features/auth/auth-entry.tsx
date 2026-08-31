@@ -42,6 +42,7 @@ export function AuthEntry() {
   const [isPasswordSigningIn, setIsPasswordSigningIn] = useState(false);
   const [emailError, setEmailError] = useState<string | null>(null);
   const [passwordError, setPasswordError] = useState<string | null>(null);
+  const isSigningIn = isGoogleSigningIn || isPasswordSigningIn;
 
   async function handleGoogleSignIn() {
     setIsGoogleSigningIn(true);
@@ -124,7 +125,7 @@ export function AuthEntry() {
 
             <FormField
               autoComplete="email"
-              disabled={isGoogleSigningIn || isPasswordSigningIn}
+              disabled={isSigningIn}
               error={emailError}
               label={dictionary.auth.emailLabel}
               placeholder={dictionary.auth.emailPlaceholder}
@@ -141,7 +142,7 @@ export function AuthEntry() {
 
             <FormField
               autoComplete="current-password"
-              disabled={isGoogleSigningIn || isPasswordSigningIn}
+              disabled={isSigningIn}
               error={passwordError}
               label={dictionary.auth.passwordLabel}
               placeholder={dictionary.auth.passwordPlaceholder}
@@ -159,7 +160,7 @@ export function AuthEntry() {
 
           <ActionButton
             className="mt-1"
-            disabled={isGoogleSigningIn || isPasswordSigningIn}
+            disabled={isSigningIn}
             icon={
               isPasswordSigningIn ? (
                 <LoaderCircle className="size-4 animate-spin" />
@@ -191,7 +192,7 @@ export function AuthEntry() {
 
         <div className="grid gap-3">
           <ActionButton
-            disabled={isGoogleSigningIn || isPasswordSigningIn}
+            disabled={isSigningIn}
             description={dictionary.auth.signInDescription}
             icon={<GoogleIcon />}
             label={
@@ -204,6 +205,7 @@ export function AuthEntry() {
           />
 
           <ActionButton
+            disabled={isSigningIn}
             description={dictionary.auth.localModeDescription}
             icon={<CloudOff className="size-4" />}
             label={dictionary.auth.localMode}
