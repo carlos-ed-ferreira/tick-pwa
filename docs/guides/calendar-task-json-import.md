@@ -1,4 +1,7 @@
-# Importação JSON nas tarefas do dia
+# Guia e contrato da importação JSON de tarefas do calendário
+
+Este documento descreve o uso da interface, o contrato de entrada, as
+validações e o comportamento local-first da importação JSON do calendário.
 
 Permite adicionar tarefas a vários dias colando um JSON pronto, em vez de
 digitar tarefa por tarefa.

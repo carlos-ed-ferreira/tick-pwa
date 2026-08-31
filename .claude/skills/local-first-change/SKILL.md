@@ -16,7 +16,7 @@ description: >-
    `user:<supabaseUserId>`: leitura, commit local, envio remoto, falha, retry,
    reconexão e troca de modo.
 4. Distinguir garantia existente de item planejado em
-   `../../../IMPLEMENTATION.md`.
+   `../../../docs/planning/implementation-plan.md`.
 
 Parar e registrar decisão antes de criar sync paralelo, migrar guest durante
 login ou introduzir uma nova fonte canônica.
@@ -57,4 +57,5 @@ Testar, conforme o alcance:
 - conta madura e fila sob carga.
 
 Executar testes direcionados, E2E autenticado/local, pgTAP e gates do REVIEW.
-Registrar limitações ainda não resolvidas no `IMPLEMENTATION.md`.
+Registrar limitações ainda não resolvidas em
+`docs/planning/implementation-plan.md`.

@@ -5,7 +5,7 @@
 Este arquivo rege agentes no repositório inteiro, salvo `AGENTS.md` mais
 específico. Leia primeiro o [README.md](README.md) para o estado real e o
 [REVIEW.md](REVIEW.md) para gates e evidências. Consulte o
-[IMPLEMENTATION.md](IMPLEMENTATION.md) para lacunas futuras; não trate um item
+[plano de implementação](docs/planning/implementation-plan.md) para lacunas futuras; não trate um item
 planejado como já implementado.
 
 ## Antes de editar
@@ -131,7 +131,7 @@ implementados.
 
 Não migre dados guest incidentalmente durante login. A migração futura deve ser
 uma feature explícita, idempotente, testável, com ownership, retry e tratamento
-de falha parcial, conforme `IMPLEMENTATION.md`.
+de falha parcial, conforme `docs/planning/implementation-plan.md`.
 
 ## Banco, API e segurança
 
@@ -149,6 +149,11 @@ compatibilidade, licença, vulnerabilidades e impacto em bundle/runtime. Nunca
 use atualização destrutiva ou `--force` automaticamente.
 
 ## Código e comentários
+
+Use inglês para nomes de diretórios, arquivos, módulos, símbolos, tipos,
+funções, variáveis, targets, artefatos técnicos e demais identificadores do
+repositório. Apenas o conteúdo textual de documentação pode permanecer em
+português. Não introduza nomenclatura técnica nova em português.
 
 Não adicione comentários de linha, bloco, JSDoc, TODO, código comentado ou
 comentários gerados por IA em código, testes, CSS ou SQL. Expresse intenção com
@@ -215,8 +220,8 @@ críticos antes de otimizar. Siga baselines e ratchets do REVIEW.
 
 Atualize o README quando mudar estado real, setup, arquitetura, comandos,
 integrações ou operação. Atualize AGENTS quando mudar como o agente trabalha,
-REVIEW quando mudar gates e IMPLEMENTATION quando descobrir uma lacuna ainda
-não resolvida. Atualize a Skill quando mudar o procedimento que ela
+REVIEW quando mudar gates e o plano de implementação quando descobrir uma
+lacuna ainda não resolvida. Atualize a Skill quando mudar o procedimento que ela
 operacionaliza. Documentação detalhada de feature fica em `docs/`.
 
 Antes de concluir:

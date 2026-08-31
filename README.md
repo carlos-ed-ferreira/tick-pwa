@@ -174,7 +174,7 @@ têm destino externo.
 
 O estado atual ainda tem limitações conhecidas de rollout amplo, cobertura de
 Safari/iOS e observabilidade externa. Elas estão
-registradas no [IMPLEMENTATION.md](IMPLEMENTATION.md); não devem ser confundidas
+registradas no [plano de implementação](docs/planning/implementation-plan.md); não devem ser confundidas
 com garantias já implementadas.
 
 O backend contém `apply_account_operation_batch` e recibos por conta e
@@ -184,13 +184,13 @@ por revisão e confirma o lote inteiro em uma transação. Cada chamada também
 descarta os recibos da própria conta com mais de sete dias. O consumidor
 funcional é habilitado somente para contas internas explicitamente autorizadas.
 A ativação, os ensaios e o rollback estão no passo 1 do
-[IMPLEMENTATION.md](IMPLEMENTATION.md).
+[plano de implementação](docs/planning/implementation-plan.md).
 
 A arquitetura de sincronização autenticada foi consolidada na outbox própria.
 O POC PowerSync e seus objetos isolados foram retirados; não existe runtime,
 rota, flag ou dual-write alternativo no produto. A comparação, o custo e o
 procedimento de remoção estão registrados no passo 3 do
-[IMPLEMENTATION.md](IMPLEMENTATION.md).
+[plano de implementação](docs/planning/implementation-plan.md).
 
 ### PWA e offline
 
@@ -287,7 +287,7 @@ Os nomes técnicos principais continuam `ChecklistItem`, `Goal`, `GoalGroup` e
 
 Guest limitado, trial, assinatura, entitlement e migração explícita de dados
 para conta são requisitos futuros, não comportamento existente. O backlog
-canônico está no [IMPLEMENTATION.md](IMPLEMENTATION.md).
+canônico está no [plano de implementação](docs/planning/implementation-plan.md).
 
 ## Estrutura do repositório
 
@@ -424,7 +424,7 @@ Comandos de produção são bloqueados pelo wrapper fora do GitHub Actions. O
 workflow de migrations faz repair do histórico conhecido, dry-run e push. Ele
 depende do quality gate aprovado do mesmo SHA. A ordenação entre migrations e o
 deploy externo da Vercel ainda é uma lacuna registrada no passo 5 do
-`IMPLEMENTATION.md`.
+`docs/planning/implementation-plan.md`.
 
 ## APIs e serviços externos
 
@@ -516,7 +516,7 @@ nas falhas seguintes enquanto a issue continuar aberta; execuções bem-sucedida
 e pull requests não geram aviso. O workflow de migrations usa a mesma action
 composta `.github/actions/report-failure` com o rótulo `migration-failure`. Os
 dois avisos cobrem apenas execução que falhou: pipeline que nunca começa ainda
-não é detectado, conforme o passo 5 do `IMPLEMENTATION.md`. `.github/workflows/supabase-migrations.yml` só aceita
+não é detectado, conforme o passo 5 de `docs/planning/implementation-plan.md`. `.github/workflows/supabase-migrations.yml` só aceita
 o SHA de um `App CI` aprovado na `main`; execução manual roda o mesmo quality
 gate antes de acessar o environment `production`. O workflow registra o SHA,
 detecta mudanças de banco, faz dry-run e então aplica migrations.
@@ -535,22 +535,28 @@ um pedido explícito para essa operação no turno atual.
 
 Mudanças de banco usadas pelo frontend devem ser aditivas e publicadas em duas
 etapas: migration compatível primeiro e aplicação depois. O fluxo desejado de
-produção e as lacunas de segurança estão no `IMPLEMENTATION.md`.
+produção e as lacunas de segurança estão em
+`docs/planning/implementation-plan.md`.
 
 O projeto continuará nos planos gratuitos nesta fase: não há decisão para
 contratar Vercel Pro ou Supabase Pro agora, e PowerSync foi descartado. A
 arquitetura-alvo, os custos e os gatilhos de contratação estão no passo 8 do
-[IMPLEMENTATION.md](IMPLEMENTATION.md).
+[plano de implementação](docs/planning/implementation-plan.md).
 
 ## Documentação
 
+Diretórios, arquivos, módulos, símbolos e demais identificadores técnicos usam
+nomes em inglês em todo o repositório. Apenas o conteúdo textual de documentos
+pode permanecer em português.
+
 - [AGENTS.md](AGENTS.md): regras operacionais para agentes;
 - [REVIEW.md](REVIEW.md): baselines, métricas e quality gates;
-- [IMPLEMENTATION.md](IMPLEMENTATION.md): plano único de evolução, arquitetura,
+- [docs/planning/implementation-plan.md](docs/planning/implementation-plan.md): plano único de evolução, arquitetura,
   custos, rollouts e responsabilidades externas;
 - [.agents/skills](.agents/skills): workflows reutilizáveis para agentes;
-- [docs/importacao-json.md](docs/importacao-json.md): contrato da importação;
+- [docs/guides/calendar-task-json-import.md](docs/guides/calendar-task-json-import.md): guia funcional e contrato da importação JSON do calendário;
+- [docs/operations/incidents/2026-08-31-supabase-wal-read-only.md](docs/operations/incidents/2026-08-31-supabase-wal-read-only.md): incidente de saturação, WAL e modo somente leitura do Supabase;
 
-`IMPLEMENTATION.md` é a fonte canônica e completa do backlog técnico. Os
+`docs/planning/implementation-plan.md` é a fonte canônica e completa do backlog técnico. Os
 documentos em `docs/` existem somente para contratos específicos que não
 pertencem ao plano geral.
