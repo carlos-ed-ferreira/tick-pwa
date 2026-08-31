@@ -25,6 +25,7 @@ import {
   recordAccountOperationSent,
   recordAccountOperationTransportUnavailable,
 } from './account-sync-metrics';
+import { reportAccountSyncTelemetry } from '@/lib/telemetry';
 
 const MAX_AUTOMATIC_ATTEMPTS = 5;
 const MAX_MUTATIONS_PER_OPERATION = 100;
@@ -694,13 +695,15 @@ async function processOperation(
       );
       await markOperationFailed(scope, syncingItem, rebaseError);
     }
+  } finally {
+    void reportAccountSyncTelemetry(scope.id);
   }
 }
 
 function hasExhaustedAutomaticAttempts(
   item: AccountOperationOutboxItem,
 ): boolean {
-  return item.status === 'failed' && item.attempts >= MAX_AUTOMATIC_ATTEMPTS;
+  return item.attempts >= MAX_AUTOMATIC_ATTEMPTS;
 }
 
 async function withOutboxLock(
@@ -722,7 +725,12 @@ async function drainOperations(
   {
     ignoreBackoff,
     includeFailed,
-  }: { ignoreBackoff: boolean; includeFailed: boolean },
+    includeStaleFailures = true,
+  }: {
+    ignoreBackoff: boolean;
+    includeFailed: boolean;
+    includeStaleFailures?: boolean;
+  },
 ): Promise<void> {
   if (scope.kind === 'guest' || isBrowserOffline()) {
     return;
@@ -737,7 +745,10 @@ async function drainOperations(
   );
 
   for (const item of items) {
-    if (item.status === 'failed' && !includeFailed) {
+    if (
+      item.status === 'failed' &&
+      (!includeFailed || (!includeStaleFailures && item.lastError === '40001'))
+    ) {
       break;
     }
 
@@ -833,6 +844,20 @@ export function resumeAccountOperationOutbox(scope: AppScope): Promise<void> {
   return enqueueOperation(scope.id, () =>
     withOutboxLock(scope.id, () =>
       drainOperations(scope, { ignoreBackoff: false, includeFailed: false }),
+    ),
+  );
+}
+
+export function resumeInterruptedAccountOperationOutbox(
+  scope: AppScope,
+): Promise<void> {
+  return enqueueOperation(scope.id, () =>
+    withOutboxLock(scope.id, () =>
+      drainOperations(scope, {
+        ignoreBackoff: true,
+        includeFailed: true,
+        includeStaleFailures: false,
+      }),
     ),
   );
 }

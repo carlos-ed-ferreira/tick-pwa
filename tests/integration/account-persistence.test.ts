@@ -2279,6 +2279,11 @@ describe('account persistence boundaries', () => {
     });
     expect(operation?.rebasedAt).not.toBeNull();
 
+    await resumeAccountPersistence(scope);
+    await waitForAccountPersistence(scope.id);
+
+    expect(rpc).toHaveBeenCalledTimes(2);
+
     await retryFailedAccountPersistence(scope);
     await waitForAccountPersistence(scope.id);
 

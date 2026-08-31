@@ -1,0 +1,74 @@
+name: Production backup
+
+on:
+  schedule:
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: production-backup
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  backup:
+    name: Create encrypted backup
+    if: vars.ENABLE_PRODUCTION_BACKUP == '1'
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+      TICK_BACKUP_ENCRYPTION_KEY: ${{ secrets.TICK_BACKUP_ENCRYPTION_KEY }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: make install-ci
+
+      - name: Create logical backup
+        run: make supabase-prod-backup
+
+      - name: Encrypt backup
+        run: make backup-encrypt input=.next/backups output=.next/tick-production-backup.enc
+
+      - name: Upload encrypted backup
+        uses: actions/upload-artifact@v6
+        with:
+          name: tick-production-backup-${{ github.run_id }}
+          path: .next/tick-production-backup.enc
+          if-no-files-found: error
+          retention-days: 14
+
+  report-failure:
+    name: Report failed backup
+    needs: backup
+    if: failure()
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Report the failed backup
+        uses: ./.github/actions/report-failure
+        with:
+          token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          label: backup-failure
+          title: Backup de produção falhou
+          assignee: ${{ github.repository_owner }}
+          run-url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          commit-sha: ${{ github.sha }}

@@ -176,6 +176,54 @@ try {
     process.exit(0);
   }
 
+  if (command === 'prod:backup') {
+    ensureProductionCommandAllowed();
+    const databaseUrl = requireEnvVar('SUPABASE_DB_URL');
+    const backupDirectory = path.resolve(
+      workspaceRoot,
+      process.env.TICK_BACKUP_DIRECTORY ?? '.next/backups',
+    );
+    mkdirSync(backupDirectory, { recursive: true });
+
+    await executeSupabase([
+      'db',
+      'dump',
+      '--db-url',
+      databaseUrl,
+      '-f',
+      path.join(backupDirectory, 'roles.sql'),
+      '--role-only',
+    ]);
+    await executeSupabase([
+      'db',
+      'dump',
+      '--db-url',
+      databaseUrl,
+      '-f',
+      path.join(backupDirectory, 'schema.sql'),
+    ]);
+    await executeSupabase([
+      'db',
+      'dump',
+      '--db-url',
+      databaseUrl,
+      '-f',
+      path.join(backupDirectory, 'data.sql'),
+      '--use-copy',
+      '--data-only',
+      '-x',
+      'storage.buckets_vectors',
+      '-x',
+      'storage.vector_indexes',
+    ]);
+    writeFileSync(
+      path.join(backupDirectory, 'manifest.json'),
+      JSON.stringify({ createdAt: new Date().toISOString(), version: 1 }),
+      'utf8',
+    );
+    process.exit(0);
+  }
+
   printUsage();
   process.exit(1);
 } catch (error) {
@@ -200,6 +248,7 @@ Commands:
   prod:db:push     Apply production migrations on GitHub Actions only
   prod:migrations:repair  Remove superseded migration versions from remote history
   prod:types       Generate types from production on GitHub Actions only
+  prod:backup      Create a logical production backup on GitHub Actions only
 
 The script loads .env.local by default. Override it with SUPABASE_ENV_FILE=/path/to/file.
 Production commands are blocked unless GITHUB_ACTIONS=true.`);
