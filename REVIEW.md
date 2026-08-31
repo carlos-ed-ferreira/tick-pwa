@@ -215,7 +215,7 @@ Até a automação:
   valor anterior;
 - código novo deve respeitar 10/80/800;
 - alteração substancial em hotspot deve reduzir pelo menos uma responsabilidade
-  ou registrar plano explícito no `IMPLEMENTATION.md`.
+  ou registrar plano explícito em `docs/planning/implementation-plan.md`.
 
 ## Matriz de testes por tipo de mudança
 
@@ -278,7 +278,7 @@ PR/commit
 ```
 
 O workflow atual ainda não impõe toda essa ordem; a correção está no
-`IMPLEMENTATION.md`.
+`docs/planning/implementation-plan.md`.
 
 ## Trial, assinatura e migração guest
 

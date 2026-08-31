@@ -4,8 +4,8 @@
 
 Este é o único plano de evolução do Tick. Ele centraliza arquitetura, custos,
 rollouts, decisões, trabalho de código, configuração externa, validação e
-critérios de conclusão. O [README.md](README.md) descreve somente o que existe
-hoje e o [REVIEW.md](REVIEW.md) define os gates de qualidade.
+critérios de conclusão. O [README.md](../../README.md) descreve somente o que existe
+hoje e o [REVIEW.md](../../REVIEW.md) define os gates de qualidade.
 
 O objetivo é preparar o produto para aproximadamente **1.000 usuários ativos
 por dia**, sem assumir que a stack atual precisa ser preservada. A execução
@@ -425,6 +425,21 @@ A decisão contém evidências, custo estimado, navegadores suportados, polític
 conflito, rollout e rollback. `SYNC-01` usa agora somente a outbox nas telas
 reais; a retirada do caminho temporário está implementada e validada em banco
 limpo. A etapa conclui após aprovação explícita do desenvolvedor neste turno.
+
+### Incidente durante a retirada em produção
+
+Em 31 de agosto de 2026, a limpeza externa encontrou um replication slot
+inativo do PowerSync retendo WAL. O Supabase saturou recursos, ficou
+temporariamente indisponível e depois entrou em modo somente leitura. A
+migration de retirada já estava na `main`, mas o workflow de produção falhou
+durante a indisponibilidade e abriu a issue `#32`. O slot e a role exclusiva
+foram removidos, o banco voltou a `default_transaction_read_only = off` e o
+disco iniciou recuperação de 96% para 93%. A execução manual do workflow e a
+confirmação da remoção dos objetos permanecem como fechamento externo.
+
+O diagnóstico, a recuperação e a ordem segura para retirar futuros
+consumidores de replicação estão no
+[registro do incidente](../operations/incidents/2026-08-31-supabase-wal-read-only.md).
 
 ## 4. Implementar observabilidade, backup e restauração
 
