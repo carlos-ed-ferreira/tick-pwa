@@ -11,6 +11,7 @@ type AuthShellProps = {
   children: ReactNode;
   subtitle: string;
   title: string;
+  showAccessNotice?: boolean;
 };
 
 export function AuthShell({
@@ -18,6 +19,7 @@ export function AuthShell({
   children,
   subtitle,
   title,
+  showAccessNotice = true,
 }: AuthShellProps) {
   const { dictionary } = useAppContext();
 
@@ -86,16 +88,18 @@ export function AuthShell({
                       {subtitle}
                     </Text>
                   </div>
-                  <div className="grid gap-3 rounded-[0.75rem] bg-background/45 p-4 shadow-inner mt-10 sm:max-w-lg lg:mt-12">
-                    <div className="grid gap-1">
-                      <p className="text-sm font-semibold text-foreground">
-                        {dictionary.auth.allowedOnly}
-                      </p>
-                      <p className="text-sm leading-6 text-[#cbd5e0]">
-                        {dictionary.auth.noSignup}
-                      </p>
+                  {showAccessNotice ? (
+                    <div className="grid gap-3 rounded-[0.75rem] bg-background/45 p-4 shadow-inner mt-10 sm:max-w-lg lg:mt-12">
+                      <div className="grid gap-1">
+                        <p className="text-sm font-semibold text-foreground">
+                          {dictionary.auth.allowedOnly}
+                        </p>
+                        <p className="text-sm leading-6 text-[#cbd5e0]">
+                          {dictionary.auth.noSignup}
+                        </p>
+                      </div>
                     </div>
-                  </div>
+                  ) : null}
                 </div>
               </div>
             </div>

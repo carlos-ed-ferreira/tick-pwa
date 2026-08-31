@@ -79,6 +79,16 @@ try {
     process.exit(0);
   }
 
+  if (command === 'benchmark:account') {
+    const localEnvironment = await getBenchmarkEnvironment();
+    await executeNodeScript('scripts/benchmark-account-rpc.mjs', {
+      TICK_BENCHMARK_SUPABASE_ANON_KEY:
+        localEnvironment.ANON_KEY ?? localEnvironment.PUBLISHABLE_KEY,
+      TICK_BENCHMARK_SUPABASE_URL: localEnvironment.API_URL,
+    });
+    process.exit(0);
+  }
+
   if (command === 'types:local') {
     const output = await executeSupabase(
       [
@@ -262,6 +272,64 @@ function writeTypes(output) {
   console.log(
     `Wrote Supabase types to ${path.relative(workspaceRoot, targetPath)}.`,
   );
+}
+
+function parseStatusEnvironment(output) {
+  return Object.fromEntries(
+    output
+      .split(/\r?\n/u)
+      .map((line) => line.match(/^([A-Z_]+)="(.*)"$/u))
+      .filter(Boolean)
+      .map((match) => [match[1], match[2]]),
+  );
+}
+
+async function getBenchmarkEnvironment() {
+  let status = await executeSupabase(['status', '-o', 'env'], {
+    captureOutput: true,
+  });
+  let environment = parseStatusEnvironment(status);
+
+  if (environment.API_URL) {
+    return environment;
+  }
+
+  await executeSupabase(['stop']);
+  await executeSupabase(['start']);
+  status = await executeSupabase(['status', '-o', 'env'], {
+    captureOutput: true,
+  });
+  environment = parseStatusEnvironment(status);
+
+  if (!environment.API_URL) {
+    throw new Error('The local Supabase API is unavailable.');
+  }
+
+  return environment;
+}
+
+function executeNodeScript(scriptPath, environment) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(
+      process.execPath,
+      [path.resolve(workspaceRoot, scriptPath)],
+      {
+        cwd: workspaceRoot,
+        env: { ...process.env, ...environment },
+        stdio: 'inherit',
+      },
+    );
+
+    child.on('error', reject);
+    child.on('close', (code) => {
+      if (code === 0) {
+        resolve();
+        return;
+      }
+
+      reject(new Error(`Node script failed with exit code ${code}.`));
+    });
+  });
 }
 
 function resolveSupabaseExecutable() {

@@ -166,9 +166,11 @@ re-render da interface. O indicador de sincronização também só sai de
 invisíveis, enquanto falha aparece imediatamente. A duração, páginas, linhas e motivo ficam disponíveis no
 resultado estruturado do refresh, ainda sem envio para observabilidade externa.
 
-Métricas de fila, tentativas, rejeições, conflitos e latência de confirmação
-são acumuladas por conta em `src/lib/db/account-sync-metrics.ts`, sem conteúdo
-do usuário. Elas ainda não têm destino externo.
+Métricas de fila, tentativas, rejeições, falhas de transporte, conflitos,
+tamanho e duração dos lotes, idade da operação mais antiga e latência de
+confirmação são acumuladas por conta em
+`src/lib/db/account-sync-metrics.ts`, sem conteúdo do usuário. Elas ainda não
+têm destino externo.
 
 O estado atual ainda tem limitações conhecidas de rollout amplo, cobertura de
 Safari/iOS e observabilidade externa. Elas estão
@@ -184,20 +186,10 @@ funcional é habilitado somente para contas internas explicitamente autorizadas.
 A ativação, os ensaios e o rollback estão no passo 1 do
 [IMPLEMENTATION.md](IMPLEMENTATION.md).
 
-Existe uma fundação desativada para a prova de conceito do PowerSync. Ela cria
-um SQLite `v2` isolado por conta e usa tabelas PostgreSQL `powersync_poc_*`
-exclusivas, com schema, autenticação, upload e Sync Streams próprios. Cada
-transação SQLite é enviada por uma única RPC remota com recibo idempotente e
-rollback integral; entre operações válidas, a última transação confirmada no
-servidor vence. O adapter web opera em modo single-tab sem Web Worker para
-ampliar a compatibilidade em navegadores mobile. O timeout protege somente a
-abertura do SQLite; a conexão remota começa em segundo plano e não bloqueia nem
-fecha o banco local quando está lenta ou indisponível. A rota interna
-`/~powersync-poc` exercita criação, edição,
-conclusão, reordenação, exclusão e visibilidade da fila sem ler ou escrever as
-tabelas funcionais. Ela permanece bloqueada sem flag e UUID autorizado e não
-substitui a persistência funcional Dexie. O estado, a configuração e os
-critérios da prova estão no passo 3 do
+A arquitetura de sincronização autenticada foi consolidada na outbox própria.
+O POC PowerSync e seus objetos isolados foram retirados; não existe runtime,
+rota, flag ou dual-write alternativo no produto. A comparação, o custo e o
+procedimento de remoção estão registrados no passo 3 do
 [IMPLEMENTATION.md](IMPLEMENTATION.md).
 
 ### PWA e offline
@@ -210,6 +202,20 @@ locais, como o dia ou a meta selecionada, reutilizam o mesmo shell precacheado e
 são reconstruídos do IndexedDB. O modo local continua funcional sem Supabase. A
 sessão e o refresh do modo autenticado ainda dependem do grant local válido
 quando o Supabase está indisponível.
+
+### Navegadores suportados na alfa
+
+- Chrome desktop e Chrome Android nas versões estáveis atual e anterior são o
+  alvo primário e têm cobertura automatizada;
+- Safari macOS e Safari iOS nas versões estáveis atual e anterior são alvo
+  oficial, com validação manual obrigatória antes de ampliar o rollout;
+- outros navegadores Chromium podem funcionar, mas não compõem a matriz oficial;
+- Firefox não faz parte da matriz da alfa;
+- o produto exige IndexedDB e service worker. Se o armazenamento
+  local estiver bloqueado ou indisponível, uma tela traduzida orienta a liberar
+  dados de site, fechar outras abas e tentar novamente sem limpar os dados;
+- calendário e metas usam lock por conta quando o navegador oferece Web Locks e
+  preservam a outbox em sua ausência.
 
 ## Stack verificada
 
@@ -361,9 +367,6 @@ NEXT_PUBLIC_TICK_SUPABASE_ENV=local
 NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321
 NEXT_PUBLIC_SUPABASE_ANON_KEY=<chave pública local>
 NEXT_PUBLIC_TICK_DISABLE_SUPABASE=
-NEXT_PUBLIC_TICK_ENABLE_POWERSYNC_POC=
-NEXT_PUBLIC_TICK_POWERSYNC_POC_USER_IDS=
-NEXT_PUBLIC_POWERSYNC_URL=
 NEXT_PUBLIC_TICK_ENABLE_ACCOUNT_BATCHES=
 NEXT_PUBLIC_TICK_ACCOUNT_BATCH_USER_IDS=
 ```
@@ -372,17 +375,10 @@ Defina `NEXT_PUBLIC_TICK_DISABLE_SUPABASE=1` para forçar execução local sem
 Supabase. Em `localhost`, a aplicação só aceita `local` com uma URL local. Fora
 de localhost, só aceita o ambiente explícito `production`.
 
-As variáveis de ativação do PowerSync permanecem vazias no fluxo normal. A
-prova só é carregada quando a URL usa HTTPS, o sync Supabase está permitido e
-`NEXT_PUBLIC_TICK_ENABLE_POWERSYNC_POC=1`. Além da flag, o ID da conta precisa
-estar em `NEXT_PUBLIC_TICK_POWERSYNC_POC_USER_IDS`. Não habilite o rollout antes
-de concluir a validação descrita no passo 3 do `IMPLEMENTATION.md`.
-
 As variáveis `NEXT_PUBLIC_TICK_ENABLE_ACCOUNT_BATCHES` e
 `NEXT_PUBLIC_TICK_ACCOUNT_BATCH_USER_IDS` também permanecem vazias por padrão.
-Elas controlam separadamente a outbox funcional e a RPC transacional; não
-ativam nem dependem do PowerSync. Consulte o rollout controlado antes de
-preenchê-las.
+Elas controlam a outbox funcional e a RPC transacional. Consulte o rollout
+controlado antes de preenchê-las.
 
 Produção requer:
 
@@ -448,27 +444,27 @@ O `Makefile` é a interface única para operações do projeto. Não execute
 `npm`, `npx`, CLIs de serviço ou scripts diretamente. Se surgir uma rotina
 recorrente sem target, adicione-a ao `Makefile` e ao `make help` primeiro.
 
-| Objetivo           | Comando                             |
-| ------------------ | ----------------------------------- |
-| instalar           | `make install` ou `make install-ci` |
-| desenvolver        | `make dev`                          |
-| build/start        | `make build`, `make start`          |
-| typecheck          | `make typecheck`                    |
-| lint               | `make lint`                         |
-| testes             | `make test`                         |
-| testes da outbox   | `make test-account-persistence`     |
-| testes PowerSync   | `make test-powersync`               |
-| E2E padrão         | `make test-e2e`                     |
-| E2E layout mobile  | `make test-e2e-mobile`              |
-| E2E reload offline | `make test-e2e-offline`             |
-| E2E autenticado    | `make test-e2e-account`             |
-| navegador E2E      | `make test-e2e-browsers`            |
-| publicar em `main` | `make publish`                      |
-| auditar produção   | `make audit-prod`                   |
-| dependências       | `make deps-tree`                    |
-| formatar/verificar | `make format`, `make format-check`  |
-| gate atual         | `make check`                        |
-| limpar gerados     | `make clean`                        |
+| Objetivo            | Comando                             |
+| ------------------- | ----------------------------------- |
+| instalar            | `make install` ou `make install-ci` |
+| desenvolver         | `make dev`                          |
+| build/start         | `make build`, `make start`          |
+| typecheck           | `make typecheck`                    |
+| lint                | `make lint`                         |
+| testes              | `make test`                         |
+| testes da outbox    | `make test-account-persistence`     |
+| E2E padrão          | `make test-e2e`                     |
+| E2E layout mobile   | `make test-e2e-mobile`              |
+| E2E reload offline  | `make test-e2e-offline`             |
+| E2E autenticado     | `make test-e2e-account`             |
+| navegador E2E       | `make test-e2e-browsers`            |
+| benchmark RPC local | `make benchmark-account-rpc`        |
+| publicar em `main`  | `make publish`                      |
+| auditar produção    | `make audit-prod`                   |
+| dependências        | `make deps-tree`                    |
+| formatar/verificar  | `make format`, `make format-check`  |
+| gate atual          | `make check`                        |
+| limpar gerados      | `make clean`                        |
 
 Supabase:
 
@@ -505,7 +501,7 @@ manual. As contas dos provedores usam autenticação em dois fatores.
 Os previews da Vercel permanecem sem acesso ao Supabase de produção. Em 17 de
 agosto de 2026, os secrets que autorizam migrations foram cadastrados no
 ambiente GitHub `production` e o workflow executou com sucesso o quality gate e
-a aplicação da migration isolada do PowerSync.
+as migrations de produção.
 
 `.github/workflows/app-ci.yml` executa `make audit-prod` e `make check` em
 PRs e pushes para `main`, além de dois jobs paralelos: `Check database` sobe apenas o
@@ -542,8 +538,8 @@ etapas: migration compatível primeiro e aplicação depois. O fluxo desejado de
 produção e as lacunas de segurança estão no `IMPLEMENTATION.md`.
 
 O projeto continuará nos planos gratuitos nesta fase: não há decisão para
-contratar Vercel Pro, Supabase Pro ou PowerSync Pro agora. A arquitetura-alvo,
-os custos e os gatilhos de contratação estão no passo 8 do
+contratar Vercel Pro ou Supabase Pro agora, e PowerSync foi descartado. A
+arquitetura-alvo, os custos e os gatilhos de contratação estão no passo 8 do
 [IMPLEMENTATION.md](IMPLEMENTATION.md).
 
 ## Documentação

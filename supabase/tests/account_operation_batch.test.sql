@@ -1,5 +1,5 @@
 begin;
-select plan(23);
+select plan(24);
 
 insert into auth.users (
   instance_id,
@@ -443,6 +443,35 @@ select throws_ok(
 select is_empty(
   $$select id from public.checklist_items where id = 'cross-account-item'$$,
   'a rejected cross-account reference leaves no entity'
+);
+
+select is(
+  jsonb_array_length(
+    public.apply_account_operation_batch(
+      'ca000000-0000-0000-0000-00000000000c',
+      (
+        select jsonb_agg(
+          jsonb_build_object(
+            'entity_type', 'categoryTag',
+            'base_revision', null,
+            'payload', jsonb_build_object(
+              'id', 'limit-category-' || sequence_number,
+              'name', 'LIMIT ' || sequence_number,
+              'color_hex', '#2563eb',
+              'position', sequence_number::text,
+              'surface', 'checklist_item',
+              'use_own_name', false,
+              'client_updated_at', '2026-08-18T12:00:00.000Z'
+            )
+          )
+          order by sequence_number
+        )
+        from generate_series(1, 100) as sequence_number
+      )
+    ) -> 'mutations'
+  ),
+  100,
+  'the server accepts a batch at the exact mutation limit'
 );
 
 select throws_ok(

@@ -6,12 +6,18 @@ export interface AccountSyncMetrics {
   batchesSent: number;
   conflicts: number;
   definitiveFailures: number;
+  lastBatchDurationMs: number | null;
+  lastBatchMutationCount: number | null;
+  lastBatchResult: 'confirmed' | 'rejected' | 'transport_unavailable' | null;
   lastConfirmationLatencyMs: number | null;
   lastErrorCode: string | null;
   maxConfirmationLatencyMs: number | null;
+  maxBatchDurationMs: number | null;
+  maxBatchMutationCount: number;
   oldestOperationAgeMs: number | null;
   queuedMutations: number;
   queuedOperations: number;
+  transportFailures: number;
 }
 
 type AccountSyncCounters = Pick<
@@ -21,9 +27,15 @@ type AccountSyncCounters = Pick<
   | 'batchesSent'
   | 'conflicts'
   | 'definitiveFailures'
+  | 'lastBatchDurationMs'
+  | 'lastBatchMutationCount'
+  | 'lastBatchResult'
   | 'lastConfirmationLatencyMs'
   | 'lastErrorCode'
   | 'maxConfirmationLatencyMs'
+  | 'maxBatchDurationMs'
+  | 'maxBatchMutationCount'
+  | 'transportFailures'
 >;
 
 const countersByScope = new Map<string, AccountSyncCounters>();
@@ -35,9 +47,15 @@ function createCounters(): AccountSyncCounters {
     batchesSent: 0,
     conflicts: 0,
     definitiveFailures: 0,
+    lastBatchDurationMs: null,
+    lastBatchMutationCount: null,
+    lastBatchResult: null,
     lastConfirmationLatencyMs: null,
     lastErrorCode: null,
     maxConfirmationLatencyMs: null,
+    maxBatchDurationMs: null,
+    maxBatchMutationCount: 0,
+    transportFailures: 0,
   };
 }
 
@@ -48,13 +66,40 @@ function getCounters(scopeId: string): AccountSyncCounters {
   return counters;
 }
 
-export function recordAccountOperationSent(scopeId: string): void {
-  getCounters(scopeId).batchesSent += 1;
+export function recordAccountOperationSent(
+  scopeId: string,
+  mutationCount: number,
+): void {
+  const counters = getCounters(scopeId);
+
+  counters.batchesSent += 1;
+  counters.lastBatchMutationCount = mutationCount;
+  counters.maxBatchMutationCount = Math.max(
+    counters.maxBatchMutationCount,
+    mutationCount,
+  );
+}
+
+function recordBatchResult(
+  scopeId: string,
+  result: NonNullable<AccountSyncMetrics['lastBatchResult']>,
+  durationMs: number,
+): void {
+  const counters = getCounters(scopeId);
+  const boundedDuration = Math.max(durationMs, 0);
+
+  counters.lastBatchDurationMs = boundedDuration;
+  counters.lastBatchResult = result;
+  counters.maxBatchDurationMs = Math.max(
+    counters.maxBatchDurationMs ?? 0,
+    boundedDuration,
+  );
 }
 
 export function recordAccountOperationConfirmed(
   scopeId: string,
   latencyMs: number,
+  durationMs: number,
 ): void {
   const counters = getCounters(scopeId);
   const boundedLatency = Math.max(latencyMs, 0);
@@ -65,16 +110,27 @@ export function recordAccountOperationConfirmed(
     counters.maxConfirmationLatencyMs ?? 0,
     boundedLatency,
   );
+  recordBatchResult(scopeId, 'confirmed', durationMs);
 }
 
 export function recordAccountOperationRejected(
   scopeId: string,
   errorCode: string,
+  durationMs: number,
 ): void {
   const counters = getCounters(scopeId);
 
   counters.batchesRejected += 1;
   counters.lastErrorCode = errorCode;
+  recordBatchResult(scopeId, 'rejected', durationMs);
+}
+
+export function recordAccountOperationTransportUnavailable(
+  scopeId: string,
+  durationMs: number,
+): void {
+  getCounters(scopeId).transportFailures += 1;
+  recordBatchResult(scopeId, 'transport_unavailable', durationMs);
 }
 
 export function recordAccountOperationConflict(scopeId: string): void {

@@ -172,6 +172,13 @@ describe('AuthEntry', () => {
       screen.getByRole('button', { name: 'Signing in...' }),
     ).toBeDisabled();
     expect(
+      screen.getByRole('button', { name: 'Continue with Google' }),
+    ).toBeDisabled();
+    expect(
+      screen.getByRole('button', { name: 'Continue without syncing' }),
+    ).toBeDisabled();
+    expect(screen.getByRole('button', { name: /^Language:/ })).toBeEnabled();
+    expect(
       screen.getByText('Validating credentials and preparing your account...'),
     ).toBeInTheDocument();
 
@@ -179,6 +186,36 @@ describe('AuthEntry', () => {
 
     await waitFor(() => {
       expect(screen.getByRole('button', { name: 'Sign in' })).toBeEnabled();
+    });
+  });
+
+  it('disables every action except language selection while Google sign-in is pending', async () => {
+    const deferred = createDeferred<void>();
+    signInWithGoogleMock.mockReturnValueOnce(deferred.promise);
+
+    render(<AuthEntry />);
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Continue with Google' }),
+    );
+
+    expect(screen.getByLabelText('Email')).toBeDisabled();
+    expect(screen.getByLabelText('Password')).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Sign in' })).toBeDisabled();
+    expect(
+      screen.getByRole('button', { name: 'Opening login...' }),
+    ).toBeDisabled();
+    expect(
+      screen.getByRole('button', { name: 'Continue without syncing' }),
+    ).toBeDisabled();
+    expect(screen.getByRole('button', { name: /^Language:/ })).toBeEnabled();
+
+    deferred.resolve();
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole('button', { name: 'Continue with Google' }),
+      ).toBeEnabled();
     });
   });
 

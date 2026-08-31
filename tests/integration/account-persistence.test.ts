@@ -947,6 +947,11 @@ describe('account persistence boundaries', () => {
       pendingCount: 2,
       state: 'pending',
     });
+    await expect(getAccountSyncMetrics(scope.id)).resolves.toMatchObject({
+      lastBatchMutationCount: 1,
+      lastBatchResult: 'transport_unavailable',
+      transportFailures: 1,
+    });
 
     rpc.mockImplementation(sync.rpc);
     await retryFailedAccountPersistence(scope);
@@ -2331,7 +2336,12 @@ describe('account persistence boundaries', () => {
       batchesRejected: 1,
       batchesSent: 1,
       definitiveFailures: 0,
+      lastBatchDurationMs: expect.any(Number),
+      lastBatchMutationCount: 1,
+      lastBatchResult: 'rejected',
       lastErrorCode: 'network_error',
+      maxBatchDurationMs: expect.any(Number),
+      maxBatchMutationCount: 1,
       queuedOperations: 1,
       queuedMutations: 1,
     });
@@ -2346,6 +2356,9 @@ describe('account persistence boundaries', () => {
       batchesConfirmed: 1,
       batchesRejected: 1,
       batchesSent: 2,
+      lastBatchDurationMs: expect.any(Number),
+      lastBatchMutationCount: 1,
+      lastBatchResult: 'confirmed',
       queuedMutations: 0,
       queuedOperations: 0,
     });

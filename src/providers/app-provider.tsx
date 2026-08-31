@@ -14,10 +14,7 @@ import {
 import type { AppScope, LocalePreference, SupportedLocale } from '@/lib/domain';
 import { ToastViewport } from '@/components/ui';
 import { createGuestScope, createUserScope } from '@/lib/domain';
-import {
-  shouldUseCloudSync,
-  shouldUsePowerSyncPocForUser,
-} from '@/lib/environment';
+import { shouldUseCloudSync } from '@/lib/environment';
 import {
   deleteLocalPreference,
   getLocalPreference,
@@ -52,7 +49,8 @@ export type AuthMode =
   | 'entry'
   | 'guest'
   | 'authenticated'
-  | 'unauthorized';
+  | 'unauthorized'
+  | 'storage_error';
 export type PasswordSignInResult =
   | { status: 'authenticated' }
   | { status: 'not_allowed' }
@@ -234,6 +232,14 @@ export function AppProvider({
     setIsReady(true);
   }, [applyScopedPreferences]);
 
+  const activateStorageErrorMode = useCallback(() => {
+    setScope(null);
+    setAuthUser(null);
+    setAuthError(null);
+    setAuthMode('storage_error');
+    setIsReady(true);
+  }, []);
+
   const activateUnauthorizedMode = useCallback(
     async (user: User) => {
       await applyScopedPreferences(null);
@@ -334,7 +340,7 @@ export function AppProvider({
       }
 
       didResolveInitialScope = true;
-      void activateEntryMode();
+      void activateEntryMode().catch(activateStorageErrorMode);
     }, APP_INITIALIZATION_TIMEOUT_MS);
 
     async function resolveInitialScope(action: () => Promise<void>) {
@@ -382,7 +388,9 @@ export function AppProvider({
         console.error('Failed to initialize Tick app scope.', error);
 
         if (isActive) {
-          await resolveInitialScope(activateEntryMode);
+          didResolveInitialScope = true;
+          window.clearTimeout(initializationTimeoutId);
+          activateStorageErrorMode();
         }
       }
     }
@@ -393,7 +401,12 @@ export function AppProvider({
       isActive = false;
       window.clearTimeout(initializationTimeoutId);
     };
-  }, [activateAuthenticatedMode, activateEntryMode, activateLocalMode]);
+  }, [
+    activateAuthenticatedMode,
+    activateEntryMode,
+    activateLocalMode,
+    activateStorageErrorMode,
+  ]);
 
   useEffect(() => {
     const client = getSupabaseBrowserClient();
@@ -421,40 +434,6 @@ export function AppProvider({
     void resumeAccountPersistence(scope).catch((error) => {
       console.error('Failed to resume Tick account persistence.', error);
     });
-  }, [authMode, scope]);
-
-  useEffect(() => {
-    if (
-      authMode !== 'authenticated' ||
-      scope?.kind !== 'user' ||
-      !shouldUsePowerSyncPocForUser(scope.ownerId)
-    ) {
-      return;
-    }
-
-    let isActive = true;
-    const runtimePromise = import('@/lib/powersync/runtime');
-
-    void runtimePromise
-      .then(async ({ startPowerSyncPoc }) => {
-        if (!isActive) {
-          return;
-        }
-
-        await startPowerSyncPoc(scope);
-      })
-      .catch((error) => {
-        console.error('Failed to update PowerSync proof of concept.', error);
-      });
-
-    return () => {
-      isActive = false;
-      void runtimePromise
-        .then(({ stopPowerSyncPoc }) => stopPowerSyncPoc())
-        .catch((error) => {
-          console.error('Failed to stop PowerSync proof of concept.', error);
-        });
-    };
   }, [authMode, scope]);
 
   useEffect(() => {

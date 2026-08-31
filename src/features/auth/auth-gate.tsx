@@ -1,7 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { LogOut } from 'lucide-react';
+import { LogOut, RefreshCw } from 'lucide-react';
 import { ActionButton, Text } from '@/components/ui';
 import { useAppContext } from '@/providers';
 import { AuthEntry } from './auth-entry';
@@ -47,6 +47,26 @@ function UnauthorizedAuthState() {
   );
 }
 
+function StorageUnavailableAuthState() {
+  const { dictionary } = useAppContext();
+
+  return (
+    <AuthShell
+      badge={dictionary.app.localFirst}
+      showAccessNotice={false}
+      subtitle={dictionary.auth.storageUnavailableDescription}
+      title={dictionary.auth.storageUnavailableTitle}
+    >
+      <ActionButton
+        icon={<RefreshCw className="size-4" />}
+        label={dictionary.auth.storageUnavailableRetry}
+        onClick={() => window.location.reload()}
+        tone="primary"
+      />
+    </AuthShell>
+  );
+}
+
 export function AuthGate({ children }: { children: ReactNode }) {
   const { authMode, isReady, scope } = useAppContext();
 
@@ -56,6 +76,10 @@ export function AuthGate({ children }: { children: ReactNode }) {
 
   if (authMode === 'unauthorized') {
     return <UnauthorizedAuthState />;
+  }
+
+  if (authMode === 'storage_error') {
+    return <StorageUnavailableAuthState />;
   }
 
   if (!scope) {

@@ -113,6 +113,9 @@ export interface Dictionary {
     switchToLogin: string;
     unauthorizedTitle: string;
     unauthorizedDescription: string;
+    storageUnavailableTitle: string;
+    storageUnavailableDescription: string;
+    storageUnavailableRetry: string;
     loading: string;
   };
   sync: {
@@ -124,41 +127,6 @@ export interface Dictionary {
     retrying: string;
     saved: string;
     syncing: string;
-  };
-  powerSyncPoc: {
-    title: string;
-    description: string;
-    unavailable: string;
-    categoryLabel: string;
-    parentLabel: string;
-    childLabel: string;
-    siblingLabel: string;
-    createScenario: string;
-    creating: string;
-    refresh: string;
-    empty: string;
-    ready: string;
-    error: string;
-    required: string;
-    categories: string;
-    hierarchy: string;
-    localNotice: string;
-    itemLabel: string;
-    itemAction: string;
-    saveItem: string;
-    markComplete: string;
-    reopenItem: string;
-    moveDown: string;
-    deleteItem: string;
-    deleteTitle: string;
-    confirmDelete: string;
-    connected: string;
-    connecting: string;
-    offline: string;
-    synchronized: string;
-    pendingOperation: string;
-    pendingOperations: string;
-    mutationError: string;
   };
   navigation: {
     home: string;

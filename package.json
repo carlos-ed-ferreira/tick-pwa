@@ -34,6 +34,7 @@
     "supabase:db:diff:check": "node scripts/supabase-cli.mjs db:diff:check",
     "supabase:db:lint": "node scripts/supabase-cli.mjs db:lint",
     "supabase:test:db": "node scripts/supabase-cli.mjs test:db",
+    "supabase:benchmark:account": "node scripts/supabase-cli.mjs benchmark:account",
     "supabase:types:local": "node scripts/supabase-cli.mjs types:local",
     "supabase:prod:db:push": "node scripts/supabase-cli.mjs prod:db:push",
     "supabase:prod:db:dry-run": "node scripts/supabase-cli.mjs prod:db:dry-run",
@@ -43,7 +44,6 @@
     "clean": "rm -rf .next out build coverage public/sw.js public/sw.js.map public/swe-worker*.js"
   },
   "dependencies": {
-    "@powersync/web": "^2.1.1",
     "@serwist/next": "^9.5.11",
     "@supabase/supabase-js": "^2.105.4",
     "country-flag-icons": "^1.6.17",

@@ -20,9 +20,10 @@ explícito no turno atual.
 
 ## Decisões vigentes
 
-- Continuar com **Vercel Hobby, Supabase Free e PowerSync gratuito** durante
-  desenvolvimento e alfa privada.
-- Não contratar Vercel Pro, Supabase Pro ou PowerSync Pro nesta fase.
+- Continuar com **Vercel Hobby e Supabase Free** durante desenvolvimento e alfa
+  privada.
+- Não contratar Vercel Pro ou Supabase Pro nesta fase. PowerSync foi descartado
+  e não será contratado.
 - Manter PostgreSQL/Supabase como fonte canônica das contas.
 - Manter `guest:<installationId>` exclusivamente local e isolado de
   `user:<supabaseUserId>`.
@@ -34,17 +35,17 @@ explícito no turno atual.
 
 ## Estado resumido
 
-| Passo | Estado                     | Próximo marco                                       |
-| ----- | -------------------------- | --------------------------------------------------- |
-| 1     | código aprovado localmente | aprovar uma conta interna em produção               |
-| 2     | pendente                   | medir concorrência, lote e Safari/iOS               |
-| 3     | pendente                   | registrar decisão PowerSync ou outbox própria       |
-| 4     | pendente                   | escolher observabilidade e comprovar restore        |
-| 5     | parcialmente entregue      | ordenar deploy e detectar pipeline parado           |
-| 6     | não iniciado               | fechar decisões de produto e autenticação pública   |
-| 7     | não iniciado               | criar baseline e carga para 1.000 DAU               |
-| 8     | adiado                     | avaliar frontend estático e planos no marco público |
-| 9     | pendente                   | validar a interface de toque em aparelho real       |
+| Passo | Estado                | Próximo marco                                       |
+| ----- | --------------------- | --------------------------------------------------- |
+| 1     | concluído             | manter rollout restrito até ampliar a coorte        |
+| 2     | concluído             | manter a matriz real como gate antes do público     |
+| 3     | concluído             | publicar retirada do POC e limpar recursos externos |
+| 4     | pendente              | escolher observabilidade e comprovar restore        |
+| 5     | parcialmente entregue | ordenar deploy e detectar pipeline parado           |
+| 6     | não iniciado          | fechar decisões de produto e autenticação pública   |
+| 7     | não iniciado          | criar baseline e carga para 1.000 DAU               |
+| 8     | adiado                | avaliar frontend estático e planos no marco público |
+| 9     | pendente              | validar a interface de toque em aparelho real       |
 
 ## 1. Publicar e validar o rollout controlado da outbox
 
@@ -149,6 +150,17 @@ A segunda correção foi validada por 44 testes direcionados de persistência, 5
 testes da suíte, quatro cenários E2E autenticados em desktop e mobile, dois
 cenários E2E de reload offline e pelo gate completo `make check`.
 
+### Conclusão em 28 de agosto de 2026
+
+O rollout restrito foi publicado e validado em produção com a conta interna
+autorizada. Calendário e metas preservaram alterações após reload offline, a
+reconexão convergiu, a sincronização entre janela normal e contexto anônimo
+funcionou e contas guest ou fora da allowlist mantiveram seus respectivos
+escopos. As duas corridas de transporte encontradas durante o ensaio foram
+reproduzidas por testes e corrigidas antes da aprovação. A etapa 1 está
+concluída; a flag permanece restrita à conta interna durante as medições da
+etapa 2.
+
 ### Responsabilidade externa
 
 Depois que a versão estiver publicada com as flags vazias, configurar em
@@ -201,6 +213,8 @@ make supabase-test-db
 
 ## 2. Medir conflitos reais, lotes e compatibilidade Safari/iOS
 
+**Estado:** concluído em 28 de agosto de 2026 por decisão do desenvolvedor.
+
 ### Resultado esperado
 
 Transformar a validação funcional do passo 1 em evidência de capacidade e
@@ -235,6 +249,47 @@ outbox e aprovação do PowerSync.
 6. Verificar que a retenção de recibos de sete dias não remove a idempotência
    dentro da janela prometida.
 
+### Evidência implementada
+
+- as métricas locais agora distinguem confirmação, rejeição e indisponibilidade
+  de transporte;
+- cada tentativa registra duração e quantidade de mutações, incluindo máximos
+  observados;
+- idade da operação mais antiga, tamanho atual da fila, conflitos, tentativas e
+  latência total de confirmação permanecem disponíveis sem conteúdo do usuário;
+- o teste de regressão do transporte atrasado comprova que uma fila com duas
+  operações faz somente uma tentativa antes do backoff e conserva ambas.
+- `make benchmark-account-rpc` inicia somente o Supabase local, rejeita URL não
+  local, usa dados sintéticos, mede lotes de 1 e 100, concorrência, p50, p95,
+  p99, throughput, erros, timeouts, conflito simultâneo e replay idempotente;
+- baseline local de 28 de agosto de 2026, com 30 iterações e concorrência 4:
+  lote de 1 com p50 4,7 ms, p95 57,6 ms, p99 59,7 ms e 317,7 lotes/s; lote de
+  100 com p50 16,8 ms, p95 27,4 ms, p99 68,0 ms e 196,0 lotes/s; zero erros,
+  zero timeouts, um vencedor e um conflito stale na disputa simultânea;
+- pgTAP cobre lote exato de 100 e rejeição de 101, ownership de dois usuários,
+  rollback integral, replay, reutilização inválida do identificador e retenção
+  de recibos dentro dos sete dias; são 81 testes de banco;
+- snapshot paginado já cobre 1.001 linhas por tabela e falha da página final sem
+  reconciliação parcial; a fila cobre o limite de 200 sem descartar a mudança;
+- reload offline e fechamento sem perda são cobertos em desktop e mobile, e o
+  service worker tem teste explícito de `skipWaiting`, `clientsClaim` e
+  `navigationPreload` sem operação de limpeza do IndexedDB;
+- a matriz oficial de navegadores está no README e o fallback de storage agora
+  sai do loading para uma tela traduzida, acessível e recuperável.
+
+Gates executados no fechamento da parte automatizável:
+
+- `make benchmark-account-rpc`: baseline concluído sem erro ou timeout;
+- `make supabase-reset`, `make supabase-lint` e
+  `make supabase-diff-check`: banco limpo, sem erro e sem divergência;
+- `make supabase-test-db`: 4 arquivos e 81 testes aprovados;
+- `make test-e2e`: 33 cenários aprovados em desktop e mobile e 7 cenários de
+  toque corretamente ignorados no projeto desktop;
+- `make test-e2e-account`: 4 cenários autenticados aprovados em desktop e
+  mobile;
+- `make check`: 76 arquivos e 573 testes aprovados, além de tipagem, lint,
+  formatação e build.
+
 ### Responsabilidade externa
 
 - disponibilizar ao menos dois dispositivos reais, incluindo Safari/iOS;
@@ -242,6 +297,14 @@ outbox e aprovação do PowerSync.
 - registrar modelo do aparelho, navegador, versão, rede e horário dos ensaios;
 - acompanhar consumo de banco, transferência e conexões nos painéis gratuitos;
 - não executar carga destrutiva no projeto de produção.
+
+Executar a matriz manual em Chrome Android, Safari macOS e Safari iOS com uma
+conta interna e dados sintéticos. Para cada ensaio, registrar modelo, versão do
+sistema, versão do navegador, tipo de rede e horário; testar fechamento total
+com operação pendente, retorno online, atualização da PWA e duas sessões da
+mesma conta. Nos painéis gratuitos do Supabase e da Vercel, registrar banco,
+transferência, conexões e funções antes e depois. Não ativar planos pagos nem
+executar o benchmark contra produção.
 
 ### Critérios de conclusão
 
@@ -253,7 +316,17 @@ outbox e aprovação do PowerSync.
 - fallback oferece erro recuperável e não corrompe dados;
 - o volume do ensaio cabe nas quotas gratuitas com margem conhecida.
 
+### Conclusão em 28 de agosto de 2026
+
+O desenvolvedor aprovou o baseline automatizado, os ensaios reais já realizados
+em desktop e Android e o fallback recuperável de storage como evidência
+suficiente para encerrar esta etapa. Safari macOS/iOS e a leitura periódica das
+quotas permanecem gates operacionais obrigatórios antes de ampliar a alfa ou
+abrir o produto ao público; não são tratados como garantia já comprovada.
+
 ## 3. Escolher definitivamente entre PowerSync e outbox própria
+
+**Estado:** concluído em 28 de agosto de 2026; outbox própria escolhida.
 
 ### Resultado esperado
 
@@ -261,78 +334,97 @@ Encerrar a arquitetura paralela. Ao final haverá uma única estratégia de
 persistência remota para contas autenticadas e um plano de migração ou remoção
 do caminho rejeitado.
 
-### Estado da prova PowerSync
+### Decisão e evidências
 
-Existe um POC isolado, desligado por padrão, com SQLite v2 por conta, Supabase
-Auth, tabelas `powersync_poc_*`, Sync Streams filtrados, upload em uma RPC
-atômica, RLS, recibos idempotentes e rota interna `/~powersync-poc`. Reload
-offline, reconexão, dois contextos web, isolamento entre contas e Android já
-foram validados. As telas funcionais ainda usam Dexie; o POC nunca deve escrever
-nas tabelas funcionais.
+A estratégia definitiva para contas autenticadas é Dexie com outbox durável e
+RPC transacional no Supabase. O PowerSync foi rejeitado porque não reduzia o
+código proprietário no estado real: nenhuma das seis entidades funcionais o
+usava, enquanto a outbox já cobria calendário, categorias e metas. Adotá-lo
+exigiria uma segunda migração local-first completa e manteria riscos distintos
+de storage, worker, diagnóstico e rollout.
 
-Configuração externa já existente:
+| Critério           | Outbox própria escolhida                                                                 | PowerSync rejeitado                                                       |
+| ------------------ | ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| perda e retry      | operação durável, reload, fechamento, resposta perdida, backoff e reconexão comprovados  | POC comprovou o fluxo isolado, mas nunca as telas funcionais              |
+| conflito           | compare-and-set; um rebase automático; ação manual faz a alteração pendente local vencer | last-committed-wins no POC, sem migração funcional validada               |
+| incrementalidade   | push somente da fila; pull paginado evita reconciliação parcial, mas ainda é snapshot    | streams incrementais, ao custo de um segundo SQLite e serviço             |
+| compatibilidade    | IndexedDB e service worker cobertos em desktop/Android; Safari/iOS segue gate manual     | WASM/SQLite, worker e multiaba exigem tratamento adicional por navegador  |
+| complexidade       | um único banco local, comandos e métricas já integrados às seis entidades                | runtime, schema, rota, flags, replicação e operação paralelos             |
+| custo em 1.000 DAU | sem fornecedor incremental; permanece dentro do custo vigente do Supabase                | Free limita 50 conexões de pico; Pro parte de US$ 49/mês, mais excedentes |
+| lock-in e saída    | Postgres canônico, IndexedDB descartável por conta e contratos próprios                  | saída exige retirar SDK, streams, SQLite e serviço                        |
+| segurança          | JWT, ownership derivado no servidor, RLS e testes negativos entre usuários               | POC também tinha JWT/RLS, sem vantagem material para o fluxo funcional    |
 
-- instância PowerSync **Development** no plano gratuito;
-- usuário exclusivo de replicação no Supabase;
-- Supabase Auth habilitado no PowerSync;
-- `powersync/sync-config.yaml` implantado sobre `powersync_poc_*`;
-- `NEXT_PUBLIC_POWERSYNC_URL` cadastrado apenas em Vercel Production.
+Os valores do PowerSync foram conferidos em 28 de agosto de 2026 na
+[página oficial de preços](https://powersync.com/pricing): o Free incluía 2 GB
+sincronizados, 500 MB hospedados e 50 clientes simultâneos, com desativação por
+inatividade; o Pro partia de US$ 49/mês e incluía até 1.000 conexões de pico.
+Para 1.000 DAU, o Free não oferece margem aceitável mesmo com 10% de pico. A
+outbox não cria custo adicional de fornecedor, mas o custo e as quotas do
+Supabase continuam sujeitos aos passos 7 e 8.
 
-A ativação interna exige simultaneamente:
+### Implementação da retirada
 
-```dotenv
-NEXT_PUBLIC_TICK_ENABLE_POWERSYNC_POC=1
-NEXT_PUBLIC_TICK_POWERSYNC_POC_USER_IDS=<auth.users.id-da-conta-interna>
-```
+- o pacote `@powersync/web`, seus seis transitivos e o runtime foram removidos;
+- a rota `/~powersync-poc`, sua UI, dicionários, testes e target Make foram
+  removidos;
+- as três flags públicas e `powersync/sync-config.yaml` foram removidos;
+- o início global do POC foi retirado do `AppProvider`;
+- o schema declarativo, tipos e pgTAP não contêm mais objetos do POC;
+- a migration `20260828180055_remove_powersync_poc.sql` remove funções, tabelas
+  isoladas e a publicação na ordem segura;
+- um teste arquitetural impede reintroduzir pacote, diretórios, flags ou schema
+  PowerSync enquanto a decisão estiver vigente.
 
-### Comparação obrigatória
+As migrations históricas permanecem intactas. Isso preserva a reprodução do
+histórico e permite reconstruir a prova em ambiente isolado a partir do commit
+anterior, sem restaurar dados funcionais ou criar dual-write.
 
-Avaliar PowerSync e outbox própria com os mesmos dados dos passos 1 e 2:
+### Evidência automatizada de 28 de agosto de 2026
 
-| Critério         | Evidência necessária                                 |
-| ---------------- | ---------------------------------------------------- |
-| perda e retry    | reload, fechamento, resposta perdida e reconexão     |
-| conflito         | resultado simultâneo previsível em dois dispositivos |
-| incrementalidade | linhas e bytes por pull e por alteração              |
-| compatibilidade  | desktop, Android, Safari/iOS e fallback              |
-| complexidade     | código próprio, operação, diagnóstico e upgrades     |
-| custo            | alfa, 1.000 DAU e crescimento                        |
-| lock-in e saída  | exportação, reconstrução local e rollback            |
-| segurança        | JWT, ownership, RLS e isolamento negativo            |
+- RED: o teste arquitetural falhou enquanto `@powersync/web` ainda constava no
+  manifest;
+- GREEN: 75 arquivos e 548 testes Vitest aprovados;
+- `make check` aprovou tipagem, lint, proibição de comentários, testes,
+  formatação e build; o mapa final não contém `/~powersync-poc`;
+- `make supabase-reset`, `make supabase-lint` e
+  `make supabase-diff-check` aprovaram banco limpo, lint e paridade declarativa;
+- `make supabase-test-db` aprovou 2 arquivos e 50 testes pgTAP funcionais;
+- `make test-e2e` aprovou 33 cenários e ignorou os 7 cenários de toque no
+  projeto desktop conforme configurado;
+- `make test-e2e-account` aprovou 4 cenários autenticados e
+  `make test-e2e-offline` aprovou 2 cenários de reload offline;
+- `make audit-prod` encontrou zero vulnerabilidades de produção.
 
-### Decisão recomendada
+### Rollout e rollback
 
-Adotar PowerSync se ele aprovar todos os critérios e reduzir materialmente o
-código proprietário de pull, outbox e conflitos. Nesse caso:
-
-1. migrar uma superfície funcional por flag e UUID;
-2. abrir uma base local nova e reconstruível a partir do servidor;
-3. manter guest no Dexie;
-4. nunca escrever a mesma conta simultaneamente em Dexie/outbox e PowerSync;
-5. ampliar por coortes internas;
-6. remover o caminho autenticado antigo somente após estabilidade e rollback
-   comprovado.
-
-Manter a outbox própria se o PowerSync falhar em compatibilidade, custo ou
-controle operacional. Nesse caso, remover o POC, suas tabelas, publicação,
-streams, dependência e flags em rollout aditivo e reversível, e concluir pull
-incremental e observabilidade na implementação própria.
+O mesmo merge protegido entrega a aplicação sem rota, runtime e flags e aplica
+a migration. A ordem externa entre Vercel e o workflow de banco não afeta as
+telas funcionais porque o POC está desligado e isolado; ordenar deploys de forma
+geral continua sendo a lacuna do passo 5. A remoção afeta exclusivamente dados
+sintéticos das tabelas `powersync_poc_*`. Antes de aplicar em produção,
+confirmar que não existe ensaio do POC em andamento e exportar as tabelas apenas
+se houver valor de diagnóstico. O rollback funcional continua sendo esvaziar a
+flag da outbox e usar o caminho legado durante a alfa. Reativar PowerSync exige
+decisão nova, restauração explícita do POC em ambiente isolado e outra
+migration; não faz parte do rollback operacional.
 
 ### Responsabilidade externa
 
-- executar os ensaios restantes do POC em Safari/iOS e fechamento completo;
-- fornecer as métricas do dashboard gratuito do PowerSync;
-- confirmar termos, limites e preço vigentes antes de qualquer uso público;
-- aprovar por escrito a escolha e o custo aceito;
-- contratar PowerSync Pro somente antes de liberar sync a usuários externos ou
-  quando quotas/garantias do plano gratuito deixarem de atender.
+- publicar a mudança pelo fluxo protegido e confirmar os checks;
+- confirmar antes da migration que não existe ensaio do POC em andamento;
+- remover da Vercel as três variáveis `NEXT_PUBLIC_*POWERSYNC*` após o deploy;
+- no PowerSync Dashboard, parar e excluir a instância/projeto de desenvolvimento;
+- no Supabase, revogar/remover o usuário exclusivo de replicação depois que a
+  publicação e as tabelas tiverem sido removidas;
+- verificar que calendário, categorias, metas, offline e reconexão continuam
+  funcionando na conta interna após o deploy.
 
 ### Critérios de conclusão
 
-Uma decisão registrada neste passo deve conter evidências, custo estimado,
-navegadores suportados, política de conflito, plano de rollout, rollback e
-remoção da alternativa rejeitada. `SYNC-01` só pode ser considerado concluído
-depois da migração das telas reais e da retirada do caminho temporário.
+A decisão contém evidências, custo estimado, navegadores suportados, política de
+conflito, rollout e rollback. `SYNC-01` usa agora somente a outbox nas telas
+reais; a retirada do caminho temporário está implementada e validada em banco
+limpo. A etapa conclui após aprovação explícita do desenvolvedor neste turno.
 
 ## 4. Implementar observabilidade, backup e restauração
 
@@ -556,7 +648,7 @@ gargalos para 1.000 DAU e picos realistas.
 
 - aprovar o modelo de uso e o pico esperado;
 - fornecer projeto isolado ou janela segura de benchmark;
-- acompanhar dashboards de Vercel, Supabase e, se escolhido, PowerSync;
+- acompanhar dashboards de Vercel e Supabase;
 - autorizar qualquer custo de ambiente temporário;
 - validar quotas e preços atuais nos sites dos fornecedores antes do lançamento.
 
@@ -604,19 +696,18 @@ antes de contratar:
 | ----------- | ------------------- | ------------------------------------------------------------------------------------- |
 | Vercel      | Hobby, alfa privada | Pro somente se uso comercial começar ainda hospedado na Vercel                        |
 | Supabase    | Free                | lançamento público, risco de pausa, necessidade de backup/SLA ou 70% de quota crítica |
-| PowerSync   | gratuito no POC     | sync para usuários externos, limite da prova ou necessidade de suporte/SLA            |
 | Cloudflare  | Free inicialmente   | tráfego ou recurso que exceda o plano vigente                                         |
 | Backup/PITR | ensaio local/manual | RPO/RTO público exigir automação ou recuperação ponto a ponto                         |
 
-A referência anterior da arquitetura completa paga era aproximadamente US$ 79
-por mês para Supabase Small e PowerSync Pro, sem Vercel Pro. Ela não é cotação
-nem autorização de compra.
+A estratégia escolhida não possui custo adicional de sincronização. Qualquer
+valor futuro depende apenas dos planos vigentes de hospedagem, Supabase e
+backup; referências antigas que incluíam PowerSync não são mais aplicáveis.
 
 ### Responsabilidade externa
 
 - revisar termos comerciais dos planos no marco de lançamento;
 - criar zona/projeto Cloudflare, configurar domínio e autorizar mudança de DNS;
-- contratar Supabase/PowerSync apenas quando um gatilho ocorrer;
+- contratar Supabase apenas quando um gatilho ocorrer;
 - aprovar janela de rollout e rollback;
 - confirmar políticas legais, suporte, RPO/RTO e resposta a incidentes.
 

@@ -1,6 +1,6 @@
 NPM = npm
 
-.PHONY: help require-npm install install-ci dev build start lint typecheck test test-account-operations test-account-persistence test-powersync test-e2e test-e2e-mobile test-e2e-offline test-e2e-account test-e2e-browsers format format-check check audit-prod deps-tree publish clean supabase-start supabase-start-db supabase-stop supabase-status supabase-reset supabase-diff supabase-diff-check supabase-migration-diff supabase-lint supabase-test-db supabase-types-local supabase-prod-migrations-repair supabase-prod-db-dry-run supabase-prod-db-push
+.PHONY: help require-npm install install-ci dev build start lint typecheck test test-account-operations test-account-persistence test-e2e test-e2e-mobile test-e2e-offline test-e2e-account test-e2e-browsers format format-check check audit-prod deps-tree publish clean benchmark-account-rpc supabase-start supabase-start-db supabase-stop supabase-status supabase-reset supabase-diff supabase-diff-check supabase-migration-diff supabase-lint supabase-test-db supabase-types-local supabase-prod-migrations-repair supabase-prod-db-dry-run supabase-prod-db-push
 .DEFAULT_GOAL := help
 
 help:
@@ -15,7 +15,6 @@ help:
 	@printf "  %-26s %s\n" "make test" "Roda testes unitarios e de integracao"
 	@printf "  %-26s %s\n" "make test-account-operations" "Roda testes do contrato transacional"
 	@printf "  %-26s %s\n" "make test-account-persistence" "Roda testes da outbox autenticada"
-	@printf "  %-26s %s\n" "make test-powersync" "Roda testes direcionados do POC PowerSync"
 	@printf "  %-26s %s\n" "make test-e2e" "Roda testes end-to-end"
 	@printf "  %-26s %s\n" "make test-e2e-mobile" "Roda E2E do layout mobile"
 	@printf "  %-26s %s\n" "make test-e2e-offline" "Roda E2E de reload offline"
@@ -27,6 +26,7 @@ help:
 	@printf "  %-26s %s\n" "make audit-prod" "Audita vulnerabilidades de producao"
 	@printf "  %-26s %s\n" "make deps-tree" "Mostra dependencias diretas instaladas"
 	@printf "  %-26s %s\n" "make publish" "Publica dev em main pelo fluxo protegido"
+	@printf "  %-26s %s\n" "make benchmark-account-rpc" "Mede lotes e concorrencia no Supabase local"
 	@printf "  %-26s %s\n" "make supabase-start" "Inicia o Supabase local"
 	@printf "  %-26s %s\n" "make supabase-start-db" "Inicia apenas o Postgres local"
 	@printf "  %-26s %s\n" "make supabase-stop" "Para o Supabase local"
@@ -95,9 +95,6 @@ test-account-operations: require-npm
 test-account-persistence: require-npm
 	$(NPM) run test -- tests/integration/account-persistence.test.ts tests/integration/database-v16-migration.test.ts tests/unit/account-operations.test.ts
 
-test-powersync: require-npm
-	$(NPM) run test -- tests/unit/powersync-poc.test.ts tests/unit/powersync-poc-surface.test.tsx
-
 test-e2e: require-npm
 	$(NPM) run test:e2e
 
@@ -131,6 +128,9 @@ deps-tree: require-npm
 publish: require-npm
 	$(NPM) run publish
 
+benchmark-account-rpc: supabase-start
+	$(NPM) run supabase:benchmark:account
+
 supabase-start: require-npm
 	$(NPM) run supabase:start
 
@@ -141,7 +141,7 @@ supabase-stop: require-npm
 	$(NPM) run supabase:stop
 
 supabase-status: require-npm
-	$(NPM) run supabase:status
+	$(NPM) run supabase:status -- $(args)
 
 supabase-reset: require-npm
 	$(NPM) run supabase:db:reset
