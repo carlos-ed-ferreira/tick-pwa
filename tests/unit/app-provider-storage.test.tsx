@@ -12,7 +12,6 @@ vi.mock('@/lib/db', () => ({
 
 vi.mock('@/lib/environment', () => ({
   shouldUseCloudSync: vi.fn(() => false),
-  shouldUsePowerSyncPocForUser: vi.fn(() => false),
 }));
 
 vi.mock('@/lib/supabase', () => ({

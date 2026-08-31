@@ -153,6 +153,20 @@ cor do processo. Eles não falham o gate atual.
   falha imediata e cobertura de fila crescente sem reiniciar a janela;
 - Playwright local: 24 cenários aprovados; Playwright autenticado: 4 cenários.
 
+## Ratchet em 2026-08-28
+
+- a outbox própria passou a ser a única estratégia autenticada do produto;
+- um teste arquitetural impede reintroduzir pacote, runtime, rota, flags,
+  configuração ou objetos declarativos do POC PowerSync;
+- o pacote direto `@powersync/web` e seis pacotes transitivos foram removidos;
+- banco limpo aplica a migration de retirada das funções, tabelas e publicação
+  isoladas e gera tipos sem os objetos descartados;
+- Vitest: 75 arquivos e 548 testes aprovados depois da retirada dos testes
+  exclusivos da alternativa rejeitada;
+- a redução intencional do pgTAP remove 31 asserções exclusivas do POC e
+  preserva 50 testes; os contratos funcionais e negativos da outbox permanecem
+  obrigatórios.
+
 ## Matriz de quality gates
 
 | Gate               | Métrica e threshold                                                                 | Escopo                              | Estado         | Legado                                    | Bloqueia?                   |
@@ -165,7 +179,7 @@ cor do processo. Eles não falham o gate atual.
 | E2E local          | 100% aprovados em desktop e mobile                                                  | fluxos Playwright existentes        | enforced no CI | manter baseline de 24                     | sim quando aplicável        |
 | E2E autenticado    | 100% aprovados em desktop e mobile                                                  | fluxo de latência simulado          | enforced no CI | manter baseline de 4                      | sim para auth/sync          |
 | Schema lint        | 0 erros                                                                             | Postgres local                      | enforced no CI | sem regressão                             | sim para banco              |
-| pgTAP              | 100% aprovados                                                                      | `supabase/tests`                    | enforced no CI | manter ao menos 77; remoção exige revisão | sim para banco              |
+| pgTAP              | 100% aprovados                                                                      | `supabase/tests`                    | enforced no CI | manter ao menos 50; remoção exige revisão | sim para banco              |
 | Banco limpo        | reset, migrations e seed com exit 0                                                 | todas as migrations                 | enforced no CI | compatibilidade obrigatória               | sim para banco              |
 | Schema declarativo | 0 divergências em `make supabase-diff-check`                                        | `supabase/schemas` e migrations     | enforced no CI | sem divergência                           | sim para banco              |
 | Dependency audit   | 0 críticas e 0 altas em `make audit-prod`                                           | dependências de produção            | enforced no CI | baseline reduzido a zero                  | sim para dependência/deploy |
