@@ -93,57 +93,7 @@ export function shouldUseCloudSync(): boolean {
   });
 }
 
-export function shouldUsePowerSyncPocOnHostname({
-  hostname,
-  disableSupabase,
-  enablePowerSyncPoc,
-  powerSyncUrl,
-  supabaseEnvironment,
-  supabaseUrl,
-}: {
-  hostname: string | null | undefined;
-  disableSupabase: boolean;
-  enablePowerSyncPoc: boolean;
-  powerSyncUrl: string | null | undefined;
-  supabaseEnvironment: string | null | undefined;
-  supabaseUrl: string | null | undefined;
-}): boolean {
-  if (
-    !enablePowerSyncPoc ||
-    !shouldUseCloudSyncOnHostname({
-      hostname,
-      disableSupabase,
-      supabaseEnvironment,
-      supabaseUrl,
-    })
-  ) {
-    return false;
-  }
-
-  try {
-    return new URL(powerSyncUrl ?? '').protocol === 'https:';
-  } catch {
-    return false;
-  }
-}
-
-export function shouldUsePowerSyncPoc(): boolean {
-  if (typeof window === 'undefined') {
-    return false;
-  }
-
-  return shouldUsePowerSyncPocOnHostname({
-    hostname: window.location.hostname,
-    disableSupabase: process.env.NEXT_PUBLIC_TICK_DISABLE_SUPABASE === '1',
-    enablePowerSyncPoc:
-      process.env.NEXT_PUBLIC_TICK_ENABLE_POWERSYNC_POC === '1',
-    powerSyncUrl: process.env.NEXT_PUBLIC_POWERSYNC_URL,
-    supabaseEnvironment: process.env.NEXT_PUBLIC_TICK_SUPABASE_ENV,
-    supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
-  });
-}
-
-export function isPowerSyncPocUserAllowed(
+function isUserAllowed(
   userId: string | null | undefined,
   allowedUserIds: string | null | undefined,
 ): boolean {
@@ -158,27 +108,12 @@ export function isPowerSyncPocUserAllowed(
     .includes(userId);
 }
 
-export function shouldUsePowerSyncPocForUser(
-  userId: string | null | undefined,
-): boolean {
-  return (
-    shouldUsePowerSyncPoc() &&
-    isPowerSyncPocUserAllowed(
-      userId,
-      process.env.NEXT_PUBLIC_TICK_POWERSYNC_POC_USER_IDS,
-    )
-  );
-}
-
 export function shouldUseAccountOperationBatchesForUser(
   userId: string | null | undefined,
 ): boolean {
   return (
     process.env.NEXT_PUBLIC_TICK_ENABLE_ACCOUNT_BATCHES === '1' &&
-    isPowerSyncPocUserAllowed(
-      userId,
-      process.env.NEXT_PUBLIC_TICK_ACCOUNT_BATCH_USER_IDS,
-    )
+    isUserAllowed(userId, process.env.NEXT_PUBLIC_TICK_ACCOUNT_BATCH_USER_IDS)
   );
 }
 
