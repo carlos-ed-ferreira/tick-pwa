@@ -167,6 +167,22 @@ cor do processo. Eles não falham o gate atual.
   preserva 50 testes; os contratos funcionais e negativos da outbox permanecem
   obrigatórios.
 
+## Ratchet em 2026-08-31
+
+- Vitest: 77 arquivos e 552 testes aprovados;
+- `stale_revision` terminal não é reaberto pela retomada automática, com retry
+  explícito preservado e limite de tentativas aplicado a todo estado da outbox;
+- adapter de telemetria com captura exclusivamente manual e allowlist testada
+  contra tarefa, categoria, e-mail, token, payload e identificador de usuário;
+- `@sentry/browser` 10.72.0 isolado em chunk dinâmico, licença MIT e audit de
+  produção sem vulnerabilidades;
+- cifra AES-256-GCM do backup lógico aprovada por round-trip e rejeição de chave
+  incorreta;
+- Playwright local: 33 cenários aprovados e 7 cenários desktop intencionalmente
+  ignorados por serem exclusivos de mobile; Playwright autenticado: 4 cenários;
+- restore real e alertas do fornecedor permanecem evidências externas e não são
+  considerados aprovados pelo gate local.
+
 ## Matriz de quality gates
 
 | Gate               | Métrica e threshold                                                                 | Escopo                              | Estado         | Legado                                    | Bloqueia?                   |

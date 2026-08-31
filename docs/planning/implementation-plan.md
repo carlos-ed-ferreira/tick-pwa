@@ -40,7 +40,7 @@ explícito no turno atual.
 | 1     | concluído             | manter rollout restrito até ampliar a coorte        |
 | 2     | concluído             | manter a matriz real como gate antes do público     |
 | 3     | concluído             | publicar retirada do POC e limpar recursos externos |
-| 4     | pendente              | escolher observabilidade e comprovar restore        |
+| 4     | validação externa     | configurar alertas e comprovar restore por terceiro |
 | 5     | parcialmente entregue | ordenar deploy e detectar pipeline parado           |
 | 6     | não iniciado          | fechar decisões de produto e autenticação pública   |
 | 7     | não iniciado          | criar baseline e carga para 1.000 DAU               |
@@ -442,6 +442,22 @@ consumidores de replicação estão no
 [registro do incidente](../operations/incidents/2026-08-31-supabase-wal-read-only.md).
 
 ## 4. Implementar observabilidade, backup e restauração
+
+### Estado em 31 de agosto de 2026
+
+Implementação de código concluída. O adapter independente usa Sentry Free com
+captura exclusivamente manual, allowlist e teste de redaction. Métricas
+agregadas de outbox e refresh incluem release e navegador sem identidade ou
+conteúdo funcional. O workflow diário gera dump lógico, cifra antes do upload,
+retém o artefato no GitHub por 14 dias e abre issue em caso de falha. O comando
+de restore usa um Postgres Supabase isolado e mede RPO/RTO.
+
+Permanecem externos: criar o projeto Sentry, configurar DSN, privacidade e
+alertas; cadastrar os secrets e habilitar o workflow; executar o alerta
+sintético; e uma segunda pessoa restaurar o primeiro backup e registrar as
+medidas. O procedimento completo está em
+`docs/operations/observability-backup-restore.md`. O passo só muda para
+concluído depois dessas evidências.
 
 ### Resultado esperado
 

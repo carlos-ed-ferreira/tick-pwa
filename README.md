@@ -170,7 +170,10 @@ Métricas de fila, tentativas, rejeições, falhas de transporte, conflitos,
 tamanho e duração dos lotes, idade da operação mais antiga e latência de
 confirmação são acumuladas por conta em
 `src/lib/db/account-sync-metrics.ts`, sem conteúdo do usuário. Elas ainda não
-têm destino externo.
+têm identidade nem conteúdo funcional. Um adapter independente envia os
+agregados e resultados de refresh ao Sentry quando o DSN é configurado. Todas
+as integrações automáticas ficam desligadas e uma allowlist remove identidade,
+conteúdo funcional, tokens e payloads antes do fornecedor.
 
 O estado atual ainda tem limitações conhecidas de rollout amplo, cobertura de
 Safari/iOS e observabilidade externa. Elas estão
@@ -431,11 +434,12 @@ deploy externo da Vercel ainda é uma lacuna registrada no passo 5 do
 - Supabase Auth: senha e OAuth Google;
 - Supabase REST/Postgres: leitura e escrita das contas;
 - Vercel: hospedagem documentada do frontend;
-- GitHub Actions: CI e migrations de produção;
+- GitHub Actions: CI, migrations e backup lógico cifrado de produção;
+- Sentry Free: destino opcional de eventos agregados de sincronização;
 - Google Fonts: carregadas pelo Next.js e cobertas pelo cache da PWA.
 
-Não existem webhooks, pagamentos, e-mail de produção, observabilidade ou API de
-domínio próprios no estado atual. Configuração do provedor Google, URLs de
+Não existem webhooks, pagamentos, e-mail de produção ou API de domínio próprios
+no estado atual. Configuração do Sentry, provedor Google, URLs de
 redirect, projeto Supabase, domínio e integração Vercel são externas ao Git.
 
 ## Comandos de desenvolvimento
@@ -444,27 +448,29 @@ O `Makefile` é a interface única para operações do projeto. Não execute
 `npm`, `npx`, CLIs de serviço ou scripts diretamente. Se surgir uma rotina
 recorrente sem target, adicione-a ao `Makefile` e ao `make help` primeiro.
 
-| Objetivo            | Comando                             |
-| ------------------- | ----------------------------------- |
-| instalar            | `make install` ou `make install-ci` |
-| desenvolver         | `make dev`                          |
-| build/start         | `make build`, `make start`          |
-| typecheck           | `make typecheck`                    |
-| lint                | `make lint`                         |
-| testes              | `make test`                         |
-| testes da outbox    | `make test-account-persistence`     |
-| E2E padrão          | `make test-e2e`                     |
-| E2E layout mobile   | `make test-e2e-mobile`              |
-| E2E reload offline  | `make test-e2e-offline`             |
-| E2E autenticado     | `make test-e2e-account`             |
-| navegador E2E       | `make test-e2e-browsers`            |
-| benchmark RPC local | `make benchmark-account-rpc`        |
-| publicar em `main`  | `make publish`                      |
-| auditar produção    | `make audit-prod`                   |
-| dependências        | `make deps-tree`                    |
-| formatar/verificar  | `make format`, `make format-check`  |
-| gate atual          | `make check`                        |
-| limpar gerados      | `make clean`                        |
+| Objetivo             | Comando                              |
+| -------------------- | ------------------------------------ |
+| instalar             | `make install` ou `make install-ci`  |
+| desenvolver          | `make dev`                           |
+| build/start          | `make build`, `make start`           |
+| typecheck            | `make typecheck`                     |
+| lint                 | `make lint`                          |
+| testes               | `make test`                          |
+| testes de telemetria | `make test-telemetry`                |
+| testes da outbox     | `make test-account-persistence`      |
+| E2E padrão           | `make test-e2e`                      |
+| E2E layout mobile    | `make test-e2e-mobile`               |
+| E2E reload offline   | `make test-e2e-offline`              |
+| E2E autenticado      | `make test-e2e-account`              |
+| navegador E2E        | `make test-e2e-browsers`             |
+| benchmark RPC local  | `make benchmark-account-rpc`         |
+| restaurar backup     | `make backup-restore archive=<file>` |
+| publicar em `main`   | `make publish`                       |
+| auditar produção     | `make audit-prod`                    |
+| dependências         | `make deps-tree`                     |
+| formatar/verificar   | `make format`, `make format-check`   |
+| gate atual           | `make check`                         |
+| limpar gerados       | `make clean`                         |
 
 Supabase:
 
@@ -520,6 +526,11 @@ não é detectado, conforme o passo 5 de `docs/planning/implementation-plan.md`.
 o SHA de um `App CI` aprovado na `main`; execução manual roda o mesmo quality
 gate antes de acessar o environment `production`. O workflow registra o SHA,
 detecta mudanças de banco, faz dry-run e então aplica migrations.
+
+O workflow `Production backup`, desabilitado até a configuração externa, gera
+diariamente um dump lógico, cifra-o antes do upload e mantém somente o artefato
+cifrado por 14 dias. Configuração, alertas, restore isolado e medição de RPO/RTO
+estão no [runbook operacional](docs/operations/observability-backup-restore.md).
 
 A publicação cotidiana parte da branch `dev`. Depois de criar o commit, execute
 `make publish`. O comando exige worktree limpo, envia `dev`, cria ou reutiliza

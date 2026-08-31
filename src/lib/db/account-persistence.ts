@@ -8,6 +8,7 @@ import {
 import {
   getAccountOperationOutboxSummary,
   persistAccountOperationMutation,
+  resumeInterruptedAccountOperationOutbox,
   retryFailedAccountOperationOutbox,
   waitForAccountOperationOutbox,
 } from './account-operation-outbox';
@@ -438,7 +439,7 @@ export function resumeAccountPersistence(scope: AppScope): Promise<void> {
   }
 
   if (shouldUseAccountOperationBatchesForUser(scope.ownerId)) {
-    return retryFailedAccountOperationOutbox(scope);
+    return resumeInterruptedAccountOperationOutbox(scope);
   }
 
   return retryFailedAccountPersistence(scope);

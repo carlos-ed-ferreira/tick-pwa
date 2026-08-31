@@ -43,6 +43,12 @@ import {
   type AccountRefreshReason,
 } from '@/lib/supabase';
 import { resolveTimezonePreference } from '@/lib/time';
+import {
+  configureBrowserTelemetry,
+  reportAccountRefreshFailure,
+  reportAccountRefreshTelemetry,
+  reportSyntheticTelemetryFailure,
+} from '@/lib/telemetry';
 
 export type AuthMode =
   | 'loading'
@@ -139,6 +145,10 @@ export function AppProvider({
     null,
   );
 
+  useEffect(() => {
+    void configureBrowserTelemetry().then(reportSyntheticTelemetryFailure);
+  }, []);
+
   if (accountRefreshCoordinatorRef.current == null) {
     accountRefreshCoordinatorRef.current = new AccountRefreshCoordinator(
       refreshAccountCache,
@@ -185,13 +195,15 @@ export function AppProvider({
       }
 
       try {
-        await accountRefreshCoordinatorRef.current?.refresh(
+        const run = await accountRefreshCoordinatorRef.current?.refresh(
           nextScope,
           reason,
           force,
         );
+        reportAccountRefreshTelemetry(run);
       } catch (error) {
         console.error('Failed to refresh Tick account data.', error);
+        reportAccountRefreshFailure(reason);
       }
     },
     [],
