@@ -15,6 +15,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
 } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { IconButton } from '@/components/ui';
@@ -47,6 +48,7 @@ import {
   type CalendarDayDensity,
 } from './calendar-day-density';
 import { useMonthEntries } from './use-month-entries';
+import { useCalendarVisibleMonth } from './use-calendar-visible-month';
 
 function createMonthLabelDate(monthDate: LocalDateString): Date {
   const parsedDate = parseLocalDateKey(monthDate);
@@ -92,6 +94,10 @@ function entriesByDate(
 ): Map<LocalDateString, DailyEntry> {
   return new Map(entries.map((entry) => [entry.date, entry]));
 }
+
+const ignoredProgressFillStyle: CSSProperties = {
+  backgroundColor: 'rgba(192, 199, 209, 0.46)',
+};
 
 function getProgressTone(completedRatio: number) {
   if (completedRatio >= 1) {
@@ -174,18 +180,17 @@ export function CalendarMonth() {
     'create' | 'clear' | null
   >(null);
   const [isImportOpen, setIsImportOpen] = useState(false);
-  const [visibleYear, setVisibleYear] = useState<number>(() => todayYear);
-  const [visibleMonthIndex, setVisibleMonthIndex] = useState<number>(
-    () => todayMonthIndex,
+  const currentMonth = createMonthKey(todayYear, todayMonthIndex);
+  const { selectVisibleMonth, visibleMonth } = useCalendarVisibleMonth(
+    scope,
+    currentMonth,
   );
+  const { year: visibleYear, monthIndex: visibleMonthIndex } =
+    getMonthParts(visibleMonth);
   const [selectedDay, setSelectedDay] = useState<LocalDateString | null>(
     todayKey,
   );
   const activeDay = openDayDate ?? selectedDay ?? todayKey;
-  const visibleMonth = useMemo(
-    () => createMonthKey(visibleYear, visibleMonthIndex),
-    [visibleMonthIndex, visibleYear],
-  );
   const entries = useMonthEntries(scope, visibleMonth);
   const dayPreviews = useMonthDayPreviews(scope, entries);
   const categoryTags = useCategoryTags(scope, 'checklist_item');
@@ -253,7 +258,7 @@ export function CalendarMonth() {
 
     setOpenDayOverride(null);
     router.push(queryString ? `${pathname}?${queryString}` : pathname);
-  }, [pathname, router, searchParams]);
+  }, [pathname, router, searchParams, setOpenDayOverride]);
   const openDay = useCallback(
     (date: LocalDateString) => {
       const nextSearchParams = new URLSearchParams(searchParams.toString());
@@ -262,7 +267,7 @@ export function CalendarMonth() {
       setOpenDayOverride(date);
       router.push(`${pathname}?${nextSearchParams.toString()}`);
     },
-    [pathname, router, searchParams],
+    [pathname, router, searchParams, setOpenDayOverride, setSelectedDay],
   );
   const selectDay = useCallback((date: LocalDateString) => {
     setSelectedDay(date);
@@ -336,8 +341,7 @@ export function CalendarMonth() {
                 type="button"
                 className="inline-flex h-7 items-center rounded-full px-3 text-sm font-medium text-[#cbd5e0] transition hover:bg-white/8 hover:text-[#fff9f2] active:bg-white/12 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0]"
                 onClick={() => {
-                  setVisibleYear(todayYear);
-                  setVisibleMonthIndex(todayMonthIndex);
+                  selectVisibleMonth(currentMonth);
                   setSelectedDay(todayKey);
                 }}
               >
@@ -347,7 +351,11 @@ export function CalendarMonth() {
               <IconButton
                 aria-label={dictionary.calendar.previousYear}
                 className="size-7 rounded-full text-[#cbd5e0] hover:bg-white/8 hover:text-[#fff9f2] active:bg-white/12 focus-visible:outline-[#f7d9b0]"
-                onClick={() => setVisibleYear((currentYear) => currentYear - 1)}
+                onClick={() =>
+                  selectVisibleMonth(
+                    createMonthKey(visibleYear - 1, visibleMonthIndex),
+                  )
+                }
               >
                 <ChevronLeft aria-hidden="true" className="size-4" />
               </IconButton>
@@ -357,7 +365,11 @@ export function CalendarMonth() {
               <IconButton
                 aria-label={dictionary.calendar.nextYear}
                 className="size-7 rounded-full text-[#cbd5e0] hover:bg-white/8 hover:text-[#fff9f2] active:bg-white/12 focus-visible:outline-[#f7d9b0]"
-                onClick={() => setVisibleYear((currentYear) => currentYear + 1)}
+                onClick={() =>
+                  selectVisibleMonth(
+                    createMonthKey(visibleYear + 1, visibleMonthIndex),
+                  )
+                }
               >
                 <ChevronRight aria-hidden="true" className="size-4" />
               </IconButton>
@@ -382,7 +394,11 @@ export function CalendarMonth() {
                       ? 'inset-ring-[#f3d2aa] bg-[#f0c38e] text-[#253241] shadow-[0_12px_30px_rgba(240,195,142,0.16)]'
                       : 'inset-ring-transparent bg-transparent text-[#98a6b5] hover:inset-ring-white/10 hover:bg-white/6 hover:text-[#fff9f2] active:bg-white/10'
                   }`}
-                  onClick={() => setVisibleMonthIndex(monthOption.monthIndex)}
+                  onClick={() =>
+                    selectVisibleMonth(
+                      createMonthKey(visibleYear, monthOption.monthIndex),
+                    )
+                  }
                 >
                   {monthOption.label}
                 </button>
@@ -602,21 +618,38 @@ function DayCell({
                 </>
               ) : null}
             </span>
-            {entry.itemCount > 0 ? (
-              <span
-                className="h-1.5 w-full overflow-hidden rounded-full bg-white/6"
-                style={progressTone.trackStyle}
-              >
+            <span
+              className="flex h-1.5 w-full overflow-hidden rounded-full bg-white/6"
+              data-testid="calendar-day-progress-track"
+              style={progressTone.trackStyle}
+            >
+              {entry.itemCount > 0 ? (
                 <span
-                  className="block h-full rounded-full transition-[width] duration-200"
-                  data-testid="calendar-day-progress-fill"
+                  className="block min-w-0 basis-0 overflow-hidden"
+                  data-testid="calendar-day-progress-counted-segment"
+                  style={{ flexGrow: entry.itemCount }}
+                >
+                  <span
+                    className="block h-full rounded-full transition-[width] duration-200"
+                    data-testid="calendar-day-progress-fill"
+                    style={{
+                      ...progressTone.fillStyle,
+                      width: `${Math.round(completedRatio * 100)}%`,
+                    }}
+                  />
+                </span>
+              ) : null}
+              {ignoredCount > 0 ? (
+                <span
+                  className="block min-w-0 basis-0"
+                  data-testid="calendar-day-progress-ignored-segment"
                   style={{
-                    ...progressTone.fillStyle,
-                    width: `${Math.round(completedRatio * 100)}%`,
+                    ...ignoredProgressFillStyle,
+                    flexGrow: ignoredCount,
                   }}
                 />
-              </span>
-            ) : null}
+              ) : null}
+            </span>
           </span>
         ) : null}
 
