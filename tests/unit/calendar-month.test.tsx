@@ -1,4 +1,10 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CalendarMonth } from '@/features/calendar';
 
@@ -11,12 +17,16 @@ const scope = {
 const {
   routerPushMock,
   routerReplaceMock,
+  getLocalPreferenceMock,
+  setLocalPreferenceMock,
   useDayEntryMock,
   useMonthDayPreviewsMock,
   useMonthEntriesMock,
 } = vi.hoisted(() => ({
   routerPushMock: vi.fn(),
   routerReplaceMock: vi.fn(),
+  getLocalPreferenceMock: vi.fn(),
+  setLocalPreferenceMock: vi.fn(),
   useDayEntryMock: vi.fn(),
   useMonthDayPreviewsMock: vi.fn(),
   useMonthEntriesMock: vi.fn(),
@@ -33,7 +43,9 @@ vi.mock('next/navigation', () => ({
 
 vi.mock('@/lib/db', () => ({
   duplicateChecklistItemsToDate: vi.fn().mockResolvedValue(undefined),
+  getLocalPreference: getLocalPreferenceMock,
   moveChecklistItemsToDate: vi.fn().mockResolvedValue(undefined),
+  setLocalPreference: setLocalPreferenceMock,
 }));
 
 vi.mock('@/providers', () => ({
@@ -119,9 +131,15 @@ function stubPointerCapability(isCoarse: boolean) {
 
 describe('CalendarMonth', () => {
   beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-08-20T12:00:00-03:00'));
     window.history.replaceState({}, '', '/calendar');
     routerPushMock.mockClear();
     routerReplaceMock.mockClear();
+    getLocalPreferenceMock.mockReset();
+    getLocalPreferenceMock.mockResolvedValue(null);
+    setLocalPreferenceMock.mockReset();
+    setLocalPreferenceMock.mockResolvedValue(undefined);
     useDayEntryMock.mockReturnValue({ id: 'entry-1' });
     useMonthEntriesMock.mockReturnValue([]);
     useMonthDayPreviewsMock.mockReturnValue(new Map());
@@ -130,6 +148,7 @@ describe('CalendarMonth', () => {
 
   afterEach(() => {
     cleanup();
+    vi.useRealTimers();
     vi.unstubAllGlobals();
   });
 
@@ -185,6 +204,12 @@ describe('CalendarMonth', () => {
     expect(screen.getByText('3 ignored')).toBeInTheDocument();
     expect(screen.queryByText('0/0')).toBeNull();
     expect(screen.queryByTestId('calendar-day-progress-fill')).toBeNull();
+    expect(
+      screen.getByTestId('calendar-day-progress-track'),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByTestId('calendar-day-progress-ignored-segment'),
+    ).toHaveStyle({ flexGrow: '3' });
   });
 
   it('shows the ignored count when no task of the day is completed', () => {
@@ -209,6 +234,51 @@ describe('CalendarMonth', () => {
     expect(screen.getByTestId('calendar-day-progress-fill')).toHaveStyle({
       width: '0%',
     });
+    expect(
+      screen.getByTestId('calendar-day-progress-counted-segment'),
+    ).toHaveStyle({ flexGrow: '4' });
+    expect(
+      screen.getByTestId('calendar-day-progress-ignored-segment'),
+    ).toHaveStyle({ flexGrow: '2' });
+  });
+
+  it('splits the day progress between counted and ignored tasks', () => {
+    useMonthEntriesMock.mockReturnValue([
+      {
+        id: 'entry-1',
+        date: '2026-08-15',
+        itemCount: 5,
+        completedCount: 3,
+        categoryTagIds: [],
+        categorySummaries: [],
+      },
+    ]);
+    useMonthDayPreviewsMock.mockReturnValue(
+      new Map([['2026-08-15', { categoryTagIds: [], ignoredCount: 5 }]]),
+    );
+
+    render(<CalendarMonth />);
+
+    const countedSegment = screen.getByTestId(
+      'calendar-day-progress-counted-segment',
+    );
+    const ignoredSegment = screen.getByTestId(
+      'calendar-day-progress-ignored-segment',
+    );
+
+    expect(screen.getByText('3/5')).toBeInTheDocument();
+    expect(screen.getByText('5 ignored')).toBeInTheDocument();
+    expect(countedSegment).toHaveStyle({ flexGrow: '5' });
+    expect(ignoredSegment).toHaveStyle({ flexGrow: '5' });
+    expect(screen.getByTestId('calendar-day-progress-fill')).toHaveStyle({
+      width: '60%',
+    });
+    expect(ignoredSegment).toHaveStyle({
+      backgroundColor: 'rgba(192, 199, 209, 0.46)',
+    });
+    expect(countedSegment.compareDocumentPosition(ignoredSegment)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
   });
 
   it('keeps the day progress bar at 100% and shows the ignored task count', () => {
@@ -237,6 +307,12 @@ describe('CalendarMonth', () => {
     expect(screen.getByTestId('calendar-day-progress-fill')).toHaveStyle({
       width: '100%',
     });
+    expect(
+      screen.getByTestId('calendar-day-progress-counted-segment'),
+    ).toHaveStyle({ flexGrow: '14' });
+    expect(
+      screen.getByTestId('calendar-day-progress-ignored-segment'),
+    ).toHaveStyle({ flexGrow: '2' });
   });
 
   it('previews every distinct category of the day', () => {
@@ -283,6 +359,32 @@ describe('CalendarMonth', () => {
     expect(getDayCells(container)).toHaveLength(42);
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(screen.queryByTestId('checklist-surface')).not.toBeInTheDocument();
+  });
+
+  it('stores the selected month locally for the current scope', () => {
+    render(<CalendarMonth />);
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Jan' }));
+
+    expect(setLocalPreferenceMock).toHaveBeenCalledWith(
+      'calendarVisibleMonth',
+      '2026-01-01',
+      scope,
+    );
+  });
+
+  it('restores the locally stored month and year for the current scope', async () => {
+    getLocalPreferenceMock.mockResolvedValue('2025-03-01');
+
+    render(<CalendarMonth />);
+
+    await waitFor(() => {
+      expect(screen.getByRole('tab', { name: 'Mar' })).toHaveAttribute(
+        'aria-selected',
+        'true',
+      );
+    });
+    expect(screen.getByText('2025')).toBeInTheDocument();
   });
 
   it('marks today with a hairline ring instead of a fading 1px ring', () => {
