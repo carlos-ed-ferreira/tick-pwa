@@ -528,8 +528,9 @@ compatibilidade N/N+1 é a única proteção dessa janela.
 
 O `make publish` também degrada de forma pouco previsível: `gh pr merge --auto`
 é armado antes da espera dos checks, então interromper o comando deixa o merge
-armado para acontecer sem acompanhamento, e a espera pelo merge expira em
-sessenta segundos mesmo quando o merge ainda vai ocorrer.
+armado para acontecer sem acompanhamento. A espera pelo merge não expira mais
+por lentidão: continua enquanto o pull request estiver aberto e falha somente
+quando o GitHub informa outro estado terminal.
 
 ### Implementação recomendada
 
@@ -546,9 +547,9 @@ Usar um Deploy Hook da Vercel acionado pelo workflow após a migration:
 8. detectar SHA da `main` sem migration aplicada, por verificação agendada que
    compare migrations do repositório com o histórico de produção e avise pela
    mesma action de falha, cobrindo evento perdido e workflow que nunca começou;
-9. decidir e documentar o comportamento do `make publish` sob degradação do
-   GitHub, definindo se o auto-merge é desarmado ao interromper o comando e
-   separando merge lento de merge falho em vez de expirar em sessenta segundos.
+9. decidir e documentar se o auto-merge deve ser desarmado ao interromper o
+   `make publish`; merge lento e merge em estado terminal diferente de sucesso
+   já possuem comportamentos distintos.
 
 ### Responsabilidade externa
 

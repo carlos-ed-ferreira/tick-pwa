@@ -321,6 +321,73 @@ describe('publishDevelopmentBranch', () => {
     expect(execute).toHaveBeenLastCalledWith('git', ['push', 'origin', 'dev']);
   });
 
+  it('falls back to ignoring the notification thread when GraphQL refuses the subscription update', async () => {
+    const execute = createExecutor([
+      'dev\n',
+      '',
+      '',
+      '',
+      '',
+      '',
+      'https://github.com/example/tick/pull/9\n',
+      'PR_example\n',
+      new Error('GraphQL: updateSubscription failed'),
+      '',
+      '',
+      'MERGED\n',
+      'thread-9\n',
+      '',
+      '',
+      '',
+      '',
+      '',
+    ]);
+    const write = vi.fn();
+
+    await publishDevelopmentBranch({ execute, write });
+
+    expect(execute).toHaveBeenCalledWith('gh', [
+      'api',
+      '--method',
+      'PUT',
+      '--silent',
+      'notifications/threads/thread-9/subscription',
+      '-F',
+      'ignored=true',
+    ]);
+    expect(write).not.toHaveBeenCalledWith(
+      'Não foi possível silenciar as notificações do pull request.',
+    );
+  });
+
+  it('keeps waiting when an automatic merge takes longer than 60 seconds', async () => {
+    const execute = createExecutor([
+      'dev\n',
+      '',
+      '',
+      '',
+      '',
+      '',
+      'https://github.com/example/tick/pull/10\n',
+      'PR_example\n',
+      '',
+      '',
+      '',
+      ...Array.from({ length: 30 }, () => 'OPEN\n'),
+      'MERGED\n',
+      '',
+      '',
+      '',
+      '',
+    ]);
+    const wait = vi.fn();
+
+    await publishDevelopmentBranch({ execute, wait, write: vi.fn() });
+
+    expect(wait).toHaveBeenCalledTimes(30);
+    expect(execute).toHaveBeenLastCalledWith('git', ['push', 'origin', 'dev']);
+  });
+
   it('rejects branches other than dev', async () => {
     const execute = createExecutor(['main\n']);
 

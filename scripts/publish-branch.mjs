@@ -62,18 +62,26 @@ export async function publishDevelopmentBranch({
     throw new Error('O GitHub não retornou a URL do pull request.');
   }
 
-  await ignorePullRequestNotifications(pullRequest, execute, write);
+  const notificationsIgnored = await ignorePullRequestNotifications(
+    pullRequest,
+    execute,
+  );
   await execute('gh', ['pr', 'merge', pullRequest, '--auto', '--squash']);
   await waitForRequiredChecks(pullRequest, execute, wait);
   await waitForMergedPullRequest(pullRequest, execute, wait);
-  await markPullRequestNotificationAsDone(pullRequest, execute, write);
+  await finalizePullRequestNotifications(
+    pullRequest,
+    notificationsIgnored,
+    execute,
+    write,
+  );
   await execute('git', ['fetch', 'origin', 'main']);
   await execute('git', ['merge', '--no-edit', 'origin/main']);
   await execute('git', ['push', 'origin', 'dev']);
   write(`Main atualizada: ${pullRequest}`);
 }
 
-async function ignorePullRequestNotifications(pullRequest, execute, write) {
+async function ignorePullRequestNotifications(pullRequest, execute) {
   try {
     const pullRequestId = (
       await execute('gh', [
@@ -100,16 +108,23 @@ async function ignorePullRequestNotifications(pullRequest, execute, write) {
       '-F',
       `subscribableId=${pullRequestId}`,
     ]);
+    return true;
   } catch {
-    write('Não foi possível silenciar as notificações do pull request.');
+    return false;
   }
 }
 
-async function markPullRequestNotificationAsDone(pullRequest, execute, write) {
+async function finalizePullRequestNotifications(
+  pullRequest,
+  notificationsIgnored,
+  execute,
+  write,
+) {
   const pullRequestNumber = pullRequest.split('/').pop();
+  let notificationThreadId;
 
   try {
-    const notificationThreadId = (
+    notificationThreadId = (
       await execute('gh', [
         'api',
         '--method',
@@ -122,11 +137,38 @@ async function markPullRequestNotificationAsDone(pullRequest, execute, write) {
         `.[] | select(.subject.type == "PullRequest" and (.subject.url | endswith("/pulls/${pullRequestNumber}"))) | .id`,
       ])
     ).trim();
-
-    if (!notificationThreadId) {
-      return;
+  } catch {
+    if (!notificationsIgnored) {
+      write('Não foi possível silenciar as notificações do pull request.');
     }
+    write('Não foi possível remover a notificação do pull request.');
+    return;
+  }
 
+  if (!notificationThreadId) {
+    if (!notificationsIgnored) {
+      write('Não foi possível silenciar as notificações do pull request.');
+    }
+    return;
+  }
+
+  if (!notificationsIgnored) {
+    try {
+      await execute('gh', [
+        'api',
+        '--method',
+        'PUT',
+        '--silent',
+        `notifications/threads/${notificationThreadId}/subscription`,
+        '-F',
+        'ignored=true',
+      ]);
+    } catch {
+      write('Não foi possível silenciar as notificações do pull request.');
+    }
+  }
+
+  try {
     await execute('gh', [
       'api',
       '--method',
@@ -176,7 +218,7 @@ function isMissingRequiredChecksError(error) {
 }
 
 async function waitForMergedPullRequest(pullRequest, execute, wait) {
-  for (let attempt = 0; attempt < 30; attempt += 1) {
+  while (true) {
     const state = (
       await execute('gh', [
         'pr',
@@ -199,8 +241,6 @@ async function waitForMergedPullRequest(pullRequest, execute, wait) {
 
     await wait(2_000);
   }
-
-  throw new Error('O merge automático não terminou dentro de 60 segundos.');
 }
 
 function delay(milliseconds) {

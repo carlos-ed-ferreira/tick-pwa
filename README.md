@@ -536,8 +536,10 @@ A publicação cotidiana parte da branch `dev`. Depois de criar o commit, execut
 `make publish`. O comando exige worktree limpo, envia `dev`, cria ou reutiliza
 o pull request para `main`, silencia as notificações desse pull request para o
 autor e habilita squash automático. O comando aguarda o check obrigatório
-`Check app`, confirma o merge e reconcilia `dev` com a nova `main` para preparar
-a publicação seguinte. Não faça push direto para `main` nem
+`Check app`, continua aguardando enquanto o pull request estiver aberto,
+confirma o merge e reconcilia `dev` com a nova `main` para preparar a publicação
+seguinte. Um estado terminal diferente de merge encerra o comando com erro. Não
+faça push direto para `main` nem
 use force push para contornar essa proteção.
 
 Commits e `make publish` são decisões manuais do desenvolvedor. Agentes devem
