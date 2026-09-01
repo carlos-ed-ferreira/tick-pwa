@@ -170,11 +170,14 @@ Métricas de fila, tentativas, rejeições, falhas de transporte, conflitos,
 tamanho e duração dos lotes, idade da operação mais antiga e latência de
 confirmação são acumuladas por conta em
 `src/lib/db/account-sync-metrics.ts`, sem conteúdo do usuário. Elas ainda não
-têm destino externo.
+têm identidade nem conteúdo funcional. Um adapter independente envia os
+agregados e resultados de refresh ao Sentry quando o DSN é configurado. Todas
+as integrações automáticas ficam desligadas e uma allowlist remove identidade,
+conteúdo funcional, tokens e payloads antes do fornecedor.
 
 O estado atual ainda tem limitações conhecidas de rollout amplo, cobertura de
 Safari/iOS e observabilidade externa. Elas estão
-registradas no [IMPLEMENTATION.md](IMPLEMENTATION.md); não devem ser confundidas
+registradas no [plano de implementação](docs/planning/implementation-plan.md); não devem ser confundidas
 com garantias já implementadas.
 
 O backend contém `apply_account_operation_batch` e recibos por conta e
@@ -184,13 +187,13 @@ por revisão e confirma o lote inteiro em uma transação. Cada chamada também
 descarta os recibos da própria conta com mais de sete dias. O consumidor
 funcional é habilitado somente para contas internas explicitamente autorizadas.
 A ativação, os ensaios e o rollback estão no passo 1 do
-[IMPLEMENTATION.md](IMPLEMENTATION.md).
+[plano de implementação](docs/planning/implementation-plan.md).
 
 A arquitetura de sincronização autenticada foi consolidada na outbox própria.
 O POC PowerSync e seus objetos isolados foram retirados; não existe runtime,
 rota, flag ou dual-write alternativo no produto. A comparação, o custo e o
 procedimento de remoção estão registrados no passo 3 do
-[IMPLEMENTATION.md](IMPLEMENTATION.md).
+[plano de implementação](docs/planning/implementation-plan.md).
 
 ### PWA e offline
 
@@ -287,7 +290,7 @@ Os nomes técnicos principais continuam `ChecklistItem`, `Goal`, `GoalGroup` e
 
 Guest limitado, trial, assinatura, entitlement e migração explícita de dados
 para conta são requisitos futuros, não comportamento existente. O backlog
-canônico está no [IMPLEMENTATION.md](IMPLEMENTATION.md).
+canônico está no [plano de implementação](docs/planning/implementation-plan.md).
 
 ## Estrutura do repositório
 
@@ -424,18 +427,19 @@ Comandos de produção são bloqueados pelo wrapper fora do GitHub Actions. O
 workflow de migrations faz repair do histórico conhecido, dry-run e push. Ele
 depende do quality gate aprovado do mesmo SHA. A ordenação entre migrations e o
 deploy externo da Vercel ainda é uma lacuna registrada no passo 5 do
-`IMPLEMENTATION.md`.
+`docs/planning/implementation-plan.md`.
 
 ## APIs e serviços externos
 
 - Supabase Auth: senha e OAuth Google;
 - Supabase REST/Postgres: leitura e escrita das contas;
 - Vercel: hospedagem documentada do frontend;
-- GitHub Actions: CI e migrations de produção;
+- GitHub Actions: CI, migrations e backup lógico cifrado de produção;
+- Sentry Free: destino opcional de eventos agregados de sincronização;
 - Google Fonts: carregadas pelo Next.js e cobertas pelo cache da PWA.
 
-Não existem webhooks, pagamentos, e-mail de produção, observabilidade ou API de
-domínio próprios no estado atual. Configuração do provedor Google, URLs de
+Não existem webhooks, pagamentos, e-mail de produção ou API de domínio próprios
+no estado atual. Configuração do Sentry, provedor Google, URLs de
 redirect, projeto Supabase, domínio e integração Vercel são externas ao Git.
 
 ## Comandos de desenvolvimento
@@ -444,27 +448,29 @@ O `Makefile` é a interface única para operações do projeto. Não execute
 `npm`, `npx`, CLIs de serviço ou scripts diretamente. Se surgir uma rotina
 recorrente sem target, adicione-a ao `Makefile` e ao `make help` primeiro.
 
-| Objetivo            | Comando                             |
-| ------------------- | ----------------------------------- |
-| instalar            | `make install` ou `make install-ci` |
-| desenvolver         | `make dev`                          |
-| build/start         | `make build`, `make start`          |
-| typecheck           | `make typecheck`                    |
-| lint                | `make lint`                         |
-| testes              | `make test`                         |
-| testes da outbox    | `make test-account-persistence`     |
-| E2E padrão          | `make test-e2e`                     |
-| E2E layout mobile   | `make test-e2e-mobile`              |
-| E2E reload offline  | `make test-e2e-offline`             |
-| E2E autenticado     | `make test-e2e-account`             |
-| navegador E2E       | `make test-e2e-browsers`            |
-| benchmark RPC local | `make benchmark-account-rpc`        |
-| publicar em `main`  | `make publish`                      |
-| auditar produção    | `make audit-prod`                   |
-| dependências        | `make deps-tree`                    |
-| formatar/verificar  | `make format`, `make format-check`  |
-| gate atual          | `make check`                        |
-| limpar gerados      | `make clean`                        |
+| Objetivo             | Comando                              |
+| -------------------- | ------------------------------------ |
+| instalar             | `make install` ou `make install-ci`  |
+| desenvolver          | `make dev`                           |
+| build/start          | `make build`, `make start`           |
+| typecheck            | `make typecheck`                     |
+| lint                 | `make lint`                          |
+| testes               | `make test`                          |
+| testes de telemetria | `make test-telemetry`                |
+| testes da outbox     | `make test-account-persistence`      |
+| E2E padrão           | `make test-e2e`                      |
+| E2E layout mobile    | `make test-e2e-mobile`               |
+| E2E reload offline   | `make test-e2e-offline`              |
+| E2E autenticado      | `make test-e2e-account`              |
+| navegador E2E        | `make test-e2e-browsers`             |
+| benchmark RPC local  | `make benchmark-account-rpc`         |
+| restaurar backup     | `make backup-restore archive=<file>` |
+| publicar em `main`   | `make publish`                       |
+| auditar produção     | `make audit-prod`                    |
+| dependências         | `make deps-tree`                     |
+| formatar/verificar   | `make format`, `make format-check`   |
+| gate atual           | `make check`                         |
+| limpar gerados       | `make clean`                         |
 
 Supabase:
 
@@ -516,10 +522,15 @@ nas falhas seguintes enquanto a issue continuar aberta; execuções bem-sucedida
 e pull requests não geram aviso. O workflow de migrations usa a mesma action
 composta `.github/actions/report-failure` com o rótulo `migration-failure`. Os
 dois avisos cobrem apenas execução que falhou: pipeline que nunca começa ainda
-não é detectado, conforme o passo 5 do `IMPLEMENTATION.md`. `.github/workflows/supabase-migrations.yml` só aceita
+não é detectado, conforme o passo 5 de `docs/planning/implementation-plan.md`. `.github/workflows/supabase-migrations.yml` só aceita
 o SHA de um `App CI` aprovado na `main`; execução manual roda o mesmo quality
 gate antes de acessar o environment `production`. O workflow registra o SHA,
 detecta mudanças de banco, faz dry-run e então aplica migrations.
+
+O workflow `Production backup`, desabilitado até a configuração externa, gera
+diariamente um dump lógico, cifra-o antes do upload e mantém somente o artefato
+cifrado por 14 dias. Configuração, alertas, restore isolado e medição de RPO/RTO
+estão no [runbook operacional](docs/operations/observability-backup-restore.md).
 
 A publicação cotidiana parte da branch `dev`. Depois de criar o commit, execute
 `make publish`. O comando exige worktree limpo, envia `dev`, cria ou reutiliza
@@ -535,22 +546,28 @@ um pedido explícito para essa operação no turno atual.
 
 Mudanças de banco usadas pelo frontend devem ser aditivas e publicadas em duas
 etapas: migration compatível primeiro e aplicação depois. O fluxo desejado de
-produção e as lacunas de segurança estão no `IMPLEMENTATION.md`.
+produção e as lacunas de segurança estão em
+`docs/planning/implementation-plan.md`.
 
 O projeto continuará nos planos gratuitos nesta fase: não há decisão para
 contratar Vercel Pro ou Supabase Pro agora, e PowerSync foi descartado. A
 arquitetura-alvo, os custos e os gatilhos de contratação estão no passo 8 do
-[IMPLEMENTATION.md](IMPLEMENTATION.md).
+[plano de implementação](docs/planning/implementation-plan.md).
 
 ## Documentação
 
+Diretórios, arquivos, módulos, símbolos e demais identificadores técnicos usam
+nomes em inglês em todo o repositório. Apenas o conteúdo textual de documentos
+pode permanecer em português.
+
 - [AGENTS.md](AGENTS.md): regras operacionais para agentes;
 - [REVIEW.md](REVIEW.md): baselines, métricas e quality gates;
-- [IMPLEMENTATION.md](IMPLEMENTATION.md): plano único de evolução, arquitetura,
+- [docs/planning/implementation-plan.md](docs/planning/implementation-plan.md): plano único de evolução, arquitetura,
   custos, rollouts e responsabilidades externas;
 - [.agents/skills](.agents/skills): workflows reutilizáveis para agentes;
-- [docs/importacao-json.md](docs/importacao-json.md): contrato da importação;
+- [docs/guides/calendar-task-json-import.md](docs/guides/calendar-task-json-import.md): guia funcional e contrato da importação JSON do calendário;
+- [docs/operations/incidents/2026-08-31-supabase-wal-read-only.md](docs/operations/incidents/2026-08-31-supabase-wal-read-only.md): incidente de saturação, WAL e modo somente leitura do Supabase;
 
-`IMPLEMENTATION.md` é a fonte canônica e completa do backlog técnico. Os
+`docs/planning/implementation-plan.md` é a fonte canônica e completa do backlog técnico. Os
 documentos em `docs/` existem somente para contratos específicos que não
 pertencem ao plano geral.

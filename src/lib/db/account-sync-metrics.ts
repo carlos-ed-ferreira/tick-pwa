@@ -12,6 +12,7 @@ export interface AccountSyncMetrics {
   lastConfirmationLatencyMs: number | null;
   lastErrorCode: string | null;
   maxConfirmationLatencyMs: number | null;
+  maxAttempts: number;
   maxBatchDurationMs: number | null;
   maxBatchMutationCount: number;
   oldestOperationAgeMs: number | null;
@@ -154,6 +155,10 @@ export async function getAccountSyncMetrics(
 
   return {
     ...getCounters(scopeId),
+    maxAttempts: items.reduce(
+      (maximum, item) => Math.max(maximum, item.attempts),
+      0,
+    ),
     oldestOperationAgeMs:
       oldestCreatedAt === undefined ? null : Math.max(now - oldestCreatedAt, 0),
     queuedMutations: items.reduce(

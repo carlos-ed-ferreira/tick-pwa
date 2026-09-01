@@ -1,18 +1,21 @@
 NPM = npm
 
-.PHONY: help require-npm install install-ci dev build start lint typecheck test test-account-operations test-account-persistence test-e2e test-e2e-mobile test-e2e-offline test-e2e-account test-e2e-browsers format format-check check audit-prod deps-tree publish clean benchmark-account-rpc supabase-start supabase-start-db supabase-stop supabase-status supabase-reset supabase-diff supabase-diff-check supabase-migration-diff supabase-lint supabase-test-db supabase-types-local supabase-prod-migrations-repair supabase-prod-db-dry-run supabase-prod-db-push
+.PHONY: help require-npm install install-ci add-dependency dev build start lint typecheck test test-telemetry test-backup test-account-operations test-account-persistence test-e2e test-e2e-mobile test-e2e-offline test-e2e-account test-e2e-browsers format format-check check audit-prod deps-tree publish clean benchmark-account-rpc backup-encrypt backup-restore supabase-start supabase-start-db supabase-stop supabase-status supabase-reset supabase-diff supabase-diff-check supabase-migration-diff supabase-lint supabase-test-db supabase-types-local supabase-prod-backup supabase-prod-migrations-repair supabase-prod-db-dry-run supabase-prod-db-push
 .DEFAULT_GOAL := help
 
 help:
 	@printf "\n"
 	@printf "  %-26s %s\n" "make install" "Instala dependencias do projeto"
 	@printf "  %-26s %s\n" "make install-ci" "Instala dependencias exatamente como no lockfile"
+	@printf "  %-26s %s\n" "make add-dependency package=<pacote>" "Adiciona uma dependencia de producao"
 	@printf "  %-26s %s\n" "make dev" "Instala dependencias, inicia o Supabase local e o Next.js"
 	@printf "  %-26s %s\n" "make build" "Gera build de producao com PWA"
 	@printf "  %-26s %s\n" "make start" "Inicia o servidor de producao apos o build"
 	@printf "  %-26s %s\n" "make lint" "Proibe comentarios de codigo e roda ESLint"
 	@printf "  %-26s %s\n" "make typecheck" "Roda TypeScript sem emitir arquivos"
 	@printf "  %-26s %s\n" "make test" "Roda testes unitarios e de integracao"
+	@printf "  %-26s %s\n" "make test-telemetry" "Roda testes de telemetria e redaction"
+	@printf "  %-26s %s\n" "make test-backup" "Roda testes de cifra e integridade do backup"
 	@printf "  %-26s %s\n" "make test-account-operations" "Roda testes do contrato transacional"
 	@printf "  %-26s %s\n" "make test-account-persistence" "Roda testes da outbox autenticada"
 	@printf "  %-26s %s\n" "make test-e2e" "Roda testes end-to-end"
@@ -27,6 +30,8 @@ help:
 	@printf "  %-26s %s\n" "make deps-tree" "Mostra dependencias diretas instaladas"
 	@printf "  %-26s %s\n" "make publish" "Publica dev em main pelo fluxo protegido"
 	@printf "  %-26s %s\n" "make benchmark-account-rpc" "Mede lotes e concorrencia no Supabase local"
+	@printf "  %-26s %s\n" "make backup-encrypt input=<dir> output=<file>" "Criptografa um backup logico"
+	@printf "  %-26s %s\n" "make backup-restore archive=<file>" "Restaura e valida backup em Postgres isolado"
 	@printf "  %-26s %s\n" "make supabase-start" "Inicia o Supabase local"
 	@printf "  %-26s %s\n" "make supabase-start-db" "Inicia apenas o Postgres local"
 	@printf "  %-26s %s\n" "make supabase-stop" "Para o Supabase local"
@@ -38,6 +43,7 @@ help:
 	@printf "  %-26s %s\n" "make supabase-lint" "Valida o schema Postgres local"
 	@printf "  %-26s %s\n" "make supabase-test-db" "Roda os testes pgTAP do banco"
 	@printf "  %-26s %s\n" "make supabase-types-local" "Gera tipos TypeScript do schema Supabase local"
+	@printf "  %-26s %s\n" "make supabase-prod-backup" "Gera backup logico de producao no CI"
 	@printf "  %-26s %s\n" "make supabase-prod-migrations-repair" "Repara historico remoto no CI"
 	@printf "  %-26s %s\n" "make supabase-prod-db-dry-run" "Previsualiza migrations remotas no CI"
 	@printf "  %-26s %s\n" "make supabase-prod-db-push" "Aplica migrations remotas no CI"
@@ -57,6 +63,10 @@ install: require-npm
 
 install-ci: require-npm
 	$(NPM) ci
+
+add-dependency: require-npm
+	@test -n "$(package)" || { printf "Erro: informe package=<pacote>@<versao>.\n"; exit 2; }
+	$(NPM) install --save-exact $(package)
 
 dev: install
 	@set -e; \
@@ -88,6 +98,12 @@ typecheck: require-npm
 
 test: require-npm
 	$(NPM) run test
+
+test-telemetry: require-npm
+	$(NPM) run test -- tests/unit/telemetry.test.ts
+
+test-backup: require-npm
+	$(NPM) run test -- tests/unit/backup-archive.test.mjs
 
 test-account-operations: require-npm
 	$(NPM) run test -- tests/unit/account-operations.test.ts
@@ -131,6 +147,15 @@ publish: require-npm
 benchmark-account-rpc: supabase-start
 	$(NPM) run supabase:benchmark:account
 
+backup-encrypt: require-npm
+	@test -n "$(input)" || { printf "Erro: informe input=<diretorio>.\n"; exit 2; }
+	@test -n "$(output)" || { printf "Erro: informe output=<arquivo>.\n"; exit 2; }
+	$(NPM) run backup:encrypt -- $(input) $(output)
+
+backup-restore: require-npm
+	@test -n "$(archive)" || { printf "Erro: informe archive=<arquivo>.\n"; exit 2; }
+	$(NPM) run backup:restore -- $(archive)
+
 supabase-start: require-npm
 	$(NPM) run supabase:start
 
@@ -164,6 +189,9 @@ supabase-test-db: require-npm
 
 supabase-types-local: require-npm
 	$(NPM) run supabase:types:local
+
+supabase-prod-backup: require-npm
+	$(NPM) run supabase:prod:backup
 
 supabase-prod-migrations-repair: require-npm
 	$(NPM) run supabase:prod:migrations:repair

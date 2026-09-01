@@ -40,10 +40,14 @@
     "supabase:prod:db:dry-run": "node scripts/supabase-cli.mjs prod:db:dry-run",
     "supabase:prod:migrations:repair": "node scripts/supabase-cli.mjs prod:migrations:repair",
     "supabase:prod:types": "node scripts/supabase-cli.mjs prod:types",
+    "supabase:prod:backup": "node scripts/supabase-cli.mjs prod:backup",
+    "backup:encrypt": "node scripts/backup-archive.mjs encrypt",
+    "backup:restore": "node scripts/restore-backup.mjs",
     "check": "npm run typecheck && npm run lint && npm run test && npm run format:check && npm run build",
     "clean": "rm -rf .next out build coverage public/sw.js public/sw.js.map public/swe-worker*.js"
   },
   "dependencies": {
+    "@sentry/browser": "10.72.0",
     "@serwist/next": "^9.5.11",
     "@supabase/supabase-js": "^2.105.4",
     "country-flag-icons": "^1.6.17",

@@ -14,6 +14,9 @@ const withSerwist = withSerwistInit({
 });
 
 const nextConfig: NextConfig = {
+  env: {
+    NEXT_PUBLIC_TICK_RELEASE: process.env.NEXT_PUBLIC_TICK_RELEASE ?? revision,
+  },
   experimental: {
     useTypeScriptCli: false,
   },
