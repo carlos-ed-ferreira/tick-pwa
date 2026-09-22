@@ -75,7 +75,7 @@
     --accent-soft: rgba(240, 195, 142, 0.16);
     --danger-soft: rgba(244, 132, 132, 0.14);
     --scrollbar-thumb: rgba(203, 213, 224, 0.3);
-    --scrollbar-thumb-hover: rgba(240, 195, 142, 0.58);
+    --scrollbar-thumb-hover: rgba(203, 213, 224, 0.5);
   }
 }
 

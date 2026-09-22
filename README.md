@@ -112,9 +112,11 @@ No modo local, a UI lê do IndexedDB e os comandos confirmam as alterações em
 transações Dexie. Nenhuma entidade do usuário é enviada ao Supabase.
 
 No modo autenticado, o app baixa snapshots das tabelas da conta para um cache
-Dexie. Os snapshots são paginados em blocos de 1.000 linhas, ordenados por
-revisão e identificador, e só reconciliam exclusões depois que todas as páginas
-terminam com sucesso. No rollout controlado, a alteração funcional e seu lote
+Dexie. Os snapshots são paginados em blocos de 1.000 linhas, ordenados apenas
+pelo identificador, que é imutável, e só reconciliam exclusões depois que todas
+as páginas terminam com sucesso. Refreshes simultâneos do mesmo escopo
+compartilham uma única leitura remota, e o conjunto protegido de entidades
+pendentes é calculado dentro da transação de merge. No rollout controlado, a alteração funcional e seu lote
 remoto são gravados atomicamente no IndexedDB. A outbox preserva o mesmo
 `operation_id` entre reloads, mantém a ordem, agrupa até 100 mutações e envia
 uma RPC transacional; falhas continuam visíveis e podem ser reenviadas. Contas

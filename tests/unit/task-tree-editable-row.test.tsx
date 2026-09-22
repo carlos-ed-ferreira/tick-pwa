@@ -524,6 +524,27 @@ describe('TaskTreeEditableRow', () => {
     });
   });
 
+  it('marks selection with the shared checkbox shape', () => {
+    renderRow({
+      selection: {
+        isSelected: true,
+        isSelectionMode: true,
+        onBulkAssignCategory: vi.fn(),
+        onBulkDelete: vi.fn(),
+        onBulkToggleChecked: vi.fn(),
+        onToggle: vi.fn(),
+      },
+    });
+
+    const indicator = screen
+      .getByRole('button', { name: 'Deselect item' })
+      .querySelector('span');
+
+    expect(indicator).toHaveClass('tick-checkbox');
+    expect(indicator).not.toHaveClass('rounded-full');
+    expect(indicator).toHaveAttribute('data-checked', 'true');
+  });
+
   it('keeps selection, add, move, indent, and more actions visible in that order', () => {
     const callbacks = renderRow({
       selection: {

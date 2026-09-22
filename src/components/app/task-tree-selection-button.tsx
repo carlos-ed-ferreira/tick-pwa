@@ -1,5 +1,4 @@
-import { Check } from 'lucide-react';
-import { IconButton } from '@/components/ui';
+import { CheckboxIndicator, IconButton } from '@/components/ui';
 
 export function TaskTreeSelectionButton({
   deselectLabel,
@@ -18,15 +17,7 @@ export function TaskTreeSelectionButton({
       className="group inline-flex size-9 shrink-0 items-center justify-center rounded-md transition hover:bg-white/[0.08] hover:text-[#fff9f2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e]"
       onClick={(event) => onToggle(event.shiftKey)}
     >
-      <span
-        className={`flex size-3.5 items-center justify-center rounded-full shadow-sm transition ${
-          isSelected
-            ? 'bg-[#f0c38e] text-[#141e2a] shadow-[0_8px_18px_rgba(240,195,142,0.24)]'
-            : 'inset-ring-hairline inset-ring-white/15 bg-white/[0.08] text-[#aebac8]'
-        }`}
-      >
-        {isSelected && <Check aria-hidden="true" className="size-2" />}
-      </span>
+      <CheckboxIndicator checked={isSelected} size="compact" />
     </IconButton>
   );
 }

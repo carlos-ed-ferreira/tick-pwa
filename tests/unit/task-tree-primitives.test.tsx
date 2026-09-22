@@ -169,14 +169,26 @@ describe('task tree primitives', () => {
     );
 
     const button = screen.getByRole('button', { name: 'Deselect item' });
-    const marker = button.querySelector('span');
+    const marker = button.querySelector('.tick-checkbox');
 
-    expect(marker).toHaveClass(
-      'bg-[#f0c38e]',
-      'text-[#141e2a]',
-      'shadow-[0_8px_18px_rgba(240,195,142,0.24)]',
+    expect(marker).toHaveClass('rounded-lg', 'size-4');
+    expect(marker).toHaveAttribute('data-checked', 'true');
+  });
+
+  it('renders the unselected marker without the checked state', () => {
+    const { container } = render(
+      <TaskTreeSelectionButton
+        deselectLabel="Deselect item"
+        isSelected={false}
+        selectLabel="Select item"
+        onToggle={vi.fn()}
+      />,
     );
-    expect(button.querySelector('svg')).toBeInTheDocument();
+
+    const marker = container.querySelector('.tick-checkbox');
+
+    expect(marker).toBeInTheDocument();
+    expect(marker).not.toHaveAttribute('data-checked');
   });
 
   it('renders the action group wrapper classes', () => {

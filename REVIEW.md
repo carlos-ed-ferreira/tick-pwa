@@ -193,6 +193,23 @@ cor do processo. Eles não falham o gate atual.
 - `make publish` só arma o auto-merge depois dos checks obrigatórios;
 - configuração do hook e comprovação do primeiro deploy continuam externas.
 
+## Ratchet em 2026-09-22
+
+- Vitest: 79 arquivos e 577 testes aprovados;
+- Playwright local: 33 testes aprovados e 7 ignorados;
+- marcador de seleção usa o primitive de checkbox compartilhado, com o mesmo
+  desenho e estado do checkbox de conclusão;
+- edição inline preserva os caracteres digitados enquanto a própria gravação
+  está em voo, e continua adotando alterações remotas quando não há rascunho
+  local;
+- exclusão em árvore deriva a subárvore por `parentId`, não por profundidade
+  visual da lista renderizada;
+- seleção preserva o estado anterior ao alternar itens e não é oferecida em
+  linhas que ainda são rascunho no checklist e nas metas;
+- snapshot remoto pagina por chave imutável, deduplica refreshes simultâneos do
+  mesmo escopo e captura o conjunto protegido dentro da transação de merge;
+- hover da scrollbar deixa de usar a cor de acento.
+
 ## Matriz de quality gates
 
 | Gate               | Métrica e threshold                                                                 | Escopo                              | Estado         | Legado                                    | Bloqueia?                   |

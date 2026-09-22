@@ -4218,14 +4218,18 @@ function GoalStepRow({
       priority={goalStep.priority}
       scheduledDate={goalStep.scheduledDate}
       showScheduledDate
-      selection={{
-        isSelected,
-        isSelectionMode,
-        onBulkAssignCategory,
-        onBulkDelete,
-        onBulkToggleChecked,
-        onToggle: (shiftKey) => onToggleSelect(goalStep.id, shiftKey),
-      }}
+      selection={
+        isDraft
+          ? undefined
+          : {
+              isSelected,
+              isSelectionMode,
+              onBulkAssignCategory,
+              onBulkDelete,
+              onBulkToggleChecked,
+              onToggle: (shiftKey) => onToggleSelect(goalStep.id, shiftKey),
+            }
+      }
       siblingIds={siblingIds}
       surface="goal_step"
       text={goalStep.text}

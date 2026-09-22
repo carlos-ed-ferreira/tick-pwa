@@ -1795,6 +1795,28 @@ describe('GoalsSurface', () => {
     expect(screen.getByDisplayValue('Existing step')).toBeInTheDocument();
   });
 
+  it('does not offer selection on goal steps that are still drafts', async () => {
+    useGoalStepTreeMock.mockReturnValue([goalStep()]);
+
+    render(<GoalsSurface />);
+    fireEvent.click(screen.getByRole('button', { name: 'Focus' }));
+
+    const input = screen.getByDisplayValue('Existing step');
+    fireEvent.keyDown(input, { key: 'Enter' });
+
+    await waitFor(() => {
+      expect(screen.getAllByPlaceholderText('Write a step')).toHaveLength(2);
+    });
+
+    const draftRow = screen
+      .getAllByPlaceholderText('Write a step')[1]
+      .closest('[data-tree-row]');
+
+    expect(
+      within(draftRow as HTMLElement).queryByLabelText('Select step'),
+    ).not.toBeInTheDocument();
+  });
+
   it('creates a local goal step draft after flushing the edited row', async () => {
     useGoalStepTreeMock.mockReturnValue([goalStep()]);
 
