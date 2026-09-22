@@ -1,6 +1,6 @@
 NPM = npm
 
-.PHONY: help require-npm install install-ci add-dependency dev build start lint typecheck test test-telemetry test-backup test-account-operations test-account-persistence test-e2e test-e2e-mobile test-e2e-offline test-e2e-account test-e2e-browsers format format-check check audit-prod deps-tree publish clean benchmark-account-rpc backup-encrypt backup-restore supabase-start supabase-start-db supabase-stop supabase-status supabase-reset supabase-diff supabase-diff-check supabase-migration-diff supabase-lint supabase-test-db supabase-types-local supabase-prod-backup supabase-prod-migrations-repair supabase-prod-db-dry-run supabase-prod-db-push
+.PHONY: help require-npm install install-ci add-dependency dev build start lint typecheck test test-telemetry test-backup test-account-operations test-account-persistence test-e2e test-e2e-mobile test-e2e-offline test-e2e-account test-e2e-browsers format format-check check audit-prod deps-tree publish clean benchmark-account-rpc backup-encrypt backup-restore supabase-start supabase-start-db supabase-stop supabase-status supabase-reset supabase-diff supabase-diff-check supabase-migration-diff supabase-lint supabase-test-db supabase-types-local supabase-prod-backup supabase-prod-migrations-repair supabase-prod-migrations-check supabase-prod-db-dry-run supabase-prod-db-push
 .DEFAULT_GOAL := help
 
 help:
@@ -45,6 +45,7 @@ help:
 	@printf "  %-26s %s\n" "make supabase-types-local" "Gera tipos TypeScript do schema Supabase local"
 	@printf "  %-26s %s\n" "make supabase-prod-backup" "Gera backup logico de producao no CI"
 	@printf "  %-26s %s\n" "make supabase-prod-migrations-repair" "Repara historico remoto no CI"
+	@printf "  %-26s %s\n" "make supabase-prod-migrations-check" "Compara historicos local e remoto no CI"
 	@printf "  %-26s %s\n" "make supabase-prod-db-dry-run" "Previsualiza migrations remotas no CI"
 	@printf "  %-26s %s\n" "make supabase-prod-db-push" "Aplica migrations remotas no CI"
 	@printf "  %-26s %s\n" "make clean" "Remove artefatos locais de build"
@@ -195,6 +196,9 @@ supabase-prod-backup: require-npm
 
 supabase-prod-migrations-repair: require-npm
 	$(NPM) run supabase:prod:migrations:repair
+
+supabase-prod-migrations-check: require-npm
+	$(NPM) run supabase:prod:migrations:check
 
 supabase-prod-db-dry-run: require-npm
 	$(NPM) run supabase:prod:db:dry-run

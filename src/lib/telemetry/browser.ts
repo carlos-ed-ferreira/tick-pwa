@@ -40,14 +40,16 @@ function getBrowserContext(): {
   };
 }
 
-function createSentryAdapter(
+export function createSentryAdapter(
   sentryCaptureEvent: (event: Record<string, unknown>) => string,
 ): TelemetryAdapter {
   return {
     capture(event) {
+      const signal = getTelemetrySignal(event);
+
       sentryCaptureEvent({
         contexts: { tick: event.attributes },
-        fingerprint: [`tick.${event.name}`],
+        fingerprint: ['tick', event.name, signal],
         level: event.level,
         message: `tick.${event.name}`,
         tags: {
@@ -58,7 +60,7 @@ function createSentryAdapter(
               : typeof event.attributes.lastBatchResult === 'string'
                 ? event.attributes.lastBatchResult
                 : 'none',
-          telemetry_signal: getTelemetrySignal(event),
+          telemetry_signal: signal,
         },
       });
     },

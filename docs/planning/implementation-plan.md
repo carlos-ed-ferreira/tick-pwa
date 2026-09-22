@@ -35,17 +35,17 @@ explícito no turno atual.
 
 ## Estado resumido
 
-| Passo | Estado                | Próximo marco                                       |
-| ----- | --------------------- | --------------------------------------------------- |
-| 1     | concluído             | manter rollout restrito até ampliar a coorte        |
-| 2     | concluído             | manter a matriz real como gate antes do público     |
-| 3     | concluído             | publicar retirada do POC e limpar recursos externos |
-| 4     | validação externa     | configurar alertas e comprovar restore por terceiro |
-| 5     | parcialmente entregue | ordenar deploy e detectar pipeline parado           |
-| 6     | não iniciado          | fechar decisões de produto e autenticação pública   |
-| 7     | não iniciado          | criar baseline e carga para 1.000 DAU               |
-| 8     | adiado                | avaliar frontend estático e planos no marco público |
-| 9     | pendente              | validar a interface de toque em aparelho real       |
+| Passo | Estado            | Próximo marco                                       |
+| ----- | ----------------- | --------------------------------------------------- |
+| 1     | concluído         | manter rollout restrito até ampliar a coorte        |
+| 2     | concluído         | manter a matriz real como gate antes do público     |
+| 3     | concluído         | publicar retirada do POC e limpar recursos externos |
+| 4     | validação externa | configurar alertas e comprovar restore por terceiro |
+| 5     | validação externa | configurar hook e comprovar a ordem real            |
+| 6     | não iniciado      | fechar decisões de produto e autenticação pública   |
+| 7     | não iniciado      | criar baseline e carga para 1.000 DAU               |
+| 8     | adiado            | avaliar frontend estático e planos no marco público |
+| 9     | pendente          | validar a interface de toque em aparelho real       |
 
 ## 1. Publicar e validar o rollout controlado da outbox
 
@@ -452,12 +452,16 @@ conteúdo funcional. O workflow diário gera dump lógico, cifra antes do upload
 retém o artefato no GitHub por 14 dias e abre issue em caso de falha. O comando
 de restore usa um Postgres Supabase isolado e mede RPO/RTO.
 
-Permanecem externos: criar o projeto Sentry, configurar DSN, privacidade e
-alertas; cadastrar os secrets e habilitar o workflow; executar o alerta
-sintético; e uma segunda pessoa restaurar o primeiro backup e registrar as
-medidas. O procedimento completo está em
-`docs/operations/observability-backup-restore.md`. O passo só muda para
-concluído depois dessas evidências.
+A configuração externa do Sentry foi concluída em 22 de setembro de 2026:
+projeto criado com apenas error monitoring, DSN e environment cadastrados
+somente no escopo de produção da Vercel, cinco regras de alerta filtradas por
+`telemetry_signal` e alerta sintético executado, inspecionado e revertido. As
+evidências e a limitação de geolocalização estão em
+`docs/operations/observability-backup-restore.md`.
+
+Permanecem externos: cadastrar os secrets de backup, habilitar o workflow
+diário e uma segunda pessoa restaurar o primeiro backup e registrar RPO e RTO.
+O passo só muda para concluído depois dessas evidências.
 
 ### Resultado esperado
 
@@ -508,14 +512,24 @@ com rollback documentado.
 
 O ruleset da `main` exige `Check app`, `Check database` e `Check end-to-end`.
 O workflow de migrations roda somente após App CI aprovado na `main`, usa o
-`head_sha`, faz dry-run e aplica migrations pelo environment `production`. O
-deploy automático da Vercel ainda pode começar em paralelo com as migrations.
+`head_sha`, faz dry-run e aplica migrations pelo environment `production`. Em
+14 de setembro de 2026, o workflow passou a disparar o Deploy Hook somente após
+a migration e a falhar se a `main` tiver avançado antes do disparo. Commits sem
+mudança de banco seguem pelo mesmo job e chegam ao deploy sem executar a CLI do
+Supabase.
 
 Desde 27 de agosto de 2026, App CI e o workflow de migrations avisam falha pela
 action composta `.github/actions/report-failure`, que abre ou comenta uma issue
 atribuída ao dono do repositório. O aviso cobre somente execução que falhou.
-Execução que nunca começa, por evento `workflow_run` não entregue ou por
-indisponibilidade do GitHub Actions, continua sem detecção.
+Uma auditoria horária agora compara migrations locais e remotas e transforma
+divergência em `pipeline-failure`. Ela detecta um `workflow_run` perdido assim
+que o Actions volta a operar; nenhuma automação dentro do próprio GitHub pode
+alertar enquanto a plataforma inteira estiver indisponível.
+
+O Deploy Hook é vinculado à branch e não recebe SHA no payload. A checagem da
+`main` fecha a janela anterior ao POST e o resumo registra o SHA aprovado e o
+identificador do job aceito, mas a associação final precisa ser confirmada no
+primeiro deploy real da Vercel.
 
 ### Modos de falha do pipeline
 
@@ -526,30 +540,28 @@ que não depende do Actions, enquanto a migration depende. Um App CI reprovado n
 não aplica a migration daquele SHA. Enquanto o deploy não for ordenado, a
 compatibilidade N/N+1 é a única proteção dessa janela.
 
-O `make publish` também degrada de forma pouco previsível: `gh pr merge --auto`
-é armado antes da espera dos checks, então interromper o comando deixa o merge
-armado para acontecer sem acompanhamento. A espera pelo merge não expira mais
-por lentidão: continua enquanto o pull request estiver aberto e falha somente
-quando o GitHub informa outro estado terminal.
+O `make publish` agora espera os checks obrigatórios antes de armar
+`gh pr merge --auto`. Uma interrupção durante os checks deixa o pull request
+aberto sem merge automático; depois que ele é armado, a espera continua enquanto
+o pull request estiver aberto e falha somente quando o GitHub informa outro
+estado terminal.
 
-### Implementação recomendada
+### Implementação entregue em 14 de setembro de 2026
 
-Usar um Deploy Hook da Vercel acionado pelo workflow após a migration:
+O repositório agora:
 
-1. adicionar job `deploy-production` em
-   `.github/workflows/supabase-migrations.yml`;
-2. fazê-lo depender de `migrate-production` e usar o mesmo SHA registrado;
-3. tratar corretamente commits sem mudança de banco, sem impedir deploy;
-4. falhar com mensagem clara quando o hook estiver ausente ou responder erro;
-5. registrar URL/identificador do deployment como evidência;
-6. manter migrations aditivas e compatíveis com versões N e N+1;
-7. usar migration compensatória em rollback, nunca alterar migration aplicada;
-8. detectar SHA da `main` sem migration aplicada, por verificação agendada que
-   compare migrations do repositório com o histórico de produção e avise pela
-   mesma action de falha, cobrindo evento perdido e workflow que nunca começou;
-9. decidir e documentar se o auto-merge deve ser desarmado ao interromper o
-   `make publish`; merge lento e merge em estado terminal diferente de sucesso
-   já possuem comportamentos distintos.
+1. executa `deploy-production` somente depois de `migrate-production`;
+2. trata commit sem mudança de banco sem impedir o deploy;
+3. falha com mensagem clara quando o hook está ausente ou responde erro;
+4. registra SHA aprovado, identificador e estado inicial do job da Vercel;
+5. audita a cada hora o histórico local e remoto de migrations;
+6. reporta falha de migration, deploy ou auditoria pela mesma issue;
+7. serializa execuções de produção sem descartar execuções pendentes;
+8. espera os checks obrigatórios antes de armar o auto-merge no `make publish`.
+
+RED/GREEN: testes novos falharam pela ausência do job de deploy, agendamento,
+detector de drift e ordem segura do auto-merge; depois da implementação, 79
+arquivos e 565 testes Vitest passaram.
 
 ### Responsabilidade externa
 
@@ -558,7 +570,8 @@ Usar um Deploy Hook da Vercel acionado pelo workflow após a migration:
 3. Cadastrar a URL como `VERCEL_DEPLOY_HOOK_URL` no environment GitHub
    `production`.
 4. Publicar uma mudança inócua e confirmar pelos horários que migrations
-   terminaram antes do deployment.
+   terminaram antes do deployment e que o commit exibido pela Vercel coincide
+   com o SHA registrado no resumo do workflow.
 5. Manter os secrets `SUPABASE_PROJECT_REF`, `SUPABASE_ACCESS_TOKEN` e
    `SUPABASE_DB_PASSWORD` somente no environment protegido.
 

@@ -183,6 +183,16 @@ cor do processo. Eles não falham o gate atual.
 - restore real e alertas do fornecedor permanecem evidências externas e não são
   considerados aprovados pelo gate local.
 
+## Ratchet em 2026-09-14
+
+- Vitest: 79 arquivos e 565 testes aprovados;
+- workflow de produção ordena migrations antes do Deploy Hook e bloqueia o
+  disparo quando a `main` já avançou para outro SHA;
+- auditoria horária falha quando o histórico remoto de migrations diverge do
+  repositório e usa o mesmo aviso operacional do pipeline;
+- `make publish` só arma o auto-merge depois dos checks obrigatórios;
+- configuração do hook e comprovação do primeiro deploy continuam externas.
+
 ## Matriz de quality gates
 
 | Gate               | Métrica e threshold                                                                 | Escopo                              | Estado         | Legado                                    | Bloqueia?                   |

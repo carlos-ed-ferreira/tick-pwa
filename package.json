@@ -39,6 +39,7 @@
     "supabase:prod:db:push": "node scripts/supabase-cli.mjs prod:db:push",
     "supabase:prod:db:dry-run": "node scripts/supabase-cli.mjs prod:db:dry-run",
     "supabase:prod:migrations:repair": "node scripts/supabase-cli.mjs prod:migrations:repair",
+    "supabase:prod:migrations:check": "node scripts/supabase-cli.mjs prod:migrations:check",
     "supabase:prod:types": "node scripts/supabase-cli.mjs prod:types",
     "supabase:prod:backup": "node scripts/supabase-cli.mjs prod:backup",
     "backup:encrypt": "node scripts/backup-archive.mjs encrypt",

@@ -66,8 +66,8 @@ export async function publishDevelopmentBranch({
     pullRequest,
     execute,
   );
-  await execute('gh', ['pr', 'merge', pullRequest, '--auto', '--squash']);
   await waitForRequiredChecks(pullRequest, execute, wait);
+  await execute('gh', ['pr', 'merge', pullRequest, '--auto', '--squash']);
   await waitForMergedPullRequest(pullRequest, execute, wait);
   await finalizePullRequestNotifications(
     pullRequest,

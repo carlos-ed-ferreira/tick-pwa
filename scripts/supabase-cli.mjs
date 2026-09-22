@@ -2,6 +2,7 @@ import { spawn } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
+import { assertMigrationHistoryIsSynchronized } from './migration-history.mjs';
 
 const workspaceRoot = process.cwd();
 const envFilePath = path.resolve(
@@ -141,6 +142,17 @@ try {
     process.exit(0);
   }
 
+  if (command === 'prod:migrations:check') {
+    ensureProductionCommandAllowed();
+    await ensureLinkedProject();
+    const output = await executeSupabase(['migration', 'list', '--linked'], {
+      captureOutput: true,
+      teeOutput: true,
+    });
+    assertMigrationHistoryIsSynchronized(output);
+    process.exit(0);
+  }
+
   if (command === 'prod:db:dry-run') {
     ensureProductionCommandAllowed();
     await ensureLinkedProject();
@@ -247,6 +259,7 @@ Commands:
   prod:db:dry-run  Preview production migrations on GitHub Actions only
   prod:db:push     Apply production migrations on GitHub Actions only
   prod:migrations:repair  Remove superseded migration versions from remote history
+  prod:migrations:check  Fail when production migration history differs from the repository
   prod:types       Generate types from production on GitHub Actions only
   prod:backup      Create a logical production backup on GitHub Actions only
 

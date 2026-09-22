@@ -96,21 +96,21 @@ describe('publishDevelopmentBranch', () => {
         'gh',
         [
           'pr',
-          'merge',
+          'checks',
           'https://github.com/example/tick/pull/1',
-          '--auto',
-          '--squash',
+          '--required',
+          '--watch',
+          '--fail-fast',
         ],
       ],
       [
         'gh',
         [
           'pr',
-          'checks',
+          'merge',
           'https://github.com/example/tick/pull/1',
-          '--required',
-          '--watch',
-          '--fail-fast',
+          '--auto',
+          '--squash',
         ],
       ],
       [
@@ -210,6 +210,38 @@ describe('publishDevelopmentBranch', () => {
     expect(execute).toHaveBeenLastCalledWith('git', ['push', 'origin', 'dev']);
   });
 
+  it('arms automatic merge only after the required checks pass', async () => {
+    const execute = createExecutor([
+      'dev\n',
+      '',
+      '',
+      '',
+      '',
+      '',
+      'https://github.com/example/tick/pull/11\n',
+      'PR_example\n',
+      '',
+      '',
+      '',
+      'MERGED\n',
+      '',
+      '',
+      '',
+    ]);
+
+    await publishDevelopmentBranch({ execute, write: vi.fn() });
+
+    const checksCall = execute.mock.calls.findIndex(
+      ([command, args]) => command === 'gh' && args[1] === 'checks',
+    );
+    const mergeCall = execute.mock.calls.findIndex(
+      ([command, args]) => command === 'gh' && args[1] === 'merge',
+    );
+
+    expect(checksCall).toBeGreaterThan(-1);
+    expect(mergeCall).toBeGreaterThan(checksCall);
+  });
+
   it('retries while GitHub has not registered the required check', async () => {
     const execute = createExecutor([
       'dev\n',
@@ -221,8 +253,8 @@ describe('publishDevelopmentBranch', () => {
       'https://github.com/example/tick/pull/4\n',
       'PR_example\n',
       '',
-      '',
       createMissingChecksError(),
+      '',
       '',
       'MERGED\n',
       '',

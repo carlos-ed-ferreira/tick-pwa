@@ -397,6 +397,7 @@ O deploy de migrations usa secrets do ambiente GitHub `production`:
 SUPABASE_PROJECT_REF=
 SUPABASE_ACCESS_TOKEN=
 SUPABASE_DB_PASSWORD=
+VERCEL_DEPLOY_HOOK_URL=
 ```
 
 Esses valores são configurados fora do repositório. Nunca os adicione a um
@@ -424,9 +425,10 @@ desabilitado. A aplicação usa HTTP/REST pelo cliente Supabase e não mantém u
 conexão PostgreSQL direta.
 
 Comandos de produção são bloqueados pelo wrapper fora do GitHub Actions. O
-workflow de migrations faz repair do histórico conhecido, dry-run e push. Ele
-depende do quality gate aprovado do mesmo SHA. A ordenação entre migrations e o
-deploy externo da Vercel ainda é uma lacuna registrada no passo 5 do
+workflow de produção faz repair do histórico conhecido, dry-run, push e só
+então dispara o Deploy Hook da Vercel. Ele depende do quality gate aprovado do
+mesmo SHA e falha se a `main` avançar antes do disparo. A configuração e o
+ensaio externo permanecem no passo 5 do
 `docs/planning/implementation-plan.md`.
 
 ## APIs e serviços externos
@@ -486,6 +488,7 @@ Supabase:
 | lint            | `make supabase-lint`                        |
 | pgTAP           | `make supabase-test-db`                     |
 | tipos           | `make supabase-types-local`                 |
+| histórico prod. | `make supabase-prod-migrations-check`       |
 
 `make check` executa typecheck, lint, Vitest, format-check e build. E2E e
 validações de banco são separados. Os critérios de aprovação e gates
@@ -519,13 +522,14 @@ SHA reprovado em banco ou E2E não alcança a `main`. Quando um push na `main`
 falha, o job `Report failed run` abre a issue `App CI falhou na main` com o
 rótulo `ci-failure`, atribuída ao dono do repositório, e comenta o link do run
 nas falhas seguintes enquanto a issue continuar aberta; execuções bem-sucedidas
-e pull requests não geram aviso. O workflow de migrations usa a mesma action
-composta `.github/actions/report-failure` com o rótulo `migration-failure`. Os
-dois avisos cobrem apenas execução que falhou: pipeline que nunca começa ainda
-não é detectado, conforme o passo 5 de `docs/planning/implementation-plan.md`. `.github/workflows/supabase-migrations.yml` só aceita
-o SHA de um `App CI` aprovado na `main`; execução manual roda o mesmo quality
-gate antes de acessar o environment `production`. O workflow registra o SHA,
-detecta mudanças de banco, faz dry-run e então aplica migrations.
+e pull requests não geram aviso. O workflow de produção usa a mesma action
+composta com o rótulo `pipeline-failure` para migrations, deploy e auditoria.
+Uma execução horária compara o histórico remoto de migrations com o
+repositório e detecta eventos de publicação perdidos assim que o GitHub Actions
+volta a operar. `.github/workflows/supabase-migrations.yml` só aceita o SHA de
+um `App CI` aprovado na `main`; execução manual roda o mesmo quality gate antes
+de acessar o environment `production`. O workflow registra o SHA, detecta
+mudanças de banco, aplica migrations e depois dispara o Deploy Hook da Vercel.
 
 O workflow `Production backup`, desabilitado até a configuração externa, gera
 diariamente um dump lógico, cifra-o antes do upload e mantém somente o artefato
@@ -534,9 +538,9 @@ estão no [runbook operacional](docs/operations/observability-backup-restore.md)
 
 A publicação cotidiana parte da branch `dev`. Depois de criar o commit, execute
 `make publish`. O comando exige worktree limpo, envia `dev`, cria ou reutiliza
-o pull request para `main`, silencia as notificações desse pull request para o
-autor e habilita squash automático. O comando aguarda o check obrigatório
-`Check app`, continua aguardando enquanto o pull request estiver aberto,
+o pull request para `main` e silencia as notificações desse pull request para o
+autor. O comando aguarda os checks obrigatórios, só então habilita squash
+automático, continua aguardando enquanto o pull request estiver aberto,
 confirma o merge e reconcilia `dev` com a nova `main` para preparar a publicação
 seguinte. Um estado terminal diferente de merge encerra o comando com erro. Não
 faça push direto para `main` nem
@@ -569,6 +573,7 @@ pode permanecer em português.
 - [.agents/skills](.agents/skills): workflows reutilizáveis para agentes;
 - [docs/guides/calendar-task-json-import.md](docs/guides/calendar-task-json-import.md): guia funcional e contrato da importação JSON do calendário;
 - [docs/operations/incidents/2026-08-31-supabase-wal-read-only.md](docs/operations/incidents/2026-08-31-supabase-wal-read-only.md): incidente de saturação, WAL e modo somente leitura do Supabase;
+- [docs/operations/external-production-runbook.md](docs/operations/external-production-runbook.md): passo a passo das configurações externas de produção, com o que exige segunda máquina, aparelho ou pessoa;
 
 `docs/planning/implementation-plan.md` é a fonte canônica e completa do backlog técnico. Os
 documentos em `docs/` existem somente para contratos específicos que não
