@@ -29,10 +29,12 @@ function createDateLabelDate(date: LocalDateString): Date {
 
 export function DayDetail({
   date,
+  showBackAction = true,
   onBack,
 }: {
   date: LocalDateString;
-  onBack: () => void;
+  showBackAction?: boolean;
+  onBack?: () => void;
 }) {
   const { dictionary, locale, scope, timezonePreference } = useAppContext();
   const entry = useDayEntry({
@@ -77,10 +79,12 @@ export function DayDetail({
   );
 
   return (
-    <section className="grid gap-5 pt-4 sm:pt-5 lg:pt-6">
+    <section className="grid gap-5 pt-4 touch:gap-3 touch:pt-2 sm:pt-5 lg:pt-6">
       <header className="flex flex-col gap-3 px-1 sm:grid sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-2 sm:px-0">
         <div className="flex min-w-0 flex-wrap items-center gap-2 sm:flex-nowrap">
-          <h2 className="min-w-0 truncate text-2xl font-semibold">{title}</h2>
+          <h2 className="min-w-0 truncate text-2xl font-semibold touch:text-lg">
+            {title}
+          </h2>
           {entry ? (
             <div className="flex shrink-0 flex-wrap items-center gap-2">
               <CalendarTaskTransferAction
@@ -91,14 +95,16 @@ export function DayDetail({
             </div>
           ) : null}
         </div>
-        <button
-          type="button"
-          className="inline-flex min-h-10 w-fit shrink-0 items-center gap-2 rounded-full inset-ring-hairline inset-ring-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-[#f8f3ea] shadow-sm shadow-[#253241]/10 transition hover:-translate-y-0.5 hover:inset-ring-white/20 hover:bg-white/10 active:translate-y-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0]"
-          onClick={onBack}
-        >
-          <ArrowLeft aria-hidden="true" className="size-4" />
-          {dictionary.dayEditor.backToCalendar}
-        </button>
+        {showBackAction && onBack ? (
+          <button
+            type="button"
+            className="touch-target inline-flex min-h-10 w-fit shrink-0 items-center gap-2 rounded-full inset-ring-hairline inset-ring-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-[#f8f3ea] shadow-sm shadow-[#253241]/10 transition hover:-translate-y-0.5 hover:inset-ring-white/20 hover:bg-white/10 active:translate-y-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0]"
+            onClick={onBack}
+          >
+            <ArrowLeft aria-hidden="true" className="size-4" />
+            {dictionary.dayEditor.backToCalendar}
+          </button>
+        ) : null}
       </header>
 
       <section

@@ -120,6 +120,26 @@ export function createMonthGrid(monthDateKey: LocalDateString): CalendarDay[] {
   return days;
 }
 
+export function createWeekGrid(
+  anchorDateKey: LocalDateString,
+  monthDateKey: LocalDateString,
+): CalendarDay[] {
+  const monthIndex = parseLocalDateKey(monthDateKey).getMonth();
+  const weekStart = addLocalDays(
+    anchorDateKey,
+    -parseLocalDateKey(anchorDateKey).getDay(),
+  );
+
+  return Array.from({ length: 7 }, (_unused, dayOffset) => {
+    const date = addLocalDays(weekStart, dayOffset);
+
+    return {
+      date,
+      inCurrentMonth: parseLocalDateKey(date).getMonth() === monthIndex,
+    };
+  });
+}
+
 export function getVisibleMonthGridRange(monthDateKey: LocalDateString): {
   startDate: LocalDateString;
   endDate: LocalDateString;

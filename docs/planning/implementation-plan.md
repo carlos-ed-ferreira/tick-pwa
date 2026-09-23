@@ -792,13 +792,52 @@ disso exercita Safari/iOS, teclado virtual real, gesto de arrasto com dedo nem
 1. Executar ensaio manual em Android e em iOS cobrindo criação de tarefa,
    reordenação por arrasto, abertura de dia por toque, tooltip por toque longo
    e teclado virtual sobre campos no fim da tela.
-2. Confirmar que o recuo de safe area não corta cabeçalho nem ações.
+2. Confirmar que o recuo de safe area não corta cabeçalho nem ações, incluindo
+   a barra de navegação inferior sob notch e sob indicador de home.
 3. Confirmar que `interactiveWidget: 'resizes-content'` se comporta como
-   esperado no Safari/iOS, que ainda não implementa a propriedade.
-4. Registrar o resultado no REVIEW e abrir correção dedicada por divergência.
+   esperado no Safari/iOS, que ainda não implementa a propriedade, com o campo
+   de hora aberto dentro da folha de ações da linha.
+4. Exercitar a faixa de semana: arrasto horizontal, troca de semana, virada de
+   mês e persistência do dia selecionado ao reabrir o app.
+5. Exercitar a folha de ações da linha com teclado virtual aberto e com texto
+   longo, e a folha de visão de mês em tela pequena.
+6. Registrar o resultado no REVIEW e abrir correção dedicada por divergência.
 
 ### Critérios de conclusão
 
 - ensaio aprovado em pelo menos um Android e um iOS;
 - divergências corrigidas ou registradas com plano;
 - nenhuma regressão no desenho desktop.
+
+## 10. Extrair responsabilidades de `goals-surface.tsx`
+
+### Resultado esperado
+
+`src/features/goals/goals-surface.tsx` deixa de ser um módulo único de mais de
+quatro mil linhas e passa a expor componentes coesos, dentro do limite de 800
+linhas lógicas por módulo definido no REVIEW.
+
+### Estado atual
+
+A adaptação de toque extraiu apenas a folha de ações do detalhe da meta para
+`goal-detail-actions-sheet.tsx`. O arquivo continua concentrando o roteamento
+interno por query param, o estado global de arrasto, os cards de meta e de
+grupo, o grid, os menus de categoria, os editores de título e a árvore de
+etapas.
+
+### Implementação necessária
+
+1. Extrair `GoalCard` e `GoalGroupCard`, com seus menus, para módulos próprios.
+2. Extrair `GoalDetailHeader` e `GoalGroupDetailHeader`, hoje acoplados aos
+   editores de título.
+3. Extrair `GoalDetailCard` e `GoalStepRow` para o módulo da árvore de etapas.
+4. Isolar o estado de arrasto em um hook dedicado, com o mesmo contrato de
+   placement já usado pela árvore de tarefas.
+5. Manter a suíte de `tests/unit/goals-surface.test.tsx` verde a cada extração,
+   dividindo o arquivo de teste junto com os módulos.
+
+### Critérios de conclusão
+
+- nenhum módulo de metas acima de 800 linhas lógicas;
+- nenhuma mudança de comportamento observável;
+- gates do REVIEW aprovados a cada extração.

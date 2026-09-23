@@ -88,7 +88,7 @@ export function ToastViewport({ closeLabel }: { closeLabel: string }) {
   );
 
   return (
-    <div className="pointer-events-none fixed inset-x-4 bottom-[calc(1rem+env(safe-area-inset-bottom))] z-[100] flex flex-col items-stretch gap-2 sm:inset-x-auto sm:top-5 sm:right-5 sm:bottom-auto sm:w-[min(24rem,calc(100vw-2.5rem))]">
+    <div className="pointer-events-none fixed inset-x-4 bottom-[calc(1rem+var(--app-bottom-nav-height)+env(safe-area-inset-bottom))] z-[100] flex flex-col items-stretch gap-2 sm:inset-x-auto sm:top-5 sm:right-5 sm:bottom-auto sm:w-[min(24rem,calc(100vw-2.5rem))]">
       {toasts.map((item) => (
         <ToastCard key={item.id} closeLabel={closeLabel} item={item} />
       ))}

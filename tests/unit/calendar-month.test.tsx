@@ -7,6 +7,7 @@ import {
 } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CalendarMonth } from '@/features/calendar';
+import { stubPointerCapability } from '../support/pointer';
 
 const scope = {
   id: 'guest:test',
@@ -51,8 +52,17 @@ vi.mock('@/lib/db', () => ({
 vi.mock('@/providers', () => ({
   useAppContext: () => ({
     dictionary: {
+      actions: {
+        cancel: 'Cancel',
+      },
       calendar: {
         today: 'Today',
+        week: 'Week',
+        previousWeek: 'Previous week',
+        nextWeek: 'Next week',
+        openMonth: 'Open month view',
+        monthGridTitle: 'Month view',
+        moreActions: 'Calendar options',
         ignoredItem: '{count} ignored',
         ignoredItems: '{count} ignored',
         previousYear: 'Previous year',
@@ -118,17 +128,6 @@ function getDayCells(container: HTMLElement) {
   return Array.from(container.querySelectorAll('.calendar-day-cell'));
 }
 
-function stubPointerCapability(isCoarse: boolean) {
-  vi.stubGlobal(
-    'matchMedia',
-    vi.fn().mockReturnValue({
-      matches: isCoarse,
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-    }),
-  );
-}
-
 describe('CalendarMonth', () => {
   beforeEach(() => {
     vi.useFakeTimers({ toFake: ['Date'] });
@@ -152,19 +151,116 @@ describe('CalendarMonth', () => {
     vi.unstubAllGlobals();
   });
 
-  it('opens the day with a single tap on a coarse pointer', () => {
+  it('replaces the month grid with the week composition on touch', () => {
     stubPointerCapability(true);
 
     const { container } = render(<CalendarMonth />);
-    const dayCell = getDayCells(container).find((cell) =>
-      cell.textContent?.trim().startsWith('15'),
+
+    expect(getDayCells(container)).toHaveLength(0);
+    expect(screen.getAllByTestId('calendar-week-day')).toHaveLength(7);
+    expect(screen.getByTestId('checklist-surface')).toBeTruthy();
+  });
+
+  it('selects a day from the week strip without navigating', () => {
+    stubPointerCapability(true);
+
+    render(<CalendarMonth />);
+
+    const days = screen.getAllByTestId('calendar-week-day');
+
+    fireEvent.click(days[1]);
+
+    expect(routerPushMock).not.toHaveBeenCalled();
+    expect(days[1].getAttribute('aria-selected')).toBe('true');
+  });
+
+  it('persists the day selected on the week strip', async () => {
+    stubPointerCapability(true);
+
+    render(<CalendarMonth />);
+
+    fireEvent.click(screen.getAllByTestId('calendar-week-day')[0]);
+
+    await waitFor(() => {
+      expect(setLocalPreferenceMock).toHaveBeenCalledWith(
+        'calendarSelectedDay',
+        '2026-08-16',
+        scope,
+      );
+    });
+  });
+
+  it('moves the week by seven days', () => {
+    stubPointerCapability(true);
+
+    render(<CalendarMonth />);
+
+    expect(screen.getAllByTestId('calendar-week-day')[0].textContent).toContain(
+      '16',
     );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Next week' }));
+
+    expect(screen.getAllByTestId('calendar-week-day')[0].textContent).toContain(
+      '23',
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Previous week' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Previous week' }));
+
+    expect(screen.getAllByTestId('calendar-week-day')[0].textContent).toContain(
+      '9',
+    );
+  });
+
+  it('follows the visible month when the week crosses it', async () => {
+    stubPointerCapability(true);
+
+    render(<CalendarMonth />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Next week' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Next week' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Next week' }));
+
+    await waitFor(() => {
+      expect(setLocalPreferenceMock).toHaveBeenCalledWith(
+        'calendarVisibleMonth',
+        '2026-09-01',
+        scope,
+      );
+    });
+  });
+
+  it('opens the month grid in a sheet and closes it after picking a day', () => {
+    stubPointerCapability(true);
+
+    render(<CalendarMonth />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Open month view' }));
+
+    const dayCell = getDayCells(document.body).find((cell) =>
+      cell.textContent?.trim().startsWith('11'),
+    );
+
+    expect(dayCell).toBeTruthy();
 
     fireEvent.click(dayCell as Element);
 
-    expect(routerPushMock).toHaveBeenCalledWith(
-      expect.stringContaining('day=2026-08-15'),
+    expect(getDayCells(document.body)).toHaveLength(0);
+    expect(routerPushMock).not.toHaveBeenCalled();
+    expect(screen.getAllByTestId('calendar-week-day')[0].textContent).toContain(
+      '9',
     );
+  });
+
+  it('still opens the full day editor from the day query parameter', () => {
+    stubPointerCapability(true);
+    window.history.replaceState({}, '', '/calendar?day=2026-08-18');
+
+    render(<CalendarMonth />);
+
+    expect(screen.queryAllByTestId('calendar-week-day')).toHaveLength(0);
+    expect(screen.getByText('Back to calendar')).toBeTruthy();
   });
 
   it('keeps the double click to open on a fine pointer', () => {

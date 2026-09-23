@@ -47,8 +47,9 @@ uma feature isolada.
 ## Skills locais
 
 Use a Skill correspondente em `.agents/skills` quando a tarefa envolver TDD,
-persistência local-first, UI, i18n ou dependências. A Skill operacionaliza o
-workflow, mas não substitui este arquivo nem os gates do REVIEW.
+persistência local-first, design de frontend, UI, i18n ou dependências. A
+Skill operacionaliza o workflow, mas não substitui este arquivo nem os gates do
+REVIEW.
 
 Antes de iniciar qualquer tarefa, o agente deve inspecionar os diretórios de
 skills existentes no repositório, inclusive os específicos de cada agente. Se
@@ -168,16 +169,21 @@ overflow, scroll, conteúdo longo, loading, vazio, erro e desktop. Quando mobile
 precisar de composição diferente, preserve semântica e regra de negócio em vez
 de comprimir o desktop.
 
-A adaptação mobile não pode alterar o desenho desktop existente. Use os dois
-sinais já adotados pelo projeto em vez de criar breakpoints novos:
+A adaptação mobile não pode alterar o desenho desktop existente. Use os sinais
+já adotados pelo projeto em vez de criar breakpoints novos:
 
 - `(pointer: coarse)`, por CSS ou pelo hook `useCoarsePointer`, para interação
   e área de toque;
 - largura medida em runtime, para densidade, quando o layout já mede o
-  container.
+  container;
+- a conjunção dos dois, pela variante `touch:` e pelo hook
+  `useTouchComposition`, para escolher composição de toque.
 
-Toda composição mobile escrita com utilitários deve restaurar o valor desktop
-atual a partir de `sm:`, de modo que nada mude de 640px para cima. Alvo de toque
+Em código novo, escreva a base igual ao desenho desktop atual e use `touch:`
+como override; nunca escreva `sm:` e `touch:` na mesma propriedade. Composição
+mobile legada escrita com utilitários continua obrigada a restaurar o valor
+desktop atual a partir de `sm:`. Em qualquer caminho, nada pode mudar de 640px
+para cima com ponteiro fino. Alvo de toque
 mínimo é 44px em ponteiro grosso e deve ser obtido ampliando a área de acerto,
 com `touch-target`, sem aumentar o tamanho pintado do controle. Controle com
 desenho menor que 44px precisa de `touch-target`. Interação por arrasto precisa

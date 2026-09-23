@@ -1,7 +1,14 @@
 import { expect, test } from '@playwright/test';
-import { enterLocalMode, firstChecklistInput, labels } from './helpers';
+import {
+  enterLocalMode,
+  firstChecklistInput,
+  labels,
+  openCalendarBulkCreate,
+  openCategoryManager,
+  openMonthGrid,
+} from './helpers';
 
-test('persists a daily task in local mode', async ({ page }) => {
+test('persists a daily task in local mode', async ({ page, isMobile }) => {
   await enterLocalMode(page);
   await page.goto('/calendar?day=2026-05-21');
 
@@ -30,6 +37,7 @@ test('persists a daily task in local mode', async ({ page }) => {
 
   await backButton.click();
   await page.waitForURL(/\/calendar$/);
+  await openMonthGrid(page, Boolean(isMobile));
   await expect(page.locator('.calendar-day-cell')).toHaveCount(42);
 
   await page.goBack();
@@ -72,7 +80,10 @@ test('picks a marking level from the checkbox context menu', async ({
 
 test('fits the month calendar in the viewport without page scroll on desktop', async ({
   page,
+  isMobile,
 }) => {
+  test.skip(Boolean(isMobile), 'the month grid is a sheet on touch');
+
   await page.setViewportSize({ width: 1280, height: 720 });
   await enterLocalMode(page);
   await page.goto('/calendar');
@@ -88,11 +99,12 @@ test('fits the month calendar in the viewport without page scroll on desktop', a
   expect(hasPageScroll).toBe(false);
 });
 
-test('uses the shared date picker in calendar forms', async ({ page }) => {
+test('uses the shared date picker in calendar forms', async ({
+  page,
+  isMobile,
+}) => {
   await enterLocalMode(page);
-  await page
-    .getByRole('button', { name: /create in bulk|criar em lote/i })
-    .click();
+  await openCalendarBulkCreate(page, Boolean(isMobile));
 
   const startDateInput = page.getByRole('textbox', {
     name: /start date|data inicial/i,
@@ -117,11 +129,12 @@ test('uses the shared date picker in calendar forms', async ({ page }) => {
   await expect(startDateInput).toHaveValue('20-07-2026');
 });
 
-test('shows modal feedback as a toast notification', async ({ page }) => {
+test('shows modal feedback as a toast notification', async ({
+  page,
+  isMobile,
+}) => {
   await enterLocalMode(page);
-  await page
-    .getByRole('button', { name: /create in bulk|criar em lote/i })
-    .click();
+  await openCalendarBulkCreate(page, Boolean(isMobile));
 
   await page.getByRole('button', { name: /^create$|^criar$/i }).click();
 
@@ -135,11 +148,10 @@ test('shows modal feedback as a toast notification', async ({ page }) => {
 
 test('saves a category name even when its modal closes before blur', async ({
   page,
+  isMobile,
 }) => {
   await enterLocalMode(page);
-  await page
-    .getByRole('button', { name: /^categories$|^categorias$/i })
-    .click();
+  await openCategoryManager(page, Boolean(isMobile));
 
   const categoryName = page
     .getByRole('textbox', { name: /category name|nome da categoria/i })
@@ -149,9 +161,7 @@ test('saves a category name even when its modal closes before blur', async ({
   await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog')).toHaveCount(0);
 
-  await page
-    .getByRole('button', { name: /^categories$|^categorias$/i })
-    .click();
+  await openCategoryManager(page, Boolean(isMobile));
   await expect(
     page
       .getByRole('textbox', { name: /category name|nome da categoria/i })

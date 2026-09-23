@@ -78,22 +78,52 @@ O produto é mobile-first e mantém uma única linguagem visual nos dois tamanho
 Cores, tokens, superfícies, sombras, tipografia e primitives são idênticos em
 mobile e desktop; o que muda é densidade, área de toque e composição.
 
-A adaptação usa dois sinais, e não breakpoints novos que alterem o desktop:
+A adaptação usa os sinais de capacidade e de largura, e não breakpoints novos
+que alterem o desktop:
 
 - capacidade do ponteiro, por `(pointer: coarse)`, para comportamento de
   interação e área de toque;
-- largura real medida em runtime, para densidade do calendário.
+- largura real medida em runtime, para densidade do calendário;
+- a conjunção dos dois, `(pointer: coarse) and (max-width: 899.98px)`, para
+  escolher a composição de toque.
+
+A consulta de composição tem uma fonte única, `touchCompositionQuery` em
+`src/hooks/use-touch-composition.ts`, espelhada em `globals.css` pela variante
+`touch` do Tailwind. Como ela nunca casa com ponteiro fino, o desenho de 640px
+para cima fica inalterado por construção. Celular em pé e deitado recebem a
+composição de toque; tablet e notebook com tela sensível acima de 900px
+continuam no desenho desktop.
 
 Convenções em vigor:
 
-| Sinal                      | Onde                               | Efeito                                              |
-| -------------------------- | ---------------------------------- | --------------------------------------------------- |
-| `useCoarsePointer`         | `src/hooks/use-coarse-pointer.ts`  | toque abre o dia; drag de árvore por ponteiro       |
-| `@media (pointer: coarse)` | `src/app/globals.css`              | área de toque de 44px e descrição sempre visível    |
-| `.touch-target`            | primitives `Button` e `IconButton` | amplia só a área de acerto, sem mudar o desenho     |
-| `getCalendarDayDensity`    | `src/features/calendar`            | célula do calendário compacta abaixo de 72px        |
-| `sm:` restaurando o valor  | composições mobile                 | preserva o desenho desktop existente                |
-| `.app-safe-padding`        | shells de página                   | respeita `env(safe-area-inset-*)` com `viewportFit` |
+| Sinal                      | Onde                                 | Efeito                                               |
+| -------------------------- | ------------------------------------ | ---------------------------------------------------- |
+| `useTouchComposition`      | `src/hooks/use-touch-composition.ts` | escolhe a composição de toque                        |
+| variante `touch:`          | utilitários Tailwind                 | override de toque sobre a base desktop               |
+| `useCoarsePointer`         | `src/hooks/use-coarse-pointer.ts`    | toque abre o dia; drag de árvore por ponteiro        |
+| `@media (pointer: coarse)` | `src/app/globals.css`                | área de toque de 44px e descrição sempre visível     |
+| `.touch-target`            | primitives `Button` e `IconButton`   | amplia só a área de acerto, sem mudar o desenho      |
+| `getCalendarDayDensity`    | `src/features/calendar`              | célula do calendário compacta abaixo de 72px         |
+| `getCalendarWeekDensity`   | `src/features/calendar`              | dia da faixa de semana compacto abaixo de 48px       |
+| `--app-bottom-nav-height`  | `src/app/globals.css`                | reserva o espaço da barra inferior; `0px` no desktop |
+| `sm:` restaurando o valor  | composições mobile legadas           | preserva o desenho desktop existente                 |
+| `.app-safe-padding`        | shells de página                     | respeita `env(safe-area-inset-*)` com `viewportFit`  |
+
+Para código novo, a regra de escrita é **base igual ao desktop atual e `touch:`
+como override**; `sm:` restaurando o valor continua válido no que já existe.
+
+Três composições próprias de toque:
+
+- **Calendário**: faixa de semana rolável mais a agenda do dia selecionado
+  (`calendar-week-view.tsx`). A grade do mês continua existindo e abre em folha
+  inferior pelo controle de visão de mês. O dia selecionado é persistido por
+  escopo em preferência local, sem consulta nova: a semana é derivada do mesmo
+  range de 42 dias que o mês visível já carrega.
+- **Linha de tarefa e de etapa**: checkbox, texto, alça de arrasto e `⋯`. Todas
+  as demais ações, inclusive hora e data, vivem em `TaskTreeRowActionsSheet`,
+  com alvos de 44px e categoria sem depender de hover.
+- **Shell**: cabeçalho de uma linha e navegação fixa no rodapé, com categorias
+  e idioma em folha inferior.
 
 Regras derivadas:
 
@@ -103,8 +133,9 @@ Regras derivadas:
 - reordenação de árvore funciona por HTML5 drag no mouse e por Pointer Events
   no toque, com o mesmo contrato de placement em `tree-touch-drag.ts`;
 - `interactiveWidget: 'resizes-content'` no viewport para o teclado virtual;
-- composição mobile própria só quando comprimir o desktop não atende, sempre
-  restaurando o desenho desktop a partir de `sm:`.
+- folha inferior é `Dialog size="sheet"`, limitada a `85dvh` e com rolagem
+  própria, para o teclado virtual não empurrar o conteúdo para fora;
+- composição mobile própria só quando comprimir o desktop não atende.
 
 ### Fluxo de leitura e escrita
 

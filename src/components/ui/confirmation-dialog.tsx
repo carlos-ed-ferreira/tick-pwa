@@ -29,7 +29,7 @@ export function ConfirmationDialog({
     <Dialog
       closeLabel={cancelLabel}
       open={open}
-      panelClassName="sm:h-auto sm:max-w-md"
+      size="sheet"
       title={title}
       onClose={onClose}
     >

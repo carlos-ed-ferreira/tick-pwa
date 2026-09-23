@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   getCalendarDayDensity,
+  getCalendarWeekDensity,
   getVisibleCategoryLimit,
 } from '@/features/calendar/calendar-day-density';
 
@@ -41,5 +42,19 @@ describe('getVisibleCategoryLimit', () => {
 
   it('fits more dots on a desktop cell', () => {
     expect(getVisibleCategoryLimit(174)).toBe(8);
+  });
+});
+
+describe('getCalendarWeekDensity', () => {
+  it('treats an unmeasured day as comfortable', () => {
+    expect(getCalendarWeekDensity(0)).toBe('comfortable');
+  });
+
+  it('is compact when seven days share a narrow phone width', () => {
+    expect(getCalendarWeekDensity(44)).toBe('compact');
+  });
+
+  it('is comfortable when the week strip has room for the progress chip', () => {
+    expect(getCalendarWeekDensity(58)).toBe('comfortable');
   });
 });

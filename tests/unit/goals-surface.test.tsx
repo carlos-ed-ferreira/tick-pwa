@@ -8,6 +8,7 @@ import {
 } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { GoalsSurface } from '@/features/goals';
+import { stubPointerCapability } from '../support/pointer';
 import { db } from '@/lib/db/database';
 import { setScopedPreference } from '@/lib/db/scoped-preferences';
 import type { AppScope } from '@/lib/domain';
@@ -240,6 +241,9 @@ vi.mock('@/providers', () => ({
       actions: {
         cancel: 'Cancel',
         delete: 'Delete',
+      },
+      navigation: {
+        moreOptions: 'More options',
       },
     },
     locale: 'en',
@@ -2883,5 +2887,48 @@ describe('GoalsSurface', () => {
     });
     expect(routerPushMock).toHaveBeenCalledWith('/goals');
     expect(screen.getByRole('button', { name: 'Archived' })).toBeVisible();
+  });
+
+  describe('on touch', () => {
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
+
+    it('collapses the goal detail actions into a sheet', () => {
+      stubPointerCapability(true);
+      window.history.replaceState({}, '', '/goals?goal=goal-1');
+
+      render(<GoalsSurface />);
+
+      expect(
+        screen.queryByRole('button', { name: 'Archive goal' }),
+      ).not.toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('button', { name: 'More options' }));
+
+      expect(
+        screen.getByRole('button', { name: 'Archive goal' }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole('button', { name: 'Delete goal' }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole('button', { name: 'Assign goal category' }),
+      ).toBeInTheDocument();
+    });
+
+    it('keeps the goal detail actions inline on a fine pointer', () => {
+      stubPointerCapability(false);
+      window.history.replaceState({}, '', '/goals?goal=goal-1');
+
+      render(<GoalsSurface />);
+
+      expect(
+        screen.getByRole('button', { name: 'Archive goal' }),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByRole('button', { name: 'More options' }),
+      ).not.toBeInTheDocument();
+    });
   });
 });

@@ -108,12 +108,12 @@ export function TreeListPanel({
         {hasRows ? (
           <div
             data-tree-list-toolbar="true"
-            className="flex flex-wrap items-center justify-between gap-2 px-1 pt-2"
+            className="flex flex-wrap items-center justify-between gap-2 px-1 pt-2 touch:sticky touch:bottom-0 touch:z-10 touch:rounded-lg touch:bg-surface/85 touch:pb-1 touch:backdrop-blur-md"
           >
             <div className="flex items-center gap-1.5">
               <button
                 type="button"
-                className="flex items-center gap-1.5 rounded-full inset-ring-hairline inset-ring-[#f0c38e]/22 bg-[#f0c38e]/10 px-3 py-1.5 text-sm font-medium text-[#f7d7ad] shadow-sm transition hover:inset-ring-[#f0c38e]/36 hover:bg-[#f0c38e]/16 hover:text-[#fff9f2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e]"
+                className="touch-target flex items-center gap-1.5 rounded-full inset-ring-hairline inset-ring-[#f0c38e]/22 bg-[#f0c38e]/10 px-3 py-1.5 text-sm font-medium text-[#f7d7ad] shadow-sm transition hover:inset-ring-[#f0c38e]/36 hover:bg-[#f0c38e]/16 hover:text-[#fff9f2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e]"
                 onClick={() => void handleAddRoot()}
               >
                 <Plus aria-hidden="true" className="size-3.5" />
@@ -126,7 +126,7 @@ export function TreeListPanel({
                 {selectionActions}
                 <button
                   type="button"
-                  className="flex min-h-8 items-center gap-1.5 rounded-full inset-ring-hairline inset-ring-white/10 bg-white/5 px-2.5 py-1 text-xs font-medium text-[#aebac8] shadow-sm transition hover:bg-white/10 hover:text-[#fff9f2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e]"
+                  className="touch-target flex min-h-8 items-center gap-1.5 rounded-full inset-ring-hairline inset-ring-white/10 bg-white/5 px-2.5 py-1 text-xs font-medium text-[#aebac8] shadow-sm transition hover:bg-white/10 hover:text-[#fff9f2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e]"
                   onClick={onClearSelection}
                 >
                   <X aria-hidden="true" className="size-3.5" />

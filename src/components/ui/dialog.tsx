@@ -2,13 +2,33 @@
 
 import { X } from 'lucide-react';
 import { createPortal } from 'react-dom';
-import { useEffect, useRef, type MouseEvent, type ReactNode } from 'react';
+import {
+  useEffect,
+  useId,
+  useRef,
+  type KeyboardEvent,
+  type MouseEvent,
+  type ReactNode,
+} from 'react';
 import { IconButton } from './icon-button';
+
+export type DialogSize = 'full' | 'sheet';
+
+const focusableSelector =
+  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+const panelSizeClassNames: Record<DialogSize, string> = {
+  full: 'h-dvh sm:h-[min(92vh,900px)] sm:max-w-6xl',
+  sheet: 'max-h-[85dvh] sm:h-auto sm:max-w-md',
+};
+
+const openDialogCloseHandlers: Array<() => void> = [];
 
 export function Dialog({
   children,
   closeLabel = 'Close',
   panelClassName = '',
+  size = 'full',
   title,
   open,
   onClose,
@@ -16,12 +36,19 @@ export function Dialog({
   children: ReactNode;
   closeLabel?: string;
   panelClassName?: string;
+  size?: DialogSize;
   title: string;
   open: boolean;
   onClose: () => void;
 }) {
   const panelRef = useRef<HTMLDivElement | null>(null);
   const previousActiveElementRef = useRef<Element | null>(null);
+  const closeRef = useRef(onClose);
+  const titleId = useId();
+
+  useEffect(() => {
+    closeRef.current = onClose;
+  }, [onClose]);
 
   useEffect(() => {
     if (!open) {
@@ -33,26 +60,39 @@ export function Dialog({
     const frameId = window.requestAnimationFrame(() => {
       panelRef.current?.focus();
     });
+    const closeHandler = () => closeRef.current();
 
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') {
-        onClose();
+    function handleKeyDown(event: globalThis.KeyboardEvent) {
+      if (
+        event.key === 'Escape' &&
+        openDialogCloseHandlers[openDialogCloseHandlers.length - 1] ===
+          closeHandler
+      ) {
+        closeHandler();
       }
     }
 
+    openDialogCloseHandlers.push(closeHandler);
     document.addEventListener('keydown', handleKeyDown);
     document.body.style.overflow = 'hidden';
 
     return () => {
       window.cancelAnimationFrame(frameId);
       document.removeEventListener('keydown', handleKeyDown);
-      document.body.style.overflow = '';
+      openDialogCloseHandlers.splice(
+        openDialogCloseHandlers.indexOf(closeHandler),
+        1,
+      );
+
+      if (openDialogCloseHandlers.length === 0) {
+        document.body.style.overflow = '';
+      }
 
       if (previousActiveElementRef.current instanceof HTMLElement) {
         previousActiveElementRef.current.focus();
       }
     };
-  }, [onClose, open]);
+  }, [open]);
 
   if (!open) {
     return null;
@@ -61,6 +101,37 @@ export function Dialog({
   function handleBackdropMouseDown(event: MouseEvent<HTMLDivElement>) {
     if (event.target === event.currentTarget) {
       onClose();
+    }
+  }
+
+  function handlePanelKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    if (event.key !== 'Tab' || !panelRef.current) {
+      return;
+    }
+
+    const focusable = Array.from(
+      panelRef.current.querySelectorAll<HTMLElement>(focusableSelector),
+    ).filter(
+      (element) => element.offsetParent !== null || element.tabIndex >= 0,
+    );
+
+    if (focusable.length === 0) {
+      return;
+    }
+
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    const active = document.activeElement;
+
+    if (event.shiftKey && (active === first || active === panelRef.current)) {
+      event.preventDefault();
+      last.focus();
+      return;
+    }
+
+    if (!event.shiftKey && active === last) {
+      event.preventDefault();
+      first.focus();
     }
   }
 
@@ -73,12 +144,16 @@ export function Dialog({
         ref={panelRef}
         role="dialog"
         aria-modal="true"
-        aria-label={title}
+        aria-labelledby={titleId}
         tabIndex={-1}
-        className={`modal-surface flex h-dvh w-full flex-col overflow-hidden border-0 outline-none after:hidden sm:h-[min(92vh,900px)] sm:max-w-6xl ${panelClassName}`}
+        className={`modal-surface flex w-full flex-col overflow-hidden border-0 outline-none after:hidden ${panelSizeClassNames[size]} ${panelClassName}`}
+        onKeyDown={handlePanelKeyDown}
       >
         <div className="modal-header flex items-center justify-between border-0 px-4 py-3 sm:px-5">
-          <h2 className="truncate text-lg font-semibold tracking-tight text-[#fff9f2]">
+          <h2
+            className="truncate text-lg font-semibold tracking-tight text-[#fff9f2]"
+            id={titleId}
+          >
             {title}
           </h2>
           <IconButton
@@ -90,7 +165,11 @@ export function Dialog({
             <X aria-hidden="true" className="size-4" />
           </IconButton>
         </div>
-        {children}
+        {size === 'sheet' ? (
+          <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>
+        ) : (
+          children
+        )}
       </div>
     </div>
   );

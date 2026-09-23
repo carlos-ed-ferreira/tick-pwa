@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import type {
   AnchorHTMLAttributes,
   ButtonHTMLAttributes,
@@ -6,7 +6,7 @@ import type {
   ReactNode,
   SVGProps,
 } from 'react';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ptBRDictionary } from '@/lib/i18n/dictionaries/pt-BR';
 
 const iconMock = (name: string) =>
@@ -19,8 +19,11 @@ const iconMock = (name: string) =>
 
 vi.mock('lucide-react', () => ({
   CalendarDays: iconMock('CalendarDays'),
+  Languages: iconMock('Languages'),
+  MoreHorizontal: iconMock('MoreHorizontal'),
   Tags: iconMock('Tags'),
   Trophy: iconMock('Trophy'),
+  X: iconMock('X'),
 }));
 
 vi.mock('react-icons/tb', () => ({
@@ -46,13 +49,17 @@ vi.mock('next/link', () => ({
   ),
 }));
 
-vi.mock('@/components/ui', () => ({
+vi.mock('@/components/ui', async () => ({
+  BottomSheet: (await import('@/components/ui/bottom-sheet')).BottomSheet,
+  BottomSheetAction: (await import('@/components/ui/bottom-sheet'))
+    .BottomSheetAction,
   Button: ({
     children,
     ...props
   }: ButtonHTMLAttributes<HTMLButtonElement> & {
     children: ReactNode;
   }) => <button {...props}>{children}</button>,
+  IconButton: (await import('@/components/ui/icon-button')).IconButton,
 }));
 
 vi.mock('@/components/app/language-switcher', () => ({
@@ -97,6 +104,10 @@ vi.mock('@/providers', () => ({
     scope: { id: 'user:test', kind: 'user', ownerId: 'test' },
   }),
 }));
+
+afterEach(() => {
+  cleanup();
+});
 
 describe('navigation labels and icons', () => {
   it('shows the updated pt-BR calendar label in the dictionary', () => {
@@ -143,5 +154,44 @@ describe('navigation labels and icons', () => {
     expect(
       goalsContainer.querySelector('nav')?.firstElementChild,
     ).toHaveAttribute('data-testid', 'sync-control');
+  });
+});
+
+describe('touch navigation bar', () => {
+  it('reuses the single navigation pill as the bottom bar', async () => {
+    const { default: CalendarPage } = await import('@/app/calendar/page');
+
+    const { container } = render(<CalendarPage />);
+
+    expect(screen.getAllByRole('link', { name: 'Metas' })).toHaveLength(1);
+    expect(
+      screen.getAllByRole('link', { name: 'Tarefas do dia' }),
+    ).toHaveLength(1);
+    expect(container.querySelectorAll('.app-bottom-nav')).toHaveLength(1);
+  });
+
+  it('keeps the navigation links reachable by touch', async () => {
+    const { default: CalendarPage } = await import('@/app/calendar/page');
+
+    render(<CalendarPage />);
+
+    expect(screen.getByRole('link', { name: 'Metas' }).className).toContain(
+      'touch-target',
+    );
+  });
+
+  it('offers categories and language inside the overflow sheet on touch', async () => {
+    const { default: CalendarPage } = await import('@/app/calendar/page');
+
+    render(<CalendarPage />);
+
+    const trigger = screen.getByRole('button', { name: 'Mais opções' });
+
+    fireEvent.click(trigger);
+
+    expect(screen.getByRole('dialog', { name: 'Mais opções' })).toBeTruthy();
+    expect(
+      screen.getAllByRole('button', { name: 'Categorias' }).length,
+    ).toBeGreaterThan(0);
   });
 });

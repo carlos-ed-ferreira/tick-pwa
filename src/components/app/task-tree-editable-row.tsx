@@ -28,6 +28,7 @@ import {
 import { CategoryAssignmentMenu } from '@/features/categories';
 import { useDebouncedInlineEdit } from '@/hooks/use-debounced-inline-edit';
 import { useFocusAfterCreate } from '@/hooks/use-focus-after-create';
+import { useTouchComposition } from '@/hooks/use-touch-composition';
 import { requiresDeleteConfirmation } from '@/lib/confirm-delete';
 import {
   defaultTaskCompletionSettings,
@@ -46,11 +47,13 @@ import { TaskTreeCategoryChip } from './task-tree-category-chip';
 import { TaskTreeCollapseButton } from './task-tree-collapse-button';
 import { TaskTreeClearCategoryIcon } from './task-tree-clear-category-icon';
 import { TaskTreeMoreActionsMenu } from './task-tree-more-actions-menu';
+import { TaskTreeRowActionsSheet } from './task-tree-row-actions-sheet';
 import { TaskTreeRowLayout } from './task-tree-row-layout';
 import { TaskTreeSelectionButton } from './task-tree-selection-button';
 import {
   defaultTaskTreeRowActionPreferences,
   hasTaskTreeMenuActions,
+  touchTaskTreeRowActionPreferences,
   type TaskTreeRowActionPreferences,
 } from './task-tree-row-action-visibility';
 import type { TreeMovePlacement } from './move-tree-item-to-target';
@@ -266,6 +269,10 @@ export function TaskTreeEditableRow({
   );
   const [isDragging, setIsDragging] = useState(false);
   const [isTextMultiline, setIsTextMultiline] = useState(false);
+  const isTouchComposition = useTouchComposition();
+  const effectivePreferences = isTouchComposition
+    ? touchTaskTreeRowActionPreferences(actionPreferences)
+    : actionPreferences;
   const normalizedScheduledTime = scheduledTime ?? '';
   const isSelectionMode = selection?.isSelectionMode === true;
   const [timeState, setTimeState] = useState({
@@ -556,7 +563,7 @@ export function TaskTreeEditableRow({
 
   const { isTouchDragging, startTouchDrag, touchDropPosition } =
     useTreeTouchDrag({
-      enabled: actionPreferences.drag && !isSelectionMode,
+      enabled: effectivePreferences.drag && !isSelectionMode,
       itemId,
       onMoveTo,
       parentId,
@@ -647,6 +654,51 @@ export function TaskTreeEditableRow({
     });
   }
 
+  const scheduledTimeField = (
+    <input
+      aria-label={labels.itemTime}
+      inputMode="numeric"
+      maxLength={5}
+      placeholder="00:00"
+      value={timeText}
+      className="ml-2 h-6 w-[4rem] shrink-0 rounded-lg inset-ring-hairline inset-ring-white/10 bg-white/[0.045] px-1.5 text-center text-xs font-medium tabular-nums text-[#fff9f2] outline-none transition placeholder:text-[#7b8da0] focus:inset-ring-[#f0c38e]/40 focus:bg-white/[0.065] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e] touch:ml-0 touch:h-11 touch:w-20 touch:text-sm"
+      spellCheck={false}
+      autoCorrect="off"
+      autoCapitalize="none"
+      onBlur={() => void saveScheduledTime()}
+      onChange={(event) => updateScheduledTime(event.target.value)}
+    />
+  );
+  const scheduledDateField = (
+    <DatePicker
+      label={labels.itemDate}
+      value={scheduledDate ? formatDateInputValue(scheduledDate) : ''}
+      variant="trigger"
+      onChange={(nextValue) => {
+        const nextDate = parseDateInputValue(nextValue);
+
+        if (nextDate) {
+          void onSaveDate?.(nextDate);
+        }
+      }}
+      onClear={() => void onSaveDate?.(null)}
+      renderTrigger={({ onClick, ariaLabel }) => (
+        <button
+          type="button"
+          aria-label={ariaLabel}
+          className="ml-2 flex h-6 w-16 shrink-0 items-center justify-center gap-1 rounded-lg inset-ring-hairline inset-ring-white/10 bg-white/4.5 px-1.5 text-center text-xs font-medium tabular-nums text-[#fff9f2] outline-none transition hover:inset-ring-white/20 hover:bg-white/6.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e] touch:ml-0 touch:h-11 touch:w-full touch:text-sm"
+          onClick={onClick}
+        >
+          {scheduledDate ? (
+            formatShortDate(scheduledDate)
+          ) : (
+            <CalendarDays aria-hidden="true" className="size-3.5 opacity-70" />
+          )}
+        </button>
+      )}
+    />
+  );
+
   return (
     <>
       <TaskTreeRowLayout
@@ -685,7 +737,7 @@ export function TaskTreeEditableRow({
           onClick={() => void onToggleCollapsed()}
         />
 
-        {actionPreferences.drag ? (
+        {effectivePreferences.drag ? (
           <IconButton
             aria-label={labels.dragItem}
             className="tree-drag-handle cursor-grab rounded-full hover:bg-white/[0.08] hover:text-[#fff9f2] active:cursor-grabbing focus-visible:outline-[#f0c38e]"
@@ -718,54 +770,13 @@ export function TaskTreeEditableRow({
           onToggle={toggleChecked}
         />
 
-        {showScheduledTime && actionPreferences.scheduledTime ? (
-          <input
-            aria-label={labels.itemTime}
-            inputMode="numeric"
-            maxLength={5}
-            placeholder="00:00"
-            value={timeText}
-            className="ml-2 h-6 w-[4rem] shrink-0 rounded-lg inset-ring-hairline inset-ring-white/10 bg-white/[0.045] px-1.5 text-center text-xs font-medium tabular-nums text-[#fff9f2] outline-none transition placeholder:text-[#7b8da0] focus:inset-ring-[#f0c38e]/40 focus:bg-white/[0.065] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e]"
-            spellCheck={false}
-            autoCorrect="off"
-            autoCapitalize="none"
-            onBlur={() => void saveScheduledTime()}
-            onChange={(event) => updateScheduledTime(event.target.value)}
-          />
-        ) : null}
+        {showScheduledTime && effectivePreferences.scheduledTime
+          ? scheduledTimeField
+          : null}
 
-        {showScheduledDate && actionPreferences.scheduledDate ? (
-          <DatePicker
-            label={labels.itemDate}
-            value={scheduledDate ? formatDateInputValue(scheduledDate) : ''}
-            variant="trigger"
-            onChange={(nextValue) => {
-              const nextDate = parseDateInputValue(nextValue);
-
-              if (nextDate) {
-                void onSaveDate?.(nextDate);
-              }
-            }}
-            onClear={() => void onSaveDate?.(null)}
-            renderTrigger={({ onClick, ariaLabel }) => (
-              <button
-                type="button"
-                aria-label={ariaLabel}
-                className="ml-2 flex h-6 w-16 shrink-0 items-center justify-center gap-1 rounded-lg inset-ring-hairline inset-ring-white/10 bg-white/4.5 px-1.5 text-center text-xs font-medium tabular-nums text-[#fff9f2] outline-none transition hover:inset-ring-white/20 hover:bg-white/6.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e]"
-                onClick={onClick}
-              >
-                {scheduledDate ? (
-                  formatShortDate(scheduledDate)
-                ) : (
-                  <CalendarDays
-                    aria-hidden="true"
-                    className="size-3.5 opacity-70"
-                  />
-                )}
-              </button>
-            )}
-          />
-        ) : null}
+        {showScheduledDate && effectivePreferences.scheduledDate
+          ? scheduledDateField
+          : null}
 
         <div
           data-task-text-field
@@ -810,7 +821,7 @@ export function TaskTreeEditableRow({
               onToggle={selection.onToggle}
             />
           ) : null}
-          {actionPreferences.add === 'inline' ? (
+          {effectivePreferences.add === 'inline' ? (
             <IconButton
               aria-label={labels.addChild}
               className="rounded-full hover:bg-white/[0.08] hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
@@ -825,7 +836,7 @@ export function TaskTreeEditableRow({
               <Plus aria-hidden="true" className="size-4" />
             </IconButton>
           ) : null}
-          {actionPreferences.moveUp === 'inline' ? (
+          {effectivePreferences.moveUp === 'inline' ? (
             <IconButton
               aria-label={labels.moveItemUp}
               className="rounded-full hover:bg-white/[0.08] hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
@@ -835,7 +846,7 @@ export function TaskTreeEditableRow({
               <ArrowUp aria-hidden="true" className="size-4" />
             </IconButton>
           ) : null}
-          {actionPreferences.moveDown === 'inline' ? (
+          {effectivePreferences.moveDown === 'inline' ? (
             <IconButton
               aria-label={labels.moveItemDown}
               className="rounded-full hover:bg-white/[0.08] hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
@@ -845,7 +856,7 @@ export function TaskTreeEditableRow({
               <ArrowDown aria-hidden="true" className="size-4" />
             </IconButton>
           ) : null}
-          {actionPreferences.outdent === 'inline' ? (
+          {effectivePreferences.outdent === 'inline' ? (
             <IconButton
               aria-label={labels.outdentItem}
               className="rounded-full hover:bg-white/[0.08] hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
@@ -855,7 +866,7 @@ export function TaskTreeEditableRow({
               <IndentDecrease aria-hidden="true" className="size-4" />
             </IconButton>
           ) : null}
-          {actionPreferences.indent === 'inline' ? (
+          {effectivePreferences.indent === 'inline' ? (
             <IconButton
               aria-label={labels.indentItem}
               className="rounded-full hover:bg-white/[0.08] hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
@@ -865,7 +876,7 @@ export function TaskTreeEditableRow({
               <IndentIncrease aria-hidden="true" className="size-4" />
             </IconButton>
           ) : null}
-          {actionPreferences.priority === 'inline' ? (
+          {effectivePreferences.priority === 'inline' ? (
             <IconButton
               aria-label={
                 displayedPriority ? labels.unmarkPriority : labels.markPriority
@@ -882,7 +893,7 @@ export function TaskTreeEditableRow({
               />
             </IconButton>
           ) : null}
-          {actionPreferences.bold === 'inline' ? (
+          {effectivePreferences.bold === 'inline' ? (
             <IconButton
               aria-label={
                 displayedBold ? labels.makeTextNormal : labels.makeTextBold
@@ -901,7 +912,7 @@ export function TaskTreeEditableRow({
               </span>
             </IconButton>
           ) : null}
-          {actionPreferences.category === 'inline' ? (
+          {effectivePreferences.category === 'inline' ? (
             <CategoryAssignmentMenu
               assignLabel={labels.assignCategory}
               clearLabel={labels.clearCategory}
@@ -916,7 +927,7 @@ export function TaskTreeEditableRow({
               onAssign={onAssignCategory}
             />
           ) : null}
-          {actionPreferences.clearCategory === 'inline' ? (
+          {effectivePreferences.clearCategory === 'inline' ? (
             <IconButton
               aria-label={labels.clearCategory}
               className="rounded-full hover:bg-white/[0.08] hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
@@ -926,7 +937,7 @@ export function TaskTreeEditableRow({
               <TaskTreeClearCategoryIcon className="size-4" />
             </IconButton>
           ) : null}
-          {actionPreferences.delete === 'inline' ? (
+          {effectivePreferences.delete === 'inline' ? (
             <IconButton
               aria-label={labels.deleteItem}
               className="rounded-full text-rose-200 hover:bg-rose-400/[0.12] hover:text-rose-100 focus-visible:outline-[#f0c38e]"
@@ -936,9 +947,39 @@ export function TaskTreeEditableRow({
               <Trash2 aria-hidden="true" className="size-4" />
             </IconButton>
           ) : null}
-          {hasTaskTreeMenuActions(actionPreferences) ? (
+          {isTouchComposition ? (
+            <TaskTreeRowActionsSheet
+              actionPreferences={effectivePreferences}
+              bold={displayedBold}
+              canIndent={!isFirstSibling}
+              canMoveDown={!isLastSibling}
+              canMoveUp={!isFirstSibling}
+              canOutdent={depth > 0}
+              categoryTagId={categoryTagId}
+              dateTrigger={scheduledDateField}
+              disabled={isSelectionMode}
+              labels={labels}
+              priority={displayedPriority}
+              showScheduledDate={showScheduledDate}
+              showScheduledTime={showScheduledTime}
+              surface={surface}
+              timeField={scheduledTimeField}
+              onAdd={async () => {
+                await flushText();
+                await createAndFocusNewItem(onCreateChild, focusAfterCreate);
+              }}
+              onAssignCategory={onAssignCategory}
+              onDelete={requestDelete}
+              onIndent={onIndent}
+              onMoveDown={onMoveDown}
+              onMoveUp={onMoveUp}
+              onOutdent={onOutdent}
+              onToggleBold={toggleBold}
+              onTogglePriority={togglePriority}
+            />
+          ) : hasTaskTreeMenuActions(effectivePreferences) ? (
             <TaskTreeMoreActionsMenu
-              actionPreferences={actionPreferences}
+              actionPreferences={effectivePreferences}
               bold={displayedBold}
               canIndent={!isFirstSibling}
               canMoveDown={!isLastSibling}

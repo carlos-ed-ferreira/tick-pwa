@@ -12,6 +12,7 @@ import {
   defaultTaskTreeRowActionPreferences,
   TaskTreeEditableRow,
 } from '@/components/app';
+import { stubPointerCapability } from '../support/pointer';
 
 vi.mock('@/providers', () => ({
   useAppContext: () => ({
@@ -1064,5 +1065,99 @@ describe('TaskTreeEditableRow', () => {
         markLevel: 0,
       });
     });
+  });
+});
+
+const touchRowOverrides = {
+  showScheduledDate: true,
+  showScheduledTime: true,
+};
+
+describe('TaskTreeEditableRow on touch', () => {
+  afterEach(() => {
+    cleanup();
+    vi.unstubAllGlobals();
+  });
+
+  it('keeps the row down to the checkbox, the text, the drag handle and the sheet trigger', () => {
+    stubPointerCapability(true);
+    renderRow(touchRowOverrides);
+
+    expect(screen.queryByLabelText('Add child')).toBeNull();
+    expect(screen.queryByLabelText('Move item up')).toBeNull();
+    expect(screen.queryByLabelText('Indent item')).toBeNull();
+    expect(screen.queryByLabelText('Task time')).toBeNull();
+    expect(screen.getByLabelText('Drag item')).toBeInTheDocument();
+    expect(screen.getByRole('checkbox')).toBeInTheDocument();
+    expect(screen.getByLabelText('More actions')).toBeInTheDocument();
+  });
+
+  it('exposes every row action inside the sheet', () => {
+    stubPointerCapability(true);
+    renderRow(touchRowOverrides);
+
+    fireEvent.click(screen.getByLabelText('More actions'));
+
+    for (const label of [
+      'Add child',
+      'Move item up',
+      'Move item down',
+      'Indent item',
+      'Outdent item',
+      'Mark as priority',
+      'Make text bold',
+      'Assign category',
+      'Clear category',
+      'Delete item',
+    ]) {
+      expect(screen.getByLabelText(label)).toBeInTheDocument();
+    }
+
+    expect(screen.getByLabelText('Task time')).toBeInTheDocument();
+    expect(screen.getByLabelText(/Task date/)).toBeInTheDocument();
+  });
+
+  it('runs a sheet action and closes the sheet', () => {
+    stubPointerCapability(true);
+    const callbacks = renderRow({
+      ...touchRowOverrides,
+      isFirstSibling: false,
+    });
+
+    fireEvent.click(screen.getByLabelText('More actions'));
+    fireEvent.click(screen.getByLabelText('Move item up'));
+
+    expect(callbacks.onMoveUp).toHaveBeenCalledOnce();
+    expect(screen.queryByLabelText('Move item up')).toBeNull();
+  });
+
+  it('assigns a category from the sheet without hovering', () => {
+    stubPointerCapability(true);
+    const callbacks = renderRow(touchRowOverrides);
+
+    fireEvent.click(screen.getByLabelText('More actions'));
+    fireEvent.click(screen.getByLabelText('Assign category'));
+
+    expect(callbacks.onAssignCategory).toHaveBeenCalledWith('category-1');
+  });
+
+  it('saves the scheduled time typed inside the sheet', () => {
+    stubPointerCapability(true);
+    const callbacks = renderRow(touchRowOverrides);
+
+    fireEvent.click(screen.getByLabelText('More actions'));
+    fireEvent.change(screen.getByLabelText('Task time'), {
+      target: { value: '0930' },
+    });
+
+    expect(callbacks.onSaveTime).toHaveBeenCalledWith('09:30');
+  });
+
+  it('keeps the desktop row untouched on a fine pointer', () => {
+    stubPointerCapability(false);
+    renderRow(touchRowOverrides);
+
+    expect(screen.getByLabelText('Add child')).toBeInTheDocument();
+    expect(screen.getByLabelText('Task time')).toBeInTheDocument();
   });
 });

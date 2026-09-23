@@ -210,6 +210,29 @@ cor do processo. Eles não falham o gate atual.
   mesmo escopo e captura o conjunto protegido dentro da transação de merge;
 - hover da scrollbar deixa de usar a cor de acento.
 
+## Ratchet em 2026-09-22 (composição de toque)
+
+- Vitest: 82 arquivos e 630 testes aprovados;
+- Playwright local: 39 aprovados e 17 ignorados, com a baseline de layout mobile
+  de 7 para 15 cenários;
+- a composição de toque é escolhida por
+  `(pointer: coarse) and (max-width: 899.98px)`, com fonte única em
+  `src/hooks/use-touch-composition.ts` e variante `touch` no `globals.css`;
+  nenhum utilitário base foi alterado, então o desenho de 640px para cima
+  permanece idêntico;
+- calendário de toque usa faixa de semana e agenda do dia, com a grade do mês em
+  folha inferior e sem consulta nova ao Dexie;
+- linha de tarefa e de etapa em toque expõe todas as ações por folha inferior,
+  com hora e data dentro dela;
+- `Dialog` ganhou `size`, focus trap, `aria-labelledby`, pilha de `Escape` e
+  contador de bloqueio de rolagem; `ConfirmationDialog` deixou de ocupar a tela
+  inteira no toque;
+- navegação de toque é a mesma lista do cabeçalho reposicionada no rodapé, com
+  reserva de espaço por `--app-bottom-nav-height` e safe area;
+- submenu de categoria das metas passou a ser clampado na viewport;
+- removidos a classe morta `.calendar-chip-muted` e a chave morta
+  `calendar.emptyDay`.
+
 ## Matriz de quality gates
 
 | Gate               | Métrica e threshold                                                                 | Escopo                              | Estado         | Legado                                    | Bloqueia?                   |
@@ -238,7 +261,7 @@ cor do processo. Eles não falham o gate atual.
 | Performance        | p95 e bundle não pioram mais de 10% sem justificativa                               | caminho medido                      | planned        | baseline por cenário                      | sim após estabilidade       |
 | Local-first        | nenhum dado perdido; retry idempotente; reconexão converge                          | persistência alterada               | manual/planned | limitações no IMPLEMENTATION              | sim quando aplicável        |
 | i18n               | tipos válidos e chaves pt/en presentes; 0 string nova fora do mecanismo             | UI alterada                         | manual         | shape tipado já existe                    | sim quando aplicável        |
-| UI responsiva      | cenários mobile e desktop aprovados                                                 | UI alterada                         | enforced no CI | manter baseline de 7 no layout mobile     | sim quando aplicável        |
+| UI responsiva      | cenários mobile e desktop aprovados                                                 | UI alterada                         | enforced no CI | manter baseline de 15 no layout mobile    | sim quando aplicável        |
 
 `make check` é o gate local. O App CI acrescenta `make audit-prod`, o job de
 banco e o job de E2E. Coverage, segurança, complexidade e performance continuam
@@ -353,7 +376,8 @@ Para UI alterada, registrar viewport mobile e desktop e verificar:
 - loading, vazio, erro e indisponibilidade de rede;
 - contraste, semântica e nome acessível;
 - consistência com primitives, tokens e terminologia;
-- ausência de bordas, caixas e cards aninhados sem função.
+- ausência de bordas, caixas e cards aninhados sem função;
+- composição de toque própria validada nos dois desenhos, sem alterar o desktop.
 
 Screenshot isolado não substitui interação. Mudança visual relevante deve ter
 evidência nos dois tamanhos; layout mobile próprio exige testes dos dois

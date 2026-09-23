@@ -1,5 +1,6 @@
 export * from './action-button';
 export * from './auto-resize-textarea';
+export * from './bottom-sheet';
 export * from './button';
 export * from './checkbox';
 export * from './confirmation-dialog';

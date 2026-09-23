@@ -35,12 +35,16 @@ adotados pelo projeto, nunca breakpoints novos que mudem 640px para cima:
 
 - `(pointer: coarse)` em CSS, ou o hook `useCoarsePointer`, para interação e
   área de toque;
+- a conjunção de ponteiro grosso e largura, pela variante `touch:` e por
+  `useTouchComposition`, para escolher composição de toque;
 - largura medida em runtime, quando o layout já mede o container, para
   densidade.
 
 Regras práticas:
 
-- ao escrever utilitário mobile, restaure o valor desktop atual em `sm:`;
+- em código novo, escreva a base igual ao desktop atual e use `touch:` como
+  override; `sm:` restaurando o valor continua válido no que já existe;
+- não escreva `sm:` e `touch:` na mesma propriedade;
 - alvo de toque mínimo de 44px vem de `touch-target`, que amplia só a área de
   acerto e não altera o tamanho pintado do controle;
 - interação por arrasto precisa de caminho equivalente no toque;

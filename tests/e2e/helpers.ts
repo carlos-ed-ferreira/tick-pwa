@@ -17,7 +17,56 @@ export const labels = {
   closeDialog: /^cancel$|^cancelar$/i,
   markingLevelsThree: /^(marking levels|níveis de marcação): 3$/i,
   markingLevelTwoOfThree: /^level 2 of 3$|^nível 2 de 3$/i,
+  openMonthView: /open month view|abrir visão de mês/i,
+  calendarOptions: /calendar options|opções do calendário/i,
+  rowExtraOptions: /extra options|opções extras/i,
+  bulkCreate: /create in bulk|criar em lote/i,
+  moreOptions: /more options|mais opções/i,
+  categories: /^categories$|^categorias$/i,
 };
+
+export async function openMonthGrid(page: Page, isMobile: boolean) {
+  if (!isMobile) {
+    return;
+  }
+
+  await page.getByRole('button', { name: labels.openMonthView }).tap();
+  await expect(page.locator('.calendar-day-cell').first()).toBeVisible();
+}
+
+export async function openCalendarBulkCreate(page: Page, isMobile: boolean) {
+  if (isMobile) {
+    await page.getByRole('button', { name: labels.calendarOptions }).tap();
+    await page.getByRole('button', { name: labels.bulkCreate }).tap();
+    return;
+  }
+
+  await page.getByRole('button', { name: labels.bulkCreate }).click();
+}
+
+export async function openCategoryManager(page: Page, isMobile: boolean) {
+  if (isMobile) {
+    await page.getByRole('button', { name: labels.moreOptions }).first().tap();
+    await page
+      .getByRole('dialog', { name: labels.moreOptions })
+      .getByRole('button', { name: labels.categories })
+      .tap();
+    return;
+  }
+
+  await page.getByRole('button', { name: labels.categories }).click();
+}
+
+export async function openGoalDetailActions(page: Page, isMobile: boolean) {
+  if (!isMobile) {
+    return;
+  }
+
+  await page.getByRole('button', { name: labels.moreOptions }).last().tap();
+  await expect(
+    page.getByRole('dialog', { name: labels.moreOptions }),
+  ).toBeVisible();
+}
 
 export async function enterLocalMode(page: Page) {
   await page.goto('/');

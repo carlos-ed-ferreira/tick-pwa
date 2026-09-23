@@ -142,6 +142,8 @@ import {
   getSelectionCompletionValues,
   resolveActiveCategoryTab,
 } from '@/lib/domain';
+import { useTouchComposition } from '@/hooks/use-touch-composition';
+import { GoalDetailActionsSheet } from './goal-detail-actions-sheet';
 import { useAppContext } from '@/providers';
 import type { VisibleGoalStepRow } from './goal-step-tree';
 import { useGoalGroups } from './use-goal-groups';
@@ -2581,6 +2583,9 @@ function GoalCard({
   );
 }
 
+const categorySubmenuMinWidth = 208;
+const categorySubmenuViewportPadding = 12;
+
 function CategoryMenuSection({
   label,
   surface,
@@ -2633,8 +2638,19 @@ function CategoryMenuSection({
     const actionsMenuRect = trigger
       .closest<HTMLElement>('[data-card-actions-menu="true"]')
       ?.getBoundingClientRect();
-    const submenuLeft =
+    const preferredLeft =
       (actionsMenuRect?.right ?? triggerRect.right) - dropdownJoinOverlap;
+    const submenuWidth = Math.min(
+      categorySubmenuMinWidth,
+      window.innerWidth - categorySubmenuViewportPadding * 2,
+    );
+    const submenuLeft = Math.max(
+      categorySubmenuViewportPadding,
+      Math.min(
+        preferredLeft,
+        window.innerWidth - categorySubmenuViewportPadding - submenuWidth,
+      ),
+    );
 
     setSubmenuStyle({
       left: submenuLeft,
@@ -3125,6 +3141,7 @@ function GoalDetailHeader({
     () => new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }),
     [locale],
   );
+  const isTouchComposition = useTouchComposition();
 
   const archiveSelectedGoal = useCallback(async () => {
     if (!scope) {
@@ -3153,6 +3170,114 @@ function GoalDetailHeader({
     setIsGoalRestoreDialogOpen(false);
     await onRestore(goal.id);
   }, [goal.id, onRestore, scope]);
+
+  const detailActions = (
+    <>
+      {!isArchived ? (
+        <>
+          <CategoryColorButton
+            onAssign={(categoryTagId) =>
+              scope
+                ? assignGoalCategory({
+                    scope,
+                    goalId: goal.id,
+                    categoryTagId,
+                  })
+                : undefined
+            }
+            scope={scope}
+            selectedCategory={goalCategory}
+            surface="goal"
+          />
+          <CategoryAssignmentMenu
+            assignLabel={dictionary.goals.assignGoalCategory}
+            clearClassName="inline-flex size-10 shrink-0 items-center justify-center rounded-md inset-ring-hairline inset-ring-white/10 bg-white/5 text-[#cbd5e0] shadow-sm shadow-[#253241]/10 transition hover:-translate-y-0.5 hover:inset-ring-white/20 hover:bg-white/10 hover:text-[#fff9f2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0]"
+            clearLabel={dictionary.goals.clearGoalCategory}
+            renderClearContent={() => (
+              <TaskTreeClearCategoryIcon className="size-4" />
+            )}
+            renderTriggerContent={() => (
+              <Tag aria-hidden="true" className="size-4" />
+            )}
+            selectedCategoryTagId={goal.categoryTagId}
+            surface="goal"
+            triggerClassName="inline-flex size-10 shrink-0 items-center justify-center rounded-md inset-ring-hairline inset-ring-white/10 bg-white/5 text-[#cbd5e0] shadow-sm shadow-[#253241]/10 hover:-translate-y-0.5 hover:inset-ring-white/20 hover:bg-white/10 hover:text-[#fff9f2] focus-visible:outline-[#f7d9b0] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0 disabled:hover:inset-ring-white/10 disabled:hover:bg-white/5 disabled:hover:text-[#cbd5e0]"
+            onAssign={(categoryTagId) => {
+              if (!scope) return;
+              return assignGoalCategory({
+                scope,
+                goalId: goal.id,
+                categoryTagId,
+              });
+            }}
+          />
+        </>
+      ) : null}
+      {!isArchived ? (
+        <DatePicker
+          label={dictionary.goals.dueDateLabel}
+          value={goal.dueDate ? formatDateInputValue(goal.dueDate) : ''}
+          variant="trigger"
+          onChange={(nextValue) => {
+            if (!scope) return;
+            const nextDate = parseDateInputValue(nextValue);
+
+            if (nextDate) {
+              void updateGoalDueDate({
+                scope,
+                goalId: goal.id,
+                dueDate: nextDate,
+              });
+            }
+          }}
+          onClear={() => {
+            if (!scope) return;
+            void updateGoalDueDate({
+              scope,
+              goalId: goal.id,
+              dueDate: null,
+            });
+          }}
+          renderTrigger={({ onClick, ariaLabel }) => (
+            <IconButton
+              aria-label={ariaLabel}
+              title={dictionary.goals.assignGoalDueDate}
+              className="size-10 rounded-md inset-ring-hairline inset-ring-white/10 bg-white/5 text-[#cbd5e0] shadow-sm shadow-[#253241]/10 transition hover:-translate-y-0.5 hover:inset-ring-white/20 hover:bg-white/10 hover:text-[#fff9f2] focus-visible:outline-[#f7d9b0]"
+              onClick={onClick}
+            >
+              <CalendarDays aria-hidden="true" className="size-4" />
+            </IconButton>
+          )}
+        />
+      ) : null}
+      {!isArchived ? (
+        <IconButton
+          aria-label={dictionary.goals.completeGoal}
+          className="size-10 rounded-md inset-ring-hairline inset-ring-[#f0c38e]/25 bg-[#f0c38e]/10 text-[#f7d7ad] hover:bg-[#f0c38e]/18 hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
+          onClick={() => setIsGoalArchiveDialogOpen(true)}
+        >
+          <Archive aria-hidden="true" className="size-4" />
+        </IconButton>
+      ) : (
+        <IconButton
+          aria-label={dictionary.goals.restoreGoal}
+          className="size-10 rounded-md inset-ring-hairline inset-ring-[#f0c38e]/25 bg-[#f0c38e]/10 text-[#f7d7ad] hover:bg-[#f0c38e]/18 hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
+          onClick={() => setIsGoalRestoreDialogOpen(true)}
+        >
+          <RotateCcw aria-hidden="true" className="size-4" />
+        </IconButton>
+      )}
+      <IconButton
+        aria-label={dictionary.goals.deleteGoal}
+        className="size-10 rounded-md inset-ring-hairline inset-ring-rose-300/20 bg-rose-400/10 text-rose-100 hover:bg-rose-400/18 hover:text-rose-50 focus-visible:outline-rose-200"
+        onClick={() =>
+          hasGoalSteps ? setIsGoalDeleteDialogOpen(true) : void deleteGoal()
+        }
+      >
+        <Trash2 aria-hidden="true" className="size-4" />
+      </IconButton>
+    </>
+  );
 
   return (
     <>
@@ -3183,109 +3308,11 @@ function GoalDetailHeader({
               </span>
             </span>
           ) : null}
-          {!isArchived ? (
-            <>
-              <CategoryColorButton
-                onAssign={(categoryTagId) =>
-                  scope
-                    ? assignGoalCategory({
-                        scope,
-                        goalId: goal.id,
-                        categoryTagId,
-                      })
-                    : undefined
-                }
-                scope={scope}
-                selectedCategory={goalCategory}
-                surface="goal"
-              />
-              <CategoryAssignmentMenu
-                assignLabel={dictionary.goals.assignGoalCategory}
-                clearClassName="inline-flex size-10 shrink-0 items-center justify-center rounded-md inset-ring-hairline inset-ring-white/10 bg-white/5 text-[#cbd5e0] shadow-sm shadow-[#253241]/10 transition hover:-translate-y-0.5 hover:inset-ring-white/20 hover:bg-white/10 hover:text-[#fff9f2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0]"
-                clearLabel={dictionary.goals.clearGoalCategory}
-                renderClearContent={() => (
-                  <TaskTreeClearCategoryIcon className="size-4" />
-                )}
-                renderTriggerContent={() => (
-                  <Tag aria-hidden="true" className="size-4" />
-                )}
-                selectedCategoryTagId={goal.categoryTagId}
-                surface="goal"
-                triggerClassName="inline-flex size-10 shrink-0 items-center justify-center rounded-md inset-ring-hairline inset-ring-white/10 bg-white/5 text-[#cbd5e0] shadow-sm shadow-[#253241]/10 hover:-translate-y-0.5 hover:inset-ring-white/20 hover:bg-white/10 hover:text-[#fff9f2] focus-visible:outline-[#f7d9b0] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0 disabled:hover:inset-ring-white/10 disabled:hover:bg-white/5 disabled:hover:text-[#cbd5e0]"
-                onAssign={(categoryTagId) => {
-                  if (!scope) return;
-                  return assignGoalCategory({
-                    scope,
-                    goalId: goal.id,
-                    categoryTagId,
-                  });
-                }}
-              />
-            </>
-          ) : null}
-          {!isArchived ? (
-            <DatePicker
-              label={dictionary.goals.dueDateLabel}
-              value={goal.dueDate ? formatDateInputValue(goal.dueDate) : ''}
-              variant="trigger"
-              onChange={(nextValue) => {
-                if (!scope) return;
-                const nextDate = parseDateInputValue(nextValue);
-
-                if (nextDate) {
-                  void updateGoalDueDate({
-                    scope,
-                    goalId: goal.id,
-                    dueDate: nextDate,
-                  });
-                }
-              }}
-              onClear={() => {
-                if (!scope) return;
-                void updateGoalDueDate({
-                  scope,
-                  goalId: goal.id,
-                  dueDate: null,
-                });
-              }}
-              renderTrigger={({ onClick, ariaLabel }) => (
-                <IconButton
-                  aria-label={ariaLabel}
-                  title={dictionary.goals.assignGoalDueDate}
-                  className="size-10 rounded-md inset-ring-hairline inset-ring-white/10 bg-white/5 text-[#cbd5e0] shadow-sm shadow-[#253241]/10 transition hover:-translate-y-0.5 hover:inset-ring-white/20 hover:bg-white/10 hover:text-[#fff9f2] focus-visible:outline-[#f7d9b0]"
-                  onClick={onClick}
-                >
-                  <CalendarDays aria-hidden="true" className="size-4" />
-                </IconButton>
-              )}
-            />
-          ) : null}
-          {!isArchived ? (
-            <IconButton
-              aria-label={dictionary.goals.completeGoal}
-              className="size-10 rounded-md inset-ring-hairline inset-ring-[#f0c38e]/25 bg-[#f0c38e]/10 text-[#f7d7ad] hover:bg-[#f0c38e]/18 hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
-              onClick={() => setIsGoalArchiveDialogOpen(true)}
-            >
-              <Archive aria-hidden="true" className="size-4" />
-            </IconButton>
+          {isTouchComposition ? (
+            <GoalDetailActionsSheet>{detailActions}</GoalDetailActionsSheet>
           ) : (
-            <IconButton
-              aria-label={dictionary.goals.restoreGoal}
-              className="size-10 rounded-md inset-ring-hairline inset-ring-[#f0c38e]/25 bg-[#f0c38e]/10 text-[#f7d7ad] hover:bg-[#f0c38e]/18 hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
-              onClick={() => setIsGoalRestoreDialogOpen(true)}
-            >
-              <RotateCcw aria-hidden="true" className="size-4" />
-            </IconButton>
+            detailActions
           )}
-          <IconButton
-            aria-label={dictionary.goals.deleteGoal}
-            className="size-10 rounded-md inset-ring-hairline inset-ring-rose-300/20 bg-rose-400/10 text-rose-100 hover:bg-rose-400/18 hover:text-rose-50 focus-visible:outline-rose-200"
-            onClick={() =>
-              hasGoalSteps ? setIsGoalDeleteDialogOpen(true) : void deleteGoal()
-            }
-          >
-            <Trash2 aria-hidden="true" className="size-4" />
-          </IconButton>
         </div>
         <button
           type="button"

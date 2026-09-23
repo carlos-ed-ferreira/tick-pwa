@@ -5,6 +5,7 @@ import { useCallback, useMemo } from 'react';
 import {
   copyTaskTreeRowActionPreferences,
   defaultTaskTreeRowActionPreferences,
+  taskTreeRowPlacementActions,
   type TaskTreeRowActionPlacement,
   type TaskTreeRowActionPreferences,
 } from '@/components/app/task-tree-row-action-visibility';
@@ -15,19 +16,6 @@ import {
 import { getTaskTreeRowActionsPreferenceKey } from '@/lib/supabase/account-preferences';
 import { useAppContext } from '@/providers';
 
-const placementActions = [
-  'add',
-  'bold',
-  'category',
-  'clearCategory',
-  'delete',
-  'indent',
-  'moveDown',
-  'moveUp',
-  'outdent',
-  'priority',
-] as const;
-
 function isPlacement(value: unknown): value is TaskTreeRowActionPlacement {
   return value === 'hidden' || value === 'inline' || value === 'menu';
 }
@@ -37,7 +25,7 @@ function normalizePreferences(
 ): TaskTreeRowActionPreferences {
   const normalized = { ...defaultTaskTreeRowActionPreferences };
 
-  for (const action of placementActions) {
+  for (const action of taskTreeRowPlacementActions) {
     if (isPlacement(value?.[action])) {
       normalized[action] = value[action];
     }

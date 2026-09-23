@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   copyTaskTreeRowActionPreferences,
   defaultTaskTreeRowActionPreferences,
+  taskTreeRowPlacementActions,
+  touchTaskTreeRowActionPreferences,
 } from '@/components/app';
 import {
   ACCOUNT_PREFERENCE_KEYS,
@@ -72,5 +74,66 @@ describe('task tree row action preference keys', () => {
 
   it('defaults the scheduled date field to visible', () => {
     expect(defaultTaskTreeRowActionPreferences.scheduledDate).toBe(true);
+  });
+});
+
+describe('touchTaskTreeRowActionPreferences', () => {
+  it('moves every placement action into the sheet', () => {
+    const preferences = touchTaskTreeRowActionPreferences({
+      ...defaultTaskTreeRowActionPreferences,
+      add: 'inline',
+      delete: 'hidden',
+      priority: 'inline',
+    });
+
+    for (const action of taskTreeRowPlacementActions) {
+      expect(preferences[action]).toBe('menu');
+    }
+  });
+
+  it('never hides an action that the desktop can reach', () => {
+    const preferences = touchTaskTreeRowActionPreferences({
+      ...defaultTaskTreeRowActionPreferences,
+      add: 'hidden',
+      bold: 'hidden',
+      category: 'hidden',
+      clearCategory: 'hidden',
+      delete: 'hidden',
+      indent: 'hidden',
+      moveDown: 'hidden',
+      moveUp: 'hidden',
+      outdent: 'hidden',
+      priority: 'hidden',
+    });
+
+    expect(
+      taskTreeRowPlacementActions.some(
+        (action) => preferences[action] === 'hidden',
+      ),
+    ).toBe(false);
+  });
+
+  it('moves the scheduled time and date out of the row', () => {
+    const preferences = touchTaskTreeRowActionPreferences(
+      defaultTaskTreeRowActionPreferences,
+    );
+
+    expect(preferences.scheduledTime).toBe(false);
+    expect(preferences.scheduledDate).toBe(false);
+  });
+
+  it('keeps the drag handle preference as the user left it', () => {
+    expect(
+      touchTaskTreeRowActionPreferences({
+        ...defaultTaskTreeRowActionPreferences,
+        drag: true,
+      }).drag,
+    ).toBe(true);
+    expect(
+      touchTaskTreeRowActionPreferences({
+        ...defaultTaskTreeRowActionPreferences,
+        drag: false,
+      }).drag,
+    ).toBe(false);
   });
 });

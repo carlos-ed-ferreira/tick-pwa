@@ -1,5 +1,10 @@
 import { expect, test, type Locator } from '@playwright/test';
-import { enterLocalMode, firstGoalStepInput, labels } from './helpers';
+import {
+  enterLocalMode,
+  firstGoalStepInput,
+  labels,
+  openGoalDetailActions,
+} from './helpers';
 
 async function expectEvenlyClosedDashedRing(ring: Locator) {
   await expect
@@ -87,6 +92,7 @@ test('persists a goal step in local mode', async ({ page }) => {
 
 test('navigates between goal lists and keeps archived steps read-only', async ({
   page,
+  isMobile,
 }) => {
   await enterLocalMode(page);
   await page.goto('/goals');
@@ -96,11 +102,12 @@ test('navigates between goal lists and keeps archived steps read-only', async ({
   await page.getByRole('button', { name: labels.goalStepEmpty }).click();
   await firstGoalStepInput(page).fill('Archived reference step');
 
+  await openGoalDetailActions(page, Boolean(isMobile));
   await page
     .getByRole('button', { name: /archive goal|arquivar meta/i })
     .click();
   await page
-    .getByRole('dialog')
+    .getByRole('dialog', { name: /archive goal|arquivar meta/i })
     .getByRole('button', { name: /archive goal|arquivar meta/i })
     .click();
 
@@ -117,11 +124,12 @@ test('navigates between goal lists and keeps archived steps read-only', async ({
   ).toHaveCount(0);
   await expect(page.getByRole('checkbox')).toBeDisabled();
 
+  await openGoalDetailActions(page, Boolean(isMobile));
   await page
     .getByRole('button', { name: /restore goal|restaurar meta/i })
     .click();
   await page
-    .getByRole('dialog')
+    .getByRole('dialog', { name: /restore goal|restaurar meta/i })
     .getByRole('button', { name: /restore goal|restaurar meta/i })
     .click();
 
@@ -164,7 +172,10 @@ test('caps a long goal title without deforming the back button or overflowing th
 
 test('aligns the goal category submenu with its hovered action', async ({
   page,
+  isMobile,
 }) => {
+  test.skip(Boolean(isMobile), 'hover geometry belongs to the fine pointer');
+
   await enterLocalMode(page);
   await page.goto('/goals');
   await page.getByRole('button', { name: labels.createGoal }).click();
