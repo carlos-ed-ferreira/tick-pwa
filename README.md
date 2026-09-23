@@ -260,7 +260,7 @@ quando o Supabase está indisponível.
 | Linguagem          | TypeScript 5, configuração `strict`                           |
 | Runtime            | Node.js `>=20.9.0`                                            |
 | Package manager    | npm, lockfile v3                                              |
-| Framework          | Next.js 16.3.0, App Router e React 19.2.4                     |
+| Framework          | Next.js 16.3.6, App Router e React 19.2.4                     |
 | UI                 | Tailwind CSS 4, Lucide e React Icons                          |
 | PWA                | Serwist 9                                                     |
 | Banco local        | IndexedDB com Dexie 4                                         |

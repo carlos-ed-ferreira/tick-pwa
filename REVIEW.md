@@ -233,6 +233,19 @@ cor do processo. Eles não falham o gate atual.
 - removidos a classe morta `.calendar-chip-muted` e a chave morta
   `calendar.emptyDay`.
 
+## Ratchet em 2026-09-23
+
+- `next` 16.3.0 para 16.3.6, corrigindo duas execuções remotas de código
+  classificadas como críticas; `sharp` acompanhou para 0.35.4;
+- `baseline-browser-mapping` atualizado para 2.11.25 dentro do intervalo já
+  declarado;
+- `browserslist` fixado em 4.29.0 por `overrides`, porque `@serwist/next` fixa
+  a versão exata e nem a 9.5.12 sai do intervalo vulnerável; a exposição real é
+  de build, não de runtime, mas o gate não aceita advisory alto;
+- `make update-dependency package=<pacote>` passa a cobrir atualização de
+  dependência transitiva dentro do intervalo declarado;
+- `make audit-prod` volta a reportar zero vulnerabilidades.
+
 ## Matriz de quality gates
 
 | Gate               | Métrica e threshold                                                                 | Escopo                              | Estado         | Legado                                    | Bloqueia?                   |

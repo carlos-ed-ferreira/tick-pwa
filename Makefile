@@ -1,6 +1,6 @@
 NPM = npm
 
-.PHONY: help require-npm install install-ci add-dependency dev build start lint typecheck test test-telemetry test-backup test-account-operations test-account-persistence test-e2e test-e2e-mobile test-e2e-offline test-e2e-account test-e2e-browsers format format-check check audit-prod deps-tree publish clean benchmark-account-rpc backup-encrypt backup-restore supabase-start supabase-start-db supabase-stop supabase-status supabase-reset supabase-diff supabase-diff-check supabase-migration-diff supabase-lint supabase-test-db supabase-types-local supabase-prod-backup supabase-prod-migrations-repair supabase-prod-migrations-check supabase-prod-db-dry-run supabase-prod-db-push
+.PHONY: help require-npm install install-ci add-dependency update-dependency dev build start lint typecheck test test-telemetry test-backup test-account-operations test-account-persistence test-e2e test-e2e-mobile test-e2e-offline test-e2e-account test-e2e-browsers format format-check check audit-prod deps-tree publish clean benchmark-account-rpc backup-encrypt backup-restore supabase-start supabase-start-db supabase-stop supabase-status supabase-reset supabase-diff supabase-diff-check supabase-migration-diff supabase-lint supabase-test-db supabase-types-local supabase-prod-backup supabase-prod-migrations-repair supabase-prod-migrations-check supabase-prod-db-dry-run supabase-prod-db-push
 .DEFAULT_GOAL := help
 
 help:
@@ -8,6 +8,7 @@ help:
 	@printf "  %-26s %s\n" "make install" "Instala dependencias do projeto"
 	@printf "  %-26s %s\n" "make install-ci" "Instala dependencias exatamente como no lockfile"
 	@printf "  %-26s %s\n" "make add-dependency package=<pacote>" "Adiciona uma dependencia de producao"
+	@printf "  %-26s %s\n" "make update-dependency package=<pacote>" "Atualiza uma dependencia dentro do intervalo declarado"
 	@printf "  %-26s %s\n" "make dev" "Instala dependencias, inicia o Supabase local e o Next.js"
 	@printf "  %-26s %s\n" "make build" "Gera build de producao com PWA"
 	@printf "  %-26s %s\n" "make start" "Inicia o servidor de producao apos o build"
@@ -68,6 +69,10 @@ install-ci: require-npm
 add-dependency: require-npm
 	@test -n "$(package)" || { printf "Erro: informe package=<pacote>@<versao>.\n"; exit 2; }
 	$(NPM) install --save-exact $(package)
+
+update-dependency: require-npm
+	@test -n "$(package)" || { printf "Erro: informe package=<pacote>.\n"; exit 2; }
+	$(NPM) update $(package)
 
 dev: install
 	@set -e; \
