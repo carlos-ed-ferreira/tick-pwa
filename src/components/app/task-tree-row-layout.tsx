@@ -50,7 +50,7 @@ export function TaskTreeRowLayout({
 
   return (
     <div
-      className={`group relative flex min-h-11 min-w-0 items-center gap-1 rounded-lg inset-ring-hairline inset-ring-transparent pr-1 transition hover:inset-ring-white/[0.08] hover:bg-white/[0.055] ${
+      className={`group relative flex min-h-11 min-w-0 items-center gap-1 rounded-lg touch:flex-wrap inset-ring-hairline inset-ring-transparent pr-1 transition hover:inset-ring-white/[0.08] hover:bg-white/[0.055] ${
         isDragging ? 'opacity-45' : ''
       } ${
         dropPosition === 'child'

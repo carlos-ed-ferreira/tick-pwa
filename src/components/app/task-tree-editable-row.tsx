@@ -780,7 +780,7 @@ export function TaskTreeEditableRow({
 
         <div
           data-task-text-field
-          className={`flex min-w-0 flex-1 rounded-xl inset-ring-hairline inset-ring-transparent bg-transparent transition focus-within:inset-ring-[#f0c38e]/28 focus-within:bg-white/[0.055] focus-within:shadow-sm ${
+          className={`flex min-w-0 flex-1 rounded-xl inset-ring-hairline inset-ring-transparent bg-transparent transition touch:order-last touch:basis-full focus-within:inset-ring-[#f0c38e]/28 focus-within:bg-white/[0.055] focus-within:shadow-sm ${
             isTextMultiline ? 'items-start pt-0.5 pb-0' : 'min-h-9 items-center'
           }`}
         >

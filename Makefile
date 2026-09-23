@@ -1,6 +1,7 @@
 NPM = npm
+E2E_PORT = 3100
 
-.PHONY: help require-npm install install-ci add-dependency update-dependency dev build start lint typecheck test test-telemetry test-backup test-account-operations test-account-persistence test-e2e test-e2e-mobile test-e2e-offline test-e2e-account test-e2e-browsers format format-check check audit-prod deps-tree publish clean benchmark-account-rpc backup-encrypt backup-restore supabase-start supabase-start-db supabase-stop supabase-status supabase-reset supabase-diff supabase-diff-check supabase-migration-diff supabase-lint supabase-test-db supabase-types-local supabase-prod-backup supabase-prod-migrations-repair supabase-prod-migrations-check supabase-prod-db-dry-run supabase-prod-db-push
+.PHONY: help require-npm require-free-e2e-port install install-ci add-dependency update-dependency dev build start lint typecheck test test-telemetry test-backup test-account-operations test-account-persistence test-e2e test-e2e-reuse test-e2e-mobile test-e2e-offline test-e2e-account test-e2e-browsers format format-check check audit-prod deps-tree publish clean benchmark-account-rpc backup-encrypt backup-restore supabase-start supabase-start-db supabase-stop supabase-status supabase-reset supabase-diff supabase-diff-check supabase-migration-diff supabase-lint supabase-test-db supabase-types-local supabase-prod-backup supabase-prod-migrations-repair supabase-prod-migrations-check supabase-prod-db-dry-run supabase-prod-db-push
 .DEFAULT_GOAL := help
 
 help:
@@ -20,6 +21,7 @@ help:
 	@printf "  %-26s %s\n" "make test-account-operations" "Roda testes do contrato transacional"
 	@printf "  %-26s %s\n" "make test-account-persistence" "Roda testes da outbox autenticada"
 	@printf "  %-26s %s\n" "make test-e2e" "Roda testes end-to-end"
+	@printf "  %-26s %s\n" "make test-e2e-reuse" "Roda E2E reaproveitando o servidor; nao serve como evidencia"
 	@printf "  %-26s %s\n" "make test-e2e-mobile" "Roda E2E do layout mobile"
 	@printf "  %-26s %s\n" "make test-e2e-offline" "Roda E2E de reload offline"
 	@printf "  %-26s %s\n" "make test-e2e-account" "Roda E2E autenticado"
@@ -51,6 +53,14 @@ help:
 	@printf "  %-26s %s\n" "make supabase-prod-db-push" "Aplica migrations remotas no CI"
 	@printf "  %-26s %s\n" "make clean" "Remove artefatos locais de build"
 	@printf "\n"
+
+require-free-e2e-port:
+	@if command -v ss >/dev/null 2>&1 && ss -ltn 2>/dev/null | grep -q ":$(E2E_PORT)[[:space:]]"; then \
+		printf "Erro: a porta $(E2E_PORT) esta ocupada.\n"; \
+		printf "O gate E2E reconstroi a aplicacao para testar o codigo atual.\n"; \
+		printf "Pare o servidor, ou use 'make test-e2e-reuse' para iterar sem evidencia.\n"; \
+		exit 2; \
+	fi
 
 require-npm:
 	@command -v $(NPM) >/dev/null 2>&1 || { \
@@ -117,8 +127,11 @@ test-account-operations: require-npm
 test-account-persistence: require-npm
 	$(NPM) run test -- tests/integration/account-persistence.test.ts tests/integration/database-v16-migration.test.ts tests/unit/account-operations.test.ts
 
-test-e2e: require-npm
+test-e2e: require-npm require-free-e2e-port
 	$(NPM) run test:e2e
+
+test-e2e-reuse: require-npm
+	TICK_E2E_REUSE_SERVER=1 $(NPM) run test:e2e -- $(args)
 
 test-e2e-mobile: require-npm
 	$(NPM) run test:e2e -- --project=mobile-chrome tests/e2e/mobile-layout.spec.ts
