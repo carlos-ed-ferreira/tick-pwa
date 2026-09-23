@@ -86,6 +86,29 @@ describe('useDebouncedInlineEdit', () => {
     expect(screen.getByLabelText('Text')).toHaveValue('Remote');
   });
 
+  it('keeps characters typed while its own save is in flight', () => {
+    const onSave = vi.fn();
+    const { rerender } = render(
+      <InlineEditHarness value="ab" onSave={onSave} />,
+    );
+
+    const input = screen.getByLabelText('Text');
+    fireEvent.change(input, { target: { value: 'abc' } });
+
+    act(() => vi.advanceTimersByTime(500));
+
+    expect(onSave).toHaveBeenCalledWith('abc');
+
+    fireEvent.change(input, { target: { value: 'abcd' } });
+    rerender(<InlineEditHarness value="abc" onSave={onSave} />);
+
+    expect(screen.getByLabelText('Text')).toHaveValue('abcd');
+
+    act(() => vi.advanceTimersByTime(500));
+
+    expect(onSave).toHaveBeenCalledWith('abcd');
+  });
+
   it('saves the pending text when the editor unmounts before the delay', () => {
     const onSave = vi.fn();
     const { unmount } = render(

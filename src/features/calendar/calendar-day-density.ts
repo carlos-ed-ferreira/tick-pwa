@@ -1,6 +1,7 @@
 export type CalendarDayDensity = 'comfortable' | 'compact';
 
 const compactCellWidthThreshold = 72;
+const compactWeekDayWidthThreshold = 48;
 const categoryDotSize = 10;
 const categoryDotGap = 8;
 const horizontalPaddingByDensity: Record<CalendarDayDensity, number> = {
@@ -10,6 +11,12 @@ const horizontalPaddingByDensity: Record<CalendarDayDensity, number> = {
 
 export function getCalendarDayDensity(cellWidth: number): CalendarDayDensity {
   return cellWidth > 0 && cellWidth < compactCellWidthThreshold
+    ? 'compact'
+    : 'comfortable';
+}
+
+export function getCalendarWeekDensity(dayWidth: number): CalendarDayDensity {
+  return dayWidth > 0 && dayWidth < compactWeekDayWidthThreshold
     ? 'compact'
     : 'comfortable';
 }

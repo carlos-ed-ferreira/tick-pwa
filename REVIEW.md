@@ -183,6 +183,69 @@ cor do processo. Eles não falham o gate atual.
 - restore real e alertas do fornecedor permanecem evidências externas e não são
   considerados aprovados pelo gate local.
 
+## Ratchet em 2026-09-14
+
+- Vitest: 79 arquivos e 565 testes aprovados;
+- workflow de produção ordena migrations antes do Deploy Hook e bloqueia o
+  disparo quando a `main` já avançou para outro SHA;
+- auditoria horária falha quando o histórico remoto de migrations diverge do
+  repositório e usa o mesmo aviso operacional do pipeline;
+- `make publish` só arma o auto-merge depois dos checks obrigatórios;
+- configuração do hook e comprovação do primeiro deploy continuam externas.
+
+## Ratchet em 2026-09-22
+
+- Vitest: 79 arquivos e 577 testes aprovados;
+- Playwright local: 33 testes aprovados e 7 ignorados;
+- marcador de seleção usa o primitive de checkbox compartilhado, com o mesmo
+  desenho e estado do checkbox de conclusão;
+- edição inline preserva os caracteres digitados enquanto a própria gravação
+  está em voo, e continua adotando alterações remotas quando não há rascunho
+  local;
+- exclusão em árvore deriva a subárvore por `parentId`, não por profundidade
+  visual da lista renderizada;
+- seleção preserva o estado anterior ao alternar itens e não é oferecida em
+  linhas que ainda são rascunho no checklist e nas metas;
+- snapshot remoto pagina por chave imutável, deduplica refreshes simultâneos do
+  mesmo escopo e captura o conjunto protegido dentro da transação de merge;
+- hover da scrollbar deixa de usar a cor de acento.
+
+## Ratchet em 2026-09-22 (composição de toque)
+
+- Vitest: 82 arquivos e 630 testes aprovados;
+- Playwright local: 39 aprovados e 17 ignorados, com a baseline de layout mobile
+  de 7 para 15 cenários;
+- a composição de toque é escolhida por
+  `(pointer: coarse) and (max-width: 899.98px)`, com fonte única em
+  `src/hooks/use-touch-composition.ts` e variante `touch` no `globals.css`;
+  nenhum utilitário base foi alterado, então o desenho de 640px para cima
+  permanece idêntico;
+- calendário de toque usa faixa de semana e agenda do dia, com a grade do mês em
+  folha inferior e sem consulta nova ao Dexie;
+- linha de tarefa e de etapa em toque expõe todas as ações por folha inferior,
+  com hora e data dentro dela;
+- `Dialog` ganhou `size`, focus trap, `aria-labelledby`, pilha de `Escape` e
+  contador de bloqueio de rolagem; `ConfirmationDialog` deixou de ocupar a tela
+  inteira no toque;
+- navegação de toque é a mesma lista do cabeçalho reposicionada no rodapé, com
+  reserva de espaço por `--app-bottom-nav-height` e safe area;
+- submenu de categoria das metas passou a ser clampado na viewport;
+- removidos a classe morta `.calendar-chip-muted` e a chave morta
+  `calendar.emptyDay`.
+
+## Ratchet em 2026-09-23
+
+- `next` 16.3.0 para 16.3.6, corrigindo duas execuções remotas de código
+  classificadas como críticas; `sharp` acompanhou para 0.35.4;
+- `baseline-browser-mapping` atualizado para 2.11.25 dentro do intervalo já
+  declarado;
+- `browserslist` fixado em 4.29.0 por `overrides`, porque `@serwist/next` fixa
+  a versão exata e nem a 9.5.12 sai do intervalo vulnerável; a exposição real é
+  de build, não de runtime, mas o gate não aceita advisory alto;
+- `make update-dependency package=<pacote>` passa a cobrir atualização de
+  dependência transitiva dentro do intervalo declarado;
+- `make audit-prod` volta a reportar zero vulnerabilidades.
+
 ## Matriz de quality gates
 
 | Gate               | Métrica e threshold                                                                 | Escopo                              | Estado         | Legado                                    | Bloqueia?                   |
@@ -211,7 +274,7 @@ cor do processo. Eles não falham o gate atual.
 | Performance        | p95 e bundle não pioram mais de 10% sem justificativa                               | caminho medido                      | planned        | baseline por cenário                      | sim após estabilidade       |
 | Local-first        | nenhum dado perdido; retry idempotente; reconexão converge                          | persistência alterada               | manual/planned | limitações no IMPLEMENTATION              | sim quando aplicável        |
 | i18n               | tipos válidos e chaves pt/en presentes; 0 string nova fora do mecanismo             | UI alterada                         | manual         | shape tipado já existe                    | sim quando aplicável        |
-| UI responsiva      | cenários mobile e desktop aprovados                                                 | UI alterada                         | enforced no CI | manter baseline de 7 no layout mobile     | sim quando aplicável        |
+| UI responsiva      | cenários mobile e desktop aprovados                                                 | UI alterada                         | enforced no CI | manter baseline de 15 no layout mobile    | sim quando aplicável        |
 
 `make check` é o gate local. O App CI acrescenta `make audit-prod`, o job de
 banco e o job de E2E. Coverage, segurança, complexidade e performance continuam
@@ -326,7 +389,8 @@ Para UI alterada, registrar viewport mobile e desktop e verificar:
 - loading, vazio, erro e indisponibilidade de rede;
 - contraste, semântica e nome acessível;
 - consistência com primitives, tokens e terminologia;
-- ausência de bordas, caixas e cards aninhados sem função.
+- ausência de bordas, caixas e cards aninhados sem função;
+- composição de toque própria validada nos dois desenhos, sem alterar o desktop.
 
 Screenshot isolado não substitui interação. Mudança visual relevante deve ter
 evidência nos dois tamanhos; layout mobile próprio exige testes dos dois

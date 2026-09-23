@@ -78,22 +78,52 @@ O produto é mobile-first e mantém uma única linguagem visual nos dois tamanho
 Cores, tokens, superfícies, sombras, tipografia e primitives são idênticos em
 mobile e desktop; o que muda é densidade, área de toque e composição.
 
-A adaptação usa dois sinais, e não breakpoints novos que alterem o desktop:
+A adaptação usa os sinais de capacidade e de largura, e não breakpoints novos
+que alterem o desktop:
 
 - capacidade do ponteiro, por `(pointer: coarse)`, para comportamento de
   interação e área de toque;
-- largura real medida em runtime, para densidade do calendário.
+- largura real medida em runtime, para densidade do calendário;
+- a conjunção dos dois, `(pointer: coarse) and (max-width: 899.98px)`, para
+  escolher a composição de toque.
+
+A consulta de composição tem uma fonte única, `touchCompositionQuery` em
+`src/hooks/use-touch-composition.ts`, espelhada em `globals.css` pela variante
+`touch` do Tailwind. Como ela nunca casa com ponteiro fino, o desenho de 640px
+para cima fica inalterado por construção. Celular em pé e deitado recebem a
+composição de toque; tablet e notebook com tela sensível acima de 900px
+continuam no desenho desktop.
 
 Convenções em vigor:
 
-| Sinal                      | Onde                               | Efeito                                              |
-| -------------------------- | ---------------------------------- | --------------------------------------------------- |
-| `useCoarsePointer`         | `src/hooks/use-coarse-pointer.ts`  | toque abre o dia; drag de árvore por ponteiro       |
-| `@media (pointer: coarse)` | `src/app/globals.css`              | área de toque de 44px e descrição sempre visível    |
-| `.touch-target`            | primitives `Button` e `IconButton` | amplia só a área de acerto, sem mudar o desenho     |
-| `getCalendarDayDensity`    | `src/features/calendar`            | célula do calendário compacta abaixo de 72px        |
-| `sm:` restaurando o valor  | composições mobile                 | preserva o desenho desktop existente                |
-| `.app-safe-padding`        | shells de página                   | respeita `env(safe-area-inset-*)` com `viewportFit` |
+| Sinal                      | Onde                                 | Efeito                                               |
+| -------------------------- | ------------------------------------ | ---------------------------------------------------- |
+| `useTouchComposition`      | `src/hooks/use-touch-composition.ts` | escolhe a composição de toque                        |
+| variante `touch:`          | utilitários Tailwind                 | override de toque sobre a base desktop               |
+| `useCoarsePointer`         | `src/hooks/use-coarse-pointer.ts`    | toque abre o dia; drag de árvore por ponteiro        |
+| `@media (pointer: coarse)` | `src/app/globals.css`                | área de toque de 44px e descrição sempre visível     |
+| `.touch-target`            | primitives `Button` e `IconButton`   | amplia só a área de acerto, sem mudar o desenho      |
+| `getCalendarDayDensity`    | `src/features/calendar`              | célula do calendário compacta abaixo de 72px         |
+| `getCalendarWeekDensity`   | `src/features/calendar`              | dia da faixa de semana compacto abaixo de 48px       |
+| `--app-bottom-nav-height`  | `src/app/globals.css`                | reserva o espaço da barra inferior; `0px` no desktop |
+| `sm:` restaurando o valor  | composições mobile legadas           | preserva o desenho desktop existente                 |
+| `.app-safe-padding`        | shells de página                     | respeita `env(safe-area-inset-*)` com `viewportFit`  |
+
+Para código novo, a regra de escrita é **base igual ao desktop atual e `touch:`
+como override**; `sm:` restaurando o valor continua válido no que já existe.
+
+Três composições próprias de toque:
+
+- **Calendário**: faixa de semana rolável mais a agenda do dia selecionado
+  (`calendar-week-view.tsx`). A grade do mês continua existindo e abre em folha
+  inferior pelo controle de visão de mês. O dia selecionado é persistido por
+  escopo em preferência local, sem consulta nova: a semana é derivada do mesmo
+  range de 42 dias que o mês visível já carrega.
+- **Linha de tarefa e de etapa**: checkbox, texto, alça de arrasto e `⋯`. Todas
+  as demais ações, inclusive hora e data, vivem em `TaskTreeRowActionsSheet`,
+  com alvos de 44px e categoria sem depender de hover.
+- **Shell**: cabeçalho de uma linha e navegação fixa no rodapé, com categorias
+  e idioma em folha inferior.
 
 Regras derivadas:
 
@@ -103,8 +133,9 @@ Regras derivadas:
 - reordenação de árvore funciona por HTML5 drag no mouse e por Pointer Events
   no toque, com o mesmo contrato de placement em `tree-touch-drag.ts`;
 - `interactiveWidget: 'resizes-content'` no viewport para o teclado virtual;
-- composição mobile própria só quando comprimir o desktop não atende, sempre
-  restaurando o desenho desktop a partir de `sm:`.
+- folha inferior é `Dialog size="sheet"`, limitada a `85dvh` e com rolagem
+  própria, para o teclado virtual não empurrar o conteúdo para fora;
+- composição mobile própria só quando comprimir o desktop não atende.
 
 ### Fluxo de leitura e escrita
 
@@ -112,9 +143,11 @@ No modo local, a UI lê do IndexedDB e os comandos confirmam as alterações em
 transações Dexie. Nenhuma entidade do usuário é enviada ao Supabase.
 
 No modo autenticado, o app baixa snapshots das tabelas da conta para um cache
-Dexie. Os snapshots são paginados em blocos de 1.000 linhas, ordenados por
-revisão e identificador, e só reconciliam exclusões depois que todas as páginas
-terminam com sucesso. No rollout controlado, a alteração funcional e seu lote
+Dexie. Os snapshots são paginados em blocos de 1.000 linhas, ordenados apenas
+pelo identificador, que é imutável, e só reconciliam exclusões depois que todas
+as páginas terminam com sucesso. Refreshes simultâneos do mesmo escopo
+compartilham uma única leitura remota, e o conjunto protegido de entidades
+pendentes é calculado dentro da transação de merge. No rollout controlado, a alteração funcional e seu lote
 remoto são gravados atomicamente no IndexedDB. A outbox preserva o mesmo
 `operation_id` entre reloads, mantém a ordem, agrupa até 100 mutações e envia
 uma RPC transacional; falhas continuam visíveis e podem ser reenviadas. Contas
@@ -227,7 +260,7 @@ quando o Supabase está indisponível.
 | Linguagem          | TypeScript 5, configuração `strict`                           |
 | Runtime            | Node.js `>=20.9.0`                                            |
 | Package manager    | npm, lockfile v3                                              |
-| Framework          | Next.js 16.3.0, App Router e React 19.2.4                     |
+| Framework          | Next.js 16.3.6, App Router e React 19.2.4                     |
 | UI                 | Tailwind CSS 4, Lucide e React Icons                          |
 | PWA                | Serwist 9                                                     |
 | Banco local        | IndexedDB com Dexie 4                                         |
@@ -397,6 +430,7 @@ O deploy de migrations usa secrets do ambiente GitHub `production`:
 SUPABASE_PROJECT_REF=
 SUPABASE_ACCESS_TOKEN=
 SUPABASE_DB_PASSWORD=
+VERCEL_DEPLOY_HOOK_URL=
 ```
 
 Esses valores são configurados fora do repositório. Nunca os adicione a um
@@ -424,9 +458,10 @@ desabilitado. A aplicação usa HTTP/REST pelo cliente Supabase e não mantém u
 conexão PostgreSQL direta.
 
 Comandos de produção são bloqueados pelo wrapper fora do GitHub Actions. O
-workflow de migrations faz repair do histórico conhecido, dry-run e push. Ele
-depende do quality gate aprovado do mesmo SHA. A ordenação entre migrations e o
-deploy externo da Vercel ainda é uma lacuna registrada no passo 5 do
+workflow de produção faz repair do histórico conhecido, dry-run, push e só
+então dispara o Deploy Hook da Vercel. Ele depende do quality gate aprovado do
+mesmo SHA e falha se a `main` avançar antes do disparo. A configuração e o
+ensaio externo permanecem no passo 5 do
 `docs/planning/implementation-plan.md`.
 
 ## APIs e serviços externos
@@ -486,6 +521,7 @@ Supabase:
 | lint            | `make supabase-lint`                        |
 | pgTAP           | `make supabase-test-db`                     |
 | tipos           | `make supabase-types-local`                 |
+| histórico prod. | `make supabase-prod-migrations-check`       |
 
 `make check` executa typecheck, lint, Vitest, format-check e build. E2E e
 validações de banco são separados. Os critérios de aprovação e gates
@@ -519,13 +555,14 @@ SHA reprovado em banco ou E2E não alcança a `main`. Quando um push na `main`
 falha, o job `Report failed run` abre a issue `App CI falhou na main` com o
 rótulo `ci-failure`, atribuída ao dono do repositório, e comenta o link do run
 nas falhas seguintes enquanto a issue continuar aberta; execuções bem-sucedidas
-e pull requests não geram aviso. O workflow de migrations usa a mesma action
-composta `.github/actions/report-failure` com o rótulo `migration-failure`. Os
-dois avisos cobrem apenas execução que falhou: pipeline que nunca começa ainda
-não é detectado, conforme o passo 5 de `docs/planning/implementation-plan.md`. `.github/workflows/supabase-migrations.yml` só aceita
-o SHA de um `App CI` aprovado na `main`; execução manual roda o mesmo quality
-gate antes de acessar o environment `production`. O workflow registra o SHA,
-detecta mudanças de banco, faz dry-run e então aplica migrations.
+e pull requests não geram aviso. O workflow de produção usa a mesma action
+composta com o rótulo `pipeline-failure` para migrations, deploy e auditoria.
+Uma execução horária compara o histórico remoto de migrations com o
+repositório e detecta eventos de publicação perdidos assim que o GitHub Actions
+volta a operar. `.github/workflows/supabase-migrations.yml` só aceita o SHA de
+um `App CI` aprovado na `main`; execução manual roda o mesmo quality gate antes
+de acessar o environment `production`. O workflow registra o SHA, detecta
+mudanças de banco, aplica migrations e depois dispara o Deploy Hook da Vercel.
 
 O workflow `Production backup`, desabilitado até a configuração externa, gera
 diariamente um dump lógico, cifra-o antes do upload e mantém somente o artefato
@@ -534,9 +571,9 @@ estão no [runbook operacional](docs/operations/observability-backup-restore.md)
 
 A publicação cotidiana parte da branch `dev`. Depois de criar o commit, execute
 `make publish`. O comando exige worktree limpo, envia `dev`, cria ou reutiliza
-o pull request para `main`, silencia as notificações desse pull request para o
-autor e habilita squash automático. O comando aguarda o check obrigatório
-`Check app`, continua aguardando enquanto o pull request estiver aberto,
+o pull request para `main` e silencia as notificações desse pull request para o
+autor. O comando aguarda os checks obrigatórios, só então habilita squash
+automático, continua aguardando enquanto o pull request estiver aberto,
 confirma o merge e reconcilia `dev` com a nova `main` para preparar a publicação
 seguinte. Um estado terminal diferente de merge encerra o comando com erro. Não
 faça push direto para `main` nem
@@ -569,6 +606,7 @@ pode permanecer em português.
 - [.agents/skills](.agents/skills): workflows reutilizáveis para agentes;
 - [docs/guides/calendar-task-json-import.md](docs/guides/calendar-task-json-import.md): guia funcional e contrato da importação JSON do calendário;
 - [docs/operations/incidents/2026-08-31-supabase-wal-read-only.md](docs/operations/incidents/2026-08-31-supabase-wal-read-only.md): incidente de saturação, WAL e modo somente leitura do Supabase;
+- [docs/operations/external-production-runbook.md](docs/operations/external-production-runbook.md): passo a passo das configurações externas de produção, com o que exige segunda máquina, aparelho ou pessoa;
 
 `docs/planning/implementation-plan.md` é a fonte canônica e completa do backlog técnico. Os
 documentos em `docs/` existem somente para contratos específicos que não

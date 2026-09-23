@@ -2,37 +2,24 @@
 
 import {
   CalendarDays,
+  CalendarRange,
   ChevronLeft,
   ChevronRight,
   FileJson,
+  MoreHorizontal,
   Plus,
   Trash2,
 } from 'lucide-react';
-import {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-  type CSSProperties,
-} from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { IconButton } from '@/components/ui';
+import { BottomSheet, BottomSheetAction, IconButton } from '@/components/ui';
 import { useCategoryTags } from '@/features/categories';
 import { BulkCalendarEditor } from '@/features/calendar/bulk-calendar-editor';
 import { CalendarImportDialog } from '@/features/calendar/calendar-import-dialog';
 import { DayDetail } from '@/features/day-editor';
-import {
-  useMonthDayPreviews,
-  type DayItemPreview,
-} from '@/features/calendar/use-month-day-previews';
-import type {
-  DailyEntry,
-  DailyEntryCategorySummary,
-  LocalDateString,
-} from '@/lib/domain';
-import { formatCountLabel, formatMonthLabel } from '@/lib/i18n';
+import { useMonthDayPreviews } from '@/features/calendar/use-month-day-previews';
+import type { DailyEntry, LocalDateString } from '@/lib/domain';
+import { formatMonthLabel } from '@/lib/i18n';
 import {
   createLocalDateKey,
   createMonthGrid,
@@ -41,12 +28,12 @@ import {
   parseLocalDateKey,
 } from '@/lib/time';
 import { useCoarsePointer } from '@/hooks/use-coarse-pointer';
+import { useTouchComposition } from '@/hooks/use-touch-composition';
 import { useAppContext } from '@/providers';
-import {
-  getCalendarDayDensity,
-  getVisibleCategoryLimit,
-  type CalendarDayDensity,
-} from './calendar-day-density';
+import { CalendarMonthGrid } from './calendar-month-grid';
+import { CalendarMonthSheet } from './calendar-month-sheet';
+import { CalendarWeekView } from './calendar-week-view';
+import { useCalendarSelectedDay } from './use-calendar-selected-day';
 import { useMonthEntries } from './use-month-entries';
 import { useCalendarVisibleMonth } from './use-calendar-visible-month';
 
@@ -95,71 +82,6 @@ function entriesByDate(
   return new Map(entries.map((entry) => [entry.date, entry]));
 }
 
-const ignoredProgressFillStyle: CSSProperties = {
-  backgroundColor: 'rgba(192, 199, 209, 0.46)',
-};
-
-function getProgressTone(completedRatio: number) {
-  if (completedRatio >= 1) {
-    return {
-      badgeStyle: {
-        color: '#15803d',
-        backgroundColor: 'rgba(34, 197, 94, 0.14)',
-        '--calendar-chip-edge': 'rgba(34, 197, 94, 0.22)',
-      },
-      trackStyle: {
-        backgroundColor: 'rgba(34, 197, 94, 0.16)',
-      },
-      fillStyle: {
-        background: 'linear-gradient(90deg, #4ade80 0%, #22c55e 100%)',
-        boxShadow: '0 0 14px rgba(34, 197, 94, 0.28)',
-      },
-    };
-  }
-
-  if (completedRatio > 0) {
-    return {
-      badgeStyle: {
-        color: '#b45309',
-        backgroundColor: 'rgba(245, 158, 11, 0.14)',
-        '--calendar-chip-edge': 'rgba(245, 158, 11, 0.24)',
-      },
-      trackStyle: {
-        backgroundColor: 'rgba(245, 158, 11, 0.16)',
-      },
-      fillStyle: {
-        background: 'linear-gradient(90deg, #fcd34d 0%, #f59e0b 100%)',
-        boxShadow: '0 0 14px rgba(245, 158, 11, 0.24)',
-      },
-    };
-  }
-
-  return {
-    badgeStyle: {
-      color: 'var(--muted)',
-      backgroundColor: 'rgba(113, 113, 122, 0.12)',
-      '--calendar-chip-edge': 'rgba(113, 113, 122, 0.18)',
-    },
-    trackStyle: {
-      backgroundColor: 'rgba(113, 113, 122, 0.14)',
-    },
-    fillStyle: {
-      background: 'linear-gradient(90deg, #a1a1aa 0%, #71717a 100%)',
-      boxShadow: 'none',
-    },
-  };
-}
-
-function isCategoryComplete(
-  summary: DailyEntryCategorySummary | undefined,
-): boolean {
-  return Boolean(
-    summary &&
-    summary.itemCount > 0 &&
-    summary.completedCount >= summary.itemCount,
-  );
-}
-
 export function CalendarMonth() {
   const { dictionary, locale, scope, timezonePreference } = useAppContext();
   const pathname = usePathname();
@@ -180,6 +102,8 @@ export function CalendarMonth() {
     'create' | 'clear' | null
   >(null);
   const [isImportOpen, setIsImportOpen] = useState(false);
+  const [isMonthSheetOpen, setIsMonthSheetOpen] = useState(false);
+  const [isActionsSheetOpen, setIsActionsSheetOpen] = useState(false);
   const currentMonth = createMonthKey(todayYear, todayMonthIndex);
   const { selectVisibleMonth, visibleMonth } = useCalendarVisibleMonth(
     scope,
@@ -190,14 +114,17 @@ export function CalendarMonth() {
   const [selectedDay, setSelectedDay] = useState<LocalDateString | null>(
     todayKey,
   );
-  const activeDay = openDayDate ?? selectedDay ?? todayKey;
+  const isTouchComposition = useTouchComposition();
+  const { selectPersistedDay, selectedDay: persistedDay } =
+    useCalendarSelectedDay(scope, todayKey);
+  const activeDay =
+    openDayDate ??
+    (isTouchComposition ? persistedDay : (selectedDay ?? todayKey));
   const entries = useMonthEntries(scope, visibleMonth);
   const dayPreviews = useMonthDayPreviews(scope, entries);
   const categoryTags = useCategoryTags(scope, 'checklist_item');
   const isCoarsePointer = useCoarsePointer();
-  const gridRef = useRef<HTMLDivElement | null>(null);
   const monthStripRef = useRef<HTMLDivElement | null>(null);
-  const [dayCellWidth, setDayCellWidth] = useState(0);
   const entryMap = useMemo(() => entriesByDate(entries), [entries]);
   const categoryTagMap = useMemo(
     () => new Map(categoryTags.map((tag) => [tag.id, tag])),
@@ -207,32 +134,6 @@ export function CalendarMonth() {
     () => createMonthGrid(visibleMonth),
     [visibleMonth],
   );
-  const visibleCategoryLimit = getVisibleCategoryLimit(dayCellWidth);
-  const dayDensity = getCalendarDayDensity(dayCellWidth);
-
-  useLayoutEffect(() => {
-    const grid = gridRef.current;
-
-    if (!grid) {
-      return;
-    }
-
-    const measureDayCell = () =>
-      setDayCellWidth(grid.getBoundingClientRect().width / 7);
-
-    measureDayCell();
-
-    if (typeof ResizeObserver === 'undefined') {
-      window.addEventListener('resize', measureDayCell);
-
-      return () => window.removeEventListener('resize', measureDayCell);
-    }
-
-    const observer = new ResizeObserver(measureDayCell);
-    observer.observe(grid);
-
-    return () => observer.disconnect();
-  }, [openDayDate]);
   const monthLabel = formatMonthLabel(
     createMonthLabelDate(visibleMonth),
     locale,
@@ -269,9 +170,25 @@ export function CalendarMonth() {
     },
     [pathname, router, searchParams, setOpenDayOverride, setSelectedDay],
   );
-  const selectDay = useCallback((date: LocalDateString) => {
-    setSelectedDay(date);
-  }, []);
+  const selectDay = useCallback(
+    (date: LocalDateString) => {
+      setSelectedDay(date);
+
+      const { year, monthIndex } = getMonthParts(date);
+      const dayMonth = createMonthKey(year, monthIndex);
+
+      if (!isTouchComposition) {
+        return;
+      }
+
+      if (dayMonth !== visibleMonth) {
+        selectVisibleMonth(dayMonth);
+      }
+
+      selectPersistedDay(date);
+    },
+    [isTouchComposition, selectPersistedDay, selectVisibleMonth, visibleMonth],
+  );
 
   useEffect(() => {
     const strip = monthStripRef.current;
@@ -331,18 +248,36 @@ export function CalendarMonth() {
                   {periodLabel}
                 </h2>
               </div>
+              <span className="hidden shrink-0 touch:inline-flex">
+                <IconButton
+                  aria-label={dictionary.calendar.openMonth}
+                  className="size-8 rounded-full text-[#cbd5e0] hover:bg-white/8 hover:text-[#fff9f2] focus-visible:outline-[#f7d9b0]"
+                  onClick={() => setIsMonthSheetOpen(true)}
+                >
+                  <CalendarRange aria-hidden="true" className="size-4" />
+                </IconButton>
+              </span>
+              <span className="ml-auto hidden shrink-0 touch:inline-flex">
+                <IconButton
+                  aria-label={dictionary.calendar.moreActions}
+                  className="size-8 rounded-full text-[#cbd5e0] hover:bg-white/8 hover:text-[#fff9f2] focus-visible:outline-[#f7d9b0]"
+                  onClick={() => setIsActionsSheetOpen(true)}
+                >
+                  <MoreHorizontal aria-hidden="true" className="size-4" />
+                </IconButton>
+              </span>
             </div>
 
             <div
               aria-label={dictionary.calendar.today}
-              className="flex h-8 w-fit items-center gap-1 rounded-full inset-ring-hairline inset-ring-white/10 bg-white/4 px-1 shadow-sm shadow-[#253241]/10"
+              className="flex h-8 w-fit items-center gap-1 rounded-full touch:hidden inset-ring-hairline inset-ring-white/10 bg-white/4 px-1 shadow-sm shadow-[#253241]/10"
             >
               <button
                 type="button"
                 className="inline-flex h-7 items-center rounded-full px-3 text-sm font-medium text-[#cbd5e0] transition hover:bg-white/8 hover:text-[#fff9f2] active:bg-white/12 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0]"
                 onClick={() => {
                   selectVisibleMonth(currentMonth);
-                  setSelectedDay(todayKey);
+                  selectDay(todayKey);
                 }}
               >
                 {dictionary.calendar.today}
@@ -376,7 +311,7 @@ export function CalendarMonth() {
             </div>
           </div>
 
-          <div className="flex flex-col gap-2 xl:flex-row xl:items-center xl:justify-between">
+          <div className="flex flex-col gap-2 touch:hidden xl:flex-row xl:items-center xl:justify-between">
             <div
               ref={monthStripRef}
               role="tablist"
@@ -405,7 +340,7 @@ export function CalendarMonth() {
               ))}
             </div>
 
-            <div className="flex shrink-0 flex-wrap items-center gap-2">
+            <div className="flex shrink-0 flex-wrap items-center gap-2 touch:hidden">
               <button
                 type="button"
                 className="group inline-flex h-9 items-center gap-2 rounded-[0.75rem] inset-ring-hairline inset-ring-[#f8d7aa]/70 bg-[#f0c38e] pl-1.5 pr-3 text-left text-[#253241] shadow-md shadow-[#f0c38e]/18 transition hover:inset-ring-[#ffe0b8] hover:bg-[#f5d09f] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e] disabled:cursor-not-allowed disabled:opacity-65"
@@ -446,37 +381,84 @@ export function CalendarMonth() {
           </div>
         </header>
 
-        <div className="grid grid-cols-7 border-y border-white/8 bg-white/4 text-center text-[0.68rem] font-medium uppercase tracking-[0.28em] text-[#aebac8]">
-          {dictionary.calendar.weekdays.map((weekday) => (
-            <div key={weekday} className="px-2 py-1.5">
-              {weekday}
-            </div>
-          ))}
-        </div>
-
-        <div
-          ref={gridRef}
-          className="calendar-day-grid grid min-h-0 flex-1 grid-cols-7 auto-rows-fr"
-        >
-          {monthGrid.map((day) => (
-            <DayCell
-              key={day.date}
-              date={day.date}
-              density={dayDensity}
-              entry={entryMap.get(day.date) ?? null}
-              categoryTagMap={categoryTagMap}
-              dayPreview={dayPreviews.get(day.date) ?? null}
-              opensOnSingleTap={isCoarsePointer}
-              visibleCategoryLimit={visibleCategoryLimit}
-              inCurrentMonth={day.inCurrentMonth}
-              isSelected={activeDay === day.date}
-              isToday={todayKey === day.date}
-              onOpenDay={openDay}
-              onSelectDay={selectDay}
-            />
-          ))}
-        </div>
+        {isTouchComposition ? (
+          <CalendarWeekView
+            activeDay={activeDay}
+            categoryTagMap={categoryTagMap}
+            dayPreviews={dayPreviews}
+            entryMap={entryMap}
+            todayKey={todayKey}
+            visibleMonth={visibleMonth}
+            onSelectDay={selectDay}
+          />
+        ) : (
+          <CalendarMonthGrid
+            activeDay={activeDay}
+            categoryTagMap={categoryTagMap}
+            dayPreviews={dayPreviews}
+            entryMap={entryMap}
+            monthGrid={monthGrid}
+            opensOnSingleTap={isCoarsePointer}
+            todayKey={todayKey}
+            onOpenDay={openDay}
+            onSelectDay={selectDay}
+          />
+        )}
       </section>
+      <CalendarMonthSheet
+        activeDay={activeDay}
+        categoryTagMap={categoryTagMap}
+        dayPreviews={dayPreviews}
+        entryMap={entryMap}
+        monthGrid={monthGrid}
+        open={isMonthSheetOpen}
+        periodLabel={periodLabel}
+        todayKey={todayKey}
+        onClose={() => setIsMonthSheetOpen(false)}
+        onSelectDay={(date) => {
+          selectDay(date);
+          setIsMonthSheetOpen(false);
+        }}
+        onSelectMonthOffset={(monthOffset) =>
+          selectVisibleMonth(
+            createMonthKey(visibleYear, visibleMonthIndex + monthOffset),
+          )
+        }
+      />
+      <BottomSheet
+        closeLabel={dictionary.actions.cancel}
+        open={isActionsSheetOpen}
+        title={dictionary.calendar.moreActions}
+        onClose={() => setIsActionsSheetOpen(false)}
+      >
+        <BottomSheetAction
+          icon={<Plus aria-hidden="true" className="size-4 text-[#f0c38e]" />}
+          onSelect={() => {
+            setIsActionsSheetOpen(false);
+            setBulkEditorMode('create');
+          }}
+        >
+          {dictionary.calendar.bulkCreate}
+        </BottomSheetAction>
+        <BottomSheetAction
+          icon={<FileJson aria-hidden="true" className="size-4" />}
+          onSelect={() => {
+            setIsActionsSheetOpen(false);
+            setIsImportOpen(true);
+          }}
+        >
+          {dictionary.calendar.importCreate}
+        </BottomSheetAction>
+        <BottomSheetAction
+          icon={<Trash2 aria-hidden="true" className="size-4" />}
+          onSelect={() => {
+            setIsActionsSheetOpen(false);
+            setBulkEditorMode('clear');
+          }}
+        >
+          {dictionary.calendar.bulkClear}
+        </BottomSheetAction>
+      </BottomSheet>
       <BulkCalendarEditor
         mode={bulkEditorMode ?? 'create'}
         open={bulkEditorMode !== null}
@@ -487,208 +469,5 @@ export function CalendarMonth() {
         onClose={() => setIsImportOpen(false)}
       />
     </>
-  );
-}
-
-function DayCell({
-  date,
-  dayPreview,
-  density,
-  entry,
-  categoryTagMap,
-  inCurrentMonth,
-  isSelected,
-  isToday,
-  onOpenDay,
-  onSelectDay,
-  opensOnSingleTap,
-  visibleCategoryLimit,
-}: {
-  date: LocalDateString;
-  dayPreview: DayItemPreview | null;
-  density: CalendarDayDensity;
-  entry: DailyEntry | null;
-  categoryTagMap: Map<string, { colorHex: string }>;
-  inCurrentMonth: boolean;
-  isSelected: boolean;
-  isToday: boolean;
-  onOpenDay: (date: LocalDateString) => void;
-  onSelectDay: (date: LocalDateString) => void;
-  opensOnSingleTap: boolean;
-  visibleCategoryLimit: number;
-}) {
-  const { dictionary } = useAppContext();
-  const parsedDate = parseLocalDateKey(date);
-  const completedRatio =
-    entry && entry.itemCount > 0 ? entry.completedCount / entry.itemCount : 0;
-  const categoryTagIds =
-    dayPreview?.categoryTagIds ?? entry?.categoryTagIds ?? [];
-  const ignoredCount = dayPreview?.ignoredCount ?? 0;
-  const visibleCategoryTagIds =
-    categoryTagIds.length > visibleCategoryLimit
-      ? categoryTagIds.slice(0, Math.max(1, visibleCategoryLimit - 1))
-      : categoryTagIds;
-  const hiddenCategoryCount =
-    categoryTagIds.length - visibleCategoryTagIds.length;
-  const categorySummaryMap = new Map(
-    (entry?.categorySummaries ?? []).map((summary) => [
-      summary.categoryTagId,
-      summary,
-    ]),
-  );
-  const progressTone = getProgressTone(completedRatio);
-  const isCompact = density === 'compact';
-
-  return (
-    <button
-      type="button"
-      aria-pressed={isSelected}
-      className={`group calendar-day-cell flex flex-col text-left ${
-        inCurrentMonth || isSelected
-          ? 'bg-[rgba(255,255,255,0.012)] hover:bg-[rgba(255,255,255,0.045)]'
-          : 'bg-transparent text-[#6a7a8b] opacity-40 hover:bg-[rgba(255,255,255,0.03)] hover:opacity-80'
-      } ${
-        isSelected
-          ? 'relative z-10 border-[#f3d2aa]/40 bg-[linear-gradient(180deg,rgba(240,195,142,0.14),rgba(255,255,255,0.025))] shadow-[inset_0_0_0_1px_rgba(243,210,170,0.6),0_0_0_1px_rgba(243,210,170,0.12),0_18px_28px_rgba(5,8,13,0.18)]'
-          : 'shadow-none'
-      }`}
-      onClick={() => {
-        if (opensOnSingleTap) {
-          onOpenDay(date);
-          return;
-        }
-
-        onSelectDay(date);
-      }}
-      onDoubleClick={() => onOpenDay(date)}
-    >
-      <span
-        className={`calendar-day-number ${
-          isSelected
-            ? 'bg-[#f7e1bc] text-[#253241] shadow-[0_8px_18px_rgba(240,195,142,0.2)]'
-            : isToday
-              ? 'bg-white/10 text-[#f7e1bc] inset-ring-hairline inset-ring-[#f7e1bc]/35'
-              : 'bg-transparent text-inherit'
-        }`}
-      >
-        {parsedDate.getDate()}
-      </span>
-
-      <div
-        className={`mt-auto flex flex-col ${
-          isCompact ? 'gap-1.5 pt-1' : 'gap-2.5 pt-2'
-        }`}
-      >
-        {entry && (entry.itemCount > 0 || ignoredCount > 0) ? (
-          <span
-            className={`flex flex-col text-xs ${isCompact ? 'gap-1' : 'gap-2'}`}
-          >
-            <span
-              className={
-                isCompact
-                  ? 'flex flex-col items-start gap-1'
-                  : 'flex flex-wrap items-center gap-1.5'
-              }
-            >
-              {entry.itemCount > 0 ? (
-                <span
-                  className="calendar-chip px-2 py-0.5 text-[11px] font-semibold leading-none tabular-nums text-[#f7e8ce]"
-                  style={progressTone.badgeStyle}
-                >
-                  {entry.completedCount}/{entry.itemCount}
-                </span>
-              ) : null}
-              {ignoredCount > 0 ? (
-                <>
-                  {!isCompact && entry.itemCount > 0 ? (
-                    <span
-                      aria-hidden="true"
-                      className="text-[10px] text-[#63748a]"
-                    >
-                      ·
-                    </span>
-                  ) : null}
-                  <span className="text-[10px] font-medium leading-none tabular-nums text-[#8fa0b3]">
-                    {formatCountLabel({
-                      count: ignoredCount,
-                      plural: dictionary.calendar.ignoredItems,
-                      singular: dictionary.calendar.ignoredItem,
-                    })}
-                  </span>
-                </>
-              ) : null}
-            </span>
-            <span
-              className="flex h-1.5 w-full overflow-hidden rounded-full bg-white/6"
-              data-testid="calendar-day-progress-track"
-              style={progressTone.trackStyle}
-            >
-              {entry.itemCount > 0 ? (
-                <span
-                  className="block min-w-0 basis-0 overflow-hidden"
-                  data-testid="calendar-day-progress-counted-segment"
-                  style={{ flexGrow: entry.itemCount }}
-                >
-                  <span
-                    className="block h-full rounded-full transition-[width] duration-200"
-                    data-testid="calendar-day-progress-fill"
-                    style={{
-                      ...progressTone.fillStyle,
-                      width: `${Math.round(completedRatio * 100)}%`,
-                    }}
-                  />
-                </span>
-              ) : null}
-              {ignoredCount > 0 ? (
-                <span
-                  className="block min-w-0 basis-0"
-                  data-testid="calendar-day-progress-ignored-segment"
-                  style={{
-                    ...ignoredProgressFillStyle,
-                    flexGrow: ignoredCount,
-                  }}
-                />
-              ) : null}
-            </span>
-          </span>
-        ) : null}
-
-        {categoryTagIds.length > 0 ? (
-          <span
-            className="flex items-center gap-2 pb-0.5"
-            data-testid="calendar-day-categories"
-          >
-            {visibleCategoryTagIds.map((categoryTagId) =>
-              (() => {
-                const colorHex = categoryTagMap.get(categoryTagId)?.colorHex;
-                const completed = isCategoryComplete(
-                  categorySummaryMap.get(categoryTagId),
-                );
-
-                return (
-                  <span
-                    key={categoryTagId}
-                    className="size-2.5 shrink-0 rounded-full inset-ring-hairline inset-ring-white/35 transition-opacity"
-                    style={{
-                      backgroundColor: colorHex,
-                      opacity: completed ? 1 : 0.28,
-                      boxShadow:
-                        completed && colorHex
-                          ? `0 0 0 1px rgba(255, 255, 255, 0.28), 0 0 10px ${colorHex}33`
-                          : 'none',
-                    }}
-                  />
-                );
-              })(),
-            )}
-            {hiddenCategoryCount > 0 ? (
-              <span className="text-[10px] font-semibold leading-none text-[#aebac8]">
-                +{hiddenCategoryCount}
-              </span>
-            ) : null}
-          </span>
-        ) : null}
-      </div>
-    </button>
   );
 }

@@ -65,7 +65,10 @@ import {
 } from '@/lib/domain';
 import { formatCountLabel, formatSelectionLabel } from '@/lib/i18n';
 import { useAppContext } from '@/providers';
-import type { VisibleChecklistRow } from './checklist-tree';
+import {
+  collectChecklistSubtreeRowIds,
+  type VisibleChecklistRow,
+} from './checklist-tree';
 import { useChecklistTree } from './use-checklist-tree';
 
 const checklistInputSelector = '[data-checklist-input="true"]';
@@ -261,33 +264,6 @@ function insertChecklistDraftRows(
   );
 }
 
-function collectDeletedChecklistRowIds(
-  rows: ChecklistSurfaceRow[],
-  itemId: string,
-): Set<string> {
-  const deletedIds = new Set<string>();
-  const startIndex = rows.findIndex((row) => row.item.id === itemId);
-
-  if (startIndex === -1) {
-    deletedIds.add(itemId);
-    return deletedIds;
-  }
-
-  const rootDepth = rows[startIndex].depth;
-
-  for (let index = startIndex; index < rows.length; index += 1) {
-    const row = rows[index];
-
-    if (index > startIndex && row.depth <= rootDepth) {
-      break;
-    }
-
-    deletedIds.add(row.item.id);
-  }
-
-  return deletedIds;
-}
-
 function pruneChecklistDraftItems(
   drafts: ChecklistDraftItem[],
   deletedIds: ReadonlySet<string>,
@@ -448,7 +424,7 @@ export function ChecklistSurface({ dailyEntryId }: { dailyEntryId: string }) {
   const deleteSelectedItem = useCallback(
     async (itemId: string) => {
       if (!scope) return;
-      const deletedIds = collectDeletedChecklistRowIds(rowsWithDrafts, itemId);
+      const deletedIds = collectChecklistSubtreeRowIds(rowsWithDrafts, itemId);
       const prunedDraftIds = collectPrunedChecklistDraftIds(
         draftItems,
         deletedIds,
@@ -1094,14 +1070,18 @@ function ChecklistRow({
       parentId={item.parentId}
       priority={item.priority}
       scheduledTime={item.scheduledTime}
-      selection={{
-        isSelected,
-        isSelectionMode,
-        onBulkAssignCategory,
-        onBulkDelete,
-        onBulkToggleChecked,
-        onToggle: (shiftKey) => onToggleSelect(item.id, shiftKey),
-      }}
+      selection={
+        isDraft
+          ? undefined
+          : {
+              isSelected,
+              isSelectionMode,
+              onBulkAssignCategory,
+              onBulkDelete,
+              onBulkToggleChecked,
+              onToggle: (shiftKey) => onToggleSelect(item.id, shiftKey),
+            }
+      }
       siblingIds={siblingIds}
       surface="checklist_item"
       text={item.text}

@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { buildVisibleTreeRows, type ChecklistItem } from '@/lib/domain';
-import { buildVisibleChecklistRows } from '@/features/checklist';
+import {
+  buildVisibleChecklistRows,
+  collectChecklistSubtreeRowIds,
+} from '@/features/checklist';
 
 function item(overrides: Partial<ChecklistItem>): ChecklistItem {
   const now = '2026-05-13T12:00:00.000Z';
@@ -69,6 +72,43 @@ describe('checklist tree', () => {
     expect(rows.map((row) => [row.item.id, row.depth])).toEqual([
       ['parent', 0],
       ['child', 1],
+    ]);
+  });
+});
+
+describe('collectChecklistSubtreeRowIds', () => {
+  const rows = [
+    { depth: 0, item: { id: 'root', parentId: null } },
+    { depth: 1, item: { id: 'child', parentId: 'root' } },
+    { depth: 2, item: { id: 'grandchild', parentId: 'child' } },
+    { depth: 1, item: { id: 'unrelated', parentId: 'other-root' } },
+    { depth: 0, item: { id: 'sibling', parentId: null } },
+  ];
+
+  it('collects only descendants linked by parentId', () => {
+    expect([...collectChecklistSubtreeRowIds(rows, 'root')]).toEqual([
+      'root',
+      'child',
+      'grandchild',
+    ]);
+  });
+
+  it('collects descendants that are not contiguous in the row order', () => {
+    const scattered = [
+      { depth: 0, item: { id: 'root', parentId: null } },
+      { depth: 0, item: { id: 'sibling', parentId: null } },
+      { depth: 1, item: { id: 'child', parentId: 'root' } },
+    ];
+
+    expect([...collectChecklistSubtreeRowIds(scattered, 'root')]).toEqual([
+      'root',
+      'child',
+    ]);
+  });
+
+  it('returns the item itself when it is missing from the rows', () => {
+    expect([...collectChecklistSubtreeRowIds(rows, 'absent')]).toEqual([
+      'absent',
     ]);
   });
 });

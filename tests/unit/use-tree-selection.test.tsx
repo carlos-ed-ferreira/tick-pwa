@@ -69,6 +69,22 @@ describe('useTreeSelection', () => {
     expect(screen.getByTestId('count')).toHaveTextContent('3');
   });
 
+  it('keeps hidden selections while other rows are toggled', async () => {
+    const { rerender } = render(
+      <SelectionHarness visibleIds={['one', 'two']} />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'one' }));
+    rerender(<SelectionHarness visibleIds={['two']} />);
+    fireEvent.click(screen.getByRole('button', { name: 'two' }));
+    rerender(<SelectionHarness visibleIds={['one', 'two']} />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('selected')).toHaveTextContent('one,two');
+      expect(screen.getByTestId('count')).toHaveTextContent('2');
+    });
+  });
+
   it('prunes selected ids that are no longer visible', async () => {
     const { rerender } = render(
       <SelectionHarness visibleIds={['one', 'two']} />,

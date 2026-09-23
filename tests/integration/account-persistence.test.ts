@@ -1501,12 +1501,14 @@ describe('account persistence boundaries', () => {
       expect(
         accountClient.orders.filter((order) => order.table === table),
       ).toEqual([
-        { column: 'revision', table },
         { column: 'id', table },
-        { column: 'revision', table },
         { column: 'id', table },
       ]);
     }
+
+    expect(
+      accountClient.orders.some((order) => order.column === 'revision'),
+    ).toBe(false);
 
     expect(result).toMatchObject({
       tables: {
@@ -1520,6 +1522,24 @@ describe('account persistence boundaries', () => {
       totalPages: 12,
       totalRows: 6006,
     });
+  });
+
+  it('collapses concurrent refreshes into a single remote snapshot', async () => {
+    const scope = createUserScope('concurrent-refresh-user');
+    const accountClient = createPagedAccountReadClient({
+      rowsByTable: createRemoteEntityRows(scope, 1),
+    });
+    supabaseMocks.getSupabaseBrowserClient.mockReturnValue(
+      accountClient.client,
+    );
+
+    await Promise.all([refreshAccountCache(scope), refreshAccountCache(scope)]);
+
+    for (const table of ['checklist_items', 'goals', 'category_tags']) {
+      expect(
+        accountClient.ranges.filter((range) => range.table === table),
+      ).toHaveLength(1);
+    }
   });
 
   it('does not reconcile any account table when a final snapshot page fails', async () => {

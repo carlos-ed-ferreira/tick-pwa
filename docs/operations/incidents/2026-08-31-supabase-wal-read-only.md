@@ -55,7 +55,8 @@ reportado.
 2. O banco apresentou saturação de CPU e I/O e deixou de aceitar conexões.
 3. Um restart restaurou consultas de leitura, mas o projeto entrou em modo
    somente leitura com disco em 96%.
-4. A role exclusiva `powersync_role` foi removida durante a limpeza externa.
+4. A limpeza externa registrou a remoção da role exclusiva `powersync_role`,
+   mas a verificação de 2026-09-21 mostrou que ela havia permanecido.
 5. A inspeção de `pg_replication_slots` encontrou o slot lógico inativo.
 6. O modo de escrita foi habilitado apenas para a sessão de manutenção e o slot
    foi removido com `pg_drop_replication_slot`.
@@ -152,19 +153,24 @@ reaplicar migrations já presentes na `main`.
 
 Confirmar a retirada do POC:
 
+O SQL Editor do Supabase exibe apenas o resultado do último statement quando
+vários são executados juntos. Use uma consulta única, para que nenhuma
+verificação fique invisível:
+
 ```sql
 select
-  to_regclass('public.powersync_poc_category_tags') as category_tags,
-  to_regclass('public.powersync_poc_daily_entries') as daily_entries,
-  to_regclass('public.powersync_poc_checklist_items') as checklist_items;
-
-select pubname
-from pg_publication
-where pubname = 'powersync';
+  current_setting('default_transaction_read_only')                              as read_only,
+  (select count(*) from pg_roles where rolname = 'powersync_role')              as powersync_role,
+  (select count(*) from pg_replication_slots where slot_name like 'powersync%') as powersync_slots,
+  (select count(*) from pg_publication where pubname = 'powersync')             as powersync_publication,
+  to_regclass('public.powersync_poc_category_tags')::text                       as category_tags,
+  to_regclass('public.powersync_poc_daily_entries')::text                       as daily_entries,
+  to_regclass('public.powersync_poc_checklist_items')::text                     as checklist_items;
 ```
 
-As colunas devem retornar `null` e a publicação não deve existir. A issue de
-falha pode ser encerrada depois que o workflow e as verificações passarem.
+`read_only` deve ser `off`, as contagens `0` e as colunas de tabela `null`. A
+issue de falha pode ser encerrada depois que o workflow e as verificações
+passarem.
 
 ## Acompanhamentos
 
@@ -178,12 +184,41 @@ falha pode ser encerrada depois que o workflow e as verificações passarem.
 - manter Vercel Hobby e Supabase Free nesta fase, sem interpretar este registro
   como autorização para contratar planos pagos.
 
+## Fechamento em 2026-09-21
+
+A verificação final confirmou `default_transaction_read_only = off`, nenhum
+replication slot de PowerSync, nenhuma publicação `powersync`, as três tabelas
+do POC ausentes e a migration `20260828180055` aplicada.
+
+A role `powersync_role` ainda existia nessa data, ao contrário do que a linha do
+tempo original registrava. Ela mantinha `LOGIN`, `REPLICATION` e `BYPASSRLS` sem
+data de expiração, o que representava acesso capaz de ignorar as policies de RLS
+e de abrir um novo replication slot. A mitigação imediata foi remover os
+atributos e, em seguida, remover a role:
+
+```sql
+alter role powersync_role nologin noreplication nobypassrls;
+
+drop role powersync_role;
+```
+
+`drop owned by powersync_role` falha com `42501` mesmo para `postgres`. A
+membership concedida por `supabase_admin` traz `ADMIN OPTION` sem `INHERIT`, e
+`DROP OWNED BY` exige os privilégios herdados da role. Como a role não era dona
+de nenhuma relação, `DROP ROLE` sozinho bastou; ele exige apenas `ADMIN OPTION`.
+Quando houver objetos pertencentes à role, conceda `INHERIT` antes:
+
+```sql
+grant powersync_role to postgres with inherit true;
+```
+
 ## Ordem segura para retirar consumidores de replicação
 
 1. interromper novas escritas ou conexões do consumidor;
 2. confirmar que o slot ficou inativo;
 3. remover o slot externo e verificar o WAL;
 4. aplicar a migration que remove publicação e objetos isolados;
-5. remover role, grants, secrets e variáveis do fornecedor;
+5. remover role, grants, secrets e variáveis do fornecedor, conferindo o
+   estado real em `pg_roles` em vez de confiar no relato da limpeza;
 6. excluir o projeto no fornecedor;
 7. verificar recursos e executar o fluxo funcional após a limpeza.

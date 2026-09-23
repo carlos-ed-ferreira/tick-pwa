@@ -13,15 +13,24 @@ export function useDebouncedInlineEdit({
   onSave: (value: string) => Promise<void> | void;
   value: string;
 }) {
-  const [draftState, setDraftState] = useState({
-    sourceValue: value,
-    text: value,
-  });
+  const [adoptedValue, setAdoptedValue] = useState(value);
+  const [localText, setLocalText] = useState<string | null>(null);
+  const [savedText, setSavedText] = useState<string | null>(null);
   const timeoutRef = useRef<number | null>(null);
   const pendingTextRef = useRef<string | null>(null);
   const onSaveRef = useRef(onSave);
   const enabledRef = useRef(enabled);
-  const text = draftState.sourceValue === value ? draftState.text : value;
+
+  if (value !== adoptedValue) {
+    setAdoptedValue(value);
+    setSavedText(null);
+
+    if (savedText !== value) {
+      setLocalText(null);
+    }
+  }
+
+  const text = localText ?? value;
 
   useEffect(() => {
     onSaveRef.current = onSave;
@@ -40,7 +49,7 @@ export function useDebouncedInlineEdit({
   const setText = useCallback(
     (nextText: string) => {
       pendingTextRef.current = enabled && nextText !== value ? nextText : null;
-      setDraftState({ sourceValue: value, text: nextText });
+      setLocalText(nextText);
     },
     [enabled, value],
   );
@@ -48,8 +57,9 @@ export function useDebouncedInlineEdit({
   const reset = useCallback(() => {
     clearPendingSave();
     pendingTextRef.current = null;
-    setDraftState({ sourceValue: value, text: value });
-  }, [clearPendingSave, value]);
+    setSavedText(null);
+    setLocalText(null);
+  }, [clearPendingSave]);
 
   const savePendingText = useCallback(async () => {
     clearPendingSave();
@@ -60,6 +70,7 @@ export function useDebouncedInlineEdit({
     }
 
     pendingTextRef.current = null;
+    setSavedText(pendingText);
 
     try {
       await onSaveRef.current(pendingText);

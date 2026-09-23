@@ -31,9 +31,9 @@ export function useTreeSelection(visibleIds: readonly string[]) {
         if (from !== -1 && to !== -1) {
           const [start, end] = from < to ? [from, to] : [to, from];
           setSelectedIds(
-            () =>
+            (previousSelectedIds) =>
               new Set([
-                ...visibleSelectedIds,
+                ...previousSelectedIds,
                 ...visibleIds.slice(start, end + 1),
               ]),
           );
@@ -42,8 +42,8 @@ export function useTreeSelection(visibleIds: readonly string[]) {
         return;
       }
 
-      setSelectedIds(() => {
-        const nextSelectedIds = new Set(visibleSelectedIds);
+      setSelectedIds((previousSelectedIds) => {
+        const nextSelectedIds = new Set(previousSelectedIds);
 
         if (nextSelectedIds.has(id)) {
           nextSelectedIds.delete(id);
@@ -55,7 +55,7 @@ export function useTreeSelection(visibleIds: readonly string[]) {
       });
       setLastSelectedId(id);
     },
-    [visibleIds, visibleLastSelectedId, visibleSelectedIds],
+    [visibleIds, visibleLastSelectedId],
   );
 
   const clearSelection = useCallback(() => {

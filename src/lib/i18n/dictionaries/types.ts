@@ -133,6 +133,7 @@ export interface Dictionary {
     calendar: string;
     goals: string;
     categories: string;
+    moreOptions: string;
   };
   calendar: {
     title: string;
@@ -202,7 +203,12 @@ export interface Dictionary {
     previousYear: string;
     nextYear: string;
     selectDate: string;
-    emptyDay: string;
+    week: string;
+    previousWeek: string;
+    nextWeek: string;
+    openMonth: string;
+    monthGridTitle: string;
+    moreActions: string;
     ignoredItem: string;
     ignoredItems: string;
     weekdays: readonly [string, string, string, string, string, string, string];

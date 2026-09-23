@@ -7,10 +7,13 @@ on:
     types:
       - completed
   workflow_dispatch:
+  schedule:
+    - cron: '23 * * * *'
 
 concurrency:
   group: supabase-migrations-production
   cancel-in-progress: false
+  queue: max
 
 permissions:
   contents: read
@@ -112,12 +115,74 @@ jobs:
         if: steps.database-changes.outputs.changed == 'true'
         run: make supabase-prod-db-push
 
+  deploy-production:
+    name: Deploy production application
+    needs: migrate-production
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Confirm approved SHA is still current
+        env:
+          GH_TOKEN: ${{ github.token }}
+          APPROVED_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+        run: |
+          current_sha="$(gh api "repos/${{ github.repository }}/commits/main" --jq '.sha')"
+          test "$current_sha" = "$APPROVED_SHA"
+
+      - name: Trigger the Vercel deployment
+        id: deployment
+        env:
+          APPROVED_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+          VERCEL_DEPLOY_HOOK_URL: ${{ secrets.VERCEL_DEPLOY_HOOK_URL }}
+        run: |
+          test -n "$VERCEL_DEPLOY_HOOK_URL" || {
+            printf '%s\n' 'Missing VERCEL_DEPLOY_HOOK_URL in the production environment.' >&2
+            exit 1
+          }
+          response="$(curl --fail-with-body --silent --show-error --request POST "$VERCEL_DEPLOY_HOOK_URL")"
+          job_id="$(printf '%s' "$response" | jq -er '.job.id | strings | select(length > 0)')"
+          job_state="$(printf '%s' "$response" | jq -er '.job.state | strings | select(length > 0)')"
+          echo "job-id=$job_id" >> "$GITHUB_OUTPUT"
+          echo "Approved SHA: $APPROVED_SHA" >> "$GITHUB_STEP_SUMMARY"
+          echo "Vercel deploy hook job: $job_id ($job_state)" >> "$GITHUB_STEP_SUMMARY"
+
+  audit-production-migrations:
+    name: Audit production migration history
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    environment: production
+
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: make install-ci
+
+      - name: Compare production migration history
+        run: make supabase-prod-migrations-check
+
   report-failure:
-    name: Report failed migration run
+    name: Report failed production pipeline
     needs:
       - quality-gate
       - migrate-production
-    if: failure()
+      - deploy-production
+      - audit-production-migrations
+    if: always() && contains(needs.*.result, 'failure')
     runs-on: ubuntu-latest
 
     permissions:
@@ -130,13 +195,13 @@ jobs:
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
-      - name: Report the failed migration run
+      - name: Report the failed production pipeline
         uses: ./.github/actions/report-failure
         with:
           token: ${{ github.token }}
           repository: ${{ github.repository }}
-          label: migration-failure
-          title: Migrations de produção falharam
+          label: pipeline-failure
+          title: Pipeline de produção falhou
           assignee: ${{ github.repository_owner }}
           run-url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           commit-sha: ${{ github.event.workflow_run.head_sha || github.sha }}

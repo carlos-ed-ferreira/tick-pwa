@@ -75,7 +75,6 @@ vi.mock('@/providers', () => ({
         previousYear: 'Previous year',
         selectDate: 'Select date',
         nextYear: 'Next year',
-        emptyDay: 'No tasks',
         weekdays: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
       },
       dayEditor: {

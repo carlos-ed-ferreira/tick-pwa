@@ -30,7 +30,7 @@ export function ModalActionButton({
   return (
     <button
       type={type}
-      className={`inline-flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-full px-3 text-sm font-medium shadow-sm transition focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${toneClassNames[tone]} ${className}`}
+      className={`touch-target inline-flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-full px-3 text-sm font-medium shadow-sm transition focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${toneClassNames[tone]} ${className}`}
       {...props}
     >
       {children}

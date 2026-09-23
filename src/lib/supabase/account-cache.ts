@@ -106,7 +106,6 @@ async function selectRemoteRows<TRemote>(
       .from(tableName)
       .select('*') as unknown as SelectPageQuery<TRemote>;
     const response = await query
-      .order('revision', { ascending: true })
       .order('id', { ascending: true })
       .range(from, from + ACCOUNT_CACHE_PAGE_SIZE - 1);
 
@@ -174,7 +173,7 @@ async function mergeRemoteRows<TEntity extends CacheEntity, TRemote>({
   }
 }
 
-export async function refreshAccountCache(
+async function readAccountSnapshotIntoCache(
   scope: AppScope,
 ): Promise<AccountCacheRefreshResult | null> {
   if (scope.kind !== 'user') {
@@ -182,7 +181,6 @@ export async function refreshAccountCache(
   }
 
   const startedAt = performance.now();
-  const protectedIds = await collectPendingEntityClosure(scope.id);
 
   const [
     ,
@@ -215,6 +213,8 @@ export async function refreshAccountCache(
       db.goalSteps,
     ],
     async () => {
+      const protectedIds = await collectPendingEntityClosure(scope.id);
+
       await mergeRemoteRows({
         protectedIds: protectedIds.get('categoryTag'),
         scope,
@@ -291,4 +291,29 @@ export async function refreshAccountCache(
     totalPages: tableMetrics.reduce((total, table) => total + table.pages, 0),
     totalRows: tableMetrics.reduce((total, table) => total + table.rows, 0),
   };
+}
+
+const inFlightRefreshByScope = new Map<
+  string,
+  Promise<AccountCacheRefreshResult | null>
+>();
+
+export function refreshAccountCache(
+  scope: AppScope,
+): Promise<AccountCacheRefreshResult | null> {
+  const inFlightRefresh = inFlightRefreshByScope.get(scope.id);
+
+  if (inFlightRefresh) {
+    return inFlightRefresh;
+  }
+
+  const refresh = readAccountSnapshotIntoCache(scope).finally(() => {
+    if (inFlightRefreshByScope.get(scope.id) === refresh) {
+      inFlightRefreshByScope.delete(scope.id);
+    }
+  });
+
+  inFlightRefreshByScope.set(scope.id, refresh);
+
+  return refresh;
 }

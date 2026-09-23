@@ -14,6 +14,13 @@ meta, etapa, categoria, e-mail, identificador de usuário, token, payload e
 User-Agent completo são descartados antes do adapter. O teste de regressão é
 executado por `make test-telemetry`.
 
+Cada evento é agrupado pelo fingerprint `['tick', <nome do evento>, <sinal>]`,
+de modo que `healthy`, `api_unavailable`, `old_operation`, `queue_accumulated`,
+`sync_failure` e `synthetic_failure` formam issues separadas no Sentry. Sem essa
+separação, todos os sinais de sincronização cairiam na mesma issue e alertas por
+primeiro evento ou por frequência não conseguiriam distinguir falha de operação
+normal.
+
 O SDK adotado é `@sentry/browser` 10.72.0, licença MIT. Ele fica isolado pelo
 adapter e pode ser substituído sem alterar a outbox. A produção continuou com
 Vercel Hobby e Supabase Free; esta etapa não autoriza Vercel Pro, Supabase Pro
@@ -23,7 +30,7 @@ ou PowerSync Pro.
 
 1. Criar um projeto Sentry do tipo JavaScript/Browser.
 2. Desabilitar armazenamento de endereço IP nas configurações de segurança e
-   privacidade do projeto.
+   privacidade, em projeto e em organização.
 3. Restringir acesso ao proprietário e a pessoas responsáveis por incidentes.
 4. Na Vercel, cadastrar apenas em Production:
 
@@ -34,18 +41,35 @@ NEXT_PUBLIC_TICK_TELEMETRY_ENVIRONMENT=production
 
 5. Fazer um novo deploy. A release usa automaticamente o SHA do deploy; uma
    substituição explícita pode usar `NEXT_PUBLIC_TICK_RELEASE`.
-6. Configurar alertas no Sentry:
-   - `telemetry_signal = api_unavailable`: alertar no primeiro evento;
-   - `telemetry_signal = old_operation`: alertar no primeiro evento;
-   - `telemetry_signal = queue_accumulated`: alertar no primeiro evento;
-   - `telemetry_signal = sync_failure`: alertar quando houver 5 eventos em 10
-     minutos;
+6. Configurar alertas no Sentry. A lista fica em **Monitors**, nome atual da
+   seção antes chamada Alerts, e as regras são penduradas no monitor de erro do
+   projeto. Cada regra usa `Alert on specific monitors`, environment
+   `production`, condição `An event or issue activity is captured` e um único
+   filtro `The event's telemetry_signal tag equals <valor>`:
+   - `api_unavailable`, throttle de 1 hora;
+   - `old_operation`, throttle de 1 hora;
+   - `queue_accumulated`, throttle de 1 hora;
+   - `sync_failure`, throttle de 1 hora;
+   - `synthetic_failure`, sem throttle, temporário durante a validação;
    - uso do plano Sentry em 70%: alertar por e-mail ao proprietário.
+
+   Não criar regra para `telemetry_signal = healthy`. Não usar
+   `A new issue is created`: como cada sinal é uma issue única, a regra
+   dispararia uma vez e nunca mais. A condição de frequência do builder antigo
+   não existe mais; o throttle limita a repetição.
+
 7. Cadastrar temporariamente
    `NEXT_PUBLIC_TICK_TELEMETRY_SYNTHETIC_FAILURE=1`, gerar um deploy, abrir a
    aplicação, confirmar recebimento e alerta e então remover a variável e gerar
    outro deploy. Cada carregamento envia no máximo um evento. O evento
    contém apenas `signal`, versão, ambiente e navegador.
+
+O evento retém `user.geo` com país, região e cidade, acrescentado pelo Sentry na
+ingestão a partir do IP da conexão, depois do estágio de scrubbing. Desabilitar
+o armazenamento de IP em projeto e organização e criar a regra
+`[Remove] [Anything] from [$user]` nos dois níveis não remove o campo. Nenhum IP
+é armazenado. A limitação está registrada e deve ser reavaliada antes do
+cadastro público.
 
 Os limites iniciais são uma fila de 25 operações e uma operação com cinco
 minutos. Eles devem ser ajustados somente com evidência de uso real.
@@ -155,6 +179,32 @@ Modelo:
 
 Após a recuperação, comunicar a validação, o risco residual e se o usuário deve
 abrir o aplicativo online para drenar a fila.
+
+## Evidências de telemetria
+
+Configuração externa do Sentry concluída em 2026-09-22.
+
+| Item                          | Resultado                                                 |
+| ----------------------------- | --------------------------------------------------------- |
+| Projeto                       | `tick-production`, plataforma Browser JavaScript          |
+| Produtos habilitados          | apenas Error monitoring                                   |
+| Session Replay, tracing, logs | desabilitados                                             |
+| Armazenamento de IP           | desabilitado em projeto e organização                     |
+| Variáveis na Vercel           | DSN e environment somente no escopo Production            |
+| Regras de alerta              | cinco, filtradas por `telemetry_signal`                   |
+| Release observada             | `efc7c3a9abf92310b170465bab348fad092eac4a`                |
+| Evento sintético              | recebido e inspecionado em quatro ocorrências             |
+| Variável sintética            | removida, com novo deploy e ausência de evento confirmada |
+| Regra sintética               | desativada; as quatro operacionais permanecem ativas      |
+| Aviso de consumo do plano     | limiares de 70%, 80% e 90% em Manage Spend Notifications  |
+
+O payload inspecionado não contém IP, URL, cabeçalhos, User-Agent, breadcrumbs,
+identificador de usuário, e-mail, token nem conteúdo funcional. O contexto
+`tick` traz apenas `appVersion`, `browserName`, `browserVersion`, `environment`
+e `signal`.
+
+Limitação registrada: `user.geo` com país, região e cidade permanece no evento.
+Reavaliar antes do cadastro público.
 
 ## Evidências de restore
 

@@ -16,6 +16,22 @@ export interface TaskTreeRowActionPreferences {
   scheduledDate: boolean;
 }
 
+export const taskTreeRowPlacementActions = [
+  'add',
+  'bold',
+  'category',
+  'clearCategory',
+  'delete',
+  'indent',
+  'moveDown',
+  'moveUp',
+  'outdent',
+  'priority',
+] as const;
+
+export type TaskTreeRowPlacementAction =
+  (typeof taskTreeRowPlacementActions)[number];
+
 export const defaultTaskTreeRowActionPreferences: TaskTreeRowActionPreferences =
   {
     add: 'inline',
@@ -44,6 +60,21 @@ export function copyTaskTreeRowActionPreferences({
     ...source,
     scheduledTime: target.scheduledTime,
     scheduledDate: target.scheduledDate,
+  };
+}
+
+export function touchTaskTreeRowActionPreferences(
+  preferences: TaskTreeRowActionPreferences,
+): TaskTreeRowActionPreferences {
+  const placements = Object.fromEntries(
+    taskTreeRowPlacementActions.map((action) => [action, 'menu'] as const),
+  ) as Record<TaskTreeRowPlacementAction, TaskTreeRowActionPlacement>;
+
+  return {
+    ...preferences,
+    ...placements,
+    scheduledTime: false,
+    scheduledDate: false,
   };
 }
 

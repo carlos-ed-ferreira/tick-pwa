@@ -13,7 +13,7 @@ export default function CalendarPage() {
 
   return (
     <AuthGate>
-      <main className="app-safe-padding relative isolate min-h-dvh overflow-hidden bg-background pt-5 text-foreground [--app-safe-padding-block-end:1.25rem] [--app-safe-padding-inline:1rem] sm:[--app-safe-padding-inline:1.5rem] lg:[--app-safe-padding-inline:2rem] lg:has-[.calendar-shell]:h-dvh">
+      <main className="app-safe-padding relative isolate min-h-dvh overflow-hidden bg-background pt-5 text-foreground [--app-safe-padding-block-end:calc(1.25rem+var(--app-bottom-nav-height))] [--app-safe-padding-inline:1rem] sm:[--app-safe-padding-inline:1.5rem] lg:[--app-safe-padding-inline:2rem] lg:has-[.calendar-shell]:h-dvh">
         <div
           aria-hidden="true"
           className="pointer-events-none absolute inset-0 opacity-90"
