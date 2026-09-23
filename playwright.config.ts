@@ -45,7 +45,7 @@ export default defineConfig({
   webServer: {
     command:
       'NEXT_PUBLIC_TICK_DISABLE_SUPABASE=1 npm run build && NEXT_PUBLIC_TICK_DISABLE_SUPABASE=1 npm run start -- --hostname 127.0.0.1 --port 3100',
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: process.env.TICK_E2E_REUSE_SERVER === '1',
     timeout: 120_000,
     url: baseURL,
   },

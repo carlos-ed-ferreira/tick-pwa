@@ -246,6 +246,25 @@ cor do processo. Eles não falham o gate atual.
   dependência transitiva dentro do intervalo declarado;
 - `make audit-prod` volta a reportar zero vulnerabilidades.
 
+## Ratchet em 2026-09-23, composição de toque da árvore
+
+- na composição de toque, o texto da tarefa ocupa uma linha própria abaixo dos
+  controles, por `touch:flex-wrap` na linha e `touch:order-last`
+  `touch:basis-full` no campo de texto;
+- `touch:w-full` não resolve o caso: com `flex-1` o tamanho hipotético do item
+  é `flex-basis: 0%`, então ele cabe na linha e só depois estica; a quebra exige
+  `basis-full`;
+- Playwright local: 41 testes aprovados e 19 ignorados, com build novo;
+- o gate E2E deixou de reaproveitar servidor em execução: `reuseExistingServer`
+  passou a exigir `TICK_E2E_REUSE_SERVER=1`, de modo que `make test-e2e`
+  reconstrói a aplicação e produz o mesmo resultado local e no CI;
+- `make test-e2e-reuse` cobre a iteração rápida e está marcado como não válido
+  para evidência;
+- `make test-e2e` falha com mensagem própria quando a porta 3100 já está
+  ocupada, em vez de testar um build antigo;
+- cobertura geométrica nos dois sentidos: o campo ocupa mais de 85% da linha em
+  toque e menos de 85% em ponteiro fino.
+
 ## Matriz de quality gates
 
 | Gate               | Métrica e threshold                                                                 | Escopo                              | Estado         | Legado                                    | Bloqueia?                   |

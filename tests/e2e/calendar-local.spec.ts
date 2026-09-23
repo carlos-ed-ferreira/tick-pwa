@@ -168,3 +168,26 @@ test('saves a category name even when its modal closes before blur', async ({
       .first(),
   ).toHaveValue('FOCO IMEDIATO');
 });
+
+test('keeps the task text sharing the row on the pointer composition', async ({
+  page,
+  isMobile,
+}) => {
+  test.skip(isMobile, 'covers the desktop composition only');
+
+  await enterLocalMode(page);
+  await page.goto('/calendar?day=2026-05-21');
+  await page.getByRole('button', { name: labels.checklistEmpty }).click();
+
+  const input = firstChecklistInput(page);
+  await input.fill('Equilibrio quimico com um titulo bastante longo');
+
+  const row = page.locator('[data-tree-row]').first();
+  const field = row.locator('[data-task-text-field]').first();
+  const rowBox = await row.boundingBox();
+  const fieldBox = await field.boundingBox();
+
+  expect(rowBox).not.toBeNull();
+  expect(fieldBox).not.toBeNull();
+  expect(fieldBox!.width).toBeLessThan(rowBox!.width * 0.85);
+});

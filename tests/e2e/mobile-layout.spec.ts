@@ -113,6 +113,27 @@ test.describe('mobile layout', () => {
     await expect(page.locator('.calendar-day-cell')).toHaveCount(42);
   });
 
+  test('gives the task text its own line in the touch composition', async ({
+    page,
+  }) => {
+    await enterLocalMode(page);
+    await page.goto('/calendar');
+
+    await page.getByRole('button', { name: labels.checklistEmpty }).tap();
+
+    const input = firstChecklistInput(page);
+    await input.fill('Equilibrio quimico com um titulo bastante longo');
+
+    const row = page.locator('[data-tree-row]').first();
+    const field = row.locator('[data-task-text-field]').first();
+    const rowBox = await row.boundingBox();
+    const fieldBox = await field.boundingBox();
+
+    expect(rowBox).not.toBeNull();
+    expect(fieldBox).not.toBeNull();
+    expect(fieldBox!.width).toBeGreaterThan(rowBox!.width * 0.85);
+  });
+
   test('expands icon control hit areas to the touch minimum', async ({
     page,
   }) => {
