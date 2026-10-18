@@ -45,7 +45,7 @@ explícito no turno atual.
 | 6     | não iniciado      | fechar decisões de produto e autenticação pública   |
 | 7     | não iniciado      | criar baseline e carga para 1.000 DAU               |
 | 8     | adiado            | avaliar frontend estático e planos no marco público |
-| 9     | pendente          | validar a interface de toque em aparelho real       |
+| 9     | concluído         | repetir o ensaio físico em mudança de toque         |
 
 ## 1. Publicar e validar o rollout controlado da outbox
 
@@ -772,6 +772,9 @@ A implementação total está concluída quando:
 - todos os gates aplicáveis do REVIEW passam.
 
 ## 9. Validar a interface de toque em aparelho real
+
+**Estado:** concluído em 18 de outubro de 2026 por aprovação do desenvolvedor
+após o ensaio em aparelhos físicos.
 
 ### Resultado esperado
 

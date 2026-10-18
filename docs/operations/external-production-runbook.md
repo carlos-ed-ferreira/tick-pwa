@@ -63,7 +63,7 @@ de independência não foi feito; ele continua pendente até o cadastro público
 | 5     |              |            |                                         | pendente               |
 | 6     |              |            |                                         | pendente               |
 | 7     |              |            |                                         | pendente               |
-| 8     |              |            |                                         | pendente               |
+| 8     | proprietário | 2026-10-18 | ensaio em Android e iOS físicos         | aprovado               |
 | 9     |              |            |                                         | pendente               |
 
 ## 1. Fechar o incidente da retirada do PowerSync
@@ -333,6 +333,9 @@ Um run falho abre issue com label `backup-failure`. Feche-a registrando a causa
 depois de corrigir.
 
 ### 3.5 Ensaio de restore — exige segunda máquina
+
+O passo a passo completo, com a divisão entre as duas máquinas, está em
+[two-machine-backup-restore.md](two-machine-backup-restore.md).
 
 Requisitos da máquina do ensaio:
 
@@ -708,5 +711,5 @@ diagnóstico.
 - [ ] Pipeline migration para deploy comprovado com o mesmo SHA.
 - [ ] Decisões de Auth, trial, billing, migração e legal aprovadas.
 - [ ] Modelo, budgets e ambiente isolado de carga aprovados.
-- [ ] Android e iOS físicos aprovados.
+- [x] Android e iOS físicos aprovados.
 - [ ] Decisão de hospedagem pública, DNS, planos e rollback aprovada.

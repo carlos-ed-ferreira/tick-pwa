@@ -265,6 +265,13 @@ cor do processo. Eles não falham o gate atual.
 - cobertura geométrica nos dois sentidos: o campo ocupa mais de 85% da linha em
   toque e menos de 85% em ponteiro fino.
 
+## Validação em aparelho físico em 2026-10-18
+
+- o desenvolvedor aprovou o ensaio da interface de toque em Android e iOS
+  físicos, encerrando o passo 9 do plano de implementação;
+- mudanças futuras em composição de toque, teclado virtual, safe area ou
+  arrasto por toque devem repetir o roteiro do passo 8 do runbook externo.
+
 ## Matriz de quality gates
 
 | Gate               | Métrica e threshold                                                                 | Escopo                              | Estado         | Legado                                    | Bloqueia?                   |
