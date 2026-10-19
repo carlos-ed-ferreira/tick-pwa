@@ -398,14 +398,16 @@ Vercel. Confirme que `SUPABASE_PROJECT_REF`, `SUPABASE_ACCESS_TOKEN` e
 
 ### 4.4 Desligar o auto-deploy da `main`
 
-Vercel → Settings → Git → controle de automatic Git deployments ou regras por
-branch. Desabilite o disparo automático para `main` preservando a conexão Git e
-o funcionamento dos Deploy Hooks. Preserve previews de pull request, sem acesso
-ao Supabase de produção.
+Em 18 de outubro de 2026 foi confirmado na documentação oficial da Vercel que o
+painel não tem controle de auto-deploy por branch. O caminho suportado é
+`vercel.json` com `git.deploymentEnabled: { "main": false }`, que preserva a
+conexão Git, os previews da `dev` e, pela documentação, os Deploy Hooks; somente
+`github.enabled: false` é documentado como bloqueio dos hooks. A primeira
+publicação com o arquivo comprova o comportamento real.
 
-Se o painel não oferecer regra que desligue somente o auto-deploy sem bloquear o
-hook, pare. Não desative a integração inteira; registre a ausência da opção para
-que a estratégia seja revista.
+O roteiro exato dos passos 4 e 5, incluindo a reexecução do job que falhou na
+issue `#43` e a reversão caso o hook seja bloqueado, está em
+[deploy-hook-setup.md](deploy-hook-setup.md).
 
 ## 5. Publicar uma mudança inócua e comprovar a ordem
 

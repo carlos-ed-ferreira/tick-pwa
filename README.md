@@ -608,6 +608,7 @@ pode permanecer em português.
 - [docs/operations/incidents/2026-08-31-supabase-wal-read-only.md](docs/operations/incidents/2026-08-31-supabase-wal-read-only.md): incidente de saturação, WAL e modo somente leitura do Supabase;
 - [docs/operations/external-production-runbook.md](docs/operations/external-production-runbook.md): passo a passo das configurações externas de produção, com o que exige segunda máquina, aparelho ou pessoa;
 - [docs/operations/two-machine-backup-restore.md](docs/operations/two-machine-backup-restore.md): ensaio de restore do backup de produção em uma segunda máquina;
+- [docs/operations/deploy-hook-setup.md](docs/operations/deploy-hook-setup.md): configuração do Deploy Hook e prova do deploy ordenado;
 
 `docs/planning/implementation-plan.md` é a fonte canônica e completa do backlog técnico. Os
 documentos em `docs/` existem somente para contratos específicos que não

@@ -459,9 +459,18 @@ somente no escopo de produção da Vercel, cinco regras de alerta filtradas por
 evidências e a limitação de geolocalização estão em
 `docs/operations/observability-backup-restore.md`.
 
-Permanecem externos: cadastrar os secrets de backup, habilitar o workflow
-diário e uma segunda pessoa restaurar o primeiro backup e registrar RPO e RTO.
-O passo só muda para concluído depois dessas evidências.
+Os secrets de backup foram cadastrados e o workflow diário está habilitado desde
+22 de setembro de 2026. As execuções de 29 e 30 de setembro falharam ao baixar a
+imagem usada pela CLI do Supabase, com `toomanyrequests: Data limit exceeded` do
+Docker Hub, e abriram a issue `#44`. Todas as execuções de 1º a 18 de outubro
+terminaram com sucesso. O job continua dependente do Docker Hub; se o limite se
+repetir com frequência, a imagem deve deixar de ser baixada a cada execução.
+
+Permanece externo: restaurar o backup em uma segunda máquina e registrar RPO e
+RTO, conforme
+[two-machine-backup-restore.md](../operations/two-machine-backup-restore.md),
+e repetir o ensaio com uma segunda pessoa antes do cadastro público. O passo só
+muda para concluído depois dessas evidências.
 
 ### Resultado esperado
 
@@ -563,12 +572,28 @@ RED/GREEN: testes novos falharam pela ausência do job de deploy, agendamento,
 detector de drift e ordem segura do auto-merge; depois da implementação, 79
 arquivos e 565 testes Vitest passaram.
 
+### Estado em 18 de outubro de 2026
+
+A publicação de `a00e5b4` em 23 de setembro aplicou as migrations e falhou no
+job de deploy com `Missing VERCEL_DEPLOY_HOOK_URL in the production
+environment.`, abrindo a issue `#43`. O secret continua ausente, então toda
+publicação falhará no mesmo ponto até a configuração externa; a produção segue
+atualizada apenas pelo auto-deploy da Vercel, sem ordem garantida. As falhas da
+auditoria horária em 5 e 6 de outubro foram `FGA Authentication Error` da API do
+Supabase, transitórias; as execuções seguintes passaram.
+
+O painel da Vercel não oferece desligar o auto-deploy de uma única branch. O
+caminho adotado é `vercel.json` com `git.deploymentEnabled` desligado para
+`main`, adicionado somente depois de o hook estar cadastrado e testado. O
+roteiro exato está em
+[deploy-hook-setup.md](../operations/deploy-hook-setup.md).
+
 ### Responsabilidade externa
 
-1. Em Vercel **Settings → Git**, desativar o auto-deploy de produção da `main`.
-2. Criar Deploy Hook para `main`.
-3. Cadastrar a URL como `VERCEL_DEPLOY_HOOK_URL` no environment GitHub
-   `production`.
+1. Criar Deploy Hook para `main`.
+2. Cadastrar a URL como `VERCEL_DEPLOY_HOOK_URL` no environment GitHub
+   `production` e testá-la reexecutando o job de deploy que falhou.
+3. Desligar o auto-deploy de produção da `main` por `vercel.json`.
 4. Publicar uma mudança inócua e confirmar pelos horários que migrations
    terminaram antes do deployment e que o commit exibido pela Vercel coincide
    com o SHA registrado no resumo do workflow.
