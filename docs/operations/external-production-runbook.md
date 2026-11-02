@@ -30,41 +30,40 @@ indicada existe, não quando a configuração foi salva.
 Estes itens não podem ser concluídos em uma única máquina. Planeje-os antes de
 começar o passo correspondente.
 
-| Passo | Recurso necessário                 | Motivo                                                                    |
-| ----- | ---------------------------------- | ------------------------------------------------------------------------- |
-| 1.4   | segunda sessão do app              | confirmar convergência entre dispositivos após reconexão                  |
-| 3.5   | **segunda máquina com Docker**     | restaurar o backup fora do ambiente que o gerou                           |
-| 3.5   | **segunda pessoa**                 | provar que o procedimento escrito basta para quem não construiu o sistema |
-| 3.5   | canal separado para a chave        | provar que a chave é recuperável sem depender de quem fez o backup        |
-| 7.3   | projeto Supabase dedicado          | carga não pode tocar produção                                             |
-| 8     | **Android físico e iPhone físico** | arrasto, teclado virtual, tooltip e reconexão não se validam em emulador  |
-| 9.5   | rede e resolvedor DNS alternativos | validar propagação fora do cache local                                    |
+| Passo | Recurso necessário                 | Motivo                                                                   |
+| ----- | ---------------------------------- | ------------------------------------------------------------------------ |
+| 1.4   | segunda sessão do app              | confirmar convergência entre dispositivos após reconexão                 |
+| 3.5   | **segunda máquina com Docker**     | restaurar o backup fora do ambiente que o gerou                          |
+| 3.5   | canal separado para a chave        | provar que a chave é recuperável sem depender de quem fez o backup       |
+| 7.3   | projeto Supabase dedicado          | carga não pode tocar produção                                            |
+| 8     | **Android físico e iPhone físico** | arrasto, teclado virtual, tooltip e reconexão não se validam em emulador |
+| 9.5   | rede e resolvedor DNS alternativos | validar propagação fora do cache local                                   |
 
 A segunda máquina do passo 3.5 precisa de Node >= 20.9, Docker funcional,
 checkout do mesmo SHA do workflow e **nenhuma credencial de produção no
 ambiente**. Não precisa de `npm ci`: os scripts de backup e restore usam apenas
 módulos nativos do Node.
 
-Quando não houver segunda pessoa disponível, execute o ensaio na segunda
-máquina seguindo somente o que está escrito em
-[observability-backup-restore.md](observability-backup-restore.md), sem
-consultar histórico ou memória, e anote cada ponto em que foi preciso deduzir
-algo ausente. Cada anotação é uma falha de documentação. Registre que o ensaio
-de independência não foi feito; ele continua pendente até o cadastro público.
+Por decisão explícita do proprietário em 2026-11-02, a validação de restore
+será feita por ele em dois dispositivos distintos. Uma segunda pessoa não é
+requisito desta etapa nem do cadastro público. O ensaio comprova recuperação
+em outra máquina; a revisão humana independente foi dispensada e não é
+registrada como executada. Seguir o roteiro escrito e anotar instruções
+ausentes continua obrigatório para melhorar sua reprodutibilidade.
 
 ## Registro geral
 
-| Passo | Responsável  | Data       | Evidência                               | Resultado              |
-| ----- | ------------ | ---------- | --------------------------------------- | ---------------------- |
-| 1     | proprietário | 2026-09-22 | consultas de verificação e ensaio 1.4   | aprovado               |
-| 2     | proprietário | 2026-09-22 | eventos sintéticos e regras em Monitors | aprovado com limitação |
-| 3     | proprietário | 2026-09-22 | run 35763900841; restore pendente       | em andamento           |
-| 4     |              |            |                                         | pendente               |
-| 5     |              |            |                                         | pendente               |
-| 6     |              |            |                                         | pendente               |
-| 7     |              |            |                                         | pendente               |
-| 8     |              |            |                                         | pendente               |
-| 9     |              |            |                                         | pendente               |
+| Passo | Responsável  | Data       | Evidência                                        | Resultado                                   |
+| ----- | ------------ | ---------- | ------------------------------------------------ | ------------------------------------------- |
+| 1     | proprietário | 2026-09-22 | consultas de verificação e ensaio 1.4            | aprovado                                    |
+| 2     | proprietário | 2026-09-22 | eventos sintéticos e regras em Monitors          | aprovado com limitação                      |
+| 3     | proprietário | 2026-11-02 | run 41520276777; 10 tabelas; RTO 3,454 s         | restore aprovado; rotina de backup instável |
+| 4     | proprietário | 2026-11-02 | secret do hook confirmado; vercel.json preparado | gates locais aprovados; publicação pendente |
+| 5     |              |            |                                                  | pendente                                    |
+| 6     |              |            |                                                  | pendente                                    |
+| 7     |              |            |                                                  | pendente                                    |
+| 8     | proprietário | 2026-10-18 | ensaio em Android e iOS físicos                  | aprovado                                    |
+| 9     |              |            |                                                  | pendente                                    |
 
 ## 1. Fechar o incidente da retirada do PowerSync
 
@@ -242,7 +241,20 @@ se justifica nesta fase. Reavaliar no passo 6.6.
 
 ## 3. Backup e primeiro restore
 
-Backup concluído em 2026-09-22. Restore pendente: **exige segunda máquina**.
+Backup habilitado em 2026-09-22. Restore executado com sucesso na segunda
+máquina Linux em 2026-11-02 pelo proprietário, com o run `41520276777`:
+10 tabelas, `rpoMs = 2859601`, `rtoMs = 3454` e exit status 0.
+Containers ausentes e limpeza das pastas confirmada pelo proprietário.
+A estabilização do backup diário continua pendente.
+A exigência de segunda pessoa foi dispensada pelo proprietário em 2026-11-02. Evidência completa em
+[observability-backup-restore.md](observability-backup-restore.md).
+
+Revisão em 2026-11-02: configuração habilitada, mas execução intermitente.
+O run `41163812529` falhou ao baixar a imagem do Postgres do ECR público com
+`toomanyrequests: Data limit exceeded`. Os runs de 1º e 2 de novembro passaram;
+o artefato não expirado do run `41382697246` permite executar o passo 3.5 agora.
+A recorrência da falha continua aberta; não considerar o backup estabilizado
+nem o restore comprovado apenas pelo sucesso desses runs.
 
 ### 3.1 Decisões
 
@@ -334,6 +346,9 @@ depois de corrigir.
 
 ### 3.5 Ensaio de restore — exige segunda máquina
 
+O passo a passo completo, com a divisão entre as duas máquinas, está em
+[two-machine-backup-restore.md](two-machine-backup-restore.md).
+
 Requisitos da máquina do ensaio:
 
 - Node >= 20.9 e Docker funcionando;
@@ -368,6 +383,14 @@ recuperável no cofre externo; container e temporários removidos.
 
 ## 4. Deploy Hook e controle do auto-deploy
 
+Em 2026-11-02, o proprietário informou a criação do hook e a consulta de
+metadados confirmou `VERCEL_DEPLOY_HOOK_URL` no environment `production`.
+O `vercel.json` está preparado no worktree; ainda não está publicado. Os
+bloqueios locais de ambiente e dependências foram corrigidos; `make check`, os
+gates de banco e o audit de produção passaram. Consulte o
+[relatório de manutenção](dependency-maintenance-2026-11-02.md) para evidências
+e limitações. Não há deployment ordenado aprovado apenas pelo cadastro do secret.
+
 Crie o hook e o secret **antes** de desligar o auto-deploy, para não deixar a
 produção sem caminho de publicação. Não desconecte o repositório da Vercel:
 Deploy Hooks exigem repositório conectado. Não use `github.enabled=false`, que
@@ -395,14 +418,16 @@ Vercel. Confirme que `SUPABASE_PROJECT_REF`, `SUPABASE_ACCESS_TOKEN` e
 
 ### 4.4 Desligar o auto-deploy da `main`
 
-Vercel → Settings → Git → controle de automatic Git deployments ou regras por
-branch. Desabilite o disparo automático para `main` preservando a conexão Git e
-o funcionamento dos Deploy Hooks. Preserve previews de pull request, sem acesso
-ao Supabase de produção.
+Em 18 de outubro de 2026 foi confirmado na documentação oficial da Vercel que o
+painel não tem controle de auto-deploy por branch. O caminho suportado é
+`vercel.json` com `git.deploymentEnabled: { "main": false }`, que preserva a
+conexão Git, os previews da `dev` e, pela documentação, os Deploy Hooks; somente
+`github.enabled: false` é documentado como bloqueio dos hooks. A primeira
+publicação com o arquivo comprova o comportamento real.
 
-Se o painel não oferecer regra que desligue somente o auto-deploy sem bloquear o
-hook, pare. Não desative a integração inteira; registre a ausência da opção para
-que a estratégia seja revista.
+O roteiro exato dos passos 4 e 5, incluindo a reexecução do job que falhou na
+issue `#43` e a reversão caso o hook seja bloqueado, está em
+[deploy-hook-setup.md](deploy-hook-setup.md).
 
 ## 5. Publicar uma mudança inócua e comprovar a ordem
 
@@ -702,11 +727,12 @@ diagnóstico.
 - [x] Incidente PowerSync fechado e objetos removidos.
 - [x] Sentry recebe e alerta sem conteúdo privado.
 - [x] Backup diário cifrado habilitado.
-- [ ] Restore executado em segunda máquina, com RPO/RTO registrados.
-- [ ] Ensaio de independência com segunda pessoa.
+- [x] Restore executado em segunda máquina, com RPO/RTO registrados.
+- [x] Limpeza dos containers e pastas do ensaio confirmada.
+- [x] Validação pelo proprietário em dois dispositivos; segunda pessoa dispensada por decisão de 2026-11-02.
 - [ ] Auto-deploy paralelo removido sem bloquear o Deploy Hook.
 - [ ] Pipeline migration para deploy comprovado com o mesmo SHA.
 - [ ] Decisões de Auth, trial, billing, migração e legal aprovadas.
 - [ ] Modelo, budgets e ambiente isolado de carga aprovados.
-- [ ] Android e iOS físicos aprovados.
+- [x] Android e iOS físicos aprovados.
 - [ ] Decisão de hospedagem pública, DNS, planos e rollback aprovada.

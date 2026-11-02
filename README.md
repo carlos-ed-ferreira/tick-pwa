@@ -260,7 +260,7 @@ quando o Supabase está indisponível.
 | Linguagem          | TypeScript 5, configuração `strict`                           |
 | Runtime            | Node.js `>=20.9.0`                                            |
 | Package manager    | npm, lockfile v3                                              |
-| Framework          | Next.js 16.3.6, App Router e React 19.2.4                     |
+| Framework          | Next.js 16.4.4, App Router e React 19.2.4                     |
 | UI                 | Tailwind CSS 4, Lucide e React Icons                          |
 | PWA                | Serwist 9                                                     |
 | Banco local        | IndexedDB com Dexie 4                                         |
@@ -268,8 +268,8 @@ quando o Supabase está indisponível.
 | Query layer        | Dexie local e cliente REST do Supabase; não há ORM relacional |
 | Autenticação       | Supabase Auth, senha e Google, com allowlist própria          |
 | i18n               | dicionários tipados `pt-BR` e `en`                            |
-| Unit/integration   | Vitest 4, Testing Library, jsdom e fake-indexeddb             |
-| E2E                | Playwright 1.60, Chromium desktop e perfil Pixel 7            |
+| Unit/integration   | Vitest 4.1.12, Testing Library, jsdom e fake-indexeddb        |
+| E2E                | Playwright 1.62.1, Chromium desktop e perfil Pixel 7          |
 | Responsividade     | mobile-first por `(pointer: coarse)` e largura medida         |
 | Banco              | Supabase CLI e pgTAP                                          |
 | Análise            | TypeScript, ESLint 9 e verificador próprio de comentários     |
@@ -500,6 +500,14 @@ recorrente sem target, adicione-a ao `Makefile` e ao `make help` primeiro.
 | navegador E2E        | `make test-e2e-browsers`             |
 | benchmark RPC local  | `make benchmark-account-rpc`         |
 | restaurar backup     | `make backup-restore archive=<file>` |
+| preparar restore     | `make backup-restore-prepare`        |
+| testar restore real  | `make test-backup-restore`           |
+| consultar backups    | `make backup-status`                 |
+| datas da chave       | `make backup-key-status`             |
+| estado do hook       | `make deploy-hook-status`            |
+| testes de release    | `make test-release-workflow`         |
+| log de backup falho  | `make backup-log run=<run-id>`       |
+| artefatos de backup  | `make backup-artifacts run=<run-id>` |
 | publicar em `main`   | `make publish`                       |
 | auditar produção     | `make audit-prod`                    |
 | dependências         | `make deps-tree`                     |
@@ -530,8 +538,13 @@ planejados ficam exclusivamente no [REVIEW.md](REVIEW.md).
 ## Deploy atual
 
 O repositório documenta Vercel para o frontend e Supabase gerenciado para auth e
-banco. A Vercel é uma integração externa; não há `vercel.json` nem como
-comprovar pelo Git a configuração atual do projeto.
+banco. O `vercel.json` desabilita o auto-deploy Git da `main`, mantendo os
+previews das outras branches habilitados. Essa configuração passa a valer
+quando o arquivo alcançar a branch publicada. O workflow dispara o Deploy Hook
+depois das migrations; a correspondência de SHA, a ordem e a existência de um
+único deployment ainda precisam ser comprovadas na primeira publicação com o
+arquivo. O secret do hook foi cadastrado em `production` em 2 de novembro de
+2026 e sua presença foi confirmada por consulta de metadados, sem ler a URL.
 
 O ambiente externo foi configurado em 11 de agosto de 2026 para a alfa
 controlada. O domínio canônico de produção é
@@ -607,7 +620,35 @@ pode permanecer em português.
 - [docs/guides/calendar-task-json-import.md](docs/guides/calendar-task-json-import.md): guia funcional e contrato da importação JSON do calendário;
 - [docs/operations/incidents/2026-08-31-supabase-wal-read-only.md](docs/operations/incidents/2026-08-31-supabase-wal-read-only.md): incidente de saturação, WAL e modo somente leitura do Supabase;
 - [docs/operations/external-production-runbook.md](docs/operations/external-production-runbook.md): passo a passo das configurações externas de produção, com o que exige segunda máquina, aparelho ou pessoa;
+- [docs/operations/two-machine-backup-restore.md](docs/operations/two-machine-backup-restore.md): ensaio de restore do backup de produção em uma segunda máquina;
+- [docs/operations/deploy-hook-setup.md](docs/operations/deploy-hook-setup.md): configuração do Deploy Hook e prova do deploy ordenado;
 
 `docs/planning/implementation-plan.md` é a fonte canônica e completa do backlog técnico. Os
 documentos em `docs/` existem somente para contratos específicos que não
 pertencem ao plano geral.
+
+## Manutenção validada em 2026-11-02
+
+O restore de produção na segunda máquina e a limpeza foram concluídos pelo
+proprietário. Não há exigência de uma segunda pessoa. A implementação local
+corrige o preparo de Auth/Storage e usa GHCR para as imagens do backup no CI,
+evitando o limite compartilhado do ECR público.
+
+Para E2E em Linux sem as bibliotecas do Chromium, use
+`make test-e2e-container` e `make test-e2e-account-container`, em sequência.
+Os targets preparam a imagem oficial Playwright 1.62.1 com GNU Make e executam
+os mesmos testes e builds, com o UID/GID local, sem publicar portas. Docker é
+necessário; não é necessário instalar bibliotecas no host com sudo. Não execute
+builds ou E2E simultâneos no mesmo checkout. A versão da imagem e a dependência
+Playwright devem permanecer iguais. Desenvolvimento usa Node 20.19+ ou 22.12+.
+
+`make dependency-info package=<pacote>@<versão>` consulta requisitos e licença;
+`make add-dev-dependency package=<pacote>@<versão>` atualiza ferramentas;
+`make audit-all` audita também desenvolvimento. `make backup-image-check`
+confere o pg_dump no GHCR; `make backup-command-check` confere o comando local
+sem executar o dump. As decisões de atualização e resultados estão no
+[relatório de manutenção](docs/operations/dependency-maintenance-2026-11-02.md).
+
+A configuração do Deploy Hook está preparada, com secret confirmado por
+metadados. Publicação e comprovação do deployment ordenado na Vercel continuam
+sob controle do proprietário.

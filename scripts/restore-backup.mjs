@@ -33,6 +33,8 @@ try {
     'public.ecr.aws/supabase/postgres:17.6.1.121',
   ]);
   waitForPostgres();
+  initializeAuthSchema();
+  initializeStorageSchema();
 
   for (const fileName of ['roles.sql', 'schema.sql', 'data.sql']) {
     run(
@@ -89,12 +91,68 @@ try {
     ),
   );
 } finally {
-  spawnSync('docker', ['rm', '--force', containerName], { encoding: 'utf8' });
+  spawnSync('docker', ['rm', '--force', `${containerName}-storage`], {
+    encoding: 'utf8',
+  });
+  spawnSync('docker', ['rm', '--force', `${containerName}-auth`], {
+    encoding: 'utf8',
+  });
+  spawnSync('docker', ['rm', '--force', '--volumes', containerName], {
+    encoding: 'utf8',
+  });
   rmSync(restoreDirectory, { force: true, recursive: true });
 }
 
 function runNode(args) {
   run(process.execPath, args);
+}
+
+function initializeAuthSchema() {
+  run('docker', [
+    'run',
+    '--rm',
+    '--name',
+    `${containerName}-auth`,
+    '--network',
+    `container:${containerName}`,
+    '--env',
+    `GOTRUE_DB_DATABASE_URL=postgresql://supabase_auth_admin:${password}@127.0.0.1:5432/postgres`,
+    '--env',
+    'GOTRUE_DB_DRIVER=postgres',
+    '--env',
+    `GOTRUE_JWT_SECRET=${randomBytes(32).toString('hex')}`,
+    '--env',
+    'GOTRUE_SITE_URL=http://localhost',
+    '--env',
+    'API_EXTERNAL_URL=http://localhost',
+    '--entrypoint',
+    'auth',
+    'public.ecr.aws/supabase/gotrue:v2.197.0',
+    'migrate',
+  ]);
+}
+
+function initializeStorageSchema() {
+  run('docker', [
+    'run',
+    '--rm',
+    '--name',
+    `${containerName}-storage`,
+    '--network',
+    `container:${containerName}`,
+    '--env',
+    `DATABASE_URL=postgresql://supabase_storage_admin:${password}@127.0.0.1:5432/postgres`,
+    '--env',
+    `AUTH_JWT_SECRET=${randomBytes(32).toString('hex')}`,
+    '--env',
+    'STORAGE_BACKEND=file',
+    '--env',
+    'FILE_STORAGE_BACKEND_PATH=/tmp/storage',
+    '--entrypoint',
+    'node',
+    'docker.io/supabase/storage-api:v1.81.0',
+    'dist/scripts/migrate-call.js',
+  ]);
 }
 
 function run(command, args, input) {
@@ -116,7 +174,15 @@ function waitForPostgres() {
   for (let attempt = 0; attempt < 30; attempt += 1) {
     const result = spawnSync(
       'docker',
-      ['exec', containerName, 'pg_isready', '--username', 'postgres'],
+      [
+        'exec',
+        containerName,
+        'pg_isready',
+        '--host',
+        '127.0.0.1',
+        '--username',
+        'postgres',
+      ],
       { encoding: 'utf8' },
     );
 

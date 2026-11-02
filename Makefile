@@ -1,10 +1,94 @@
 NPM = npm
 E2E_PORT = 3100
+PLAYWRIGHT_IMAGE = tick-playwright:1.62.1
+E2E_CONTAINER = docker run --rm --init --ipc=host --user "$$(id -u):$$(id -g)" --volume "$(CURDIR):/workspace" --workdir /workspace --env HOME=/tmp --env NPM_CONFIG_CACHE=/tmp/npm-cache $(PLAYWRIGHT_IMAGE)
+
+.PHONY: test-e2e-container test-e2e-account-container e2e-container-prepare
+
+e2e-container-prepare:
+	docker build --tag $(PLAYWRIGHT_IMAGE) --file docker/playwright.Dockerfile docker
+
+test-e2e-container: e2e-container-prepare
+	$(E2E_CONTAINER) make test-e2e
+
+test-e2e-account-container: e2e-container-prepare
+	$(E2E_CONTAINER) make test-e2e-account
 
 .PHONY: help require-npm require-free-e2e-port install install-ci add-dependency update-dependency dev build start lint typecheck test test-telemetry test-backup test-account-operations test-account-persistence test-e2e test-e2e-reuse test-e2e-mobile test-e2e-offline test-e2e-account test-e2e-browsers format format-check check audit-prod deps-tree publish clean benchmark-account-rpc backup-encrypt backup-restore supabase-start supabase-start-db supabase-stop supabase-status supabase-reset supabase-diff supabase-diff-check supabase-migration-diff supabase-lint supabase-test-db supabase-types-local supabase-prod-backup supabase-prod-migrations-repair supabase-prod-migrations-check supabase-prod-db-dry-run supabase-prod-db-push
 .DEFAULT_GOAL := help
 
+.PHONY: backup-image-check
+
+backup-image-check:
+	docker run --rm ghcr.io/supabase/postgres:17.6.1.106 pg_dump --version
+
+.PHONY: backup-command-check
+
+backup-command-check: require-npm
+	SUPABASE_INTERNAL_IMAGE_REGISTRY=ghcr.io $(NPM) exec -- supabase db dump --local --dry-run
+
+.PHONY: add-dev-dependency
+
+add-dev-dependency: require-npm
+	@test -n "$(package)" || { printf "Erro: informe package=<pacote>@<versao>.\n"; exit 2; }
+	$(NPM) install --save-dev --save-exact $(package)
+
+.PHONY: dependency-info audit-all
+
+dependency-info: require-npm
+	@test -n "$(package)" || { printf "Erro: informe package=<pacote>@<versao>.\n"; exit 2; }
+	$(NPM) view $(package) version engines peerDependencies dependencies license --json
+
+audit-all: require-npm
+	$(NPM) audit --audit-level=high
+
+.PHONY: test-release-workflow
+
+test-release-workflow: require-npm
+	$(NPM) run test -- tests/unit/release-workflow.test.mjs
+
+.PHONY: deploy-hook-status
+
+deploy-hook-status:
+	gh api repos/carlos-ed-ferreira/tick-pwa/environments/production/secrets/VERCEL_DEPLOY_HOOK_URL --jq '{name, created_at, updated_at}'
+
+.PHONY: backup-restore-prepare
+
+backup-restore-prepare:
+	docker pull public.ecr.aws/supabase/postgres:17.6.1.121
+	docker pull public.ecr.aws/supabase/gotrue:v2.197.0
+	docker pull docker.io/supabase/storage-api:v1.81.0
+
+.PHONY: backup-status backup-log backup-artifacts backup-key-status
+
+backup-key-status:
+	gh api repos/carlos-ed-ferreira/tick-pwa/environments/production/secrets/TICK_BACKUP_ENCRYPTION_KEY --jq '{name, created_at, updated_at}'
+
+backup-status:
+	gh run list --repo carlos-ed-ferreira/tick-pwa --workflow production-backup.yml --limit 20 --json databaseId,createdAt,conclusion,headSha,url
+
+backup-log:
+	@test -n "$(run)" || { printf "Erro: informe run=<run-id>.\n"; exit 2; }
+	gh run view "$(run)" --repo carlos-ed-ferreira/tick-pwa --log-failed
+
+backup-artifacts:
+	@test -n "$(run)" || { printf "Erro: informe run=<run-id>.\n"; exit 2; }
+	gh api "repos/carlos-ed-ferreira/tick-pwa/actions/runs/$(run)/artifacts" --jq '.artifacts[] | {name, size_in_bytes, expired, expires_at}'
+
 help:
+	@printf "  %-26s %s\n" "make backup-command-check" "Mostra o comando de dump local usando o mirror GHCR"
+	@printf "  %-26s %s\n" "make backup-image-check" "Valida pg_dump da imagem oficial GHCR usada pelo backup"
+	@printf "  %-26s %s\n" "make add-dev-dependency package=<pacote>" "Adiciona ou atualiza uma dependencia de desenvolvimento"
+	@printf "  %-26s %s\n" "make dependency-info package=<pacote>" "Consulta versao, runtime, peers e licenca no registro npm"
+	@printf "  %-26s %s\n" "make audit-all" "Audita dependencias de producao e desenvolvimento"
+	@printf "  %-26s %s\n" "make test-release-workflow" "Valida a ordem do pipeline e a configuracao Git da Vercel"
+	@printf "  %-26s %s\n" "make deploy-hook-status" "Consulta somente os metadados do secret do Deploy Hook"
+	@printf "  %-26s %s\n" "make backup-restore-prepare" "Baixa as imagens Postgres, Auth e Storage antes do restore"
+	@printf "  %-26s %s\n" "make test-backup-restore" "Testa restore sintetico em container Postgres isolado"
+	@printf "  %-26s %s\n" "make backup-key-status" "Consulta somente as datas do secret de cifra do backup"
+	@printf "  %-26s %s\n" "make backup-status" "Consulta as ultimas execucoes do backup no GitHub"
+	@printf "  %-26s %s\n" "make backup-log run=<run-id>" "Consulta o log de falha do backup no GitHub"
+	@printf "  %-26s %s\n" "make backup-artifacts run=<run-id>" "Confere os artefatos e a validade do backup no GitHub"
 	@printf "\n"
 	@printf "  %-26s %s\n" "make install" "Instala dependencias do projeto"
 	@printf "  %-26s %s\n" "make install-ci" "Instala dependencias exatamente como no lockfile"
@@ -26,6 +110,9 @@ help:
 	@printf "  %-26s %s\n" "make test-e2e-offline" "Roda E2E de reload offline"
 	@printf "  %-26s %s\n" "make test-e2e-account" "Roda E2E autenticado"
 	@printf "  %-26s %s\n" "make test-e2e-browsers" "Instala o Chromium do Playwright"
+	@printf "  %-26s %s\n" "make test-e2e-container" "Roda E2E na imagem oficial do Playwright"
+	@printf "  %-26s %s\n" "make e2e-container-prepare" "Prepara a imagem dos testes E2E"
+	@printf "  %-26s %s\n" "make test-e2e-account-container" "Roda E2E autenticado na imagem oficial"
 	@printf "  %-26s %s\n" "make format" "Formata o codigo com Prettier"
 	@printf "  %-26s %s\n" "make format-check" "Verifica formatacao com Prettier"
 	@printf "  %-26s %s\n" "make check" "Roda typecheck, lint, testes, format-check e build"
@@ -119,7 +206,12 @@ test-telemetry: require-npm
 	$(NPM) run test -- tests/unit/telemetry.test.ts
 
 test-backup: require-npm
-	$(NPM) run test -- tests/unit/backup-archive.test.mjs
+	$(NPM) run test -- tests/unit/backup-archive.test.mjs tests/unit/restore-backup.test.mjs
+
+.PHONY: test-backup-restore
+
+test-backup-restore: require-npm
+	TICK_TEST_BACKUP_RESTORE=1 $(NPM) run test -- tests/integration/backup-restore.test.mjs
 
 test-account-operations: require-npm
 	$(NPM) run test -- tests/unit/account-operations.test.ts
@@ -182,7 +274,7 @@ supabase-start-db: require-npm
 	$(NPM) run supabase:start:db
 
 supabase-stop: require-npm
-	$(NPM) run supabase:stop
+	$(NPM) run supabase:stop -- $(args)
 
 supabase-status: require-npm
 	$(NPM) run supabase:status -- $(args)

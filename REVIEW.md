@@ -265,6 +265,36 @@ cor do processo. Eles não falham o gate atual.
 - cobertura geométrica nos dois sentidos: o campo ocupa mais de 85% da linha em
   toque e menos de 85% em ponteiro fino.
 
+## Validação em aparelho físico em 2026-10-18
+
+- o desenvolvedor aprovou o ensaio da interface de toque em Android e iOS
+  físicos, encerrando o passo 9 do plano de implementação;
+- mudanças futuras em composição de toque, teclado virtual, safe area ou
+  arrasto por toque devem repetir o roteiro do passo 8 do runbook externo.
+
+## Validação de manutenção em 2026-11-02
+
+- `make check`: tipos, lint, 636 testes aprovados, um teste Docker opt-in
+  ignorado, formatação e build Next 16.4.4/PWA aprovados.
+- `make audit-prod`: zero vulnerabilidades; `make audit-all`: zero altas ou
+  críticas, 16 moderadas na cadeia minimatch de desenvolvimento.
+- `make test-e2e-account-container`: quatro testes aprovados, incluindo
+  interação com Supabase lento e retry após reconexão em desktop e mobile.
+- `make test-release-workflow`: cinco testes aprovados, incluindo configuração
+  do mirror GHCR para backup e desativação de auto-deploy Git somente na main.
+- `make test-backup-restore`: restauração sintética Docker aprovada com Auth,
+  Storage e schema Tick completos.
+- Banco isolado: reset, lint, diff declarativo e 50 testes pgTAP aprovados;
+  nenhum reset do banco de trabalho ou de produção.
+- `make test-e2e-container`: 41 aprovados e 19 ignorados, com build novo,
+  incluindo reload offline. Não exigiu instalar bibliotecas no host com sudo.
+- Restore real em Linux e limpeza aprovados pelo proprietário, sem exigência
+  de segunda pessoa. Deploy ordenado e estabilidade do backup diário ainda
+  dependem de publicação e observação externa.
+
+Versões, licenças, overrides, limites e rollback estão no
+[relatório de manutenção](docs/operations/dependency-maintenance-2026-11-02.md).
+
 ## Matriz de quality gates
 
 | Gate               | Métrica e threshold                                                                 | Escopo                              | Estado         | Legado                                    | Bloqueia?                   |
