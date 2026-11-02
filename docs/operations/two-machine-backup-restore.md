@@ -6,6 +6,55 @@ Nada aqui toca a produção.
 
 Tempo estimado: 20 minutos.
 
+## Resultado da sessão Windows/WSL2 e Linux
+
+Restore executado com sucesso em 2026-11-02 pelo proprietário no Linux Acer A15
+com Node 22.21.1, usando o run `41520276777` e o SHA histórico com as correções
+locais do utilitário: 10 tabelas públicas, exit status 0, RTO de 3,454 s e idade
+do backup de 47 min 39,601 s. A evidência está em
+[observability-backup-restore.md](observability-backup-restore.md).
+A limpeza das pastas foi concluída e confirmada pelo proprietário. O proprietário dispensou a
+exigência de outra pessoa em 2026-11-02 e adotou a validação por ele em dois
+dispositivos. A consulta de containers não encontrou remanescentes, mas a
+remoção inicial das pastas parou em arquivos protegidos de `.git/objects/pack`.
+A repetição com `rm -rf --` nos dois caminhos temporários retornou
+`Limpeza concluída.`. O ensaio em duas máquinas está concluído.
+
+Esta sessão priorizou o restore que exigia outra máquina. O POC PowerSync foi
+encerrado e removido; a estratégia
+atual é a outbox própria. Os ensaios de duas sessões já foram aprovados no
+passo 1.4 do [runbook externo](external-production-runbook.md). Os testes mobile
+também estão concluídos e não precisam ser repetidos nesta sessão.
+
+| Atividade                            | Situação                                                  | Recurso                           |
+| ------------------------------------ | --------------------------------------------------------- | --------------------------------- |
+| Restore isolado e medição de RPO/RTO | aprovado; limpeza confirmada                              | Linux Acer A15                    |
+| Segunda pessoa                       | dispensada por decisão do proprietário em 2026-11-02      | proprietário em dois dispositivos |
+| Convergência entre duas sessões      | já aprovada; repetir somente se houver regressão          | navegadores Windows e Linux       |
+| Deploy Hook e deploy ordenado        | próximo trabalho após os ensaios; não exige duas máquinas | WSL2 e painéis                    |
+| DNS por outra rede                   | futuro, somente no corte de hospedagem                    | rede e resolvedor alternativos    |
+
+O backup falha intermitentemente ao baixar a imagem do Postgres. O run
+`41163812529`, de 31 de outubro, falhou com `toomanyrequests: Data limit exceeded`
+no registro `public.ecr.aws`, antes de acessar o banco. Os runs de 1º e 2 de
+novembro passaram; o run `41382697246` tem artefato não expirado até
+`2026-11-16T03:23:31Z`, no SHA
+`a00e5b4303b09d2f687b885c6ceeb69ce03cb7ec`. A falha recorrente permanece aberta,
+mas não impede usar esse backup no ensaio. O passo 2 seleciona o sucesso mais
+recente; confira novamente a disponibilidade se executar em outro dia.
+
+No WSL2, as consultas somente leitura são:
+
+```bash
+make backup-status
+make backup-log run=41163812529
+make backup-artifacts run=41382697246
+```
+
+Esses targets foram adicionados ao checkout de trabalho e não exigem publicação
+para consulta local. Na máquina Linux, siga o roteiro abaixo com o checkout
+histórico correspondente ao backup.
+
 ---
 
 ## Passo 1 — Abrir o terminal no Ubuntu
@@ -60,13 +109,21 @@ nesta pasta. Não rode `make install`.
 
 ---
 
-## Passo 4 — Baixar a imagem do Postgres
+## Passo 4 — Baixar as imagens do Postgres, Auth e Storage
 
 ```bash
 docker pull public.ecr.aws/supabase/postgres:17.6.1.121
+docker pull public.ecr.aws/supabase/gotrue:v2.197.0
+docker pull docker.io/supabase/storage-api:v1.81.0
 ```
 
 Espere terminar. Isso fica fora do tempo medido.
+
+O restore atualizado prepara os schemas de Auth e Storage com as imagens dos
+serviços antes de importar o dump. O checkout histórico `a00e5b4` precisa receber a correção do
+utilitário validada no repositório de trabalho: a imagem Postgres sozinha não
+contém as migrations atuais de Auth e Storage. Não crie colunas avulsas nem descarte
+dados do backup para contornar falhas de compatibilidade.
 
 ---
 
@@ -162,7 +219,8 @@ Docker: <saída de docker --version>
 Dúvidas durante o roteiro: <nenhuma ou quais>
 ```
 
-Com isso, eu atualizo a tabela de evidências, o registro do runbook, o checklist
+Envie o resultado ao agente neste repositório para atualizar a tabela de
+evidências, o registro do runbook, o checklist
 e o estado do passo 4 do plano.
 
 O ensaio aprova se:
@@ -172,11 +230,14 @@ O ensaio aprova se:
 - o container e a pasta tiverem sido removidos.
 
 `rpoMs` só mostra quanto tempo passou entre o backup e o seu restore. O RPO
-real do Tick é de até 24 horas mais a duração do job, porque o backup roda uma
-vez por dia.
+planejado do Tick é de até 24 horas mais a duração do job, porque o backup roda
+uma vez por dia. As falhas recorrentes podem aumentar esse intervalo; não há
+garantia de RPO diário até estabilizar o workflow.
 
-Como foi você quem fez os dois lados, o item **Ensaio de independência com
-segunda pessoa** continua aberto até outra pessoa repetir este roteiro.
+Por decisão do proprietário em 2026-11-02, o ensaio feito por ele em dois
+dispositivos é a evidência aceita. A exigência de segunda pessoa foi dispensada;
+não há repetição por terceiro pendente. A revisão independente não foi
+executada e não é apresentada como parte desta evidência.
 
 ---
 

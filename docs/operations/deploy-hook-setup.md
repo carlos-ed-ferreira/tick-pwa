@@ -8,6 +8,32 @@ Tudo é feito no Windows/WSL2, no navegador e no terminal deste repositório.
 
 Tempo estimado: 30 minutos, mais o tempo de uma publicação.
 
+## Estado conferido em 2 de novembro de 2026
+
+O restore em duas máquinas e a limpeza foram concluídos pelo proprietário.
+Depois da criação do hook informada por ele, `make deploy-hook-status` confirmou
+`VERCEL_DEPLOY_HOOK_URL` no environment `production`, criado em
+`2026-11-02T21:39:25Z` (`18:39:25` em São Paulo). A consulta leu somente nome e
+datas; a URL não foi acessada nem disparada.
+
+O `vercel.json` já está preparado no worktree, com auto-deploy Git desabilitado
+somente para `main`. `make test-release-workflow` teve RED antes do arquivo e
+GREEN com quatro testes depois dele; a suíte agora inclui cinco testes. A configuração só passa a valer em
+produção após publicação pelo proprietário, e não comprova por si só a entrega
+real do hook.
+
+Os bloqueios locais foram corrigidos: dependências instaladas a partir do
+lockfile, tipos gerados antigos removidos por `make clean`, atualizações de
+segurança e normalização de finais de linha. `make check` e os gates de banco
+passaram; `make audit-prod` reportou zero vulnerabilidades. O audit completo
+não tem achados altos ou críticos e mantém 16 moderados de desenvolvimento.
+A validação final está no
+[relatório de manutenção](dependency-maintenance-2026-11-02.md).
+
+O prazo de 23/10/2026 do passo 3 já passou: essa reexecução histórica deve ser
+pulada. A comprovação do deploy depende de uma publicação futura explicitamente
+autorizada pelo proprietário. A mitigação da falha intermitente usa GHCR no workflow ainda não publicado; concluir o restore não comprova estabilidade do workflow diário.
+
 ---
 
 ## Passo 1 — Criar o Deploy Hook na Vercel
@@ -90,14 +116,7 @@ só. A forma oficial é um arquivo `vercel.json` no repositório com
 `git.deploymentEnabled`. Não use `github.enabled: false`: essa opção bloqueia
 os Deploy Hooks.
 
-No Claude Code, peça exatamente:
-
-```text
-Adicione o vercel.json desligando o auto-deploy da main conforme o passo 4 do
-deploy-hook-setup.md e rode os gates.
-```
-
-O arquivo terá este conteúdo:
+O arquivo já foi preparado no worktree em 2026-11-02 com este conteúdo:
 
 ```json
 {

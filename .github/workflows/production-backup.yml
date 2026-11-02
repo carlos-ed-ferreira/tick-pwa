@@ -19,6 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: production
     env:
+      SUPABASE_INTERNAL_IMAGE_REGISTRY: ghcr.io
       SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
       TICK_BACKUP_ENCRYPTION_KEY: ${{ secrets.TICK_BACKUP_ENCRYPTION_KEY }}
 
