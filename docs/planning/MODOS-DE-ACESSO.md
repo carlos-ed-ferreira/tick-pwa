@@ -26,7 +26,8 @@ remove o progresso; não há expiração deliberada dos dados.
 - Alternar modo ou conta não mistura escopos, importa dados ou limpa a origem.
 - Nas contas habilitadas para lotes, entidades funcionais usam outbox durável,
   feedback e retry. Contas fora da coorte usam fila legada em memória, e
-  preferências sincronizadas usam envio separado.
+  preferências sincronizadas possuem estado pendente durável e retry separado,
+  compartilhando a coordenação de envio da conta.
 - A negativa explícita de autorização não equivale a falha transitória de rede.
 
 Dados guest não possuem cópia no Supabase. Limpeza de dados do navegador,
@@ -67,7 +68,7 @@ conta/e-mail com até 24 horas quando o Supabase não responde. Não há acesso
 remoto autorizado por esse grant depois de uma negativa explícita do servidor.
 
 A outbox das seis entidades funcionais depende de flag e UUID habilitados no
-build. O indicador resume entidades, não a durabilidade de preferências.
-O refresh protege pendências no momento do merge; escritas já confirmadas
-podem ser afetadas por um snapshot iniciado anteriormente. Essas condições
-limitam a garantia atual de uso autenticado sem rede.
+build. Preferências usam fila durável para qualquer conta convidada. O indicador
+resume os dois caminhos. O refresh compara a versão anterior à rede com a
+versão local atual, preservando alterações e confirmações durante a leitura.
+O caminho legado das entidades continua com garantia diferente da outbox.

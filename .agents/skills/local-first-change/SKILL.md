@@ -61,7 +61,11 @@ Testar, conforme o alcance:
 - troca guest/conta sem mistura;
 - conta madura e fila sob carga.
 
-Executar testes direcionados, E2E autenticado/local, pgTAP e gates do REVIEW.
+Executar `make test-sync-safety`, E2E autenticado/local, pgTAP e gates do REVIEW.
+Usar `make test-account-browser` para fechamento completo e convergência com
+API real temporária; não executar reset no banco de trabalho para esse ensaio.
+Verificar fila/lock compartilhados, versão de preferências e baseline anterior
+à rede ao alterar refresh ou confirmação de escrita.
 Concentrar trabalho ainda não resolvido no arquivo temporário
 `docs/planning/PENDENCIAS.md`.
 

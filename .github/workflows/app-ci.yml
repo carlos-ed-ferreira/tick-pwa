@@ -17,6 +17,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v7
@@ -32,6 +34,51 @@ jobs:
 
       - name: Run checks
         run: make check
+
+      - name: Check structure and architecture
+        run: make quality-check
+
+      - name: Measure coverage
+        run: make test-coverage
+
+      - name: Check coverage ratchet and diff
+        env:
+          COVERAGE_BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: make coverage-check
+
+      - name: Check critical mutations
+        run: make test-mutation
+
+  security:
+    name: Check security
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: Check committed secrets
+        run: make check-secrets
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v4
+        with:
+          languages: javascript-typescript
+          build-mode: none
+          queries: security-extended
+      - name: Analyze code
+        uses: github/codeql-action/analyze@v4
+        with:
+          output: .next/codeql
+          upload: false
+      - name: Enforce security findings gate
+        run: make check-sast
 
   database:
     name: Check database
@@ -101,6 +148,9 @@ jobs:
       - name: Run authenticated end-to-end tests
         run: make test-e2e-account
 
+      - name: Run account tests with an isolated real API
+        run: make test-account-browser
+
       - name: Upload Playwright artifacts
         if: failure()
         uses: actions/upload-artifact@v6
@@ -110,6 +160,7 @@ jobs:
             .next/playwright-report
             .next/playwright-results
             .next/playwright-account-results
+            .next/playwright-account-real-results
           retention-days: 7
 
   report-failure:
@@ -118,6 +169,7 @@ jobs:
       - check
       - database
       - end-to-end
+      - security
     if: failure() && github.event_name == 'push'
     runs-on: ubuntu-latest
 

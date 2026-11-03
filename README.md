@@ -148,8 +148,10 @@ No modo autenticado, o app baixa snapshots das tabelas da conta para um cache
 Dexie. Os snapshots são paginados em blocos de 1.000 linhas, ordenados apenas
 pelo identificador, que é imutável, e só reconciliam exclusões das entidades depois que todas
 as páginas terminam com sucesso. Preferências são atualizadas separadamente. Refreshes simultâneos do mesmo escopo
-compartilham uma única leitura remota, e o conjunto protegido de entidades
-pendentes é calculado dentro da transação de merge. No rollout controlado, a alteração funcional e seu lote
+compartilham uma única leitura remota, e o merge compara a versão local capturada antes da rede com a versão atual.
+Escritas criadas, alteradas ou confirmadas durante a leitura ficam protegidas,
+assim como suas dependências. Revisões remotas inferiores ou iguais não
+sobrescrevem versões sincronizadas mais recentes. No rollout controlado, a alteração funcional e seu lote
 remoto são gravados atomicamente no IndexedDB. A outbox preserva o mesmo
 `operation_id` entre reloads, mantém a ordem, agrupa até 100 mutações e envia
 uma RPC transacional; falhas continuam visíveis e podem ser reenviadas. Contas
@@ -164,7 +166,9 @@ operações remotas e aparece como falha recuperável, resolvida pela
 sincronização forçada. Uma rejeição `stale_revision` é rebaseada uma vez pela
 revisão atual do servidor e reenviada automaticamente; se ainda assim falhar, a
 operação permanece visível e recuperável. A drenagem da outbox usa um lock por
-conta para que abas do mesmo navegador não disputem o mesmo `operation_id`.
+conta, compartilhado com a sincronização forçada e o envio de preferências,
+para que abas do mesmo navegador não disputem o mesmo `operation_id`. Sem
+Web Locks, a serialização cobre somente a aba atual.
 Quando o navegador informa que está offline, uma operação nova permanece
 pendente sem iniciar RPC. Se a conexão cai durante uma chamada, a operação volta
 de `syncing` para `pending` e conserva o mesmo identificador para a retomada na
@@ -174,6 +178,14 @@ dreno para e uma tentativa limitada usa o backoff da outbox. Refreshes remotos
 disparados por foco ou sessão também não começam enquanto o navegador está
 offline; indisponibilidade esperada não é apresentada como falha definitiva de
 sincronização.
+
+Preferências de conta confirmam localmente e guardam estado de envio, número
+de tentativas e prazo de retry em `localPreferences`. Reabertura e reconexão
+retomam o último valor local; falha remota não restaura um valor antigo. O
+acknowledgement só confirma a versão enviada. São no máximo cinco tentativas
+automáticas, com backoff de 1 s a 30 s; a sincronização forçada permite nova
+tentativa. O indicador inclui entidades e preferências. Essa persistência de
+preferências vale também fora da coorte funcional; guest permanece somente local.
 
 O indicador de sincronização é acionável em qualquer estado. A ação baixa o
 snapshot remoto e depois envia o que este dispositivo alterou, nessa ordem. O
@@ -217,15 +229,11 @@ grupo de metas, meta e etapa, deriva ownership do JWT, aplica compare-and-set
 por revisão e confirma o lote inteiro em uma transação. Cada chamada também
 descarta os recibos da própria conta com mais de sete dias.
 
-A estratégia de lotes usa Dexie e Supabase, sem outra fonte canônica. As contas fora da coorte continuam no caminho legado descrito acima.
-Preferências sincronizadas da conta usam confirmação local e envio por fila em
-memória, separado da outbox; uma falha pode restaurar o valor remoto.
-
-O refresh protege entidades que ainda estão pendentes no momento do merge.
-Uma entidade confirmada enquanto um snapshot anterior está em trânsito pode
-ser removida do cache ou receber a versão desse snapshot. Essa proteção não
-abrange toda escrita confirmada durante a leitura. O push manual e o dreno
-usam filas distintas; o Web Lock pertence ao dreno da outbox.
+A estratégia de lotes usa Dexie e Supabase, sem outra fonte canônica. As
+contas fora da coorte continuam no caminho legado descrito acima. Consultas
+Supabase usam `cache: no-store`; autorização e dados não dependem do cache HTTP
+do navegador. Quando o navegador informa ausência de rede, a verificação de
+acesso usa o contrato de grant local e a atualização do perfil remoto é adiada.
 
 ### PWA e offline
 
@@ -493,31 +501,37 @@ recorrente sem target, adicione-a ao `Makefile` e ao `make help` primeiro.
 
 Desenvolvimento e gates:
 
-| Objetivo           | Comando                             |
-| ------------------ | ----------------------------------- |
-| instalar           | `make install` ou `make install-ci` |
-| desenvolver        | `make dev`                          |
-| build/start        | `make build`, `make start`          |
-| typecheck          | `make typecheck`                    |
-| lint               | `make lint`                         |
-| testes             | `make test`                         |
-| formatar/verificar | `make format`, `make format-check`  |
-| gate atual         | `make check`                        |
-| limpar gerados     | `make clean`                        |
+| Objetivo                | Comando                                     |
+| ----------------------- | ------------------------------------------- |
+| instalar                | `make install` ou `make install-ci`         |
+| desenvolver             | `make dev`                                  |
+| build/start             | `make build`, `make start`                  |
+| typecheck               | `make typecheck`                            |
+| lint                    | `make lint`                                 |
+| testes                  | `make test`                                 |
+| formatar/verificar      | `make format`, `make format-check`          |
+| gate atual              | `make check`                                |
+| limpar gerados          | `make clean`                                |
+| estrutura e arquitetura | `make quality-check`                        |
+| cobertura e ratchet     | `make test-coverage`, `make coverage-check` |
+| mutação e ratchet       | `make test-mutation`                        |
+| secrets e SAST          | `make check-secrets`, `make check-sast`     |
 
 Testes direcionados:
 
-| Objetivo                   | Comando                         |
-| -------------------------- | ------------------------------- |
-| telemetria                 | `make test-telemetry`           |
-| contrato transacional      | `make test-account-operations`  |
-| outbox autenticada         | `make test-account-persistence` |
-| guest e convidados         | `make test-access-policy`       |
-| metas e etapas             | `make test-goals`               |
-| cifra do backup            | `make test-backup`              |
-| restore em Docker          | `make test-backup-restore`      |
-| ordem do pipeline e Vercel | `make test-release-workflow`    |
-| estatísticas de benchmark  | `make test-capacity`            |
+| Objetivo                           | Comando                         |
+| ---------------------------------- | ------------------------------- |
+| telemetria                         | `make test-telemetry`           |
+| contrato transacional              | `make test-account-operations`  |
+| outbox autenticada                 | `make test-account-persistence` |
+| corridas de refresh e preferências | `make test-sync-safety`         |
+| validadores dos gates              | `make test-quality`             |
+| guest e convidados                 | `make test-access-policy`       |
+| metas e etapas                     | `make test-goals`               |
+| cifra do backup                    | `make test-backup`              |
+| restore em Docker                  | `make test-backup-restore`      |
+| ordem do pipeline e Vercel         | `make test-release-workflow`    |
+| estatísticas de benchmark          | `make test-capacity`            |
 
 E2E:
 
@@ -529,13 +543,19 @@ E2E:
 | reload offline             | `make test-e2e-offline`           |
 | autenticado                | `make test-e2e-account`           |
 | instalar Chromium          | `make test-e2e-browsers`          |
+| acessibilidade WCAG        | `make test-e2e-a11y`              |
+| conta com API real isolada | `make test-account-browser`       |
 | imagem Playwright          | `make e2e-container-prepare`      |
 | padrão em container        | `make test-e2e-container`         |
 | autenticado em container   | `make test-e2e-account-container` |
 
 Os targets em container usam a imagem oficial do Playwright 1.62.1 com GNU
 Make, o UID/GID local e nenhuma porta publicada. Use-os em Linux sem as
-bibliotecas do Chromium no host. Não execute builds ou E2E simultâneos no mesmo
+bibliotecas do Chromium no host. `make test-account-browser` cria checkout e
+Supabase temporários nas portas 56320–56329 e app em 3102, usa rede host no
+container e uma conta sintética do seed; não lê `.env` nem reseta o banco de
+trabalho. Os artefatos ficam em `.next/playwright-account-real-results`.
+Não execute builds ou E2E simultâneos no mesmo
 checkout; a versão da imagem e a dependência Playwright devem permanecer iguais.
 
 Dependências:
@@ -573,7 +593,7 @@ Backup, publicação e operação:
 | execuções recentes          | `make actions-status`                           |
 | jobs de uma execução        | `make actions-run run=<run-id>`                 |
 | issues operacionais abertas | `make operations-issues`                        |
-| metadados do Deploy Hook    | `make deploy-hook-status`                       |
+| configuração da API Vercel  | `make production-release-status`                |
 | execuções do backup         | `make backup-status`                            |
 | log de backup falho         | `make backup-log run=<run-id>`                  |
 | artefatos de backup         | `make backup-artifacts run=<run-id>`            |
@@ -586,27 +606,29 @@ Backup, publicação e operação:
 
 Supabase:
 
-| Objetivo        | Comando                                     |
-| --------------- | ------------------------------------------- |
-| iniciar/parar   | `make supabase-start`, `make supabase-stop` |
-| só o banco      | `make supabase-start-db`                    |
-| banco e Auth    | `make supabase-start-account`               |
-| status          | `make supabase-status`                      |
-| reset           | `make supabase-reset`                       |
-| diff            | `make supabase-diff`                        |
-| conferir diff   | `make supabase-diff-check`                  |
-| gerar migration | `make supabase-migration-diff name=<nome>`  |
-| lint            | `make supabase-lint`                        |
-| pgTAP           | `make supabase-test-db`                     |
-| tipos           | `make supabase-types-local`                 |
-| histórico prod. | `make supabase-prod-migrations-check`       |
+| Objetivo                                   | Comando                                        |
+| ------------------------------------------ | ---------------------------------------------- |
+| iniciar/parar                              | `make supabase-start`, `make supabase-stop`    |
+| só o banco                                 | `make supabase-start-db`                       |
+| banco e Auth                               | `make supabase-start-account`                  |
+| status                                     | `make supabase-status`                         |
+| reset                                      | `make supabase-reset`                          |
+| diff                                       | `make supabase-diff`                           |
+| conferir diff                              | `make supabase-diff-check`                     |
+| gerar migration                            | `make supabase-migration-diff name=<nome>`     |
+| validar sem resetar o ambiente de trabalho | `make validate-database`                       |
+| gerar diff em banco temporário             | `make generate-database-migration name=<nome>` |
+| lint                                       | `make supabase-lint`                           |
+| pgTAP                                      | `make supabase-test-db`                        |
+| tipos                                      | `make supabase-types-local`                    |
+| histórico prod.                            | `make supabase-prod-migrations-check`          |
 
 Os targets `supabase-prod-*` só executam no GitHub Actions; o wrapper os
 bloqueia fora dele.
 
 `make check` executa typecheck, lint, Vitest, format-check e build. E2E e
 validações de banco são separados. Os critérios de aprovação e gates
-planejados ficam exclusivamente no [REVIEW.md](REVIEW.md).
+atuais estão definidos no [REVIEW.md](REVIEW.md).
 
 ## Deploy atual
 
@@ -617,25 +639,31 @@ Vercel não recebem configuração do Supabase de produção.
 
 O ruleset da `main` exige `Check app`, `Check database` e `Check end-to-end`.
 O App CI roda em pull requests e pushes da `main`, com auditoria de produção,
-`make check`, banco limpo/lint/diff/pgTAP e E2E local e autenticado. O E2E de
-conta usa API simulada com latência. Falhas de push na `main` abrem ou comentam
+`make check`, cobertura, mutação, estrutura/arquitetura, SAST/secrets, banco
+limpo/lint/diff/pgTAP e E2E local e autenticado. Axe verifica calendário e metas
+em desktop e mobile dentro da suíte local. O E2E de
+conta cobre API simulada com latência e Chromium com API real temporária,
+fechamento completo e conflito entre duas sessões. Falhas de push na `main` abrem ou comentam
 issue `ci-failure` atribuída ao proprietário.
 
 O `vercel.json` desabilita auto-deploy Git somente da `main`. O workflow
-`supabase-migrations.yml` aguarda App CI aprovado, faz checkout do SHA e detecta
-mudanças de banco comparando `HEAD^ HEAD`. Quando há mudança, executa repair
-conhecido de histórico, dry-run e push. Depois confere se a `main` ainda aponta
-para o SHA aprovado e dispara o Deploy Hook da branch. O hook não recebe SHA
-no payload; seu retorno confirma um pedido, não um deployment `Ready`.
-A confirmação de SHA, ambiente e smoke é manual pelo
-[runbook](docs/operations/PUBLICACAO.md).
+`supabase-migrations.yml` exige App CI completo aprovado para o SHA da ponta
+atual da `main`, tanto na execução automática quanto na manual. O preflight
+confere credenciais e vínculo do projeto Vercel antes de tocar o banco.
+Toda publicação consulta e aplica migrations pendentes, independentemente dos
+arquivos alterados no último commit, e confirma o histórico remoto antes do deploy.
 
-Execuções de produção são serializadas. O caminho `workflow_dispatch` roda
-`make check` e `make audit-prod`, sem executar os jobs de banco e E2E do App CI.
-Falhas dos jobs abrem ou comentam issue `pipeline-failure`. A auditoria horária
-compara o histórico remoto de migrations; ela não verifica a aplicação servida
-nem é dependência do job de deploy. Avisos dentro do GitHub dependem de sua
-disponibilidade.
+O deploy usa a API Vercel com o SHA explícito, sem Deploy Hook. O job confere
+SHA, projeto e ambiente Production, espera `READY` e verifica HTML e marcador
+`tick-release` em `/`, `/calendar` e `/goals`. Retomadas procuram deployment do
+mesmo SHA; resposta perdida não gera repetição cega do POST. O timeout exige
+inspeção na Vercel antes de nova tentativa. O smoke ocorre após a promoção e
+não substitui validação funcional do domínio canônico. Configuração e retomada
+estão no [runbook](docs/operations/PUBLICACAO.md).
+
+Execuções de produção são serializadas. Falhas abrem ou comentam issue
+`pipeline-failure`. A auditoria horária compara migrations, sem publicar nem
+verificar a aplicação servida; avisos no GitHub dependem de sua disponibilidade.
 
 `make publish` exige branch `dev` e worktree limpo, sincroniza a branch, cria
 ou reutiliza PR, silencia notificações desse PR e aguarda os checks obrigatórios
@@ -654,6 +682,35 @@ O workflow `Production backup` está habilitado, com agendamento diário às
 03:17 UTC, dump pelo GHCR, cifra AES-256-GCM e retenção de 14 dias no GitHub.
 Falhas abrem ou comentam issue `backup-failure`. Backup e restore são descritos
 no [runbook operacional](docs/operations/MONITORAMENTO-E-RECUPERACAO.md).
+
+### Credenciais e variáveis de produção
+
+`VERCEL_TOKEN` e `VERCEL_PROJECT_ID` estão criados e cadastrados como secrets
+no environment GitHub `production`. O token autoriza o GitHub Actions a
+consultar e criar deployments; o ID identifica o projeto Tick na Vercel.
+Os tokens de integração criados manualmente pelo proprietário, incluindo
+`VERCEL_TOKEN` e `SUPABASE_ACCESS_TOKEN`, estão configurados sem expiração
+automática, conforme informado pelo proprietário. O cadastro foi confirmado
+por metadados, sem ler valores; validade e permissões são conferidas pelo
+preflight da publicação.
+
+O [inventário de credenciais e configuração](docs/operations/AMBIENTE-DE-PRODUCAO.md#inventário-de-credenciais-do-github)
+descreve a origem, a finalidade, o consumidor e o efeito de remover cada um dos
+oito secrets cadastrados no GitHub e das sete variáveis de Production na Vercel.
+Distingue tokens privados, senha do banco, chave do backup, identificadores,
+chaves públicas de cliente e flags de funcionamento.
+
+`VERCEL_DEPLOY_HOOK_URL` permanece cadastrada, mas não é consumida pelo fluxo
+por SHA deste repositório. Sua remoção exige confirmar que nenhum workflow
+ativo depende do hook e revogá-lo também na Vercel. A chave de backup deve ser
+preservada enquanto existirem arquivos cifrados que dependam dela.
+
+```sh
+make production-release-status
+```
+
+Esse comando consulta somente nomes e datas dos secrets da API Vercel.
+Os valores ficam nos provedores e no cofre do proprietário.
 
 ## Escopo de uso
 
@@ -678,7 +735,7 @@ capitalização natural e preservam os termos técnicos.
 - [Contrato de acesso](docs/planning/MODOS-DE-ACESSO.md): guest e conta convidada.
 - [Importação JSON](docs/guides/IMPORTACAO-DE-TAREFAS.md): uso e contrato de entrada.
 - [Configuração externa](docs/operations/AMBIENTE-DE-PRODUCAO.md): contas, secrets e operação.
-- [Deploy Hook](docs/operations/PUBLICACAO.md): publicação e confirmação manual.
+- [Publicação](docs/operations/PUBLICACAO.md): gates, deploy por SHA e recuperação.
 - [Telemetria e backup](docs/operations/MONITORAMENTO-E-RECUPERACAO.md): alertas, recuperação e rollback.
 - [Restore em outra máquina](docs/operations/TESTE-DE-RESTAURACAO.md): ensaio isolado.
 - [Capacidade local](docs/operations/DIAGNOSTICO-DE-DESEMPENHO.md): ferramentas opcionais de diagnóstico.

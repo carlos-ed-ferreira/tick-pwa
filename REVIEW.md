@@ -31,34 +31,55 @@ falha de segurança ou perda de dados.
 
 ## Matriz de quality gates atuais
 
-| Gate                    | Critério                                                                   | Execução atual                             | Alcance                              |
-| ----------------------- | -------------------------------------------------------------------------- | ------------------------------------------ | ------------------------------------ |
-| TypeScript              | Zero erros                                                                 | `make typecheck`, enforced                 | TS/TSX                               |
-| Comentários e lint      | Zero comentários proibidos e erros                                         | `make lint`, enforced                      | Código, testes, CSS e SQL suportados |
-| Formatação              | Zero diferenças                                                            | `make format-check`, enforced              | Arquivos suportados                  |
-| Unit/integration        | Todos os testes aprovados; skips justificados                              | `make test`, enforced                      | Suíte existente                      |
-| Build                   | Exit status zero                                                           | `make build`, enforced                     | Aplicação e PWA                      |
-| Dependency audit        | Zero vulnerabilidades altas ou críticas de produção                        | `make audit-prod`, enforced no CI          | Dependências e deploy                |
-| E2E local               | Cenários desktop e mobile aprovados; manter ao menos 24                    | `make test-e2e`, enforced no CI            | Fluxos do navegador                  |
-| E2E autenticado         | Cenários de conta e latência simulada aprovados; manter ao menos 4         | `make test-e2e-account`, enforced no CI    | Auth e sincronização                 |
-| Banco limpo             | Migrations e seed reproduzíveis                                            | `make supabase-reset`, enforced no CI      | Banco local isolado                  |
-| Schema lint             | Zero erros                                                                 | `make supabase-lint`, enforced no CI       | Postgres                             |
-| Schema declarativo      | Zero divergências                                                          | `make supabase-diff-check`, enforced no CI | Schema e migrations                  |
-| pgTAP                   | Todos aprovados; manter ao menos 50, remoção exige revisão                 | `make supabase-test-db`, enforced no CI    | Contratos e autorização              |
-| Estrutura e arquitetura | Ratchet, coesão, fronteiras e thresholds deste arquivo                     | Revisão manual                             | Código alterado                      |
-| Segurança               | Sem secret confirmado, bypass ou vulnerabilidade nova crítica/alta         | Audit automatizado e revisão manual        | Diff, auth e dados                   |
-| Local-first autenticado | Preservação local, recuperação e reconexão                                 | Testes existentes e revisão manual         | Persistência da conta                |
-| Guest                   | Persistência exclusivamente local e isolamento                             | `make test-access-policy` e revisão manual | Uso sem conta                        |
-| i18n                    | Tipos e paridade pt-BR/en; strings pelo dicionário                         | Typecheck e revisão manual                 | UI alterada                          |
-| UI responsiva           | Cenários mobile e desktop aprovados; manter ao menos 15 de layout mobile   | `make test-e2e-mobile` e revisão visual    | UI alterada                          |
-| Acessibilidade          | Sem violação nova crítica/séria; teclado, foco, semântica e nome acessível | Testes existentes e revisão manual         | UI alterada                          |
-| Performance             | Interface utilizável e dados preservados durante sync                      | Observação manual e testes do caminho      | Uso real                             |
+| Gate                    | Critério                                                                                  | Execução atual                                                        | Alcance                                       |
+| ----------------------- | ----------------------------------------------------------------------------------------- | --------------------------------------------------------------------- | --------------------------------------------- |
+| TypeScript              | Zero erros                                                                                | `make typecheck`, enforced                                            | TS/TSX                                        |
+| Comentários e lint      | Zero comentários proibidos e erros                                                        | `make lint`, enforced                                                 | Código, testes, CSS e SQL suportados          |
+| Formatação              | Zero diferenças                                                                           | `make format-check`, enforced                                         | Arquivos suportados                           |
+| Unit/integration        | Todos os testes aprovados; skips justificados                                             | `make test`, enforced                                                 | Suíte existente                               |
+| Build                   | Exit status zero                                                                          | `make build`, enforced                                                | Aplicação e PWA                               |
+| Dependency audit        | Zero vulnerabilidades altas ou críticas de produção                                       | `make audit-prod`, enforced no CI                                     | Dependências e deploy                         |
+| E2E local               | Cenários desktop e mobile aprovados; manter ao menos 24                                   | `make test-e2e`, enforced no CI                                       | Fluxos do navegador                           |
+| E2E autenticado         | Conta com latência simulada e API real isolada aprovadas; manter ao menos 6               | `make test-e2e-account` e `make test-account-browser`, enforced no CI | Auth e sincronização                          |
+| Banco limpo             | Migrations e seed reproduzíveis                                                           | `make supabase-reset`, enforced no CI                                 | Banco local isolado                           |
+| Schema lint             | Zero erros                                                                                | `make supabase-lint`, enforced no CI                                  | Postgres                                      |
+| Schema declarativo      | Zero divergências                                                                         | `make supabase-diff-check`, enforced no CI                            | Schema e migrations                           |
+| pgTAP                   | Todos aprovados; manter ao menos 55, remoção exige revisão                                | `make supabase-test-db`, enforced no CI                               | Contratos e autorização                       |
+| Estrutura e arquitetura | Ratchet, complexidade ≤10, função ≤80, módulo ≤800, sem ciclos novos ou imports proibidos | `make quality-check`, enforced no CI                                  | TS/TSX de `src`, exceto tipos gerados         |
+| Coverage                | Sem queda global; diff ≥90% linhas e ≥80% branches                                        | `make test-coverage`, `make coverage-check`, enforced no CI           | Código de `src` suportado pelo V8             |
+| Mutation                | Sem queda por módulo/global e ≥70%                                                        | `make test-mutation`, enforced no CI                                  | Módulos críticos definidos no Stryker         |
+| Segurança               | Sem secret confirmado, bypass ou vulnerabilidade nova crítica/alta                        | `make check-secrets`, CodeQL e revisão manual                         | Diff, auth e dados                            |
+| Local-first autenticado | Preservação local, recuperação e reconexão                                                | Testes existentes e revisão manual                                    | Persistência da conta                         |
+| Guest                   | Persistência exclusivamente local e isolamento                                            | `make test-access-policy` e revisão manual                            | Uso sem conta                                 |
+| i18n                    | Tipos e paridade pt-BR/en; strings pelo dicionário                                        | Typecheck e revisão manual                                            | UI alterada                                   |
+| UI responsiva           | Cenários mobile e desktop aprovados; manter ao menos 15 de layout mobile                  | `make test-e2e-mobile` e revisão visual                               | UI alterada                                   |
+| Acessibilidade          | Sem violação crítica/séria no axe; teclado, foco e nome acessível                         | Axe no E2E local e revisão manual                                     | Calendário/metas desktop/mobile e UI alterada |
+| Performance             | Interface utilizável e dados preservados durante sync                                     | Observação manual e testes do caminho                                 | Uso real                                      |
 
 `make check` executa typecheck, lint, Vitest, formatação e build. O App CI
-acrescenta auditoria de produção, banco e E2E. Coverage, mutation, análise de
-complexidade, ciclos/imports, SAST/secrets e auditoria de acessibilidade não são
-gates automatizados do pipeline atual. Essa distinção não dispensa a revisão
-manual de segurança, arquitetura, acessibilidade ou integridade.
+acrescenta cobertura, mutação, estrutura/arquitetura, auditoria, SAST/secrets,
+banco e E2E. Esses gates não dispensam revisão manual dos contratos.
+
+Os baselines revisáveis estão em `docs/operations/baselines/`. Cobertura V8
+inclui `src`, exceto tipos Supabase e service worker; seus objetivos globais
+são 80% de linhas e 70% de branches. Enquanto abaixo deles, o piso medido não
+pode cair. O diff usa o SHA base do PR/push e, localmente, `HEAD`, incluindo
+arquivos novos. `COVERAGE_BASE_REF` permite outro ponto de comparação.
+
+Stryker mede conclusão de tarefas, metadados de persistência e proteção de
+snapshot. Seu baseline preserva o escopo e o score de cada módulo. Não remover
+módulos ou mutantes para obter aprovação. Ampliação exige medir e revisar o
+novo piso. `make coverage-baseline`, `make mutation-baseline` e
+`make quality-baseline ref=<sha>` gravam evidência para revisão; o CI nunca
+regrava baseline automaticamente nem autoriza reduzir limites.
+
+Gitleaks varre o histórico Git com redação integral; `.gitleaksignore` contém
+somente o fingerprint do JWT sintético sem assinatura válida do fixture de
+Playwright. Nova exceção exige comprovação de falso positivo. CodeQL executa
+`security-extended` no job de segurança, produz SARIF local ao runner e bloqueia
+severity de segurança ≥7. Relatório ausente/inválido reprova. Não há upload de
+SARIF habilitado. `make check-sast` exige `.next/codeql` previamente produzido;
+o scanner completo é executado no Actions.
 
 ## Thresholds estruturais
 
@@ -66,10 +87,12 @@ Complexidade e LOC são sinais, não metas de fragmentação. Quando um limite f
 excedido, a revisão deve avaliar coesão, responsabilidades e testabilidade. Não
 extraia wrappers sem significado apenas para reduzir números.
 
-Até a automação:
+A análise usa AST TypeScript, linhas não vazias e decisões por função, sem
+contar decisões de funções filhas na função pai. O grafo inclui imports e
+reexports estáticos resolvidos por caminhos relativos e alias `@/`. A fronteira
+de domínio rejeita UI, Dexie e Supabase; imports dinâmicos exigem revisão manual.
 
-- meça complexidade e tamanho antes e depois com as regras nativas do ESLint,
-  desconsiderando linhas vazias e comentários, quando a mudança tocar um hotspot;
+- medir antes/depois quando a mudança tocar um hotspot;
 - não aumente complexidade, tamanho de função ou tamanho de arquivo acima do
   valor anterior;
 - código novo: complexidade por função ≤10, função ≤80 linhas lógicas e
@@ -126,16 +149,13 @@ RLS, grants e comportamento de cascade. Rollout deve ser compatível com a
 versão anterior e a nova da aplicação. Nenhuma migration de produção deve rodar
 enquanto os gates obrigatórios do mesmo SHA estiverem pendentes ou falhando.
 
-No caminho automático, os três jobs do App CI precisam passar na `main`.
-Depois, o workflow de produção executa o job de migrations e dispara o Deploy
-Hook. A checagem de branch acontece antes do hook; a confirmação de SHA,
-`Ready` e smoke funcional é feita manualmente conforme o
-[runbook de deploy](docs/operations/PUBLICACAO.md).
-
-O caminho manual roda `make check` e `make audit-prod`; banco e E2E não são
-executados nesse caminho. O retorno do hook não comprova que a aplicação foi
-publicada. A revisão exige distinguir essas verificações existentes das
-exigências de qualidade e compatibilidade para aprovar uma alteração.
+O pipeline automático e o manual exigem o App CI completo aprovado para o mesmo
+SHA da ponta de `main`, incluindo segurança. O preflight verifica Vercel antes
+das migrations; histórico remoto é conferido em toda publicação. A API publica
+SHA explícito e só aprova o job depois de conferir identidade, `READY` e smoke.
+O domínio canônico e os fluxos de conta continuam com verificação funcional
+conforme o [runbook](docs/operations/PUBLICACAO.md). Falha após migration não
+desfaz banco; compatibilidade com a aplicação anterior é obrigatória.
 
 ## Guest completo e contas convidadas
 

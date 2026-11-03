@@ -1,10 +1,11 @@
-import type { AppScope } from '@/lib/domain';
+import type { AppScope, LocalPreference } from '@/lib/domain';
 import {
   deleteLocalPreference,
   getLocalPreference,
   setLocalPreference,
 } from '@/lib/db/local-preferences';
 import { getSupabaseBrowserClient } from './client';
+import { db } from '@/lib/db/database';
 import type { Json } from './database.types';
 
 export const TASK_TREE_ROW_ACTIONS_PREFERENCE_KEY = 'taskTreeRowActions';
@@ -48,8 +49,6 @@ export function getCategoryViewModePreferenceKey(
     ? GOAL_STEP_VIEW_MODE_PREFERENCE_KEY
     : CHECKLIST_VIEW_MODE_PREFERENCE_KEY;
 }
-const pendingPreferenceWrites = new Map<string, number>();
-
 interface RemoteUserPreference {
   key: string;
   value: Json;
@@ -63,39 +62,6 @@ function getAccountClient() {
   }
 
   return client;
-}
-
-function pendingPreferenceKey(scopeId: string, key: string) {
-  return `${scopeId}:${key}`;
-}
-
-export function markAccountPreferencePending(scopeId: string, key: string) {
-  const pendingKey = pendingPreferenceKey(scopeId, key);
-  pendingPreferenceWrites.set(
-    pendingKey,
-    (pendingPreferenceWrites.get(pendingKey) ?? 0) + 1,
-  );
-}
-
-export function clearAccountPreferencePending(scopeId: string, key: string) {
-  const pendingKey = pendingPreferenceKey(scopeId, key);
-  const remainingWrites = (pendingPreferenceWrites.get(pendingKey) ?? 1) - 1;
-
-  if (remainingWrites > 0) {
-    pendingPreferenceWrites.set(pendingKey, remainingWrites);
-  } else {
-    pendingPreferenceWrites.delete(pendingKey);
-  }
-}
-
-export function isAccountPreferencePending(scopeId: string, key: string) {
-  return pendingPreferenceWrites.has(pendingPreferenceKey(scopeId, key));
-}
-
-export function hasNewerAccountPreferenceWrite(scopeId: string, key: string) {
-  return (
-    (pendingPreferenceWrites.get(pendingPreferenceKey(scopeId, key)) ?? 0) > 1
-  );
 }
 
 export async function persistAccountPreference<TValue>({
@@ -127,37 +93,6 @@ export async function persistAccountPreference<TValue>({
   }
 }
 
-export async function restoreAccountPreference({
-  key,
-  scope,
-}: {
-  key: string;
-  scope: AppScope;
-}): Promise<void> {
-  if (scope.kind !== 'user') {
-    return;
-  }
-
-  const { data, error } = await getAccountClient()
-    .from('user_preferences')
-    .select('key,value')
-    .eq('key', key)
-    .maybeSingle();
-
-  if (error) {
-    throw error;
-  }
-
-  const preference = data as RemoteUserPreference | null;
-
-  if (!preference) {
-    await deleteLocalPreference(key, scope);
-    return;
-  }
-
-  await setLocalPreference(key, preference.value, scope);
-}
-
 function toCanonicalPreferenceValue(value: unknown): unknown {
   if (Array.isArray(value)) {
     return value.map(toCanonicalPreferenceValue);
@@ -187,12 +122,32 @@ function isSamePreferenceValue(
   );
 }
 
+function canMergePreference(
+  initial: LocalPreference | undefined,
+  current: LocalPreference | undefined,
+): boolean {
+  const pending = [initial, current].some(
+    (row) => row?.syncStatus && row.syncStatus !== 'synced',
+  );
+  return (
+    !pending &&
+    current?.updatedAt === initial?.updatedAt &&
+    current?.writeId === initial?.writeId
+  );
+}
+
 export async function refreshAccountPreferences(
   scope: AppScope,
 ): Promise<void> {
   if (scope.kind !== 'user') {
     return;
   }
+
+  const baseline = new Map(
+    (await db.localPreferences.where('scopeId').equals(scope.id).toArray()).map(
+      (row) => [row.key, row],
+    ),
+  );
 
   const { data, error } = await getAccountClient()
     .from('user_preferences')
@@ -208,20 +163,21 @@ export async function refreshAccountPreferences(
   );
 
   for (const key of ACCOUNT_PREFERENCE_KEYS) {
-    if (isAccountPreferencePending(scope.id, key)) {
-      continue;
-    }
+    await db.transaction('rw', db.localPreferences, async () => {
+      const current = await db.localPreferences.get(`${scope.id}:${key}`);
+      const initial = baseline.get(`${scope.id}:${key}`);
+      if (!canMergePreference(initial, current)) return;
+      const storedValue = await getLocalPreference<Json>(key, scope);
 
-    const storedValue = await getLocalPreference<Json>(key, scope);
+      if (preferencesByKey.has(key)) {
+        const remoteValue = preferencesByKey.get(key) ?? null;
 
-    if (preferencesByKey.has(key)) {
-      const remoteValue = preferencesByKey.get(key) ?? null;
-
-      if (!isSamePreferenceValue(storedValue, remoteValue)) {
-        await setLocalPreference(key, remoteValue, scope);
+        if (!isSamePreferenceValue(storedValue, remoteValue)) {
+          await setLocalPreference(key, remoteValue, scope);
+        }
+      } else if (storedValue !== null) {
+        await deleteLocalPreference(key, scope);
       }
-    } else if (storedValue !== null) {
-      await deleteLocalPreference(key, scope);
-    }
+    });
   }
 }

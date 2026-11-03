@@ -21,6 +21,9 @@ const appDescription =
 
 export const metadata: Metadata = {
   applicationName: appName,
+  other: {
+    'tick-release': process.env.NEXT_PUBLIC_TICK_RELEASE ?? 'development',
+  },
   title: {
     default: appName,
     template: `%s | ${appName}`,

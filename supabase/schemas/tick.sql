@@ -775,21 +775,21 @@ alter table public.goal_steps enable row level security;
 
 create policy "Users can read own access row"
 on public.account_access for select to authenticated
-using (email = lower(coalesce(auth.jwt() ->> 'email', '')));
+using (email = lower(coalesce((select auth.jwt()) ->> 'email', '')));
 
 create policy "Users can read own profile"
 on public.profiles for select to authenticated
-using (id = auth.uid() and public.current_user_has_app_access());
+using (id = (select auth.uid()) and (select public.current_user_has_app_access()));
 create policy "Users can insert own profile"
 on public.profiles for insert to authenticated
-with check (id = auth.uid() and public.current_user_has_app_access());
+with check (id = (select auth.uid()) and (select public.current_user_has_app_access()));
 create policy "Users can update own profile"
 on public.profiles for update to authenticated
-using (id = auth.uid() and public.current_user_has_app_access())
-with check (id = auth.uid() and public.current_user_has_app_access());
+using (id = (select auth.uid()) and (select public.current_user_has_app_access()))
+with check (id = (select auth.uid()) and (select public.current_user_has_app_access()));
 create policy "Users can delete own profile"
 on public.profiles for delete to authenticated
-using (id = auth.uid() and public.current_user_has_app_access());
+using (id = (select auth.uid()) and (select public.current_user_has_app_access()));
 
 do $$
 declare
@@ -806,19 +806,19 @@ begin
   ]
   loop
     execute format(
-      'create policy "Users can read own %1$s" on public.%1$I for select to authenticated using (user_id = auth.uid() and public.current_user_has_app_access())',
+      'create policy "Users can read own %1$s" on public.%1$I for select to authenticated using (user_id = (select auth.uid()) and (select public.current_user_has_app_access()))',
       table_name
     );
     execute format(
-      'create policy "Users can insert own %1$s" on public.%1$I for insert to authenticated with check (user_id = auth.uid() and public.current_user_has_app_access())',
+      'create policy "Users can insert own %1$s" on public.%1$I for insert to authenticated with check (user_id = (select auth.uid()) and (select public.current_user_has_app_access()))',
       table_name
     );
     execute format(
-      'create policy "Users can update own %1$s" on public.%1$I for update to authenticated using (user_id = auth.uid() and public.current_user_has_app_access()) with check (user_id = auth.uid() and public.current_user_has_app_access())',
+      'create policy "Users can update own %1$s" on public.%1$I for update to authenticated using (user_id = (select auth.uid()) and (select public.current_user_has_app_access())) with check (user_id = (select auth.uid()) and (select public.current_user_has_app_access()))',
       table_name
     );
     execute format(
-      'create policy "Users can delete own %1$s" on public.%1$I for delete to authenticated using (user_id = auth.uid() and public.current_user_has_app_access())',
+      'create policy "Users can delete own %1$s" on public.%1$I for delete to authenticated using (user_id = (select auth.uid()) and (select public.current_user_has_app_access()))',
       table_name
     );
   end loop;
@@ -830,3 +830,11 @@ revoke all on public.account_operation_receipts from anon, authenticated;
 revoke all on function public.purge_account_operation_receipts(uuid, interval) from public, anon, authenticated;
 revoke all on function public.apply_account_operation_batch(uuid, jsonb) from public, anon;
 grant execute on function public.apply_account_operation_batch(uuid, jsonb) to authenticated;
+
+create index checklist_items_category_idx on public.checklist_items (user_id, category_tag_id);
+
+create index goal_groups_category_idx on public.goal_groups (user_id, category_tag_id);
+
+create index goals_category_idx on public.goals (user_id, category_tag_id);
+
+create index goal_steps_category_idx on public.goal_steps (user_id, category_tag_id);

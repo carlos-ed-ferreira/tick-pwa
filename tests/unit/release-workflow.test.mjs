@@ -42,15 +42,12 @@ describe('production release workflow', () => {
 
     expect(deploymentJob).toContain('needs: migrate-production');
     expect(deploymentJob).toContain("if: github.event_name != 'schedule'");
-    expect(deploymentJob).toContain('VERCEL_DEPLOY_HOOK_URL');
+    expect(deploymentJob).toContain('VERCEL_TOKEN');
     expect(deploymentJob).toContain(
       'github.event.workflow_run.head_sha || github.sha',
     );
-    expect(deploymentJob).toContain(
-      'repos/${{ github.repository }}/commits/main',
-    );
-    expect(deploymentJob).toContain('curl');
-    expect(deploymentJob).toContain('.job.id');
+    expect(deploymentJob).toContain('run: make production-release');
+    expect(deploymentJob).toContain('timeout-minutes: 15');
   });
 
   it('audits production migration drift on a schedule', () => {

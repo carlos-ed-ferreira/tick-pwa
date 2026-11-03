@@ -33,40 +33,6 @@ de quotas. O acompanhamento de recursos é manual.
 
 ## Local-first da conta autenticada
 
-### LF-01 — Proteger escritas confirmadas durante refresh
-
-**P1 · bug confirmado.** Origem: auditoria de persistência;
-`src/lib/supabase/account-cache.ts`, funções `readAccountSnapshotIntoCache` e
-`mergeRemoteRows`.
-
-Reprodução sintética executada na auditoria: iniciar refresh com snapshots
-vazios, atrasar a resposta de `goal_steps`, criar meta por `createGoal`,
-confirmar a RPC e verificar `syncStatus: synced`; liberar a resposta atrasada.
-Depois do refresh, `db.goals.get(goal.id)` retornou `undefined`. A meta foi
-removida do cache local; não foi demonstrada exclusão no Supabase. O teste
-diagnóstico temporário foi retirado depois do registro; os outros 46 testes
-de persistência passaram.
-
-- [ ] Reintroduzir essa reprodução como teste de regressão em RED.
-- [ ] Proteger entidades criadas ou confirmadas após o início da leitura.
-- [ ] Reproduzir também atualização confirmada durante pull, resposta com revisão
-      inferior e exclusões concorrentes; o merge atual aceita revisões diferentes.
-- [ ] Validar rede lenta, reconexão e edição contínua sem sumiço ou sobrescrita.
-
-### LF-02 — Tornar preferências da conta recuperáveis offline
-
-**P1 · lacuna confirmada.** Origem: `src/lib/db/scoped-preferences.ts` e
-`src/lib/supabase/account-preferences.ts`.
-
-Preferências confirmam localmente, mas fila e marcador pendente ficam em
-memória. Uma falha pode restaurar o valor remoto; depois de reload, um refresh
-não reconhece a alteração local como pendente. `user_preferences` não participa
-da outbox das seis entidades funcionais.
-
-- [ ] Preservar intenção local e estado pendente durável na conta.
-- [ ] Implementar retry, proteção durante refresh e feedback recuperável.
-- [ ] Cobrir offline, reload, fechamento, reconexão, concorrência e dois usuários.
-
 ### LF-03 — Completar o rollout da outbox e retirar o legado
 
 **P2 · implementação e rollout controlado.** Origem: antigo plano, passos 1–3;
@@ -81,28 +47,25 @@ restauração canônica em determinadas falhas.
 - [ ] Definir transição preservando alterações locais e operações existentes.
 - [ ] Retirar o legado após aprovação do rollout, sem dual-write nem sync paralelo.
 
-### LF-04 — Coordenar sincronização forçada e drenagem automática
+### LF-04 — Validar coordenação entre abas e respostas perdidas
 
-**P1 · investigação.** Origem: `src/lib/db/account-sync.ts`,
-`account-persistence.ts` e `account-operation-outbox.ts`.
+**P1 · validação integrada.** Drenagem funcional, push forçado e preferências
+compartilham fila por conta e Web Lock. Sem Web Locks, a serialização cobre
+somente a aba atual.
 
-O push manual usa a fila de persistência; a drenagem tem fila própria e Web
-Lock. O push manual não adquire esse lock. Não foi comprovada perda de dados
-nesse cenário.
-
-- [ ] Reproduzir push manual, dreno e edição simultâneos, inclusive entre abas.
-- [ ] Verificar revisões, ordem, exclusão de operações substituídas e resposta perdida.
-- [ ] Corrigir a coordenação se a reprodução demonstrar violação do contrato.
+- [ ] Exercitar push manual, drenagem e edição simultâneos entre abas reais,
+      incluindo fechamento da aba que detém o lock.
+- [ ] Verificar resposta perdida durante push forçado e preservação das operações
+      criadas enquanto o lote anterior está em trânsito.
 
 ### LF-05 — Completar os ensaios integrados de conta sem rede
 
-**P2 · validação.** Origem: antigo plano, passo 2. O E2E autenticado atual usa
-Supabase simulado; o benchmark de RPC real não testa toda a outbox no navegador.
+**P2 · validação complementar.** O Chromium com API real isolada cobre
+fechamento completo, reabertura offline, retomada automática e conflito de duas
+sessões da mesma conta. Permanecem os cenários abaixo.
 
-- [ ] Exercitar duas sessões/dispositivos com API real isolada, concorrência
-      simultânea, conflito, revogação e isolamento entre dois usuários.
-- [ ] Validar fechamento completo com operação pendente, reabertura offline e
-      retomada automática; distinguir esse caso de simples reload com mocks.
+- [ ] Exercitar revogação e isolamento entre dois usuários no navegador com
+      API real, complementando os testes negativos de RPC/RLS do pgTAP.
 - [ ] Exercitar atualização real da PWA/service worker com operações pendentes.
 - [ ] Verificar resposta perdida e replay após retenção de recibos, documentando
       a janela de idempotência de sete dias sem prometer retenção infinita.
@@ -112,61 +75,29 @@ Supabase simulado; o benchmark de RPC real não testa toda a outbox no navegador
 
 ## Publicação e recuperação
 
-### DEP-01 — Conferir migrations pendentes antes de todo deploy
+### DEP-01 — Validar a publicação por SHA no provedor
 
-**P1 · lacuna confirmada por inspeção.** Origem:
-`.github/workflows/supabase-migrations.yml`, `Detect database changes`.
+**P1 · configuração externa e validação.** O pipeline exige credenciais da API
+Vercel e falha no preflight, antes das migrations, se faltarem. Não existe
+fallback para Deploy Hook. `VERCEL_TOKEN` e `VERCEL_PROJECT_ID` já estão
+cadastrados; resta validar seu funcionamento no provedor.
 
-O workflow compara apenas `HEAD^ HEAD`. Uma release com migration que falha
-ou não executa pode ser seguida de commit só de aplicação; o próximo pipeline
-pode pular o banco. A auditoria horária não é dependência do deploy.
-
-- [ ] Reproduzir a sequência de duas releases com falha na primeira.
-- [ ] Basear a decisão no histórico remoto e impedir publicação com migration pendente.
-- [ ] Cobrir execução sem migration, retomada e execução manual.
-
-### DEP-02 — Fixar o código publicado no SHA aprovado
-
-**P1 · risco confirmado pela forma de disparo.** Origem: workflow de produção
-e Deploy Hook da branch `main`.
-
-A checagem de `main` acontece antes do POST; o hook não recebe o SHA aprovado.
-Outro merge entre a consulta e a resolução da branch pode causar divergência.
-A serialização do workflow não bloqueia merges.
-
-- [ ] Adotar disparo fixado no SHA aprovado, compatível com os planos atuais.
-- [ ] Testar avanço de branch, execução enfileirada e commit superado.
-- [ ] Conferir o SHA efetivo do deployment e o ambiente Production.
-
-### DEP-03 — Confirmar deployment e saúde da aplicação
-
-**P1 · lacuna confirmada.** Origem: job `deploy-production`.
-
-Qualquer `job.state` não vazio, inclusive `PENDING`, encerra o job com sucesso.
-Falha posterior na Vercel não aciona o aviso desse workflow. A auditoria
-horária compara migrations, não a versão servida pela aplicação.
-
-- [ ] Aguardar estado terminal, com timeout recuperável e diagnóstico.
-- [ ] Falhar e avisar em deployment rejeitado, cancelado ou sem confirmação.
-- [ ] Executar smoke test e conferir SHA/ambiente antes de declarar publicação concluída.
-- [ ] Validar pedido aceito cuja resposta se perde, evitando disparos cegos duplicados.
-
-### DEP-04 — Aplicar os gates completos na execução manual
-
-**P1 · lacuna confirmada.** Origem: `quality-gate` com `workflow_dispatch`.
-
-O caminho manual executa `make check` e `make audit-prod`; não executa banco,
-pgTAP ou E2E, nem exige evidência de todos os jobs do App CI daquele SHA.
-
-- [ ] Exigir os três jobs aprovados do SHA ou executar os gates equivalentes.
-- [ ] Testar recusa com gate ausente, pendente, cancelado ou falho.
+- [ ] Conferir se o escopo do token exige `VERCEL_TEAM_ID` e cadastrá-lo somente
+      quando necessário.
+- [ ] Configurar bypass do smoke se Deployment Protection exigir autenticação.
+- [ ] Na próxima publicação autorizada, validar permissões do token, contrato
+      real da API, SHA, Production, `READY`, smoke e domínio canônico.
+- [ ] Conferir execução manual com evidência completa do App CI do mesmo SHA.
+- [ ] Após validar e ativar o fluxo por API, conferir consumidores do hook antigo;
+      quando não houver dependência ativa, remover `VERCEL_DEPLOY_HOOK_URL` do
+      GitHub e revogar o hook na Vercel.
 
 ### DEP-05 — Ensaiar interrupções, retomada e rollback
 
 **P1 · validação.** Origem: antigo plano, passos 4–5, e runbooks de publicação.
 
 - [ ] Ensaiar migration falha, interrupção após migration e antes do deploy,
-      indisponibilidade do GitHub/Vercel e falha posterior ao aceite do hook.
+      indisponibilidade do GitHub/Vercel e falha posterior ao aceite da API Vercel.
 - [ ] Validar rollback de aplicação e flag e migration compensatória em ambiente
       isolado, mantendo compatibilidade com aplicação anterior e PWAs abertas.
 - [ ] Validar retomada do mesmo pipeline sem republicações desnecessárias.
@@ -211,14 +142,7 @@ O fornecedor acrescenta `user.geo` na ingestão mesmo com armazenamento de IP
 desabilitado e scrubbing de usuário. Avaliar privacidade e alternativas sem
 assumir que um endpoint próprio é necessário ou autorizado.
 
-## Banco e dependências
-
-### DB-01 — Revisar índices de foreign keys e policies RLS
-
-**P3 · revisão dedicada.** Origem: documento de incidente de WAL.
-Avaliar índices das consultas reais e initplan das funções nas policies;
-alterar somente com justificativa, schema declarativo, diff e testes negativos.
-Esses pontos não foram estabelecidos como causa de indisponibilidade.
+## Dependências e manutenção
 
 ### MAINT-01 — Revisar o override major de glob
 
@@ -230,8 +154,10 @@ build PWA e testes offline sem atualização destrutiva automática.
 ### MAINT-02 — Reavaliar advisories moderados de desenvolvimento
 
 **P3 · manutenção condicionada à auditoria atual.** Origem: relatório de
-dependências, que registrava 16 moderadas na cadeia minimatch/ESLint.
-Consultar `make audit-all`, confirmar o alcance e corrigir em mudança dedicada
+dependências. A cadeia minimatch/ESLint/Stryker permanece com advisories
+moderados de desenvolvimento, sem solução aprovada dentro dos majors atuais.
+Os padrões analisados são arquivos/configuração do repositório, não entradas
+de usuários do aplicativo. Consultar `make audit-all`, confirmar o alcance e corrigir em mudança dedicada
 quando houver solução compatível. Não impor minimatch incompatível nem aceitar
 downgrade automático de ESLint para satisfazer a auditoria.
 
@@ -246,17 +172,25 @@ não fragmentar por LOC nem repetir a extração de metas já implementada.
 
 ## Automação dos gates de engenharia
 
-Estes itens vieram das linhas `planned` do REVIEW. Os gates atuais continuam
-definidos nele; estes objetivos não são apresentados como automação existente.
+### QA-01 — Elevar a cobertura global até os objetivos
 
-| ID    | Prioridade | Trabalho e critério                                                                                                               |
-| ----- | ---------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| QA-01 | P3         | Coverage com baseline/ratchet: linhas globais 80%, diff 90%; branches globais 70%, diff 80%, sem queda de baseline.               |
-| QA-02 | P3         | Mutation testing em domínio/persistência, baseline sem queda e objetivo de 70%.                                                   |
-| QA-03 | P3         | Automatizar complexidade ≤10, função ≤80 linhas lógicas e módulo ≤800, preservando ratchet do legado sem fragmentação artificial. |
-| QA-04 | P3         | Medir arquitetura e bloquear ciclos novos e imports proibidos.                                                                    |
-| QA-05 | P2         | Automatizar SAST e detecção de secrets; zero achado novo crítico/alto e zero secret confirmado.                                   |
-| QA-06 | P3         | Medir e automatizar acessibilidade, sem violação nova crítica/séria; preservar revisão manual de teclado e nome acessível.        |
+**P3 · melhoria incremental.** O ratchet e os limites do diff estão automatizados.
+A cobertura global medida permanece abaixo dos objetivos de 80% de linhas e
+70% de branches. Não baixar o baseline nem ampliar exclusões para atingir o gate.
+
+- [ ] Aumentar cobertura com cenários de contrato relevantes nas áreas alteradas.
+- [ ] Após melhoria comprovada, revisar e elevar o piso versionado.
+
+### QA-05 — Validar o scanner SAST no Actions
+
+**P2 · validação externa.** Gitleaks e o verificador SARIF possuem gates;
+CodeQL `security-extended` está configurado no App CI e não foi executado
+localmente. O repositório público preserva o plano GitHub Free.
+
+- [ ] Conferir a primeira execução do job `Check security`, incluindo geração
+      de SARIF e reprovação para achados altos/críticos.
+- [ ] Avaliar adicionar `Check security` ao ruleset remoto da `main`; o pipeline
+      de produção já exige esse job e a execução completa aprovada.
 
 Performance continua acompanhada pelo uso real. Os benchmarks existentes são
 diagnóstico opcional; não há gate novo de p95/p99, capacidade, margem estatística

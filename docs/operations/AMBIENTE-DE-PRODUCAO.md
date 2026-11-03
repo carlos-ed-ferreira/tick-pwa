@@ -27,23 +27,80 @@ provedores nem impõe budgets estatísticos de capacidade.
   `NEXT_PUBLIC_TICK_ACCOUNT_BATCH_USER_IDS` habilitam a outbox daquela coorte.
   Variáveis públicas são incorporadas no build e exigem novo deploy ao mudar.
 - Contas fora da coorte de lotes usam persistência legada; preferências usam
-  fila em memória. Não há garantia universal de outbox para toda escrita da conta.
+  estado pendente durável e retry em IndexedDB. As entidades legadas continuam
+  sem a mesma garantia de outbox da coorte.
 
 ## GitHub e Vercel
 
 O ruleset da `main` exige `Check app`, `Check database` e `Check end-to-end`.
-O environment `production` guarda os secrets abaixo. O Deploy Hook aponta
-para `main`; auto-deploy Git dessa branch está desligado no `vercel.json`.
+O environment `production` guarda os secrets abaixo. O pipeline publica o SHA aprovado pela API Vercel; auto-deploy Git de `main`
+está desligado no `vercel.json`. O preflight exige os secrets da API antes de
+qualquer migration, sem fallback para hook.
 
-| Local                           | Nome                         | Uso                          |
-| ------------------------------- | ---------------------------- | ---------------------------- |
-| GitHub environment `production` | `SUPABASE_PROJECT_REF`       | Projeto das migrations       |
-| GitHub environment `production` | `SUPABASE_ACCESS_TOKEN`      | Acesso da CLI                |
-| GitHub environment `production` | `SUPABASE_DB_PASSWORD`       | Senha crua do banco          |
-| GitHub environment `production` | `VERCEL_DEPLOY_HOOK_URL`     | Disparo de deploy            |
-| GitHub environment `production` | `SUPABASE_DB_URL`            | Session pooler para dump     |
-| GitHub environment `production` | `TICK_BACKUP_ENCRYPTION_KEY` | Cifra do backup              |
-| GitHub repository variable      | `ENABLE_PRODUCTION_BACKUP=1` | Habilitação do job de backup |
+### Inventário de credenciais do GitHub
+
+`VERCEL_TOKEN` e `VERCEL_PROJECT_ID` estão criados e cadastrados no environment
+GitHub `production`, com presença confirmada pelos metadados de secrets. Os
+outros seis secrets cadastrados abaixo constam no painel informado pelo
+proprietário. Cadastro confirma a existência do nome; validade e escopo são conferidos
+pelos respectivos consumidores. Os tokens de integração criados manualmente
+pelo proprietário, incluindo `VERCEL_TOKEN` e `SUPABASE_ACCESS_TOKEN`, estão
+configurados sem expiração automática, conforme informado pelo proprietário.
+Essa configuração não impede revogação ou perda de permissão no provedor.
+Este inventário registra finalidade e estado atual, sem armazenar valores.
+
+| Secret em `production`       | Origem e finalidade                                                                                                                                                                | Consumidor e efeito da ausência ou revogação                                                                                                                                                                                               |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `VERCEL_TOKEN`               | Token de acesso criado na conta Vercel, com escopo de acesso ao projeto Tick. Autoriza consultar o projeto, criar deployments e acompanhar seu estado.                             | `scripts/production-release.mjs`, nos jobs de preflight e deploy de `supabase-migrations.yml`. Sem acesso válido, a publicação é bloqueada; não é uma credencial de login dos usuários do Tick.                                            |
+| `VERCEL_PROJECT_ID`          | Identificador do projeto Vercel, encontrado em Settings → General → Project ID. É um identificador, não uma senha.                                                                 | O mesmo script seleciona e confere o projeto autorizado antes de publicar. Ausente ou incorreto, bloqueia a publicação.                                                                                                                    |
+| `SUPABASE_ACCESS_TOKEN`      | Token pessoal da conta Supabase usado para autenticar a CLI nas operações de gestão do projeto. É diferente da anon key do aplicativo.                                             | `supabase-migrations.yml`, por meio do wrapper `scripts/supabase-cli.mjs`. Sua revogação impede as operações da CLI em produção; não é usado pelo navegador para sincronizar dados.                                                        |
+| `SUPABASE_PROJECT_REF`       | Referência do projeto Supabase, disponível nas configurações do projeto. É um identificador, não uma senha.                                                                        | O wrapper da CLI seleciona o banco de produção para migrations e auditoria do histórico. Um valor errado aponta para o projeto errado ou faz a operação falhar.                                                                            |
+| `SUPABASE_DB_PASSWORD`       | Senha do banco PostgreSQL definida no Supabase.                                                                                                                                    | Os comandos de migrations e auditoria usam a conexão ao banco. A rotação exige atualizar também a senha contida em `SUPABASE_DB_URL` e no cofre.                                                                                           |
+| `SUPABASE_DB_URL`            | Connection string do Session pooler do Supabase, incluindo usuário e senha do banco.                                                                                               | `production-backup.yml` e o comando de dump. Ausente ou inválida, o backup falha. Não é a URL pública da API usada pelo aplicativo.                                                                                                        |
+| `TICK_BACKUP_ENCRYPTION_KEY` | Chave independente gerada pelo proprietário para cifrar os backups.                                                                                                                | O workflow de backup cifra os dumps; o restore precisa da chave correspondente ao arquivo. Perder a chave impede recuperar os backups cifrados com ela. Ao rotacionar, preservar no cofre as chaves necessárias aos backups ainda retidos. |
+| `VERCEL_DEPLOY_HOOK_URL`     | URL secreta criada em Settings → Git → Deploy Hooks da Vercel para disparar publicação da branch `main`. Permanece cadastrada; o pipeline por SHA deste repositório não a utiliza. | Serve aos workflows que ainda chamam o hook. Antes de removê-la, confirmar a publicação e ativação do fluxo por API e a ausência de consumidores ativos. Remover o secret do GitHub não revoga o hook na Vercel.                           |
+
+`VERCEL_TEAM_ID` e `VERCEL_AUTOMATION_BYPASS_SECRET` não constam entre os
+secrets cadastrados na consulta de metadados. São configurações condicionais:
+o primeiro seleciona o time quando o escopo do token exige isso; o segundo
+permite ao smoke acessar um deployment protegido. Não substituem o token da API.
+
+O `GITHUB_TOKEN` é fornecido automaticamente pelo GitHub Actions a cada job;
+o workflow o expõe como `GH_TOKEN` onde necessário. Não é outro token que o
+proprietário precise criar para esse pipeline.
+
+A variável de repositório `ENABLE_PRODUCTION_BACKUP=1` habilita o backup.
+É configuração operacional, não uma credencial.
+
+### Inventário de variáveis da Vercel
+
+As sete variáveis abaixo estão cadastradas no ambiente Production, conforme o
+painel informado pelo proprietário. Seus valores não são registrados aqui.
+O prefixo `NEXT_PUBLIC_` indica que o valor pode chegar ao navegador pelo build;
+mascarar o campo no painel não o torna uma credencial privada de administração.
+
+| Variável em Production                    | Origem e finalidade                                                                                                                           | Consumidor e efeito de mudar ou remover                                                                                                                           |
+| ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `NEXT_PUBLIC_SUPABASE_URL`                | URL pública da API do projeto Supabase.                                                                                                       | O cliente Supabase do aplicativo usa esse endereço para login e dados remotos. Sem ela, a integração de conta fica indisponível.                                  |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY`           | Chave pública de cliente obtida nas configurações de API do Supabase. Não é a senha do banco, o access token da CLI nem uma service role key. | Inicializa o cliente do navegador. O acesso aos dados continua protegido por sessão, allowlist e RLS. Nunca substituir por uma chave administrativa.              |
+| `NEXT_PUBLIC_TICK_SUPABASE_ENV`           | Configuração do Tick que seleciona o ambiente remoto; Production usa `production`.                                                            | `src/lib/environment.ts` decide se o aplicativo pode usar Supabase no hostname atual. Ausente ou inválida, desabilita essa integração.                            |
+| `NEXT_PUBLIC_TICK_ENABLE_ACCOUNT_BATCHES` | Flag do Tick; `1` habilita o caminho de lotes para a coorte configurada.                                                                      | Seleciona a outbox funcional durável em conjunto com a lista de usuários. Alterá-la muda o caminho de persistência e exige o procedimento de rollout/rollback.    |
+| `NEXT_PUBLIC_TICK_ACCOUNT_BATCH_USER_IDS` | Lista de UUIDs de contas, separados por vírgula, autorizadas para o caminho de lotes. Não é uma senha nem a allowlist de acesso ao produto.   | `src/lib/environment.ts` seleciona a coorte. Remover um UUID muda o caminho de sincronização daquela conta; não remove seu convite em `account_access`.           |
+| `NEXT_PUBLIC_TICK_TELEMETRY_DSN`          | Endereço de ingestão obtido no projeto Sentry para enviar os eventos permitidos pelo aplicativo. Não é um token administrativo do Sentry.     | `src/lib/telemetry/browser.ts` configura o envio de telemetria. Sem DSN, o envio fica desabilitado; organização local e sincronização não dependem dele.          |
+| `NEXT_PUBLIC_TICK_TELEMETRY_ENVIRONMENT`  | Rótulo de ambiente dos eventos Sentry; Production usa `production`.                                                                           | Permite aos filtros e alertas reconhecerem o ambiente. Alterá-lo muda a classificação dos eventos e pode fazê-los deixar de corresponder aos filtros de produção. |
+
+Alterações nessas variáveis exigem novo build/deploy para chegar ao aplicativo.
+Elas não devem receber `VERCEL_TOKEN`, senha do banco ou chave de backup.
+
+### Custódia e rotação
+
+No cofre do proprietário, manter uma entrada por credencial com nome, provedor,
+finalidade, escopo, local de cadastro e consumidor. Para os tokens criados
+manualmente pelo proprietário, registrar `expiração: sem expiração automática`.
+Ao criar ou remover uma integração, atualizar este inventário e as referências
+nos runbooks. Não salvar os valores em Markdown, issues, screenshots ou no chat.
+Para aposentar uma credencial, identificar os consumidores ativos e revogar
+no provedor de origem; apagar somente a cópia do GitHub não revoga o acesso.
 
 A variável de habilitação do backup é de repositório: o `if` do job é avaliado
 antes de resolver o environment. Se estiver apenas no environment, o job pode
@@ -64,8 +121,8 @@ não depende de arquivos de usuário nesse serviço.
 Conferir metadados e execuções sem expor valores:
 
 ```sh
-make deploy-hook-status
 make backup-key-status
+make production-release-status
 make actions-status
 make actions-run run=<run-id>
 make backup-status
@@ -73,7 +130,7 @@ make backup-artifacts run=<run-id>
 make operations-issues
 ```
 
-A publicação e sua confirmação manual estão no
+A publicação e sua verificação estão no
 [guia de deploy](PUBLICACAO.md). Dump, cifra, recuperação e rollback
 estão em [telemetria e backup](MONITORAMENTO-E-RECUPERACAO.md). O ensaio em
 segunda máquina tem [roteiro próprio](TESTE-DE-RESTAURACAO.md).

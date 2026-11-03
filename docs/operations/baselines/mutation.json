@@ -1,0 +1,14 @@
+{
+  "total": 89.72,
+  "files": {
+    "src/lib/domain/task-completion.ts": 86.91,
+    "src/lib/db/entity-metadata.ts": 91.66,
+    "src/lib/supabase/account-cache-baseline.ts": 100
+  },
+  "metadata": {
+    "measuredAt": "2026-11-03",
+    "tool": "Stryker",
+    "version": "9.6.1",
+    "scope": "stryker.config.json mutate list"
+  }
+}

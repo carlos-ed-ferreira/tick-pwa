@@ -29,10 +29,17 @@ O gate de produção rejeita severidade alta ou crítica. Advisory de ferramenta
 | `zod@>=4 <5`             | `4.6.7`  |
 | `tar@7.5.13`             | `7.5.22` |
 | `brace-expansion@^1.1.0` | `1.1.21` |
+| `qs`                     | `6.17.1` |
 
 O override major de glob está restrito ao consumidor `13.0.6`; Serwist usa
 `globSync` na geração de assets da PWA. Build e reload offline exercitam esse
 caminho. Não estender overrides de major a consumidores sem revisar a API.
+
+O override `qs` corrige advisories de parsing/stringify no cliente HTTP
+transitivo do Stryker, dentro do major 6. A licença é BSD-3-Clause; ele permanece
+restrito às ferramentas de desenvolvimento. As ferramentas de cobertura V8,
+Stryker 9 e axe Playwright também são dependências de desenvolvimento, sem
+entrada no bundle do produto. Suas versões preservam o contrato Node do projeto.
 
 ## Procedimento de mudança
 

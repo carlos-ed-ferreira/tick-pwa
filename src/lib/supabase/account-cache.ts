@@ -1,9 +1,13 @@
 import Dexie from 'dexie';
-import type { AppScope } from '@/lib/domain';
+import type { AppScope, SyncEntityType } from '@/lib/domain';
 import { db } from '@/lib/db/database';
 import { collectPendingEntityClosure } from '@/lib/db/account-entity-tables';
 import { refreshAccountPreferences } from './account-preferences';
 import { getSupabaseBrowserClient } from './client';
+import {
+  captureAccountCacheBaseline,
+  isUnchangedCacheVersion,
+} from './account-cache-baseline';
 import {
   categoryTagFromRemote,
   checklistItemFromRemote,
@@ -24,7 +28,8 @@ interface CacheEntity {
   id: string;
   scopeId: string;
   remoteRevision: number | null;
-  syncStatus: 'local' | 'pending' | 'syncing' | 'synced' | 'failed';
+  clientUpdatedAt: string;
+  syncStatus: string;
 }
 
 function isSameRemoteRevision(
@@ -33,7 +38,7 @@ function isSameRemoteRevision(
 ): boolean {
   return (
     remoteItem.remoteRevision !== null &&
-    existingItem.remoteRevision === remoteItem.remoteRevision
+    (existingItem.remoteRevision ?? -1) >= remoteItem.remoteRevision
   );
 }
 
@@ -130,12 +135,14 @@ async function selectRemoteRows<TRemote>(
 
 async function mergeRemoteRows<TEntity extends CacheEntity, TRemote>({
   protectedIds,
+  baseline,
   scope,
   rows,
   table,
   toLocal,
 }: {
   protectedIds: Set<string> | undefined;
+  baseline: Map<string, CacheEntity> | undefined;
   scope: AppScope;
   rows: TRemote[];
   table: Dexie.Table<TEntity, string>;
@@ -151,7 +158,10 @@ async function mergeRemoteRows<TEntity extends CacheEntity, TRemote>({
 
     const existingItem = existingById.get(localItem.id);
 
-    if (existingItem && existingItem.syncStatus !== 'synced') {
+    if (
+      existingItem &&
+      !isUnchangedCacheVersion(baseline?.get(existingItem.id), existingItem)
+    ) {
       continue;
     }
 
@@ -162,9 +172,25 @@ async function mergeRemoteRows<TEntity extends CacheEntity, TRemote>({
     await table.put(localItem);
   }
 
+  await deleteMissingRemoteRows(
+    existingItems,
+    remoteIds,
+    protectedIds,
+    baseline,
+    table,
+  );
+}
+
+async function deleteMissingRemoteRows<TEntity extends CacheEntity>(
+  existingItems: TEntity[],
+  remoteIds: Set<string>,
+  protectedIds: Set<string> | undefined,
+  baseline: Map<string, CacheEntity> | undefined,
+  table: Dexie.Table<TEntity, string>,
+) {
   for (const existingItem of existingItems) {
     if (
-      existingItem.syncStatus === 'synced' &&
+      isUnchangedCacheVersion(baseline?.get(existingItem.id), existingItem) &&
       !remoteIds.has(existingItem.id) &&
       !protectedIds?.has(existingItem.id)
     ) {
@@ -181,84 +207,25 @@ async function readAccountSnapshotIntoCache(
   }
 
   const startedAt = performance.now();
+  const baseline = await captureAccountCacheBaseline(scope);
 
-  const [
-    ,
+  const {
     categoryTagsResponse,
     dailyEntriesResponse,
     checklistItemsResponse,
     goalGroupsResponse,
     goalsResponse,
     goalStepsResponse,
-  ] = await Promise.all([
-    refreshAccountPreferences(scope),
-    selectRemoteRows<RemoteCategoryTag>('category_tags'),
-    selectRemoteRows<RemoteDailyEntry>('daily_entries'),
-    selectRemoteRows<RemoteChecklistItem>('checklist_items'),
-    selectRemoteRows<RemoteGoalGroup>('goal_groups', {
-      allowMissingTable: true,
-    }),
-    selectRemoteRows<RemoteGoal>('goals'),
-    selectRemoteRows<RemoteGoalStep>('goal_steps'),
-  ]);
+  } = await fetchCompleteSnapshot(scope);
 
-  await db.transaction(
-    'rw',
-    [
-      db.categoryTags,
-      db.dailyEntries,
-      db.checklistItems,
-      db.goalGroups,
-      db.goals,
-      db.goalSteps,
-    ],
-    async () => {
-      const protectedIds = await collectPendingEntityClosure(scope.id);
-
-      await mergeRemoteRows({
-        protectedIds: protectedIds.get('categoryTag'),
-        scope,
-        table: db.categoryTags,
-        rows: categoryTagsResponse.data,
-        toLocal: (row) => categoryTagFromRemote(scope, row),
-      });
-      await mergeRemoteRows({
-        protectedIds: protectedIds.get('dailyEntry'),
-        scope,
-        table: db.dailyEntries,
-        rows: dailyEntriesResponse.data,
-        toLocal: (row) => dailyEntryFromRemote(scope, row),
-      });
-      await mergeRemoteRows({
-        protectedIds: protectedIds.get('checklistItem'),
-        scope,
-        table: db.checklistItems,
-        rows: checklistItemsResponse.data,
-        toLocal: (row) => checklistItemFromRemote(scope, row),
-      });
-      await mergeRemoteRows({
-        protectedIds: protectedIds.get('goalGroup'),
-        scope,
-        table: db.goalGroups,
-        rows: goalGroupsResponse.data,
-        toLocal: (row) => goalGroupFromRemote(scope, row),
-      });
-      await mergeRemoteRows({
-        protectedIds: protectedIds.get('goal'),
-        scope,
-        table: db.goals,
-        rows: goalsResponse.data,
-        toLocal: (row) => goalFromRemote(scope, row),
-      });
-      await mergeRemoteRows({
-        protectedIds: protectedIds.get('goalStep'),
-        scope,
-        table: db.goalSteps,
-        rows: goalStepsResponse.data,
-        toLocal: (row) => goalStepFromRemote(scope, row),
-      });
-    },
-  );
+  await mergeCompleteSnapshot(scope, baseline, {
+    categoryTagsResponse,
+    dailyEntriesResponse,
+    checklistItemsResponse,
+    goalGroupsResponse,
+    goalsResponse,
+    goalStepsResponse,
+  });
 
   const tables = {
     category_tags: {
@@ -316,4 +283,118 @@ export function refreshAccountCache(
   inFlightRefreshByScope.set(scope.id, refresh);
 
   return refresh;
+}
+
+async function fetchCompleteSnapshot(scope: AppScope) {
+  const [
+    ,
+    categoryTagsResponse,
+    dailyEntriesResponse,
+    checklistItemsResponse,
+    goalGroupsResponse,
+    goalsResponse,
+    goalStepsResponse,
+  ] = await Promise.all([
+    refreshAccountPreferences(scope),
+    selectRemoteRows<RemoteCategoryTag>('category_tags'),
+    selectRemoteRows<RemoteDailyEntry>('daily_entries'),
+    selectRemoteRows<RemoteChecklistItem>('checklist_items'),
+    selectRemoteRows<RemoteGoalGroup>('goal_groups', {
+      allowMissingTable: true,
+    }),
+    selectRemoteRows<RemoteGoal>('goals'),
+    selectRemoteRows<RemoteGoalStep>('goal_steps'),
+  ]);
+
+  return {
+    categoryTagsResponse,
+    dailyEntriesResponse,
+    checklistItemsResponse,
+    goalGroupsResponse,
+    goalsResponse,
+    goalStepsResponse,
+  };
+}
+
+async function mergeCompleteSnapshot(
+  scope: AppScope,
+  baseline: Awaited<ReturnType<typeof captureAccountCacheBaseline>>,
+  snapshot: Awaited<ReturnType<typeof fetchCompleteSnapshot>>,
+) {
+  await db.transaction(
+    'rw',
+    [
+      db.categoryTags,
+      db.dailyEntries,
+      db.checklistItems,
+      db.goalGroups,
+      db.goals,
+      db.goalSteps,
+    ],
+    async () => {
+      const protectedIds = await collectPendingEntityClosure(scope.id);
+      for (const [entityType, ids] of baseline.protectedIds) {
+        const current = protectedIds.get(entityType) ?? new Set<string>();
+        for (const id of ids) current.add(id);
+        protectedIds.set(entityType, current);
+      }
+
+      await mergeSnapshotTables(scope, baseline, snapshot, protectedIds);
+    },
+  );
+}
+
+async function mergeSnapshotTables(
+  scope: AppScope,
+  baseline: Awaited<ReturnType<typeof captureAccountCacheBaseline>>,
+  snapshot: Awaited<ReturnType<typeof fetchCompleteSnapshot>>,
+  protectedIds: Map<SyncEntityType, Set<string>>,
+) {
+  const mergeTable = <T extends CacheEntity, R>(
+    entityType: SyncEntityType,
+    table: Dexie.Table<T, string>,
+    response: CompleteRemoteSnapshot<R>,
+    toLocal: (row: R) => T,
+  ) =>
+    mergeRemoteRows({
+      scope,
+      table,
+      rows: response.data,
+      toLocal,
+      baseline: baseline.versions.get(table.name),
+      protectedIds: protectedIds.get(entityType),
+    });
+  await mergeTable(
+    'categoryTag',
+    db.categoryTags,
+    snapshot.categoryTagsResponse,
+    (row) => categoryTagFromRemote(scope, row),
+  );
+  await mergeTable(
+    'dailyEntry',
+    db.dailyEntries,
+    snapshot.dailyEntriesResponse,
+    (row) => dailyEntryFromRemote(scope, row),
+  );
+  await mergeTable(
+    'checklistItem',
+    db.checklistItems,
+    snapshot.checklistItemsResponse,
+    (row) => checklistItemFromRemote(scope, row),
+  );
+  await mergeTable(
+    'goalGroup',
+    db.goalGroups,
+    snapshot.goalGroupsResponse,
+    (row) => goalGroupFromRemote(scope, row),
+  );
+  await mergeTable('goal', db.goals, snapshot.goalsResponse, (row) =>
+    goalFromRemote(scope, row),
+  );
+  await mergeTable(
+    'goalStep',
+    db.goalSteps,
+    snapshot.goalStepsResponse,
+    (row) => goalStepFromRemote(scope, row),
+  );
 }

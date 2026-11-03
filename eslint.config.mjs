@@ -9,6 +9,7 @@ const eslintConfig = defineConfig([
     '.next/**',
     'out/**',
     'build/**',
+    'coverage/**',
     'next-env.d.ts',
     'public/sw*.js',
     'public/swe-worker*.js',

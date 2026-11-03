@@ -1,7 +1,7 @@
 NPM = npm
 E2E_PORT = 3100
 PLAYWRIGHT_IMAGE = tick-playwright:1.62.1
-E2E_CONTAINER = docker run --rm --init --ipc=host --user "$$(id -u):$$(id -g)" --volume "$(CURDIR):/workspace" --workdir /workspace --env HOME=/tmp --env NPM_CONFIG_CACHE=/tmp/npm-cache $(PLAYWRIGHT_IMAGE)
+E2E_CONTAINER = docker run --rm --init --ipc=host --user "$$(id -u):$$(id -g)" --volume "$(CURDIR):/workspace" --workdir /workspace --env HOME=/tmp --env NPM_CONFIG_CACHE=/tmp/npm-cache $(E2E_OPTIONS) $(PLAYWRIGHT_IMAGE)
 
 .PHONY: test-e2e-container test-e2e-account-container e2e-container-prepare
 
@@ -16,6 +16,72 @@ test-e2e-account-container: e2e-container-prepare
 
 .PHONY: help require-npm require-free-e2e-port install install-ci add-dependency update-dependency dev build start lint typecheck test test-telemetry test-backup test-account-operations test-account-persistence test-e2e test-e2e-reuse test-e2e-mobile test-e2e-offline test-e2e-account test-e2e-browsers format format-check check audit-prod deps-tree publish clean benchmark-account-rpc backup-encrypt backup-restore supabase-start supabase-start-db supabase-stop supabase-status supabase-reset supabase-diff supabase-diff-check supabase-migration-diff supabase-lint supabase-test-db supabase-types-local supabase-prod-backup supabase-prod-migrations-repair supabase-prod-migrations-check supabase-prod-db-dry-run supabase-prod-db-push
 .DEFAULT_GOAL := help
+
+.PHONY: coverage-check coverage-baseline
+
+coverage-check: require-npm
+	node scripts/check-coverage.mjs
+
+coverage-baseline: require-npm
+	node scripts/check-coverage.mjs --write-baseline
+
+.PHONY: validate-database generate-database-migration
+
+validate-database: require-npm
+	TICK_DATABASE_ACTION=validate node scripts/benchmark-cohort.mjs
+
+generate-database-migration: require-npm
+	@test -n "$(name)" || { printf "Erro: informe name=<nome>.\n"; exit 2; }
+	TICK_DATABASE_ACTION=generate TICK_MIGRATION_NAME=$(name) node scripts/benchmark-cohort.mjs
+
+.PHONY: check-secrets check-sast
+
+check-secrets:
+	node scripts/check-secrets.mjs
+
+check-sast: require-npm
+	node scripts/check-sarif.mjs .next/codeql
+
+.PHONY: quality-check quality-baseline test-quality
+
+quality-check: require-npm
+	node scripts/check-quality.mjs
+
+quality-baseline: require-npm
+	node scripts/check-quality.mjs --baseline-ref $(or $(ref),HEAD)
+
+test-quality: require-npm
+	$(NPM) run test -- tests/unit/quality-gates.test.mjs tests/unit/security-report.test.mjs tests/unit/coverage-gate.test.mjs tests/unit/mutation-gate.test.mjs
+
+.PHONY: test-coverage test-mutation test-e2e-a11y
+
+test-coverage: require-npm
+	$(NPM) run test -- --coverage
+
+test-mutation: require-npm
+	$(NPM) exec -- stryker run stryker.config.json
+	node scripts/check-mutation.mjs
+
+.PHONY: mutation-baseline
+
+mutation-baseline: require-npm
+	node scripts/check-mutation.mjs --write-baseline
+
+test-e2e-a11y: require-npm
+	$(NPM) run test:e2e -- tests/e2e/accessibility.spec.ts
+
+.PHONY: production-release-preflight production-release
+
+production-release-preflight:
+	node scripts/production-release.mjs preflight
+
+production-release:
+	node scripts/production-release.mjs deploy
+
+.PHONY: test-sync-safety
+
+test-sync-safety: require-npm
+	$(NPM) run test -- tests/integration/account-cache-concurrency.test.ts tests/integration/user-preferences.test.ts tests/unit/account-access-offline.test.ts tests/unit/account-network-cache.test.ts
 
 .PHONY: bundle-report
 
@@ -91,12 +157,12 @@ audit-all: require-npm
 .PHONY: test-release-workflow
 
 test-release-workflow: require-npm
-	$(NPM) run test -- tests/unit/release-workflow.test.mjs
+	$(NPM) run test -- tests/unit/release-workflow.test.mjs tests/unit/production-release.test.mjs
 
-.PHONY: deploy-hook-status
+.PHONY: production-release-status
 
-deploy-hook-status:
-	gh api repos/carlos-ed-ferreira/tick-pwa/environments/production/secrets/VERCEL_DEPLOY_HOOK_URL --jq '{name, created_at, updated_at}'
+production-release-status:
+	gh secret list --env production --repo carlos-ed-ferreira/tick-pwa --json name,updatedAt --jq '.[] | select(.name == "VERCEL_TOKEN" or .name == "VERCEL_PROJECT_ID" or .name == "VERCEL_TEAM_ID" or .name == "VERCEL_AUTOMATION_BYPASS_SECRET")'
 
 .PHONY: backup-restore-prepare
 
@@ -122,6 +188,26 @@ backup-artifacts:
 	gh api "repos/carlos-ed-ferreira/tick-pwa/actions/runs/$(run)/artifacts" --jq '.artifacts[] | {name, size_in_bytes, expired, expires_at}'
 
 help:
+	@printf "  %-26s %s\n" "make test-account-browser" "Testa conta em Chromium e API real temporaria isolada"
+	@printf "  %-26s %s\n" "make supabase-status-json" "Status local estruturado para ferramentas"
+	@printf "  %-26s %s\n" "make test-e2e-account-real" "Executa ensaios na conta sintetica isolada preparada"
+	@printf "  %-26s %s\n" "make test-e2e-account-real-container" "Executa ensaios isolados na imagem Chromium"
+	@printf "  %-26s %s\n" "make mutation-baseline" "Grava resultados de mutacao para revisao do baseline"
+	@printf "  %-26s %s\n" "make coverage-check" "Bloqueia queda da cobertura e valida o diff"
+	@printf "  %-26s %s\n" "make coverage-baseline" "Grava o resultado de cobertura para revisao do baseline"
+	@printf "  %-26s %s\n" "make validate-database" "Valida migrations e pgTAP em banco temporario isolado"
+	@printf "  %-26s %s\n" "make generate-database-migration name=<nome>" "Gera diff em banco isolado e copia a migration para revisao"
+	@printf "  %-26s %s\n" "make check-secrets" "Procura secrets no historico Git com saida redigida"
+	@printf "  %-26s %s\n" "make check-sast" "Bloqueia achados altos e criticos do SARIF CodeQL"
+	@printf "  %-26s %s\n" "make quality-check" "Valida estrutura, fronteiras e ciclos contra o baseline"
+	@printf "  %-26s %s\n" "make quality-baseline ref=<sha>" "Mede baseline estrutural de uma revisao para analise"
+	@printf "  %-26s %s\n" "make test-quality" "Valida os verificadores de qualidade"
+	@printf "  %-26s %s\n" "make test-coverage" "Mede cobertura global com V8"
+	@printf "  %-26s %s\n" "make test-mutation" "Valida mutacoes dos modulos criticos configurados"
+	@printf "  %-26s %s\n" "make test-e2e-a11y" "Audita acessibilidade nas superficies principais"
+	@printf "  %-26s %s\n" "make production-release-preflight" "Confere gates do SHA e configuracao Vercel no CI"
+	@printf "  %-26s %s\n" "make production-release" "Publica SHA aprovado e aguarda READY com smoke no CI"
+	@printf "  %-26s %s\n" "make test-sync-safety" "Valida refresh concorrente e preferencias offline"
 	@printf "  %-26s %s\n" "make bundle-report" "Mede JS bruto/gzip e service worker do build existente"
 	@printf "  %-26s %s\n" "make cohort-status" "Confere containers e volumes de benchmarks isolados"
 	@printf "  %-26s %s\n" "make benchmark-compare" "Compara o ultimo relatorio com TICK_BENCHMARK_BASELINE; tolerancia de 10%"
@@ -140,7 +226,7 @@ help:
 	@printf "  %-26s %s\n" "make dependency-info package=<pacote>" "Consulta versao, runtime, peers e licenca no registro npm"
 	@printf "  %-26s %s\n" "make audit-all" "Audita dependencias de producao e desenvolvimento"
 	@printf "  %-26s %s\n" "make test-release-workflow" "Valida a ordem do pipeline e a configuracao Git da Vercel"
-	@printf "  %-26s %s\n" "make deploy-hook-status" "Consulta somente os metadados do secret do Deploy Hook"
+	@printf "  %-26s %s\n" "make production-release-status" "Consulta metadados dos secrets da API Vercel, sem valores"
 	@printf "  %-26s %s\n" "make backup-restore-prepare" "Baixa as imagens Postgres, Auth e Storage antes do restore"
 	@printf "  %-26s %s\n" "make test-backup-restore" "Testa restore sintetico em container Postgres isolado"
 	@printf "  %-26s %s\n" "make backup-key-status" "Consulta somente as datas do secret de cifra do backup"
@@ -249,7 +335,7 @@ build: require-npm
 	$(NPM) run build
 
 start: require-npm
-	$(NPM) run start
+	$(NPM) run start $(args)
 
 lint: require-npm
 	$(NPM) run lint
@@ -336,6 +422,21 @@ supabase-stop: require-npm
 
 supabase-status: require-npm
 	$(NPM) run supabase:status -- $(args)
+
+.PHONY: supabase-status-json test-account-browser test-e2e-account-real test-e2e-account-real-container
+
+supabase-status-json: require-npm
+	@node scripts/supabase-cli.mjs status -o json
+
+test-account-browser: e2e-container-prepare require-npm
+	TICK_DATABASE_ACTION=browser node scripts/benchmark-cohort.mjs
+
+test-e2e-account-real: require-npm
+	$(NPM) exec -- playwright test --config playwright.account-real.config.ts
+
+test-e2e-account-real-container: E2E_OPTIONS = --network host --volume "$(realpath node_modules):$(realpath node_modules):ro" --env NEXT_PUBLIC_SUPABASE_URL --env NEXT_PUBLIC_SUPABASE_ANON_KEY --env NEXT_PUBLIC_TICK_SUPABASE_ENV --env NEXT_PUBLIC_TICK_ENABLE_ACCOUNT_BATCHES --env NEXT_PUBLIC_TICK_ACCOUNT_BATCH_USER_IDS --env TICK_ISOLATED_ACCOUNT_TEST
+test-e2e-account-real-container:
+	$(E2E_CONTAINER) make test-e2e-account-real
 
 supabase-reset: require-npm
 	$(NPM) run supabase:db:reset
