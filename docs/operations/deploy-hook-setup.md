@@ -8,7 +8,35 @@ Tudo é feito no Windows/WSL2, no navegador e no terminal deste repositório.
 
 Tempo estimado: 30 minutos, mais o tempo de uma publicação.
 
-## Estado conferido em 2 de novembro de 2026
+## Aceite operacional em 2026-11-02 após publicação
+
+O proprietário confirmou o deploy completo com sucesso e autorizou considerar
+os workflows funcionais, reabrindo o incidente se houver nova falha.
+A consulta ao GitHub confirmou no SHA `ce9e7d1d97f374f23dccaee36680385f70cb3e41`:
+
+| Execução                                                                                                   | Resultado                                 |
+| ---------------------------------------------------------------------------------------------------------- | ----------------------------------------- |
+| [App CI 41535884511](https://github.com/carlos-ed-ferreira/tick-pwa/actions/runs/41535884511)              | aplicação, banco e E2E aprovados          |
+| [Migrations e deploy 41536456800](https://github.com/carlos-ed-ferreira/tick-pwa/actions/runs/41536456800) | quality gate, migrations e hook aprovados |
+| [Auditoria 41537177311](https://github.com/carlos-ed-ferreira/tick-pwa/actions/runs/41537177311)           | histórico de migrations aprovado          |
+
+As migrations terminaram às `22:21:00Z` e o job de deploy começou às
+`22:21:04Z` (`19:21:00` e `19:21:04` em São Paulo). A conclusão do deployment
+na Vercel foi confirmada pelo proprietário; não houve inspeção independente
+do painel nesta revisão. A consulta de issues abertas retornou lista vazia.
+
+O último backup consultado é o
+[run 41520276777](https://github.com/carlos-ed-ferreira/tick-pwa/actions/runs/41520276777),
+aprovado e restaurado na segunda máquina, ainda no SHA anterior `a00e5b4`.
+Não há execução observada do novo workflow GHCR nesta consulta. O proprietário
+aceitou encerrar esta validação sem aguardar nova execução ou série diária.
+Isso encerra as pendências de funcionamento dos workflows nos passos 4 e 5
+por aceite explícito. Não registra novos ensaios de falha, rollback, estabilidade
+ou unicidade de deployment como executados; esses procedimentos permanecem
+como referência operacional.
+Os avisos automáticos permanecem ativos. Reabrir a investigação se houver falha.
+
+## Histórico anterior à publicação, em 2 de novembro de 2026
 
 O restore em duas máquinas e a limpeza foram concluídos pelo proprietário.
 Depois da criação do hook informada por ele, `make deploy-hook-status` confirmou

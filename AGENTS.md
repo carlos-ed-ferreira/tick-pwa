@@ -121,18 +121,22 @@ Preserve isolamento estrito:
 - trocar de modo não mistura escopos;
 - falha remota precisa de feedback recuperável.
 
-O estado atual não possui fila remota durável. Não prometa garantia inexistente
-e não crie sync paralelo sem decisão arquitetural.
+O caminho funcional de lotes possui outbox Dexie durável, habilitado por flags
+e restrito à coorte configurada. Não atribua essa garantia ao caminho legado
+nem crie sync paralelo sem decisão arquitetural.
 
-O produto futuro terá guest limitado, trial autenticado de 7 dias e assinatura.
-Trial e assinante devem usar o mesmo modelo de dados e persistência; somente o
-entitlement difere. O backend deve validar entitlement. Preços provisórios
-(`R$ 10,00/mês` no Brasil e `US$ 5.00/mês` fora) devem ser centralizados quando
-implementados.
+O aplicativo permanece fechado para acesso remoto, restrito a convidados
+explicitamente autorizados na allowlist. O modo guest oferece todas as
+funcionalidades de organização gratuitamente, sem limite de tempo ou quantidade
+imposto pelo produto, com dados exclusivamente locais. Fechar/reabrir o app
+não apaga progresso e não há expiração deliberada dos dados guest.
 
-Não migre dados guest incidentalmente durante login. A migração futura deve ser
-uma feature explícita, idempotente, testável, com ownership, retry e tratamento
-de falha parcial, conforme `docs/planning/implementation-plan.md`.
+Preserve GitHub Free, Vercel Hobby e Supabase Free no ambiente atual.
+
+Não migre dados guest incidentalmente durante login. Guest e contas convidadas
+permanecem em escopos independentes; entrar em uma conta não autoriza enviar os
+dados locais ao Supabase. O contrato está em
+`docs/planning/guest-and-invited-access.md`.
 
 ## Banco, API e segurança
 
@@ -140,8 +144,8 @@ Trate `supabase/schemas/tick.sql` como fonte declarativa. Gere migrations por
 diff, revise o SQL e valide banco limpo, constraints, RLS, policies e
 compatibilidade de rollout. Produção só recebe migrations pelo fluxo autorizado.
 
-Derive usuário do token no servidor; nunca confie em `user_id`, entitlement ou
-preço enviados pela UI. Inclua testes negativos de autorização. Considere XSS,
+Derive usuário do token no servidor; nunca confie em `user_id` ou permissão de
+acesso enviados pela UI. Inclua testes negativos de autorização. Considere XSS,
 CSRF, SSRF, injection, secrets, abuso, rate limit, operações destrutivas,
 webhooks duplicados e ownership quando aplicável.
 
@@ -219,8 +223,19 @@ concorrência, retry, duplicação, estado parcial, rollback e permissão negada
 quando aplicável. Não engula exceções silenciosamente.
 
 Evite N+1, consultas ilimitadas, payload excessivo, loops sem limite, chamadas
-sequenciais evitáveis, refresh redundante e fila sem limite. Meça caminhos
-críticos antes de otimizar. Siga baselines e ratchets do REVIEW.
+sequenciais evitáveis, refresh redundante e fila sem limite. Prefira o caminho
+claramente mais eficiente quando resolver a mesma ação com complexidade
+semelhante. Não introduza complexidade por ganho pequeno nem exija medição
+para cada escolha simples. Meça quando isso ajudar a investigar um problema
+real ou uma alteração relevante.
+
+O uso atual é uma pessoa em três dispositivos, com teto conservador de 20
+convidados. Não criar gates de capacidade, budgets estatísticos ou exigências
+de monitoramento automático nesta etapa. O proprietário acompanha quotas e
+experiência manualmente. Sincronização em segundo plano deve permitir edição
+contínua sem apagar ou sobrescrever alterações locais; cerca de 20 segundos
+é referência de investigação, não timeout de descarte da fila. Preservar os
+gates funcionais, de segurança e de integridade do REVIEW.
 
 ## Documentação e conclusão
 

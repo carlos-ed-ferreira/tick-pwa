@@ -42,7 +42,7 @@ export const enDictionary = {
     localMode: 'Continue without syncing',
     localModeDescription: 'Your data will stay only on this device.',
     allowedOnly: 'Login is available only for approved users.',
-    noSignup: 'Public signup is not available yet.',
+    noSignup: 'Account access is by invitation only.',
     prototypeNotice: 'Private prototype',
     localModeBadge: 'Local mode',
     cloudModeBadge: 'Connected account',

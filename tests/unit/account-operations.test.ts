@@ -272,41 +272,44 @@ describe('account operation batches', () => {
     expect(supabaseMocks.getSupabaseBrowserClient).not.toHaveBeenCalled();
   });
 
-  it('preserves the structured RPC error for retry and conflict handling', async () => {
-    const rpcError = {
-      code: '40001',
-      details: null,
-      hint: null,
-      message: 'stale_revision',
-    };
-    const rpc = vi.fn().mockResolvedValue({ data: null, error: rpcError });
-    supabaseMocks.getSupabaseBrowserClient.mockReturnValue({
-      rpc,
-    } as unknown as SupabaseClient);
+  it.each(['40001', 'PT409'])(
+    'preserves structured %s RPC errors for retry and conflict handling',
+    async (code) => {
+      const rpcError = {
+        code,
+        details: null,
+        hint: null,
+        message: 'stale_revision',
+      };
+      const rpc = vi.fn().mockResolvedValue({ data: null, error: rpcError });
+      supabaseMocks.getSupabaseBrowserClient.mockReturnValue({
+        rpc,
+      } as unknown as SupabaseClient);
 
-    await expect(
-      applyAccountOperationBatch({
-        mutations: [
-          {
-            baseRevision: 1,
-            entityType: 'categoryTag',
-            payload: {
-              id: 'category-1',
-              name: 'Stale',
-              colorHex: '#112233',
-              position: 'a0',
-              surface: 'calendar',
-              useOwnName: false,
-              createdAt: '2026-08-18T12:00:00.000Z',
-              updatedAt: '2026-08-18T12:00:00.000Z',
-              deletedAt: null,
-              clientUpdatedAt: '2026-08-18T13:00:00.000Z',
+      await expect(
+        applyAccountOperationBatch({
+          mutations: [
+            {
+              baseRevision: 1,
+              entityType: 'categoryTag',
+              payload: {
+                id: 'category-1',
+                name: 'Stale',
+                colorHex: '#112233',
+                position: 'a0',
+                surface: 'calendar',
+                useOwnName: false,
+                createdAt: '2026-08-18T12:00:00.000Z',
+                updatedAt: '2026-08-18T12:00:00.000Z',
+                deletedAt: null,
+                clientUpdatedAt: '2026-08-18T13:00:00.000Z',
+              },
             },
-          },
-        ],
-        operationId: '50000000-0000-0000-0000-000000000005',
-        scope: createUserScope('authenticated-user'),
-      }),
-    ).rejects.toBe(rpcError);
-  });
+          ],
+          operationId: '50000000-0000-0000-0000-000000000005',
+          scope: createUserScope('authenticated-user'),
+        }),
+      ).rejects.toBe(rpcError);
+    },
+  );
 });

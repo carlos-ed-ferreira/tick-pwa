@@ -7,9 +7,10 @@ rollouts, decisões, trabalho de código, configuração externa, validação e
 critérios de conclusão. O [README.md](../../README.md) descreve somente o que existe
 hoje e o [REVIEW.md](../../REVIEW.md) define os gates de qualidade.
 
-O objetivo é preparar o produto para aproximadamente **1.000 usuários ativos
-por dia**, sem assumir que a stack atual precisa ser preservada. A execução
-segue exatamente os oito passos abaixo, em ordem. Um passo só avança quando seus
+O objetivo é manter um aplicativo fechado, com acesso remoto somente para
+convidados autorizados, e modo guest completo, gratuito e exclusivamente local,
+sem prazo de expiração ou limites de uso impostos pelo produto. A execução
+segue os passos abaixo, em ordem. Um passo só avança quando seus
 critérios obrigatórios forem atendidos ou quando uma exceção estiver registrada
 neste arquivo.
 
@@ -20,32 +21,64 @@ explícito no turno atual.
 
 ## Decisões vigentes
 
-- Continuar com **Vercel Hobby e Supabase Free** durante desenvolvimento e alfa
-  privada.
-- Não contratar Vercel Pro ou Supabase Pro nesta fase. PowerSync foi descartado
-  e não será contratado.
+- Manter o ambiente atual em **GitHub Free, Vercel Hobby e Supabase Free**.
+- Manter acesso autenticado somente para convidados na allowlist.
+- Oferecer todas as funcionalidades de organização no modo guest gratuito,
+  sem limite de tempo ou quantidade e sem cadastro obrigatório.
+- Preservar dados locais ao fechar/reabrir o app; não aplicar exclusão por prazo.
+- PowerSync foi descartado.
 - Manter PostgreSQL/Supabase como fonte canônica das contas.
 - Manter `guest:<installationId>` exclusivamente local e isolado de
   `user:<supabaseUserId>`.
 - Não migrar dados guest automaticamente durante login.
 - Evitar dual-write: cada conta usa um único caminho remoto por vez.
 - Usar o Makefile como única interface operacional.
-- Não introduzir Redis, Kubernetes, microsserviços ou CRDTs para a meta atual de
-  1.000 usuários diários.
+- Não introduzir Redis, Kubernetes, microsserviços ou CRDTs sem necessidade
+  comprovada na coorte de convidados.
+
+## Escopo de uso e desempenho definido em 2026-11-02
+
+O proprietário é o único usuário atual e utiliza três dispositivos. Para
+planejamento, adotar teto conservador de 20 convidados, sem assumir 20 usuários
+simultâneos ou um perfil de carga que ainda não existe. Não há ampliação de
+acesso prevista nesta etapa. O ambiente atual permanece nos planos gratuitos.
+
+A sincronização deve ocorrer em segundo plano, permitindo continuar editando.
+Alterações feitas durante pull/push não podem ser apagadas ou substituídas por
+snapshots anteriores; a fila deve preservar operações e permitir recuperação.
+Até cerca de 20 segundos de sincronização é aceitável para o proprietário;
+demora maior é referência prática para investigar, não um prazo para cancelar
+operações, apagar dados ou declarar perda de acesso quando estiver offline.
+
+Não definir budgets obrigatórios de p95/p99, primeiro pull, convergência ou
+margem de capacidade nesta etapa. O uso real guia melhorias. Aplicar boas
+práticas e preferir o caminho claramente mais eficiente para a mesma ação,
+sem acrescentar complexidade por ganho pequeno. Benchmarks são ferramentas
+opcionais de diagnóstico; não bloqueiam a publicação por metas arbitrárias.
+O proprietário acompanha quotas manualmente e informa problemas observados.
+Isso não dispensa os gates funcionais, de segurança, isolamento e integridade.
 
 ## Estado resumido
 
-| Passo | Estado            | Próximo marco                                           |
-| ----- | ----------------- | ------------------------------------------------------- |
-| 1     | concluído         | manter rollout restrito até ampliar a coorte            |
-| 2     | concluído         | manter a matriz real como gate antes do público         |
-| 3     | concluído         | publicar retirada do POC e limpar recursos externos     |
-| 4     | validação externa | estabilizar backup diário e concluir gates operacionais |
-| 5     | validação externa | publicar e comprovar deploy com hook cadastrado         |
-| 6     | não iniciado      | fechar decisões de produto e autenticação pública       |
-| 7     | não iniciado      | criar baseline e carga para 1.000 DAU                   |
-| 8     | adiado            | avaliar frontend estático e planos no marco público     |
-| 9     | concluído         | repetir o ensaio físico em mudança de toque             |
+| Passo | Estado               | Próximo marco                                     |
+| ----- | -------------------- | ------------------------------------------------- |
+| 1     | concluído            | manter rollout restrito até ampliar a coorte      |
+| 2     | concluído            | manter a matriz real ao ampliar convidados        |
+| 3     | concluído            | manter outbox própria e recursos POC removidos    |
+| 4     | concluído por aceite | monitorar backup e reabrir se houver falha        |
+| 5     | concluído por aceite | manter deploy ordenado e auditoria de migrations  |
+| 6     | validado localmente  | manter guest completo e acesso remoto por convite |
+| 7     | escopo definido      | observar uso real e investigar lentidão relevante |
+| 8     | contínuo             | manter ambiente atual e acompanhar recursos       |
+| 9     | concluído            | repetir o ensaio físico em mudança de toque       |
+| 10    | implementado         | manter módulos de metas coesos e suíte verde      |
+
+Os passos 4 e 5 foram encerrados por aceite explícito do proprietário após a
+publicação bem-sucedida de `ce9e7d1`, em 2026-11-02. App CI, migrations/deploy
+e auditoria foram conferidos no GitHub. O aceite encerra as pendências de funcionamento dos workflows, sem aguardar
+nova série de backups. Cenários adicionais de falha e rollback não foram
+ensaiados nesta rodada e continuam como procedimentos operacionais. Evidências e limites em
+[deploy-hook-setup.md](../operations/deploy-hook-setup.md).
 
 ## 1. Publicar e validar o rollout controlado da outbox
 
@@ -53,7 +86,7 @@ explícito no turno atual.
 
 Comprovar em produção, para uma única conta interna, que a persistência
 funcional em lote é segura antes de ampliar sua adoção. Este passo não depende
-do PowerSync e não exige nenhum plano pago.
+do PowerSync.
 
 ### Estado atual
 
@@ -303,8 +336,8 @@ conta interna e dados sintéticos. Para cada ensaio, registrar modelo, versão d
 sistema, versão do navegador, tipo de rede e horário; testar fechamento total
 com operação pendente, retorno online, atualização da PWA e duas sessões da
 mesma conta. Nos painéis gratuitos do Supabase e da Vercel, registrar banco,
-transferência, conexões e funções antes e depois. Não ativar planos pagos nem
-executar o benchmark contra produção.
+transferência, conexões e funções antes e depois. Não executar o benchmark
+contra produção.
 
 ### Critérios de conclusão
 
@@ -321,8 +354,8 @@ executar o benchmark contra produção.
 O desenvolvedor aprovou o baseline automatizado, os ensaios reais já realizados
 em desktop e Android e o fallback recuperável de storage como evidência
 suficiente para encerrar esta etapa. Safari macOS/iOS e a leitura periódica das
-quotas permanecem gates operacionais obrigatórios antes de ampliar a alfa ou
-abrir o produto ao público; não são tratados como garantia já comprovada.
+quotas permanecem gates operacionais obrigatórios antes de ampliar a coorte
+de convidados; não são tratados como garantia já comprovada.
 
 ## 3. Escolher definitivamente entre PowerSync e outbox própria
 
@@ -343,24 +376,19 @@ usava, enquanto a outbox já cobria calendário, categorias e metas. Adotá-lo
 exigiria uma segunda migração local-first completa e manteria riscos distintos
 de storage, worker, diagnóstico e rollout.
 
-| Critério           | Outbox própria escolhida                                                                 | PowerSync rejeitado                                                       |
-| ------------------ | ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
-| perda e retry      | operação durável, reload, fechamento, resposta perdida, backoff e reconexão comprovados  | POC comprovou o fluxo isolado, mas nunca as telas funcionais              |
-| conflito           | compare-and-set; um rebase automático; ação manual faz a alteração pendente local vencer | last-committed-wins no POC, sem migração funcional validada               |
-| incrementalidade   | push somente da fila; pull paginado evita reconciliação parcial, mas ainda é snapshot    | streams incrementais, ao custo de um segundo SQLite e serviço             |
-| compatibilidade    | IndexedDB e service worker cobertos em desktop/Android; Safari/iOS segue gate manual     | WASM/SQLite, worker e multiaba exigem tratamento adicional por navegador  |
-| complexidade       | um único banco local, comandos e métricas já integrados às seis entidades                | runtime, schema, rota, flags, replicação e operação paralelos             |
-| custo em 1.000 DAU | sem fornecedor incremental; permanece dentro do custo vigente do Supabase                | Free limita 50 conexões de pico; Pro parte de US$ 49/mês, mais excedentes |
-| lock-in e saída    | Postgres canônico, IndexedDB descartável por conta e contratos próprios                  | saída exige retirar SDK, streams, SQLite e serviço                        |
-| segurança          | JWT, ownership derivado no servidor, RLS e testes negativos entre usuários               | POC também tinha JWT/RLS, sem vantagem material para o fluxo funcional    |
+| Critério         | Outbox própria escolhida                                                                 | PowerSync rejeitado                                                      |
+| ---------------- | ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| perda e retry    | operação durável, reload, fechamento, resposta perdida, backoff e reconexão comprovados  | POC comprovou o fluxo isolado, mas nunca as telas funcionais             |
+| conflito         | compare-and-set; um rebase automático; ação manual faz a alteração pendente local vencer | last-committed-wins no POC, sem migração funcional validada              |
+| incrementalidade | push somente da fila; pull paginado evita reconciliação parcial, mas ainda é snapshot    | streams incrementais, ao custo de um segundo SQLite e serviço            |
+| compatibilidade  | IndexedDB e service worker cobertos em desktop/Android; Safari/iOS segue gate manual     | WASM/SQLite, worker e multiaba exigem tratamento adicional por navegador |
+| complexidade     | um único banco local, comandos e métricas já integrados às seis entidades                | runtime, schema, rota, flags, replicação e operação paralelos            |
+| lock-in e saída  | Postgres canônico, IndexedDB descartável por conta e contratos próprios                  | saída exige retirar SDK, streams, SQLite e serviço                       |
+| segurança        | JWT, ownership derivado no servidor, RLS e testes negativos entre usuários               | POC também tinha JWT/RLS, sem vantagem material para o fluxo funcional   |
 
-Os valores do PowerSync foram conferidos em 28 de agosto de 2026 na
-[página oficial de preços](https://powersync.com/pricing): o Free incluía 2 GB
-sincronizados, 500 MB hospedados e 50 clientes simultâneos, com desativação por
-inatividade; o Pro partia de US$ 49/mês e incluía até 1.000 conexões de pico.
-Para 1.000 DAU, o Free não oferece margem aceitável mesmo com 10% de pico. A
-outbox não cria custo adicional de fornecedor, mas o custo e as quotas do
-Supabase continuam sujeitos aos passos 7 e 8.
+A outbox mantém IndexedDB e Postgres como únicos bancos da aplicação, sem
+acrescentar um serviço de sincronização. O uso e as quotas do Supabase continuam
+sujeitos ao acompanhamento operacional dos passos 7 e 8.
 
 ### Implementação da retirada
 
@@ -535,7 +563,7 @@ isso não comprova RPO diário durante as falhas intermitentes do workflow.
 
 Por decisão explícita do proprietário em 2026-11-02, o ensaio conduzido por
 ele em dois dispositivos é suficiente para a validação de restore. A exigência
-de segunda pessoa foi dispensada, inclusive antes do cadastro público. Isso
+de segunda pessoa foi dispensada, para os ensaios futuros. Isso
 aceita a ausência de uma revisão humana independente; essa revisão não foi
 executada nem fica como pendência. O restore real já foi comprovado.
 
@@ -543,8 +571,9 @@ A saída da limpeza confirmou ausência de containers do ensaio. A remoção
 inicial parou nos arquivos protegidos de `.git/objects/pack`, mas a repetição
 com `rm -rf --` somente nos dois caminhos temporários retornou
 `Limpeza concluída.`. O restore e a limpeza em duas máquinas estão concluídos.
-Permanecem a estabilização do backup automatizado e os demais critérios
-operacionais e de rollback desta etapa. O passo 4 continua em validação externa, conforme
+Após a publicação, o proprietário aceitou encerrar a etapa sem aguardar
+nova série de backups ou ensaios operacionais adicionais. O passo 4 está
+concluído por esse aceite; a prova de restore e limpeza está em
 [two-machine-backup-restore.md](../operations/two-machine-backup-restore.md).
 
 ### Resultado esperado
@@ -564,7 +593,7 @@ o navegador do usuário e sem enviar conteúdo privado.
    indisponibilidade de API e 70% de quota crítica.
 6. Documentar runbooks de incidente, rollback de flag, migration compensatória
    e comunicação ao usuário.
-7. Automatizar backup externo quando o lançamento se aproximar.
+7. Manter o backup externo automatizado para recuperar dados das contas convidadas.
 8. Restaurar um backup em Postgres local ou projeto temporário isolado e medir
    RPO e RTO.
 
@@ -580,7 +609,7 @@ o navegador do usuário e sem enviar conteúdo privado.
 
 - falha de sincronização aparece no painel e dispara alerta acionável;
 - teste de redaction impede PII e conteúdo funcional;
-- quotas possuem alerta antes da saturação;
+- o proprietário acompanha quotas manualmente; alertas existentes são preservados;
 - backup é restaurado em uma segunda máquina pelo proprietário seguindo o runbook; segunda pessoa dispensada por decisão de 2026-11-02;
 - RPO e RTO medidos estão registrados;
 - rollback de aplicação, flag e banco foi ensaiado.
@@ -663,7 +692,7 @@ caminho adotado é `vercel.json` com `git.deploymentEnabled` desligado para
 roteiro exato está em
 [deploy-hook-setup.md](../operations/deploy-hook-setup.md).
 
-### Estado em 2 de novembro de 2026
+### Estado antes da publicação em 2 de novembro de 2026
 
 O proprietário informou a criação do hook. A API do GitHub confirmou o secret
 `VERCEL_DEPLOY_HOOK_URL` no environment `production`, com criação e atualização
@@ -679,6 +708,15 @@ altos ou críticos; permanecem 16 moderados em ferramentas de desenvolvimento.
 A evidência final e os E2E estão no
 [relatório de manutenção](../operations/dependency-maintenance-2026-11-02.md).
 As mudanças continuam sem commit e sem publicação, sob controle do proprietário.
+
+### Conclusão por aceite em 2 de novembro de 2026
+
+O proprietário confirmou o deployment completo. App CI `41535884511`,
+migrations/deploy `41536456800` e auditoria `41537177311` passaram no mesmo
+SHA `ce9e7d1`. A ordem observada foi quality gate → migrations → hook.
+O funcionamento do passo 5 foi aceito pelo proprietário. Os critérios abaixo
+continuam como referência operacional; cenários não executados não são
+registrados como ensaiados. Nova falha reabre a investigação.
 
 ### Responsabilidade externa
 
@@ -708,187 +746,133 @@ As mudanças continuam sem commit e sem publicação, sob controle do proprietá
   migration pendente em silêncio;
 - interrupção do `make publish` deixa estado previsível e documentado.
 
-## 6. Implementar Auth, entitlement, trial, billing e migração guest
+## 6. Preservar guest completo e acesso remoto por convite
 
-### Resultado esperado
+### Política definida em 2026-11-02
 
-Substituir a alfa por allowlist por um ciclo público completo de conta e
-assinatura. A ordem interna obrigatória é **Auth → entitlement/trial → billing
-→ migração guest**.
+O aplicativo permanece fechado para contas remotas: somente convidados
+explicitamente autorizados na allowlist podem usar Supabase Auth e sincronizar.
+O modo guest continua disponível sem conta, com todas as funcionalidades de
+organização, gratuito, sem prazo e sem limites de quantidade impostos pelo
+produto. Não é uma demonstração com exemplos descartáveis.
 
-### 6.1 Autenticação pública
+O contrato completo está em [guest-and-invited-access.md](guest-and-invited-access.md).
+Essa decisão preserva o comportamento atual e substitui as propostas anteriores.
 
-Implementar cadastro, confirmação de e-mail, login por senha e Google,
-recuperação de senha, gestão de sessão, reautenticação para ações sensíveis,
-exportação e exclusão completa. Preservar o grant offline recente somente para
-a mesma conta e nunca converter indisponibilidade remota em negativa explícita.
+### Evidência automatizada de 2026-11-02
 
-Responsabilidade externa:
+`make test-access-policy` passou em 47 testes. O cenário guest importa 205
+itens pelo comando existente, cria meta e etapa, fecha/reabre IndexedDB e avança
+o relógio em dez anos. Os dados permanecem editáveis e o cliente de persistência
+remota não é inicializado. O E2E acrescenta fechar/reabrir a página, continuar
+editando e verificar ausência de requisições remotas de entidades. Os E2E
+locais passaram em 43 cenários, com 19 skips condicionais, e os autenticados
+em quatro cenários.
 
-- escolher SMTP e domínio remetente;
-- decidir CAPTCHA desde o cadastro e configurar quotas/rate limits;
-- revisar redirects OAuth, templates pt-BR/en e políticas de retenção;
-- definir prazo prometido de exportação e exclusão.
+### Invariantes
 
-### 6.2 Guest, trial e entitlement
+- `guest:<installationId>` lê e grava somente no IndexedDB do dispositivo.
+- Guest não envia entidades, não cria conta remota e não usa Supabase para
+  persistir dados; o app continua utilizável sem rede.
+- Fechar/reabrir o app ou decorrer um prazo não apaga nem bloqueia o progresso.
+- `user:<supabaseUserId>` exige sessão e acesso permitido em `account_access`.
+- Contas sem autorização não acessam dados remotos; RLS deriva ownership da sessão.
+- Mudar de modo ou de conta nunca mistura entidades nem importa dados guest.
+- Falha de rede mantém operações da conta na outbox e oferece recuperação.
+- Limites físicos do navegador e quotas dos serviços não são limites de produto.
 
-Centralizar uma política validada no servidor para `guest`, `trial`, `active`,
-`grace` e `expired`. O trial autenticado dura sete dias pelo relógio canônico do
-servidor. Expiração nunca apaga dados e trial/assinante usam o mesmo modelo de
-persistência.
+### Trabalho de manutenção
 
-Decisões externas obrigatórias:
-
-- limites exatos do guest e tratamento de usuários locais acima do limite;
-- quando o trial começa e o que fica bloqueado ao expirar;
-- se o trial é controlado por conta, e-mail ou dispositivo;
-- momento de remover a allowlist.
-
-### 6.3 Billing
-
-Implementar catálogo centralizado por região/moeda, customer, checkout, portal,
-subscription, event log, webhooks assinados e idempotentes, reconciliação,
-renovação, cancelamento, grace period, falha e eventos fora de ordem.
-Entitlement é derivado no servidor, nunca aceito da UI.
-
-Decisões externas obrigatórias:
-
-- provedor e entidade jurídica recebedora, incluindo emissão fiscal no Brasil;
-- confirmar ou substituir os preços provisórios de `R$ 10,00/mês` e
-  `US$ 5.00/mês`;
-- tolerância e acesso durante falha de pagamento;
-- secrets e sandbox do provedor.
-
-### 6.4 Migração explícita de guest
-
-Oferecer fluxo opcional e consentido depois que sync e API estiverem estáveis.
-Inventariar o grafo guest, gerar `migration_id`, mapear IDs e relações, enviar
-lotes transacionais, guardar checkpoint, permitir retry e só limpar a origem
-após confirmação canônica.
-
-Decisões externas obrigatórias:
-
-- se e quando a migração será oferecida;
-- política quando a conta já possui dados: mesclar, duplicar ou bloquear;
-- preservar ou apagar a origem após confirmação.
-
-### Segurança, testes e conclusão
-
-- derivar usuário, preço e entitlement do token/servidor;
-- cobrir enumeração, redirects, rate limit, CSRF, webhooks duplicados,
-  out-of-order, ownership e deleção em cascade;
-- testar pt-BR/en, offline, expiração, renovação, cancelamento e dois usuários;
-- comprovar que repetição da migração não duplica e falha parcial retoma;
-- publicar políticas de privacidade, retenção e termos antes do cadastro
-  público.
-
-O passo termina quando uma pessoa pode criar, confirmar, recuperar, exportar e
-excluir a conta; iniciar e terminar trial; assinar, cancelar e recuperar falha
-de pagamento; e migrar dados guest sem perda ou cruzamento de ownership.
-
-## 7. Executar carga e capacidade para 1.000 usuários diários
-
-### Resultado esperado
-
-Substituir estimativas por um baseline reprodutível de capacidade, custo e
-gargalos para 1.000 DAU e picos realistas.
-
-### Implementação necessária
-
-1. Modelar sessões, leituras, edições, sincronizações e pico por minuto.
-2. Gerar dados sintéticos sem PII, incluindo contas com milhares de itens e
-   hierarquias profundas.
-3. Criar targets Make para preparação, execução e relatório da carga.
-4. Medir p50/p95/p99, taxa de erro, queries, locks, CPU, memória, linhas/bytes,
-   conexões, fila, convergência e primeiro pull.
-5. Medir bundle, abertura em rede móvel e atualização do service worker.
-6. Identificar N+1, consultas/payloads ilimitados, refresh redundante e índices
-   ausentes.
-7. Definir budgets e ratchets: regressão superior a 10% deve falhar ou exigir
-   justificativa explícita.
-8. Fazer carga progressiva somente em ambiente isolado.
-
-### Responsabilidade externa
-
-- aprovar o modelo de uso e o pico esperado;
-- fornecer projeto isolado ou janela segura de benchmark;
-- acompanhar dashboards de Vercel e Supabase;
-- autorizar qualquer custo de ambiente temporário;
-- validar quotas e preços atuais nos sites dos fornecedores antes do lançamento.
+1. Preservar a allowlist no servidor e revisar acesso quando convidados entram
+   ou saem; não abrir cadastro irrestrito.
+2. Manter cobertura de guest offline, reload, persistência, escopos e ausência
+   de chamadas remotas de dados guest.
+3. Manter autorização negativa, retry e convergência das contas convidadas.
+4. Explicar na interface que os dados guest ficam somente neste navegador,
+   sem prometer cópia remota; manter os textos pt-BR/en coerentes.
+5. Preservar os dados existentes em toda manutenção de schema e atualização.
 
 ### Critérios de conclusão
 
-- pico de 1.000 DAU passa com margem definida e sem perda de dados;
-- p95/p99 e tempo de convergência atendem os limites acordados;
-- nenhuma consulta, payload ou fila cresce sem limite;
-- gargalos e índices possuem evidência antes/depois;
-- alertas disparam em 70% de quota crítica;
-- relatório reproduzível registra capacidade, margem e custo projetado.
+- funcionalidades locais completas sem ativação ou contagem de dias;
+- dados guest permanecem após fechar/reabrir o app;
+- nenhum dado guest é enviado ao Supabase;
+- somente contas convidadas acessam persistência remota;
+- dois usuários e a alternância guest/conta mantêm isolamento;
+- gates do REVIEW continuam aprovados nas mudanças relevantes.
 
-## 8. Avaliar frontend estático e planos no marco público
+## 7. Acompanhar desempenho pelo uso real
 
-### Resultado esperado
+### Decisão do proprietário
 
-Depois da sincronização, operação e carga estáveis, decidir a hospedagem final e
-contratar somente o que for tecnicamente ou comercialmente necessário.
+O escopo está definido: uma pessoa em três dispositivos, com teto conservador
+de 20 convidados. Aprovação adicional de modelo de carga, budgets e ensaios de
+capacidade não é pendência nem condição de publicação nesta etapa.
 
-### Arquitetura preferida
+Investigar se a interface deixar de responder, se a sincronização normalmente
+ultrapassar cerca de 20 segundos ou se surgir erro, perda, sobrescrita ou fila
+que não progride. Preservar o trabalho do usuário durante toda a investigação.
+Sem rede, preservar a fila e retomar quando possível, sem impor prazo de descarte.
 
-- frontend React, TypeScript, Vite e Tailwind estático;
-- PWA e service worker sem servidor Node permanente;
-- Cloudflare para o app estático;
-- Supabase Auth/PostgreSQL como backend canônico;
-- estratégia de sync escolhida no passo 3;
-- páginas públicas/SEO separadas apenas quando necessárias.
+### Política de otimização
 
-### Migração técnica
+- Evitar N+1, payloads desnecessários, trabalho repetido e consultas sem limite.
+- Escolher alternativas evidentemente melhores quando o custo de implementação
+  for semelhante; não exigir benchmark para cada decisão simples.
+- Medir quando isso ajudar a explicar um problema real ou escolher uma mudança
+  relevante; não otimizar preventivamente com abstrações de baixo retorno.
+- Manter a ferramenta de comparação de 10% disponível para diagnóstico
+  voluntário, sem convertê-la em gate obrigatório de release.
+- Validar funcionalidade, autorização, retry e preservação de dados normalmente.
 
-1. Remover dependência server-side de locale e preferências iniciais.
-2. Prototipar build Vite estático sem alterar o produto em produção.
-3. Preservar rotas instaláveis, manifest, deep links e fallback offline.
-4. Testar instalação, atualização do service worker, cache antigo e rollback.
-5. Configurar Cloudflare, domínio, DNS, headers, CSP e cache.
-6. Executar paridade funcional, E2E desktop/mobile e medição de performance.
-7. Fazer rollout reversível e remover a hospedagem antiga só após estabilidade.
+### Instrumentação e baseline entregues em 2026-11-02
 
-### Planos e gatilhos
+`make benchmark-cohort` cria Supabase local temporário, executa migrations,
+lint, diff declarativo, pgTAP e mede HTTP real de uma conta sintética, sem
+reset do banco de trabalho. O primeiro baseline tem 5.000 etapas, profundidade
+20, quatro workers e 30 requisições por tamanho de lote, sem erros. Primeiro
+pull: 10 páginas de 500 linhas, cerca de 3,14 MB de JSON e 1,140 s.
 
-Valores são referências históricas de planejamento e devem ser conferidos
-antes de contratar:
+P95 de lotes de uma mutação: 54,68 ms; de cem: 19,14 ms. Esses valores incluem
+variação local/cache e não provam que lotes maiores são sempre mais rápidos.
+Conflito retornou `PT409/stale_revision`, replay foi idempotente e a limpeza
+terminou. Snapshots incluem memória, CPU, I/O e contadores do banco, sem medida
+de pico sustentado. O
+[guia de capacidade](../operations/cohort-capacity.md) descreve parâmetros,
+limites, comparação de 10% e responsabilidade externa. `make bundle-report` preserva também o baseline
+de assets JS do build padrão: 34 arquivos, cerca de 2,15 MB brutos e 647 KB
+gzip, sem inferir payload inicial ou velocidade em rede móvel. O
+[baseline JSON](../operations/baselines/cohort-local.json) é uma amostra
+sintética, não aprovação do tamanho da coorte nem estimativa de custo remoto.
 
-| Serviço     | Agora               | Gatilho de upgrade                                                                    |
-| ----------- | ------------------- | ------------------------------------------------------------------------------------- |
-| Vercel      | Hobby, alfa privada | Pro somente se uso comercial começar ainda hospedado na Vercel                        |
-| Supabase    | Free                | lançamento público, risco de pausa, necessidade de backup/SLA ou 70% de quota crítica |
-| Cloudflare  | Free inicialmente   | tráfego ou recurso que exceda o plano vigente                                         |
-| Backup/PITR | ensaio local/manual | RPO/RTO público exigir automação ou recuperação ponto a ponto                         |
+O ensaio reproduziu um problema anterior: `40001` em conflito de negócio fazia
+o PostgREST repetir a transação até timeout. A correção declarativa usa `PT409`
+e mantém as mensagens, com migration gerada por diff e validação isolada.
+[Diagnóstico e rollout](../operations/incidents/2026-11-02-rpc-conflict-retries.md).
 
-A estratégia escolhida não possui custo adicional de sincronização. Qualquer
-valor futuro depende apenas dos planos vigentes de hospedagem, Supabase e
-backup; referências antigas que incluíam PowerSync não são mais aplicáveis.
+### Acompanhamento
 
-### Responsabilidade externa
+O proprietário observa sua utilização nos três dispositivos e acompanha os
+painéis manualmente. Diante de lentidão concreta, registrar ação, volume,
+dispositivo, rede e duração aproximada; então reproduzir, corrigir e validar.
+Não há carga adicional em produção ou infraestrutura nova a preparar agora.
+A extração do passo 10 e os testes de integridade permanecem válidos.
 
-- revisar termos comerciais dos planos no marco de lançamento;
-- criar zona/projeto Cloudflare, configurar domínio e autorizar mudança de DNS;
-- contratar Supabase apenas quando um gatilho ocorrer;
-- aprovar janela de rollout e rollback;
-- confirmar políticas legais, suporte, RPO/RTO e resposta a incidentes.
+## 8. Manter o ambiente atual e acompanhar recursos
 
-### Definição final de pronto
+Manter GitHub Free, Vercel Hobby e Supabase Free, a integração Git, o pipeline
+protegido, o backup cifrado e a auditoria já validados. O frontend permanece
+Next.js; não há mudança de hospedagem ou visibilidade do repositório nesta etapa.
 
-A implementação total está concluída quando:
+O proprietário acompanha manualmente armazenamento, WAL, conexões, tráfego,
+erros e uso de Actions. Não adicionar monitoramento de capacidade, alertas de
+quota ou nova infraestrutura como requisito desta etapa. Preservar os alertas
+operacionais existentes e corrigir problemas se forem observados, sem apagar
+dados, desativar backup ou enfraquecer autorização silenciosamente.
 
-- nenhuma limitação conhecida pode apagar ou ocultar dados locais;
-- operações offline sobrevivem ao fechamento e convergem entre dispositivos;
-- guest e contas permanecem rigorosamente isolados;
-- conta, trial, assinatura, exportação, exclusão e migração funcionam;
-- métricas, alertas, backup, restauração e rollback foram comprovados;
-- a carga sustenta 1.000 DAU com margem e custo conhecidos;
-- deploy e migrations usam o mesmo SHA aprovado;
-- falha ou parada do pipeline de publicação é detectada e avisada;
-- hospedagem, termos e planos são compatíveis com uso público;
-- todos os gates aplicáveis do REVIEW passam.
+Critério de manutenção: convidados autorizados conseguem usar o app, o modo
+guest permanece independente dos serviços remotos e incidentes têm evidência,
+responsável e recuperação pelos runbooks existentes.
 
 ## 9. Validar a interface de toque em aparelho real
 
@@ -939,24 +923,20 @@ disso exercita Safari/iOS, teclado virtual real, gesto de arrasto com dedo nem
 quatro mil linhas e passa a expor componentes coesos, dentro do limite de 800
 linhas lógicas por módulo definido no REVIEW.
 
-### Estado atual
+### Implementação em 2026-11-02
 
-A adaptação de toque extraiu apenas a folha de ações do detalhe da meta para
-`goal-detail-actions-sheet.tsx`. O arquivo continua concentrando o roteamento
-interno por query param, o estado global de arrasto, os cards de meta e de
-grupo, o grid, os menus de categoria, os editores de título e a árvore de
-etapas.
+`goals-surface.tsx` passou de 4.357 para cerca de 470 linhas físicas e concentra
+roteamento e composição. Cards de meta/grupo, grid, cabeçalhos, menus de
+categoria, edição de etapas e drafts possuem módulos próprios. O estado de
+arrasto está em `use-goal-drag.ts`; seu contrato de placement foi preservado.
+Todos os módulos da área permanecem abaixo de 800 linhas físicas e lógicas.
 
-### Implementação necessária
-
-1. Extrair `GoalCard` e `GoalGroupCard`, com seus menus, para módulos próprios.
-2. Extrair `GoalDetailHeader` e `GoalGroupDetailHeader`, hoje acoplados aos
-   editores de título.
-3. Extrair `GoalDetailCard` e `GoalStepRow` para o módulo da árvore de etapas.
-4. Isolar o estado de arrasto em um hook dedicado, com o mesmo contrato de
-   placement já usado pela árvore de tarefas.
-5. Manter a suíte de `tests/unit/goals-surface.test.tsx` verde a cada extração,
-   dividindo o arquivo de teste junto com os módulos.
+A suíte original de 74 testes foi preservada e dividida por contexto, usando
+fixtures e mocks compartilhados em `tests/support/goals-surface-harness.tsx`.
+`make test-goals` cobre esses cenários e testes próximos. Não houve mudança
+intencional de regras, desenho, nomes acessíveis ou persistência.
+Validação: 648 testes no gate completo, 43 E2E locais e quatro autenticados
+aprovados; lint, tipos, formatação e build padrão aprovados.
 
 ### Critérios de conclusão
 

@@ -181,8 +181,7 @@ passarem.
 - definir alerta anterior ao limite de read-only;
 - documentar a ordem de retirada de futuros consumidores de replicação;
 - tratar índices de foreign keys e initplan de RLS em mudança dedicada;
-- manter Vercel Hobby e Supabase Free nesta fase, sem interpretar este registro
-  como autorização para contratar planos pagos.
+- manter Vercel Hobby e Supabase Free no ambiente atual.
 
 ## Fechamento em 2026-09-21
 

@@ -1,0 +1,112 @@
+{
+  "createdAt": "2026-11-03T00:14:54.096Z",
+  "nodeVersion": "v20.20.2",
+  "options": {
+    "iterations": 30,
+    "concurrency": 4,
+    "timeoutMs": 10000,
+    "fixtureRows": 5000
+  },
+  "fixture": {
+    "rows": 5000,
+    "maximumDepth": 20
+  },
+  "firstPull": {
+    "durationMs": 1139.8035909999999,
+    "rows": 5000,
+    "pages": 10,
+    "bytes": 3140610,
+    "pageSize": 500
+  },
+  "conflict": {
+    "confirmed": 1,
+    "rejected": 1,
+    "rejectionReasons": [
+      {
+        "code": "PT409",
+        "message": "stale_revision"
+      }
+    ],
+    "concurrencyConflictRejected": true
+  },
+  "idempotentReplay": true,
+  "runs": [
+    {
+      "batchSize": 1,
+      "concurrency": 4,
+      "iterations": 30,
+      "timeouts": 0,
+      "successes": 30,
+      "errors": 0,
+      "errorRate": 0,
+      "p50Ms": 4.34342300000003,
+      "p95Ms": 54.68313199999989,
+      "p99Ms": 57.51209099999983,
+      "throughputPerSecond": 448.0832455027935
+    },
+    {
+      "batchSize": 100,
+      "concurrency": 4,
+      "iterations": 30,
+      "timeouts": 0,
+      "successes": 30,
+      "errors": 0,
+      "errorRate": 0,
+      "p50Ms": 15.283665000000383,
+      "p95Ms": 19.143427999999858,
+      "p99Ms": 20.852108000000044,
+      "throughputPerSecond": 237.9207930591584
+    }
+  ],
+  "host": {
+    "architecture": "x64",
+    "platform": "linux",
+    "logicalCpus": 12
+  },
+  "resources": {
+    "before": {
+      "runtime": {
+        "BlockIO": "0B / 92.8MB",
+        "CPUPerc": "0.03%",
+        "Container": "supabase_db_tick-cohort-30324",
+        "ID": "c188bfb5bfd4",
+        "MemPerc": "0.53%",
+        "MemUsage": "84.79MiB / 15.55GiB",
+        "Name": "supabase_db_tick-cohort-30324",
+        "NetIO": "1.37MB / 1.2MB",
+        "PIDs": "10"
+      },
+      "database": {
+        "databaseBytes": 13454483,
+        "commits": 926,
+        "rollbacks": 5,
+        "deadlocks": 0,
+        "tuplesReturned": 5568041,
+        "locks": 6
+      }
+    },
+    "after": {
+      "runtime": {
+        "BlockIO": "0B / 103MB",
+        "CPUPerc": "0.03%",
+        "Container": "supabase_db_tick-cohort-30324",
+        "ID": "c188bfb5bfd4",
+        "MemPerc": "0.69%",
+        "MemUsage": "109.4MiB / 15.55GiB",
+        "Name": "supabase_db_tick-cohort-30324",
+        "NetIO": "4.29MB / 5.13MB",
+        "PIDs": "14"
+      },
+      "database": {
+        "databaseBytes": 19614867,
+        "commits": 1070,
+        "rollbacks": 5,
+        "deadlocks": 0,
+        "tuplesReturned": 20877723,
+        "locks": 6
+      }
+    }
+  },
+  "correctnessChecksPassed": true,
+  "cleanupCompleted": true
+}

@@ -107,7 +107,7 @@ function createSyncClient({
       if (stale) {
         return {
           data: null,
-          error: { code: '40001', message: 'stale_revision' },
+          error: { code: 'PT409', message: 'stale_revision' },
         };
       }
 

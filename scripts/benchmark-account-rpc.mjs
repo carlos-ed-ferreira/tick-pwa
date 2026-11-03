@@ -1,29 +1,38 @@
 import { randomUUID } from 'node:crypto';
+import { mkdirSync, writeFileSync } from 'node:fs';
+import path from 'node:path';
 import process from 'node:process';
 import { performance } from 'node:perf_hooks';
 import { createClient } from '@supabase/supabase-js';
+import {
+  readBenchmarkOptions,
+  summarizeMeasurements,
+} from './benchmark-statistics.mjs';
 
 const url = process.env.TICK_BENCHMARK_SUPABASE_URL;
 const key = process.env.TICK_BENCHMARK_SUPABASE_ANON_KEY;
-const iterations = Number(process.env.TICK_BENCHMARK_ITERATIONS ?? 30);
-const concurrency = Number(process.env.TICK_BENCHMARK_CONCURRENCY ?? 4);
-const timeoutMs = Number(process.env.TICK_BENCHMARK_TIMEOUT_MS ?? 10000);
-
-if (!url || !key || !/^http:\/\/(127\.0\.0\.1|localhost):/u.test(url)) {
-  throw new Error('The account benchmark only runs against local Supabase.');
-}
-
+const options = readBenchmarkOptions(process.env, url);
+if (!key) throw new Error('Missing local Supabase anonymous key.');
+const { iterations, concurrency, timeoutMs, fixtureRows } = options;
+const prefix = `benchmark-${randomUUID()}`;
 const client = createClient(url, key, {
   auth: { persistSession: false, autoRefreshToken: false },
+  global: {
+    fetch: (input, init = {}) =>
+      fetch(input, {
+        ...init,
+        signal: init.signal
+          ? AbortSignal.any([init.signal, AbortSignal.timeout(timeoutMs)])
+          : AbortSignal.timeout(timeoutMs),
+      }),
+  },
 });
 const signIn = await client.auth.signInWithPassword({
   email: 'dev@email.com',
   password: '12341234',
 });
-
-if (signIn.error) {
-  throw signIn.error;
-}
+if (signIn.error) throw signIn.error;
+const userId = signIn.data.user.id;
 
 function mutation(id) {
   return {
@@ -46,34 +55,8 @@ async function apply(operationId, mutations) {
     p_operation_id: operationId,
     p_mutations: mutations,
   });
-
-  if (response.error) {
-    throw response.error;
-  }
-
+  if (response.error) throw response.error;
   return response.data;
-}
-
-function withTimeout(promise) {
-  let timeoutId;
-  const result = Promise.race([
-    promise,
-    new Promise((_, reject) => {
-      timeoutId = setTimeout(
-        () => reject(new Error('benchmark_timeout')),
-        timeoutMs,
-      );
-    }),
-  ]);
-
-  return result.finally(() => clearTimeout(timeoutId));
-}
-
-function percentile(values, ratio) {
-  const ordered = [...values].sort((first, second) => first - second);
-  return ordered[
-    Math.min(Math.ceil(ordered.length * ratio) - 1, ordered.length - 1)
-  ];
 }
 
 async function measure(batchSize) {
@@ -82,90 +65,167 @@ async function measure(batchSize) {
   let errors = 0;
   let timeouts = 0;
   const startedAt = performance.now();
-
   async function worker() {
     while (cursor < iterations) {
-      const iteration = cursor;
-      cursor += 1;
-      const prefix = `benchmark-${batchSize}-${iteration}-${randomUUID()}`;
+      const iteration = cursor++;
       const mutations = Array.from({ length: batchSize }, (_, index) =>
-        mutation(`${prefix}-${index}`),
+        mutation(`${prefix}-${batchSize}-${iteration}-${index}`),
       );
       const requestStartedAt = performance.now();
-
       try {
-        await withTimeout(apply(randomUUID(), mutations));
+        await apply(randomUUID(), mutations);
+        durations.push(performance.now() - requestStartedAt);
       } catch (error) {
         errors += 1;
-
-        if (error instanceof Error && error.message === 'benchmark_timeout') {
+        if (/timeout|abort/iu.test(String(error?.message ?? error)))
           timeouts += 1;
-        }
       }
-
-      durations.push(performance.now() - requestStartedAt);
     }
   }
-
   await Promise.all(Array.from({ length: concurrency }, () => worker()));
-  const elapsedSeconds = (performance.now() - startedAt) / 1000;
-
   return {
     batchSize,
     concurrency,
-    errors,
     iterations,
-    p50Ms: percentile(durations, 0.5),
-    p95Ms: percentile(durations, 0.95),
-    p99Ms: percentile(durations, 0.99),
     timeouts,
-    throughputBatchesPerSecond: iterations / elapsedSeconds,
+    ...summarizeMeasurements(durations, errors, performance.now() - startedAt),
+  };
+}
+
+async function prepareFixture() {
+  const goalId = `${prefix}-goal`;
+  const goal = await client.from('goals').insert({
+    id: goalId,
+    user_id: userId,
+    title: 'Synthetic mature goal',
+    sort_rank: 'a0',
+  });
+  if (goal.error) throw goal.error;
+  for (let offset = 0; offset < fixtureRows; offset += 100) {
+    const rows = Array.from(
+      { length: Math.min(100, fixtureRows - offset) },
+      (_, index) => {
+        const position = offset + index;
+        return {
+          id: `${prefix}-step-${String(position).padStart(6, '0')}`,
+          user_id: userId,
+          goal_id: goalId,
+          parent_id:
+            position % 20
+              ? `${prefix}-step-${String(position - 1).padStart(6, '0')}`
+              : null,
+          text: 'Synthetic capacity item',
+          sort_rank: String(position).padStart(6, '0'),
+        };
+      },
+    );
+    const result = await client.from('goal_steps').insert(rows);
+    if (result.error) throw result.error;
+  }
+  return goalId;
+}
+
+async function measureFirstPull(goalId) {
+  const startedAt = performance.now();
+  let rows = 0;
+  let pages = 0;
+  let bytes = 0;
+  const pageSize = 500;
+  for (let offset = 0; offset < fixtureRows; offset += pageSize) {
+    const response = await client
+      .from('goal_steps')
+      .select('*')
+      .eq('goal_id', goalId)
+      .order('id')
+      .range(offset, offset + pageSize - 1);
+    if (response.error) throw response.error;
+    rows += response.data.length;
+    pages += 1;
+    bytes += Buffer.byteLength(JSON.stringify(response.data));
+  }
+  if (rows !== fixtureRows) throw new Error('Incomplete synthetic first pull.');
+  return {
+    durationMs: performance.now() - startedAt,
+    rows,
+    pages,
+    bytes,
+    pageSize,
   };
 }
 
 async function measureConflict() {
-  const id = `benchmark-conflict-${randomUUID()}`;
+  const id = `${prefix}-conflict`;
   await apply(randomUUID(), [mutation(id)]);
-  const update = {
-    ...mutation(id),
-    base_revision: 1,
-  };
+  const update = { ...mutation(id), base_revision: 1 };
   const outcomes = await Promise.allSettled([
     apply(randomUUID(), [update]),
     apply(randomUUID(), [update]),
   ]);
-
   return {
     confirmed: outcomes.filter((outcome) => outcome.status === 'fulfilled')
       .length,
-    conflicts: outcomes.filter((outcome) => outcome.status === 'rejected')
+    rejected: outcomes.filter((outcome) => outcome.status === 'rejected')
       .length,
+    rejectionReasons: outcomes
+      .filter((outcome) => outcome.status === 'rejected')
+      .map((outcome) => ({
+        code: outcome.reason?.code,
+        message: outcome.reason?.message,
+      })),
+    concurrencyConflictRejected: outcomes.some(
+      (outcome) =>
+        outcome.status === 'rejected' &&
+        (String(outcome.reason?.message).includes('stale_revision') ||
+          outcome.reason?.code === 'PT409'),
+    ),
   };
 }
 
 async function measureReplay() {
   const operationId = randomUUID();
-  const mutations = [mutation(`benchmark-replay-${randomUUID()}`)];
+  const mutations = [mutation(`${prefix}-replay`)];
   const result = await apply(operationId, mutations);
   const replay = await apply(operationId, mutations);
-
   return result.operationId === replay.operationId;
 }
 
 try {
-  const oneMutation = await measure(1);
-  const oneHundredMutations = await measure(100);
+  const fixtureGoalId = await prepareFixture();
+  const firstPull = await measureFirstPull(fixtureGoalId);
+  const runs = [];
+  for (const batchSize of [1, 100]) runs.push(await measure(batchSize));
   const conflict = await measureConflict();
   const idempotentReplay = await measureReplay();
-
-  console.log(
-    JSON.stringify(
-      { conflict, idempotentReplay, runs: [oneMutation, oneHundredMutations] },
-      null,
-      2,
-    ),
-  );
+  const report = {
+    createdAt: new Date().toISOString(),
+    nodeVersion: process.version,
+    options,
+    fixture: { rows: fixtureRows, maximumDepth: Math.min(20, fixtureRows) },
+    firstPull,
+    conflict,
+    idempotentReplay,
+    runs,
+  };
+  if (process.env.TICK_BENCHMARK_REPORT) {
+    const reportPath = path.resolve(process.env.TICK_BENCHMARK_REPORT);
+    mkdirSync(path.dirname(reportPath), { recursive: true });
+    writeFileSync(reportPath, JSON.stringify(report, null, 2) + '\n');
+  }
+  console.log(JSON.stringify(report, null, 2));
+  if (
+    runs.some((run) => run.errors) ||
+    !idempotentReplay ||
+    conflict.confirmed !== 1 ||
+    conflict.rejected !== 1 ||
+    !conflict.concurrencyConflictRejected
+  ) {
+    throw new Error('Capacity benchmark failed its correctness checks.');
+  }
 } finally {
-  await client.from('category_tags').delete().like('id', 'benchmark-%');
+  for (const table of ['goal_steps', 'goals', 'category_tags']) {
+    const result = await client.from(table).delete().like('id', `${prefix}%`);
+    if (result.error)
+      throw new Error(`Synthetic fixture cleanup failed for ${table}.`);
+  }
   await client.auth.signOut();
 }

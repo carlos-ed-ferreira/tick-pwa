@@ -367,7 +367,7 @@ select throws_ok(
       ]'::jsonb
     )
   $$,
-  '40001',
+  'PT409',
   null,
   'a stale base revision is rejected deterministically'
 );
@@ -615,7 +615,7 @@ select throws_ok(
       ]'::jsonb
     )
   $$,
-  '40001',
+  'PT409',
   null,
   'a stale goal update is rejected deterministically'
 );

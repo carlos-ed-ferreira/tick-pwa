@@ -23,8 +23,7 @@ normal.
 
 O SDK adotado é `@sentry/browser` 10.72.0, licença MIT. Ele fica isolado pelo
 adapter e pode ser substituído sem alterar a outbox. A produção continuou com
-Vercel Hobby e Supabase Free; esta etapa não autoriza Vercel Pro, Supabase Pro
-ou PowerSync Pro.
+Vercel Hobby e Supabase Free.
 
 ## Configuração externa do Sentry
 
@@ -68,8 +67,7 @@ O evento retém `user.geo` com país, região e cidade, acrescentado pelo Sentry
 ingestão a partir do IP da conexão, depois do estágio de scrubbing. Desabilitar
 o armazenamento de IP em projeto e organização e criar a regra
 `[Remove] [Anything] from [$user]` nos dois níveis não remove o campo. Nenhum IP
-é armazenado. A limitação está registrada e deve ser reavaliada antes do
-cadastro público.
+é armazenado. A limitação está registrada e deve ser reavaliada ao ampliar a coorte de convidados.
 
 Os limites iniciais são uma fila de 25 operações e uma operação com cinco
 minutos. Eles devem ser ajustados somente com evidência de uso real.
@@ -139,8 +137,7 @@ make backup-restore archive=<caminho-do-arquivo.enc>
 Nunca apontar esse comando para produção. Por decisão explícita do
 proprietário em 2026-11-02, ele executa o ensaio em uma segunda máquina, sem
 exigência de outra pessoa. A revisão humana independente foi dispensada, não
-executada. Repetir pelo menos mensalmente e antes de cada lançamento público
-relevante.
+executada. Repetir pelo menos mensalmente e antes de mudanças operacionais relevantes.
 
 O restore aguarda `pg_isready --host 127.0.0.1` dentro do container. O servidor
 temporário do entrypoint aceita conexões por socket durante a instalação das
@@ -245,7 +242,7 @@ identificador de usuário, e-mail, token nem conteúdo funcional. O contexto
 e `signal`.
 
 Limitação registrada: `user.geo` com país, região e cidade permanece no evento.
-Reavaliar antes do cadastro público.
+Reavaliar ao ampliar a coorte de convidados.
 
 ## Evidências de restore
 
@@ -350,3 +347,12 @@ limite compartilhado do ECR público. Não houve atualização major da CLI.
 modo dry-run e `make test-release-workflow` cobre a configuração do workflow.
 A alteração ainda precisa ser publicada e observada no GitHub Actions.
 Aprovação do restore real não comprova estabilidade de execuções diárias.
+
+## Aceite após publicação em 2026-11-02
+
+O proprietário confirmou deploy completo e aceitou backup e GitHub Actions
+como funcionais, sem aguardar série adicional de execuções. Os passos 4 e 5
+foram encerrados por aceite, com reabertura em nova falha. Evidências conferidas,
+SHA publicado, origem da confirmação da Vercel e limites estão no
+[registro operacional](deploy-hook-setup.md#aceite-operacional-em-2026-11-02-após-publicação).
+As pendências de publicação descritas acima são histórico da preparação local.

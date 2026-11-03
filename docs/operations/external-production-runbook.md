@@ -46,24 +46,24 @@ módulos nativos do Node.
 
 Por decisão explícita do proprietário em 2026-11-02, a validação de restore
 será feita por ele em dois dispositivos distintos. Uma segunda pessoa não é
-requisito desta etapa nem do cadastro público. O ensaio comprova recuperação
+requisito dos ensaios de recuperação. O ensaio comprova recuperação
 em outra máquina; a revisão humana independente foi dispensada e não é
 registrada como executada. Seguir o roteiro escrito e anotar instruções
 ausentes continua obrigatório para melhorar sua reprodutibilidade.
 
 ## Registro geral
 
-| Passo | Responsável  | Data       | Evidência                                        | Resultado                                   |
-| ----- | ------------ | ---------- | ------------------------------------------------ | ------------------------------------------- |
-| 1     | proprietário | 2026-09-22 | consultas de verificação e ensaio 1.4            | aprovado                                    |
-| 2     | proprietário | 2026-09-22 | eventos sintéticos e regras em Monitors          | aprovado com limitação                      |
-| 3     | proprietário | 2026-11-02 | run 41520276777; 10 tabelas; RTO 3,454 s         | restore aprovado; rotina de backup instável |
-| 4     | proprietário | 2026-11-02 | secret do hook confirmado; vercel.json preparado | gates locais aprovados; publicação pendente |
-| 5     |              |            |                                                  | pendente                                    |
-| 6     |              |            |                                                  | pendente                                    |
-| 7     |              |            |                                                  | pendente                                    |
-| 8     | proprietário | 2026-10-18 | ensaio em Android e iOS físicos                  | aprovado                                    |
-| 9     |              |            |                                                  | pendente                                    |
+| Passo | Responsável  | Data       | Evidência                                         | Resultado                                  |
+| ----- | ------------ | ---------- | ------------------------------------------------- | ------------------------------------------ |
+| 1     | proprietário | 2026-09-22 | consultas de verificação e ensaio 1.4             | aprovado                                   |
+| 2     | proprietário | 2026-09-22 | eventos sintéticos e regras em Monitors           | aprovado com limitação                     |
+| 3     | proprietário | 2026-11-02 | run 41520276777; 10 tabelas; RTO 3,454 s          | restore e backup aceitos pelo proprietário |
+| 4     | proprietário | 2026-11-02 | SHA ce9e7d1; run 41536456800; confirmação do dono | deploy completo aprovado pelo proprietário |
+| 5     |              |            |                                                   | pendente                                   |
+| 6     |              |            |                                                   | pendente                                   |
+| 7     |              |            |                                                   | pendente                                   |
+| 8     | proprietário | 2026-10-18 | ensaio em Android e iOS físicos                   | aprovado                                   |
+| 9     |              |            |                                                   | pendente                                   |
 
 ## 1. Fechar o incidente da retirada do PowerSync
 
@@ -245,7 +245,7 @@ Backup habilitado em 2026-09-22. Restore executado com sucesso na segunda
 máquina Linux em 2026-11-02 pelo proprietário, com o run `41520276777`:
 10 tabelas, `rpoMs = 2859601`, `rtoMs = 3454` e exit status 0.
 Containers ausentes e limpeza das pastas confirmada pelo proprietário.
-A estabilização do backup diário continua pendente.
+Backup aceito como funcional pelo proprietário após a publicação; reabrir em nova falha.
 A exigência de segunda pessoa foi dispensada pelo proprietário em 2026-11-02. Evidência completa em
 [observability-backup-restore.md](observability-backup-restore.md).
 
@@ -253,8 +253,8 @@ Revisão em 2026-11-02: configuração habilitada, mas execução intermitente.
 O run `41163812529` falhou ao baixar a imagem do Postgres do ECR público com
 `toomanyrequests: Data limit exceeded`. Os runs de 1º e 2 de novembro passaram;
 o artefato não expirado do run `41382697246` permite executar o passo 3.5 agora.
-A recorrência da falha continua aberta; não considerar o backup estabilizado
-nem o restore comprovado apenas pelo sucesso desses runs.
+Esse registro descreve o diagnóstico anterior à correção e ao aceite.
+O restore posterior passou; o proprietário dispensou aguardar uma série diária.
 
 ### 3.1 Decisões
 
@@ -385,11 +385,11 @@ recuperável no cofre externo; container e temporários removidos.
 
 Em 2026-11-02, o proprietário informou a criação do hook e a consulta de
 metadados confirmou `VERCEL_DEPLOY_HOOK_URL` no environment `production`.
-O `vercel.json` está preparado no worktree; ainda não está publicado. Os
-bloqueios locais de ambiente e dependências foram corrigidos; `make check`, os
-gates de banco e o audit de produção passaram. Consulte o
-[relatório de manutenção](dependency-maintenance-2026-11-02.md) para evidências
-e limitações. Não há deployment ordenado aprovado apenas pelo cadastro do secret.
+O `vercel.json` foi publicado e o deployment completo foi confirmado pelo
+proprietário. App CI, migrations/deploy e auditoria passaram no SHA `ce9e7d1`.
+O aceite operacional e seus limites estão em
+[deploy-hook-setup.md](deploy-hook-setup.md). Os procedimentos abaixo ficam
+como referência para nova configuração ou investigação.
 
 Crie o hook e o secret **antes** de desligar o auto-deploy, para não deixar a
 produção sem caminho de publicação. Não desconecte o repositório da Vercel:
@@ -457,163 +457,65 @@ job; confirme a issue `pipeline-failure`; promova o último deployment saudável
 na Vercel; para banco, use somente migration compensatória aditiva criada e
 validada no repositório; nunca edite migration já aplicada.
 
-## 6. Decisões de Auth, guest, trial, billing e migração
+## 6. Acesso por convite e modo guest completo
 
-Este passo produz decisões escritas. Não contrate provedor antes de preencher e
-aprovar as tabelas.
+### 6.1 Contas convidadas
 
-### 6.1 SMTP, domínio e e-mails
+Manter Supabase Auth e a allowlist `account_access`. O proprietário autoriza
+cada conta remota explicitamente, revisa acessos e mantém OAuth/redirects e
+sessões pelos contratos atuais. Não abrir cadastro irrestrito.
 
-O SMTP padrão do Supabase não serve para produção e envia somente para
-endereços autorizados do time. Escolha provedor transacional com logs de
-entrega, tratamento de bounce, MFA, SPF e DKIM; verifique o domínio e publique
-SPF/DKIM/DMARC; desabilite tracking de links, que quebra links de confirmação;
-configure **Authentication → Emails/SMTP Settings**; defina `Site URL` e
-mantenha somente redirects conhecidos; revise os templates em pt-BR e en; teste
-entrega, spam, expiração e uso único.
+Validar login permitido, login sem autorização, revogação de acesso, sessão
+expirada e ausência de rede. Proteger ownership por RLS e manter a outbox
+recuperável na reconexão. A autorização offline atual pertence somente à mesma
+conta e não equivale a liberar acesso remoto após revogação.
 
-| Campo                      | Decisão     |
-| -------------------------- | ----------- |
-| Provedor SMTP              | `[DECIDIR]` |
-| Região/retentor de dados   | `[DECIDIR]` |
-| Remetente                  | `[DECIDIR]` |
-| SPF/DKIM/DMARC verificados | `[SIM/NÃO]` |
-| Rate limit inicial         | `[DECIDIR]` |
-| Prazo de exportação        | `[DECIDIR]` |
-| Prazo de exclusão          | `[DECIDIR]` |
+### 6.2 Guest local
 
-### 6.2 CAPTCHA e abuso
+Todas as funcionalidades de organização ficam disponíveis sem conta, sem
+prazo e sem limites de quantidade impostos pelo produto. Os dados ficam apenas
+no IndexedDB deste navegador e permanecem ao fechar/reabrir o app.
 
-Recomendação inicial: Cloudflare Turnstile desde a abertura do cadastro. Crie o
-site para os domínios exatos de produção, guarde site key e secret
-separadamente, habilite em **Authentication → Bot and Abuse Protection**,
-cadastre o secret somente no Supabase, defina limites para cadastro,
-recuperação e reenvio, e teste sucesso, token ausente, token inválido,
-expiração e indisponibilidade.
+Não enviar entidades guest ao Supabase, não exigir cartão ou ativação e não
+substituir dados reais por exemplos. Entrar em conta convidada troca o escopo;
+não importa nem apaga dados guest. O proprietário deve considerar que limpeza
+ou remoção do armazenamento pelo navegador pode apagar a única cópia local.
 
-### 6.3 Guest, trial e entitlement
+### 6.3 Verificação de manutenção
 
-Nunca apague dados ao atingir limite ou expiração: bloqueie apenas novas ações
-definidas e preserve leitura, exportação e exclusão.
+Conferir guest sem rede, reload, reabertura, dados reais preservados, ausência
+de envios remotos guest e isolamento entre duas contas convidadas. Manter os
+gates e os runbooks de incidentes. Contrato canônico em
+[guest-and-invited-access.md](../planning/guest-and-invited-access.md).
 
-| Pergunta                   | Decisão                                                                               |
-| -------------------------- | ------------------------------------------------------------------------------------- |
-| Limite de tarefas guest    | `[DECIDIR NÚMERO]`                                                                    |
-| Limite de metas guest      | `[DECIDIR NÚMERO]`                                                                    |
-| Limite de categorias guest | `[DECIDIR NÚMERO]`                                                                    |
-| Usuário já acima do limite | `[RECOMENDADO: preservar tudo e bloquear somente novas criações]`                     |
-| Início do trial            | `[RECOMENDADO: primeira sessão após confirmação de e-mail, pelo relógio do servidor]` |
-| Duração                    | `7 dias` ou `[ALTERAR]`                                                               |
-| Unidade antifraude         | `[RECOMENDADO: conta; definir tratamento de e-mail/dispositivo]`                      |
-| Acesso após expiração      | `[DECIDIR: leitura/sync/exportação e quais escritas ficam bloqueadas]`                |
-| Remoção da allowlist       | `[DEFINIR MARCO]`                                                                     |
+## 7. Desempenho e capacidade no uso atual
 
-### 6.4 Billing e fiscal
+### Escopo definido pelo proprietário
 
-Confirme a entidade jurídica; consulte contador e jurídico sobre emissão
-fiscal, impostos, chargeback, cancelamento, reembolso e LGPD; compare
-provedores por cartão nacional e internacional, Pix, moedas, portal do cliente,
-webhooks, retries e taxas; use sandbox antes da integração de produção. O
-frontend nunca concede entitlement.
+Uma pessoa usa o sistema em três dispositivos. O teto conservador de
+planejamento é 20 convidados, sem ampliação de acesso prevista nesta etapa.
+Não é necessário aprovar carga sintética, pico simultâneo ou budgets de latência
+para continuar ou publicar as alterações atuais.
 
-| Campo                               | Decisão                                  |
-| ----------------------------------- | ---------------------------------------- |
-| Provedor                            | `[DECIDIR]`                              |
-| Entidade recebedora                 | `[DECIDIR]`                              |
-| Brasil                              | `R$ 10,00/mês` provisório ou `[ALTERAR]` |
-| Exterior                            | `US$ 5.00/mês` provisório ou `[ALTERAR]` |
-| Grace period                        | `[DECIDIR]`                              |
-| Acesso durante inadimplência        | `[DECIDIR]`                              |
-| Política de cancelamento/reembolso  | `[DECIDIR]`                              |
-| Sandbox e responsável pelos secrets | `[DECIDIR]`                              |
+### Experiência esperada
 
-### 6.5 Migração guest
+A interface continua utilizável enquanto a sincronização ocorre. Alterações
+locais feitas durante o envio/refresh permanecem preservadas; não podem ser
+substituídas por dados remotos anteriores. Até cerca de 20 segundos é aceitável
+para sincronizar; demora maior recorrente deve ser investigada. Isso não é
+um timeout para apagar ou descartar operações, especialmente sem rede.
 
-Recomendação inicial: fluxo explícito e consentido, merge com remapeamento de
-IDs, sem deduplicação por texto, preservando a origem guest até confirmação
-canônica.
+### Acompanhamento manual e diagnóstico
 
-| Pergunta                   | Decisão                                                            |
-| -------------------------- | ------------------------------------------------------------------ |
-| Oferecer migração          | `[SIM/NÃO]`                                                        |
-| Marco de ativação          | `[DECIDIR]`                                                        |
-| Conta já contém dados      | `[RECOMENDADO: mesclar com IDs remapeados]`                        |
-| Itens aparentemente iguais | `[RECOMENDADO: não deduplicar automaticamente]`                    |
-| Origem guest após sucesso  | `[DECIDIR: preservar por N dias ou apagar com novo consentimento]` |
-| Falha parcial              | `manter origem e permitir retry pelo mesmo migration_id`           |
+O proprietário acompanha o uso e os painéis dos serviços. Corrigir lentidão
+observada, preferindo soluções simples e eficientes. Não acrescentar complexidade
+por ganho pequeno ou tornar metas estatísticas pré-requisito de manutenção.
 
-### 6.6 Legal
-
-Antes do cadastro público, publique e versione termos de uso, política de
-privacidade, política de retenção e exclusão, subprocessadores e regiões, canal
-para exportação, correção e exclusão, política de assinatura, renovação,
-cancelamento e reembolso, e contato para incidentes. Inclua a limitação de
-geolocalização registrada em 2.4. Peça revisão profissional; este runbook não
-substitui orientação jurídica, fiscal ou contábil.
-
-## 7. Modelo e ambiente para carga de 1.000 DAU
-
-### 7.1 Aprovar o modelo
-
-Proposta inicial, não resultado medido. Para cada linha, marque `APROVADO` ou
-escreva o novo valor.
-
-| Parâmetro                    | Proposta                        |
-| ---------------------------- | ------------------------------- |
-| Usuários ativos por dia      | 1.000                           |
-| Pico simultâneo              | 100 usuários                    |
-| Sessões por usuário/dia      | 2                               |
-| Duração média                | 10 minutos                      |
-| Refreshes remotos por sessão | 3                               |
-| Edições por sessão           | 10                              |
-| Mutações médias por lote     | 5                               |
-| Conta madura                 | 5.000 itens funcionais          |
-| Hierarquia profunda          | 20 níveis para teste de limite  |
-| Distribuição de rede         | Wi-Fi, 4G rápido e 4G degradado |
-
-Defina também duração do pico, proporção de navegadores, percentual de sessões
-offline, percentual de conflitos entre dispositivos, crescimento mensal
-esperado e margem mínima sobre o pico.
-
-### 7.2 Budgets
-
-| Métrica                           | Budget aprovado |
-| --------------------------------- | --------------- |
-| RPC p95                           | `[DECIDIR]`     |
-| RPC p99                           | `[DECIDIR]`     |
-| Primeiro pull p95                 | `[DECIDIR]`     |
-| Convergência após reconexão p95   | `[DECIDIR]`     |
-| Taxa de erro                      | `[DECIDIR]`     |
-| Timeout                           | `[DECIDIR]`     |
-| CPU máxima sustentada             | `[DECIDIR]`     |
-| Conexões máximas                  | `[DECIDIR]`     |
-| Quota de disco/egress para alerta | `70%`           |
-| Regressão máxima contra baseline  | `10%`           |
-
-### 7.3 Ambiente isolado
-
-Projeto Supabase dedicado, nunca produção, com região e versão de Postgres
-equivalentes; migrations apenas pelo fluxo preparado para o ambiente isolado;
-contas e conteúdo sintéticos; nenhum dado, usuário ou secret copiado de
-produção; deploy isolado do frontend apontando só para esse projeto; acesso
-restrito ao time do ensaio; data de exclusão e teto de custo definidos e
-autorizados por escrito.
-
-O benchmark existente é local e mede a RPC; não simula 1.000 DAU sozinho:
-
-```bash
-make benchmark-account-rpc
-```
-
-Ele rejeita URL não local. Não altere a trava para apontá-lo para produção.
-
-### 7.4 Critérios de aborto
-
-Interrompa imediatamente se dados reais ou PII aparecerem no ambiente, se
-tráfego chegar a produção, se erro de autorização cruzar usuários, se houver
-perda de operação local ou duplicação remota, se a fila ficar sem limite, se
-CPU, disco, conexões ou egress chegarem a 70%, se a taxa de erro exceder o
-budget ou se o custo ultrapassar o teto.
+O [benchmark local existente](cohort-capacity.md) e o comparador de 10% são
+ferramentas opcionais para explicar problemas. Não há novo ensaio de carga,
+monitoramento de quota ou ambiente dedicado pendente agora. Se houver ensaio,
+usar somente dados sintéticos em ambiente isolado; interromper diante de acesso
+a produção, dados reais, falha de autorização ou perda de trabalho.
 
 ## 8. Validar Android e iOS físicos — exige aparelhos reais
 
@@ -659,68 +561,17 @@ plano, ou `REPROVADO` com gravação, aparelho, orientação e passos exatos.
 Screenshot estático não prova arrasto, teclado, tooltip ou reconexão. Confirme
 também que o desenho desktop não mudou após qualquer correção.
 
-## 9. Cloudflare, DNS e upgrades no marco público
+## 9. Operação do ambiente atual
 
-Não antecipe este passo durante a alfa. Comece quando observabilidade,
-backup/restore, deploy ordenado, decisões comerciais e carga estiverem
-aprovados.
+Manter GitHub Free, Vercel Hobby e Supabase Free, domínio atual, integração Git,
+proteção da main, backup e auditoria. Acompanhar quotas e capacidade com dados
+reais da coorte de convidados. Não alterar hospedagem, DNS ou visibilidade do
+repositório nesta etapa.
 
-### 9.1 Revisar a hospedagem
-
-Compare permanecer na Vercel com migrar para Cloudflare, registrando para cada
-alternativa custo mensal para o tráfego medido, limites e excedentes, uso
-comercial permitido, SLA e suporte, logs, integração com GitHub, rollback,
-impacto em PWA, deep links, locale e cache, e dependências server-side ainda
-existentes. Não migre enquanto o build depender de comportamento dinâmico do
-Next.js sem substituição comprovada.
-
-### 9.2 Conferir planos no dia da decisão
-
-Abra as páginas oficiais e registre URL, data e valores de Vercel, Supabase,
-Cloudflare, Sentry, provedor SMTP, provedor de billing e PITR. Gatilhos: Vercel
-Pro quando o uso comercial começar; Supabase Pro no lançamento público, risco de
-pausa, necessidade de SLA/backup ou 70% de quota; plano Cloudflare pago somente
-quando tráfego medido exceder o Free; PITR quando o RPO público exigir
-recuperação mais curta. Nenhuma contratação sem custo, responsável e motivo
-registrados.
-
-### 9.3 Preparar sem mudar DNS
-
-Conta Cloudflare com MFA; projeto separado em Workers & Pages; repositório
-conectado apenas depois de o protótipo estático existir; publicação primeiro em
-`*.pages.dev`; testes de rotas diretas, manifest, instalação, offline, service
-worker, cache antigo, headers e CSP; E2E desktop e mobile; medição de
-performance. Ainda não adicione o domínio final.
-
-### 9.4 Inventariar e preparar DNS
-
-Exporte todos os registros atuais; registre TTL, MX, SPF, DKIM, DMARC, CAA,
-redirects e verificações de fornecedores; confirme acesso ao registrador;
-documente os nameservers atuais para rollback; reduza TTL com antecedência;
-verifique DNSSEC e o DS record; copie os registros para a zona Cloudflare e
-revise um a um; valide e-mail e serviços auxiliares antes do corte.
-
-Domínio apex em Cloudflare Pages exige nameservers da Cloudflare; subdomínio
-aceita CNAME. Com DNSSEC ativo, siga a ordem oficial: remover o DS antigo,
-aguardar o TTL, trocar nameservers, ativar DNSSEC na Cloudflare e publicar o
-novo DS. Fora de ordem, o resultado é `SERVFAIL`.
-
-### 9.5 Executar o corte — exige validação de outra rede
-
-Janela de mudança comunicada; backup e restore recentes confirmados; Vercel
-saudável para rollback; domínio associado primeiro em **Pages → Custom
-domains**, não apenas por CNAME manual; troca de nameservers quando o apex for
-migrado; aguardar a zona ficar `Active`; **validar resolução em redes e
-resolvedores diferentes**; validar certificado, redirects e domínio canônico;
-smoke test online, offline, login, OAuth, e-mails e sincronização; monitorar
-erros, cache e tráfego durante a janela.
-
-Rollback: defina responsável e limite de tempo antes do corte. Se reprovar,
-interrompa novas mudanças, preserve logs, restaure registros ou nameservers
-documentados, reaponte para o último deployment saudável da Vercel, considere
-TTL e DNSSEC antes de declarar recuperação, confirme login, e-mail, OAuth e
-sincronização após propagação, e mantenha o projeto Cloudflare isolado para
-diagnóstico.
+Ao detectar pressão de recursos, registrar métricas, preservar os dados e
+tratar consultas redundantes, retenção e frequência de trabalho não essencial.
+Uma limitação externa não deve apagar o progresso local ou desativar os
+controles de acesso e backup silenciosamente.
 
 ## Checklist final
 
@@ -730,9 +581,9 @@ diagnóstico.
 - [x] Restore executado em segunda máquina, com RPO/RTO registrados.
 - [x] Limpeza dos containers e pastas do ensaio confirmada.
 - [x] Validação pelo proprietário em dois dispositivos; segunda pessoa dispensada por decisão de 2026-11-02.
-- [ ] Auto-deploy paralelo removido sem bloquear o Deploy Hook.
-- [ ] Pipeline migration para deploy comprovado com o mesmo SHA.
-- [ ] Decisões de Auth, trial, billing, migração e legal aprovadas.
-- [ ] Modelo, budgets e ambiente isolado de carga aprovados.
+- [x] Auto-deploy e Deploy Hook aceitos após confirmação do deploy pelo proprietário.
+- [x] Pipeline migrations → hook aprovado no SHA ce9e7d1; deploy completo confirmado pelo proprietário.
+- [x] Política definida: contas remotas por convite e guest completo, gratuito e local, sem prazo.
+- [x] Escopo definido: um usuário, três dispositivos, teto conservador de 20 convidados; acompanhamento manual pelo uso.
 - [x] Android e iOS físicos aprovados.
-- [ ] Decisão de hospedagem pública, DNS, planos e rollback aprovada.
+- [x] Ambiente atual mantido: GitHub Free, Vercel Hobby e Supabase Free.
