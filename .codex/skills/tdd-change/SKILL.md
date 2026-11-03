@@ -45,7 +45,7 @@ ou demonstrar que o comportamento não é testável naquele nível.
 ## Concluir
 
 1. Executar a matriz aplicável do `REVIEW.md`.
-2. Rodar `npm run check` para mudança ampla; rodar E2E e banco quando o REVIEW
+2. Rodar `make check` para mudança ampla; rodar E2E e banco quando o REVIEW
    exigir.
 3. Revisar o diff por ruído, logs, código morto e regressão de baseline.
 4. Informar evidência RED/GREEN, gates aprovados, gates omitidos e problemas

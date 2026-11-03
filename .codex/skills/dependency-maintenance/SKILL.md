@@ -25,7 +25,8 @@ resultante.
 
 1. Trabalhar em alteração dedicada e pequena.
 2. Ler changelog, migration guide, peer dependencies e requisitos de runtime.
-3. Atualizar somente manifest e lockfile necessários pelo npm.
+3. Atualizar somente manifest e lockfile necessários pelos targets
+   `make add-dependency`, `make add-dev-dependency` ou `make update-dependency`.
 4. Inspecionar o diff por pacotes inesperados, scripts de instalação e mudança
    de resolução.
 5. Para major, definir migração e rollback antes de editar consumidores.
@@ -34,8 +35,9 @@ resultante.
 
 ## Validar
 
-1. Executar `npm ls --depth=0` e o audit aplicável.
-2. Rodar `npm run check`.
+1. Executar `make deps-tree` e o audit aplicável, `make audit-prod` ou
+   `make audit-all`.
+2. Rodar `make check`.
 3. Rodar E2E, banco e PWA conforme os pacotes afetados.
 4. Comparar vulnerabilidades com o baseline: não aceitar crítica/alta nova.
 5. Medir bundle ou runtime quando a dependência os afetar.

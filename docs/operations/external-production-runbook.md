@@ -13,8 +13,8 @@ indicada existe, não quando a configuração foi salva.
 
 ## Regras de segurança
 
-- Use contas com MFA em GitHub, Supabase, Vercel, Sentry, registrador do
-  domínio e futuro provedor de cobrança.
+- Use contas com MFA em GitHub, Supabase, Vercel, Sentry e registrador do
+  domínio.
 - Não cole tokens, senhas, DSN privados, connection strings ou a chave de
   backup em issues, commits, screenshots, chats ou neste arquivo.
 - Guarde secrets no cofre do provedor e uma cópia recuperável no gerenciador de
@@ -35,14 +35,12 @@ começar o passo correspondente.
 | 1.4   | segunda sessão do app              | confirmar convergência entre dispositivos após reconexão                 |
 | 3.5   | **segunda máquina com Docker**     | restaurar o backup fora do ambiente que o gerou                          |
 | 3.5   | canal separado para a chave        | provar que a chave é recuperável sem depender de quem fez o backup       |
-| 7.3   | projeto Supabase dedicado          | carga não pode tocar produção                                            |
 | 8     | **Android físico e iPhone físico** | arrasto, teclado virtual, tooltip e reconexão não se validam em emulador |
-| 9.5   | rede e resolvedor DNS alternativos | validar propagação fora do cache local                                   |
 
-A segunda máquina do passo 3.5 precisa de Node >= 20.9, Docker funcional,
-checkout do mesmo SHA do workflow e **nenhuma credencial de produção no
-ambiente**. Não precisa de `npm ci`: os scripts de backup e restore usam apenas
-módulos nativos do Node.
+A segunda máquina do passo 3.5 precisa de Node com npm, Docker funcional,
+GNU Make, checkout do mesmo SHA do workflow e **nenhuma credencial de produção
+no ambiente**. Não precisa de `make install`: os scripts de backup e restore
+usam apenas módulos nativos do Node.
 
 Por decisão explícita do proprietário em 2026-11-02, a validação de restore
 será feita por ele em dois dispositivos distintos. Uma segunda pessoa não é
@@ -59,11 +57,15 @@ ausentes continua obrigatório para melhorar sua reprodutibilidade.
 | 2     | proprietário | 2026-09-22 | eventos sintéticos e regras em Monitors           | aprovado com limitação                     |
 | 3     | proprietário | 2026-11-02 | run 41520276777; 10 tabelas; RTO 3,454 s          | restore e backup aceitos pelo proprietário |
 | 4     | proprietário | 2026-11-02 | SHA ce9e7d1; run 41536456800; confirmação do dono | deploy completo aprovado pelo proprietário |
-| 5     |              |            |                                                   | pendente                                   |
-| 6     |              |            |                                                   | pendente                                   |
-| 7     |              |            |                                                   | pendente                                   |
+| 5     | proprietário | 2026-11-03 | SHA b3ddc8f; run 41556272686; painel da Vercel    | ordem comprovada com migration real        |
+| 6     | proprietário | 2026-11-02 | política e `make test-access-policy`              | definido e publicado em b3ddc8f            |
+| 7     | proprietário | 2026-11-02 | escopo de uso e benchmark local opcional          | definido; acompanhamento manual            |
 | 8     | proprietário | 2026-10-18 | ensaio em Android e iOS físicos                   | aprovado                                   |
-| 9     |              |            |                                                   | pendente                                   |
+| 9     | proprietário | contínuo   | painéis dos provedores                            | em operação                                |
+
+Verificação aberta: confirmar três backups agendados seguidos com GHCR, conforme
+o passo 3 e as
+[pendências do plano](../planning/implementation-plan.md#pendências-abertas).
 
 ## 1. Fechar o incidente da retirada do PowerSync
 
@@ -237,7 +239,7 @@ estágio de scrubbing. Desabilitar armazenamento de IP em projeto e organizaçã
 criar a regra `[Remove] [Anything] from [$user]` nos dois níveis não removeu o
 campo, verificado em quatro eventos consecutivos. Nenhum IP é armazenado. A
 única solução restante seria rotear os eventos por endpoint próprio, o que não
-se justifica nesta fase. Reavaliar no passo 6.6.
+se justifica nesta fase. Reavaliar antes de autorizar novos convidados.
 
 ## 3. Backup e primeiro restore
 
@@ -249,27 +251,31 @@ Backup aceito como funcional pelo proprietário após a publicação; reabrir em
 A exigência de segunda pessoa foi dispensada pelo proprietário em 2026-11-02. Evidência completa em
 [observability-backup-restore.md](observability-backup-restore.md).
 
-Revisão em 2026-11-02: configuração habilitada, mas execução intermitente.
-O run `41163812529` falhou ao baixar a imagem do Postgres do ECR público com
-`toomanyrequests: Data limit exceeded`. Os runs de 1º e 2 de novembro passaram;
-o artefato não expirado do run `41382697246` permite executar o passo 3.5 agora.
-Esse registro descreve o diagnóstico anterior à correção e ao aceite.
-O restore posterior passou; o proprietário dispensou aguardar uma série diária.
+Entre 19 e 31 de outubro, 9 das 13 execuções falharam ao baixar a imagem do
+Postgres do ECR público com `toomanyrequests: Data limit exceeded`. Desde
+`ce9e7d1`, o workflow usa o GHCR. **Pendente:** depois de cada execução das
+03:17 UTC, rodar `make backup-status` até registrar três sucessos agendados
+seguidos em SHA igual ou posterior a `ce9e7d1`. Em falha, rodar
+`make backup-log run=<run-id>`, classificar a causa e registrar no
+[plano de implementação](../planning/implementation-plan.md#verificar-o-backup-diário-com-ghcr).
 
 ### 3.1 Decisões
 
-Registre antes de habilitar:
+Decisões registradas pelo proprietário em 2026-11-03:
 
-| Campo                     | Decisão                |
-| ------------------------- | ---------------------- |
-| RPO máximo aceito         | `[DEFINIR]`            |
-| RTO máximo aceito         | `[DEFINIR]`            |
-| Retenção                  | 14 dias ou `[ALTERAR]` |
-| Quem pode acessar a chave | `[DEFINIR]`            |
-| Cofre externo             | `[DEFINIR]`            |
+| Campo                     | Decisão                                                       |
+| ------------------------- | ------------------------------------------------------------- |
+| RPO máximo aceito         | 26 horas                                                      |
+| RTO máximo aceito         | 30 minutos para o restore isolado                             |
+| Retenção                  | 14 dias, igual ao `retention-days` do workflow                |
+| Quem pode acessar a chave | somente o proprietário                                        |
+| Cofre externo             | gerenciador de senhas do proprietário, item separado do banco |
 
-Com execução diária às 03:17 UTC, um primeiro objetivo coerente é RPO menor que
-26 horas. É proposta operacional, não garantia, até o primeiro restore.
+O RPO de 26 horas cobre o intervalo diário das 03:17 UTC mais a duração do job.
+Uma execução diária perdida já ultrapassa esse limite e deve ser tratada como
+falha operacional. O restore de 2026-11-02 mediu RTO de 3,454 s, abaixo do
+limite. O RTO acima mede somente o restore isolado do banco, não a recuperação
+completa da produção.
 
 ### 3.2 Obter os valores
 
@@ -351,24 +357,28 @@ O passo a passo completo, com a divisão entre as duas máquinas, está em
 
 Requisitos da máquina do ensaio:
 
-- Node >= 20.9 e Docker funcionando;
+- Node com npm, GNU Make e Docker funcionando;
 - checkout do mesmo SHA do workflow;
 - artifact `.enc` baixado com `gh run download <run-id>`;
 - chave recebida por canal separado;
 - **nenhuma credencial de produção no ambiente**.
 
-Não é necessário `npm ci`.
+Não é necessário `make install`. Baixe antes as imagens de Postgres, Auth e
+Storage, para que o download não entre no RTO:
 
 ```bash
+make backup-restore-prepare
 read -r -s -p "Backup encryption key: " TICK_BACKUP_ENCRYPTION_KEY
 export TICK_BACKUP_ENCRYPTION_KEY; echo
 make backup-restore archive=<caminho-absoluto-do-arquivo.enc>
 unset TICK_BACKUP_ENCRYPTION_KEY
 ```
 
-O comando sobe um Postgres 17 isolado, restaura roles, schema e dados, valida
-tabelas, imprime `publicTables`, `backupCreatedAt`, `rpoMs` e `rtoMs`, e remove
-o container ao final.
+O comando decifra o arquivo, sobe um Postgres 17 isolado, prepara os schemas
+Auth e Storage com as migrations oficiais das imagens GoTrue e Storage, restaura
+roles, schema e dados parando no primeiro erro, valida as tabelas públicas,
+imprime `publicTables`, `backupCreatedAt`, `rpoMs` e `rtoMs`, e remove
+containers, volumes anônimos e arquivos temporários ao final.
 
 `rpoMs` mede a distância entre a criação do backup e o início do restore, ou
 seja, depende de quando o ensaio for executado. Ele não representa o RPO
@@ -423,16 +433,18 @@ painel não tem controle de auto-deploy por branch. O caminho suportado é
 `vercel.json` com `git.deploymentEnabled: { "main": false }`, que preserva a
 conexão Git, os previews da `dev` e, pela documentação, os Deploy Hooks; somente
 `github.enabled: false` é documentado como bloqueio dos hooks. A primeira
-publicação com o arquivo comprova o comportamento real.
+publicação com o arquivo comprovou o comportamento: os deployments de
+Production de `ce9e7d1` e `b3ddc8f` vieram somente do hook.
 
 O roteiro exato dos passos 4 e 5, incluindo a reexecução do job que falhou na
 issue `#43` e a reversão caso o hook seja bloqueado, está em
 [deploy-hook-setup.md](deploy-hook-setup.md).
 
-## 5. Publicar uma mudança inócua e comprovar a ordem
+## 5. Comprovar a ordem em uma publicação
 
-Use mudança exclusivamente documental, sem schema, dependência ou alteração
-funcional. O objetivo é provar o pipeline.
+Comprovado em 2026-11-02 com `ce9e7d1`, sem mudança de banco, e em 2026-11-03
+com `b3ddc8f`, que aplicou a migration `20261103001239` antes do hook. Repita
+esta verificação depois de mudanças no pipeline ou na configuração da Vercel.
 
 1. Confirme que os passos 1 e 4 estão concluídos.
 2. Rode os gates aplicáveis, faça commit e publique pelo fluxo protegido.
@@ -583,7 +595,11 @@ controles de acesso e backup silenciosamente.
 - [x] Validação pelo proprietário em dois dispositivos; segunda pessoa dispensada por decisão de 2026-11-02.
 - [x] Auto-deploy e Deploy Hook aceitos após confirmação do deploy pelo proprietário.
 - [x] Pipeline migrations → hook aprovado no SHA ce9e7d1; deploy completo confirmado pelo proprietário.
+- [x] Ordem comprovada com migration real no SHA b3ddc8f; um único deployment de Production via hook.
 - [x] Política definida: contas remotas por convite e guest completo, gratuito e local, sem prazo.
 - [x] Escopo definido: um usuário, três dispositivos, teto conservador de 20 convidados; acompanhamento manual pelo uso.
 - [x] Android e iOS físicos aprovados.
 - [x] Ambiente atual mantido: GitHub Free, Vercel Hobby e Supabase Free.
+- [ ] Três backups agendados seguidos com GHCR confirmados por `make backup-status`.
+- [x] Decisões da tabela 3.1 registradas: RPO, RTO, acesso à chave e cofre.
+- [ ] Sincronização validada em Safari macOS/iOS antes de autorizar novos convidados.

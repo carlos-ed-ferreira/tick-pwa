@@ -60,25 +60,72 @@ Isso não dispensa os gates funcionais, de segurança, isolamento e integridade.
 
 ## Estado resumido
 
-| Passo | Estado               | Próximo marco                                     |
-| ----- | -------------------- | ------------------------------------------------- |
-| 1     | concluído            | manter rollout restrito até ampliar a coorte      |
-| 2     | concluído            | manter a matriz real ao ampliar convidados        |
-| 3     | concluído            | manter outbox própria e recursos POC removidos    |
-| 4     | concluído por aceite | monitorar backup e reabrir se houver falha        |
-| 5     | concluído por aceite | manter deploy ordenado e auditoria de migrations  |
-| 6     | validado localmente  | manter guest completo e acesso remoto por convite |
-| 7     | escopo definido      | observar uso real e investigar lentidão relevante |
-| 8     | contínuo             | manter ambiente atual e acompanhar recursos       |
-| 9     | concluído            | repetir o ensaio físico em mudança de toque       |
-| 10    | implementado         | manter módulos de metas coesos e suíte verde      |
+| Passo | Estado                          | Próximo marco                                      |
+| ----- | ------------------------------- | -------------------------------------------------- |
+| 1     | concluído                       | manter rollout restrito até ampliar a coorte       |
+| 2     | concluído                       | validar Safari antes de autorizar novos convidados |
+| 3     | concluído                       | manter outbox própria e recursos POC removidos     |
+| 4     | concluído, verificação pendente | confirmar backups diários com GHCR                 |
+| 5     | concluído                       | manter deploy ordenado e auditoria de migrations   |
+| 6     | concluído e publicado           | manter guest completo e acesso remoto por convite  |
+| 7     | escopo definido                 | observar uso real e investigar lentidão relevante  |
+| 8     | contínuo                        | manter ambiente atual e acompanhar recursos        |
+| 9     | concluído                       | repetir o ensaio físico em mudança de toque        |
+| 10    | concluído e publicado           | manter módulos de metas coesos e suíte verde       |
 
-Os passos 4 e 5 foram encerrados por aceite explícito do proprietário após a
-publicação bem-sucedida de `ce9e7d1`, em 2026-11-02. App CI, migrations/deploy
-e auditoria foram conferidos no GitHub. O aceite encerra as pendências de funcionamento dos workflows, sem aguardar
-nova série de backups. Cenários adicionais de falha e rollback não foram
-ensaiados nesta rodada e continuam como procedimentos operacionais. Evidências e limites em
+O passo 4 foi encerrado por aceite explícito do proprietário em 2026-11-02,
+com o restore real aprovado; a estabilidade do backup com GHCR continua como
+verificação pendente. O passo 5 foi aceito após `ce9e7d1` e comprovado com
+migration real em `b3ddc8f`, em 2026-11-03. Cenários de falha e rollback não
+foram ensaiados e continuam como procedimentos operacionais. Evidências em
 [deploy-hook-setup.md](../operations/deploy-hook-setup.md).
+
+## Pendências abertas
+
+### Verificar o backup diário com GHCR
+
+Entre 19 e 31 de outubro de 2026, 9 das 13 execuções de `Production backup`
+falharam com `toomanyrequests: Data limit exceeded` ao baixar imagens do ECR
+público. A mitigação `SUPABASE_INTERNAL_IMAGE_REGISTRY=ghcr.io` foi publicada em
+`ce9e7d1` em 2026-11-02, mas nenhuma execução agendada com ela foi observada
+até 2026-11-03 01:00 UTC. A última execução conferida, `41520276777`, rodou no
+SHA anterior `a00e5b4`.
+
+Executar depois de cada execução agendada das 03:17 UTC:
+
+```bash
+make backup-status
+```
+
+Critério de conclusão: três execuções agendadas seguidas com `success`, todas
+em SHA igual ou posterior a `ce9e7d1`. Para uma falha, rodar
+`make backup-log run=<run-id>` e classificar a causa:
+
+- limite de registro de imagens: a mitigação não bastou; reabrir o passo 4 e
+  avaliar manter as imagens em cache ou outro registro;
+- conexão, credencial ou banco: seguir o runbook de backup;
+- outra causa: registrar e corrigir com teste antes de considerar estável.
+
+Até a conclusão, não há garantia de RPO diário. Registrar o resultado neste
+passo, em
+[observability-backup-restore.md](../operations/observability-backup-restore.md)
+e no registro geral do
+[runbook externo](../operations/external-production-runbook.md).
+
+### Antes de autorizar novos convidados
+
+- validar a sincronização em Safari macOS e Safari iOS, conforme o passo 2;
+- reavaliar a limitação de `user.geo` nos eventos do Sentry;
+- revisar a allowlist `account_access` e as variáveis da outbox.
+
+### Revisões técnicas
+
+- revisar a exceção de override major de `glob` registrada no
+  [relatório de manutenção](../operations/dependency-maintenance-2026-11-02.md);
+- avaliar extração dos hotspots restantes quando uma mudança os tocar:
+  `src/lib/db/goal-commands.ts`, `src/lib/db/checklist-commands.ts`,
+  `src/features/checklist/checklist-surface.tsx`, `src/lib/db/database.ts` e
+  `src/components/app/task-tree-editable-row.tsx`.
 
 ## 1. Publicar e validar o rollout controlado da outbox
 
@@ -145,9 +192,8 @@ Os gates da etapa foram executados no estado atual:
 - `make check`: 73 arquivos e 566 testes aprovados, além de tipagem, lint,
   formatação e build.
 
-A etapa permanece aberta somente para a ativação restrita, o novo deploy e os
-ensaios reais descritos abaixo. Evidência simulada ou local não substitui essa
-validação de produção.
+Naquela data, a etapa ficou aberta somente para a ativação restrita, o novo
+deploy e os ensaios reais, concluídos conforme registrado abaixo.
 
 ### Correção da inconsistência offline em 28 de agosto de 2026
 
@@ -165,8 +211,7 @@ em voo para `pending` quando a conexão cai, preservando payload, ordem e
 `operation_id`. A reconexão continua retomando automaticamente. A correção
 foi validada localmente por 43 testes de persistência, 569 testes da suíte,
 quatro cenários E2E de conta, dois cenários E2E offline e pelo gate completo
-`make check`. Ela aguarda publicação e repetição do ensaio real antes de concluir
-a etapa.
+`make check`, e depois publicada e aprovada no ensaio real.
 
 Um segundo ensaio expôs o caso em que o Chromium devolve
 `ERR_INTERNET_DISCONNECTED`, mas `navigator.onLine` ainda permanece `true`. O
@@ -175,9 +220,9 @@ por isso ainda era tratado como rejeição remota. A outbox agora reconhece esse
 erro de transporte, mantém a operação em `pending`, interrompe o restante do
 lote e agenda retry com backoff. Isso evita disparar uma RPC para cada operação
 pendente durante a indisponibilidade. Erros de domínio, autorização, validação e
-conflito continuam no fluxo de falha recuperável. O aviso de PowerSync sobre
-múltiplas abas é independente: a prova permanece intencionalmente em modo
-single-tab e não participa da persistência funcional dessas telas.
+conflito continuam no fluxo de falha recuperável. Na época, o aviso do POC
+PowerSync sobre múltiplas abas era independente da persistência funcional; o
+POC foi removido no passo 3.
 
 A segunda correção foi validada por 44 testes direcionados de persistência, 570
 testes da suíte, quatro cenários E2E autenticados em desktop e mobile, dois
@@ -206,7 +251,7 @@ NEXT_PUBLIC_TICK_ACCOUNT_BATCH_USER_IDS=<auth.users.id-da-conta-interna>
 
 O UUID é também o `profiles.id`. Essas variáveis são públicas no bundle e nunca
 devem conter token ou senha. Como são `NEXT_PUBLIC_*`, a alteração exige novo
-deploy. Não alterar as flags do PowerSync neste ensaio.
+deploy.
 
 Executar manualmente, na conta autorizada:
 
@@ -427,16 +472,20 @@ anterior, sem restaurar dados funcionais ou criar dual-write.
 
 O mesmo merge protegido entrega a aplicação sem rota, runtime e flags e aplica
 a migration. A ordem externa entre Vercel e o workflow de banco não afeta as
-telas funcionais porque o POC está desligado e isolado; ordenar deploys de forma
-geral continua sendo a lacuna do passo 5. A remoção afeta exclusivamente dados
+telas funcionais porque o POC estava desligado e isolado; a ordem geral entre
+migrations e deploy foi resolvida depois, no passo 5. A remoção afetou
+exclusivamente dados
 sintéticos das tabelas `powersync_poc_*`. Antes de aplicar em produção,
 confirmar que não existe ensaio do POC em andamento e exportar as tabelas apenas
 se houver valor de diagnóstico. O rollback funcional continua sendo esvaziar a
-flag da outbox e usar o caminho legado durante a alfa. Reativar PowerSync exige
+flag da outbox e usar o caminho legado. Reativar PowerSync exige
 decisão nova, restauração explícita do POC em ambiente isolado e outra
 migration; não faz parte do rollback operacional.
 
 ### Responsabilidade externa
+
+Concluída em 2026-09-21; a verificação final está no
+[registro do incidente](../operations/incidents/2026-08-31-supabase-wal-read-only.md).
 
 - publicar a mudança pelo fluxo protegido e confirmar os checks;
 - confirmar antes da migration que não existe ensaio do POC em andamento;
@@ -462,8 +511,9 @@ temporariamente indisponível e depois entrou em modo somente leitura. A
 migration de retirada já estava na `main`, mas o workflow de produção falhou
 durante a indisponibilidade e abriu a issue `#32`. O slot e a role exclusiva
 foram removidos, o banco voltou a `default_transaction_read_only = off` e o
-disco iniciou recuperação de 96% para 93%. A execução manual do workflow e a
-confirmação da remoção dos objetos permanecem como fechamento externo.
+disco iniciou recuperação de 96% para 93%. Em 2026-09-21, a verificação final
+confirmou a migration aplicada, os objetos removidos e o banco fora do modo
+somente leitura; a role remanescente foi removida em seguida.
 
 O diagnóstico, a recuperação e a ordem segura para retirar futuros
 consumidores de replicação estão no
@@ -471,9 +521,9 @@ consumidores de replicação estão no
 
 ## 4. Implementar observabilidade, backup e restauração
 
-### Estado em 31 de agosto de 2026
+### Estado atual
 
-Implementação de código concluída. O adapter independente usa Sentry Free com
+Implementação de código concluída em 31 de agosto de 2026. O adapter independente usa Sentry Free com
 captura exclusivamente manual, allowlist e teste de redaction. Métricas
 agregadas de outbox e refresh incluem release e navegador sem identidade ou
 conteúdo funcional. O workflow diário gera dump lógico, cifra antes do upload,
@@ -487,93 +537,36 @@ somente no escopo de produção da Vercel, cinco regras de alerta filtradas por
 evidências e a limitação de geolocalização estão em
 `docs/operations/observability-backup-restore.md`.
 
-Os secrets de backup foram cadastrados e o workflow diário está habilitado desde
-22 de setembro de 2026. As execuções de 29 e 30 de setembro falharam ao baixar a
-imagem usada pela CLI do Supabase, com `toomanyrequests: Data limit exceeded` do
-Docker Hub, e abriram a issue `#44`. Todas as execuções de 1º a 18 de outubro
-terminaram com sucesso.
+O workflow diário de backup está habilitado desde 22 de setembro de 2026. As
+falhas de 29 e 30 de setembro e as 9 falhas em 13 execuções entre 19 e 31 de
+outubro tiveram a mesma causa: `toomanyrequests: Data limit exceeded` ao baixar
+a imagem do Postgres usada pela CLI, no ECR público. A partir de `ce9e7d1`, o
+workflow usa `SUPABASE_INTERNAL_IMAGE_REGISTRY=ghcr.io` com a CLI 2.98.2; a
+imagem GHCR executa `pg_dump` 17.6. A estabilidade com essa configuração é a
+[verificação pendente](#verificar-o-backup-diário-com-ghcr).
 
-Na revisão de 2 de novembro de 2026, `make backup-status` confirmou dez falhas
-entre 19 e 31 de outubro, intercaladas com sucessos. O log do run
-`41163812529`, de 31 de outubro, mostra `toomanyrequests: Data limit exceeded`
-ao baixar `public.ecr.aws/supabase/postgres:17.6.1.106`, antes do dump de roles.
-Portanto, esse caso é limitação do registro público ECR, não do Docker Hub nem
-evidência de senha inválida. A mitigação preparada em 2026-11-02 usa
-`SUPABASE_INTERNAL_IMAGE_REGISTRY=ghcr.io`, mantendo a CLI 2.98.2. A imagem
-GHCR executou pg_dump 17.6, o dry-run local passou e o workflow tem teste de
-regressão. É necessário publicar e observar novas execuções no GitHub.
-Não há garantia de RPO diário enquanto houver execuções perdidas.
+O restore do artefato real foi aprovado pelo proprietário em 2 de novembro de
+2026, em uma segunda máquina Linux, com o run `41520276777`: 10 tabelas
+públicas, `rpoMs = 2859601`, `rtoMs = 3454` e exit status 0, com limpeza
+confirmada. Antes disso, a chave antiga não autenticou o artefato e foi
+substituída com autorização do proprietário, e o utilitário de restore precisou
+de quatro correções, cada uma reproduzida por teste antes da mudança:
 
-Os runs de 1º e 2 de novembro passaram. O run `41382697246`, de 2 de novembro,
-tem o artefato `tick-production-backup-41382697246`, não expirado, de 364.412
-bytes, com expiração em `2026-11-16T03:23:31Z`. Seu SHA é
-`a00e5b4303b09d2f687b885c6ceeb69ce03cb7ec`. Isso permite iniciar o restore na
-segunda máquina sem aguardar uma nova publicação; sucesso de upload ainda não
-comprova a restauração.
+- esperar o Postgres por TCP, não pelo servidor temporário do entrypoint;
+- remover também os volumes anônimos do container;
+- executar as migrations oficiais do Auth (GoTrue v2.197.0);
+- executar as migrations oficiais do Storage (v1.81.0, pelo Docker Hub).
 
-No ensaio externo de 2 de novembro, a chave recuperada não autenticou o arquivo.
-O proprietário autorizou sua substituição e gerou o run `41520276777`, concluído
-com sucesso. O novo artefato passou da decifragem no Linux, mas a restauração
-encontrou `pg_stat_statements` em criação concorrente no container. A correção
-aguarda o servidor definitivo por TCP e remove também os volumes temporários;
-regressão e restore sintético são cobertos por `make test-backup` e
-`make test-backup-restore`. Naquela etapa a repetição externa ainda estava
-pendente; ela foi aprovada depois, conforme o registro abaixo. Detalhes em
+`make test-backup` cobre cifra, espera e timeout; `make test-backup-restore`
+restaura em Docker um arquivo sintético com o schema completo do Tick, Auth e
+Storage. O dump real nunca foi editado ou filtrado para obter sucesso. As
+tentativas, horários e mensagens estão em
 [observability-backup-restore.md](../operations/observability-backup-restore.md).
 
-A repetição externa com a espera TCP expôs a ausência de `auth.jwt()` na imagem
-Postgres sem as migrations do serviço Auth. O primeiro ajuste preparou essa
-função pela definição oficial, somente no container isolado. O teste sintético passou
-a usar o schema completo do Tick, usuário, perfil e verificação de claims e
-acesso; reproduziu o erro antes da correção e restaurou as 10 tabelas depois.
-Naquela etapa a prova externa ainda estava pendente; o ensaio não pode ignorar incompatibilidades
-de Auth/Storage nem ser apresentado como validação de login.
-
-O ensaio seguinte encontrou `audit_log_entries.ip_address` ausente. A preparação
-pontual de `auth.jwt()` foi substituída pela execução de `auth migrate` na imagem
-oficial GoTrue v2.197.0, usando somente o Postgres isolado e credenciais
-aleatórias locais. O teste Docker reproduziu o erro com um `COPY` de auditoria e
-passou após a preparação completa de Auth, incluindo o campo `is_anonymous` de
-usuários. `make backup-restore-prepare` baixa as imagens antes de medir o
-RTO. Naquela etapa o restore de produção no Linux ainda estava pendente; não remover dados ou
-ignorar erros de tabelas internas para declarar aprovação.
-
-A tentativa seguinte expôs `storage.buckets` ausente. O ambiente de restore
-também passou a executar as migrations oficiais de Storage v1.54.1, somente no
-Postgres temporário. Um `COPY` de bucket reproduziu o erro antes da correção;
-o teste passou com essa preparação e inclui metadados de objeto sintéticos.
-O preparo baixa agora Postgres, Auth e Storage. O artefato não foi filtrado ou
-alterado para contornar a falha, e naquela etapa a repetição externa ainda estava pendente; foi aprovada depois, conforme a evidência abaixo.
-
-A v1.54.1 não possuía `storage.buckets.versioning_status`, presente no dump.
-Depois de reproduzir essa incompatibilidade, o ambiente de restore passou para
-Storage v1.81.0, versão fixada a partir do Compose oficial atual, usando Docker
-Hub como origem para evitar o limite do ECR. O teste inclui agora os campos de
-versionamento de buckets, objetos e configuração de ciclo de vida. A versão
-dos serviços deve acompanhar o schema do backup; uma restauração sintética
-parcial não substitui o ensaio completo do artefato real.
-
-O restore do arquivo real foi executado com sucesso pelo proprietário no Linux
-Acer A15 em 2 de novembro de 2026, entre `21:22:27Z` e `21:22:43Z`
-(`18:22:27` a `18:22:43` em São Paulo), usando o run `41520276777` e o checkout
-histórico com as correções locais do utilitário. Resultado: 10 tabelas públicas,
-`backupCreatedAt = 2026-11-02T20:34:59.902Z`, `rpoMs = 2859601`,
-`rtoMs = 3454` e exit status 0. A idade do artefato foi de 47 min 39,601 s;
-isso não comprova RPO diário durante as falhas intermitentes do workflow.
-
-Por decisão explícita do proprietário em 2026-11-02, o ensaio conduzido por
-ele em dois dispositivos é suficiente para a validação de restore. A exigência
-de segunda pessoa foi dispensada, para os ensaios futuros. Isso
-aceita a ausência de uma revisão humana independente; essa revisão não foi
-executada nem fica como pendência. O restore real já foi comprovado.
-
-A saída da limpeza confirmou ausência de containers do ensaio. A remoção
-inicial parou nos arquivos protegidos de `.git/objects/pack`, mas a repetição
-com `rm -rf --` somente nos dois caminhos temporários retornou
-`Limpeza concluída.`. O restore e a limpeza em duas máquinas estão concluídos.
-Após a publicação, o proprietário aceitou encerrar a etapa sem aguardar
-nova série de backups ou ensaios operacionais adicionais. O passo 4 está
-concluído por esse aceite; a prova de restore e limpeza está em
+Por decisão do proprietário em 2026-11-02, o ensaio feito por ele em duas
+máquinas é suficiente; a exigência de uma segunda pessoa foi dispensada e não
+há revisão independente executada ou pendente. O passo 4 foi encerrado por
+aceite, sem ensaio de rollback; o roteiro está em
 [two-machine-backup-restore.md](../operations/two-machine-backup-restore.md).
 
 ### Resultado esperado
@@ -589,8 +582,9 @@ o navegador do usuário e sem enviar conteúdo privado.
    versão, navegador e resultado do refresh.
 4. Aplicar redaction e allowlist explícita de campos; tarefa, meta, categoria,
    e-mail, token e payload nunca podem sair do dispositivo.
-5. Criar alertas para fila acumulada, operação antiga, aumento de erro,
-   indisponibilidade de API e 70% de quota crítica.
+5. Criar alertas para fila acumulada, operação antiga, aumento de erro e
+   indisponibilidade de API; quotas são acompanhadas manualmente pelo
+   proprietário, por decisão de 2026-11-02.
 6. Documentar runbooks de incidente, rollback de flag, migration compensatória
    e comunicação ao usuário.
 7. Manter o backup externo automatizado para recuperar dados das contas convidadas.
@@ -614,7 +608,15 @@ o navegador do usuário e sem enviar conteúdo privado.
 - RPO e RTO medidos estão registrados;
 - rollback de aplicação, flag e banco foi ensaiado.
 
+Os critérios de backup, restore, RPO e RTO foram atendidos; o ensaio de
+rollback não foi executado e o aceite do proprietário o dispensou nesta etapa.
+A estabilidade diária do backup segue em
+[pendências abertas](#verificar-o-backup-diário-com-ghcr).
+
 ## 5. Fechar deploy ordenado entre GitHub, Supabase e Vercel
+
+**Estado:** aceito pelo proprietário em 2 de novembro de 2026 e comprovado com
+migration real em 3 de novembro de 2026.
 
 ### Resultado esperado
 
@@ -624,113 +626,63 @@ com rollback documentado.
 ### Estado atual
 
 O ruleset da `main` exige `Check app`, `Check database` e `Check end-to-end`.
-O workflow de migrations roda somente após App CI aprovado na `main`, usa o
-`head_sha`, faz dry-run e aplica migrations pelo environment `production`. Em
-14 de setembro de 2026, o workflow passou a disparar o Deploy Hook somente após
-a migration e a falhar se a `main` tiver avançado antes do disparo. Commits sem
-mudança de banco seguem pelo mesmo job e chegam ao deploy sem executar a CLI do
-Supabase.
+O workflow `supabase-migrations.yml` roda somente após App CI aprovado na
+`main`, usa o `head_sha`, faz dry-run, aplica migrations pelo environment
+`production` e só então executa `deploy-production`. Esse job confirma que a
+`main` ainda está no SHA aprovado e dispara o Deploy Hook
+`VERCEL_DEPLOY_HOOK_URL`. Commits sem mudança de banco passam pelo mesmo
+caminho sem executar a CLI do Supabase. Execuções de produção são serializadas
+sem descartar pendentes.
 
-Desde 27 de agosto de 2026, App CI e o workflow de migrations avisam falha pela
-action composta `.github/actions/report-failure`, que abre ou comenta uma issue
-atribuída ao dono do repositório. O aviso cobre somente execução que falhou.
-Uma auditoria horária agora compara migrations locais e remotas e transforma
-divergência em `pipeline-failure`. Ela detecta um `workflow_run` perdido assim
-que o Actions volta a operar; nenhuma automação dentro do próprio GitHub pode
-alertar enquanto a plataforma inteira estiver indisponível.
+O `vercel.json` desliga o auto-deploy Git da `main` por
+`git.deploymentEnabled`; previews das outras branches continuam. A produção é
+publicada somente pelo hook.
 
-O Deploy Hook é vinculado à branch e não recebe SHA no payload. A checagem da
-`main` fecha a janela anterior ao POST e o resumo registra o SHA aprovado e o
-identificador do job aceito, mas a associação final precisa ser confirmada no
-primeiro deploy real da Vercel.
+App CI e o workflow de migrations avisam falha pela action composta
+`.github/actions/report-failure`, que abre ou comenta uma issue atribuída ao
+dono do repositório. Uma auditoria horária compara migrations locais e remotas
+e transforma divergência em `pipeline-failure`, detectando um `workflow_run`
+perdido assim que o Actions volta a operar; nenhuma automação dentro do próprio
+GitHub alerta enquanto a plataforma inteira estiver indisponível.
 
-### Modos de falha do pipeline
-
-Com o Actions indisponível antes do merge, o ruleset impede o merge e a produção
-não muda. O risco vive depois do merge: a Vercel publica pela integração Git,
-que não depende do Actions, enquanto a migration depende. Um App CI reprovado na
-`main`, mesmo por falha de infraestrutura alheia ao código, publica o frontend e
-não aplica a migration daquele SHA. Enquanto o deploy não for ordenado, a
-compatibilidade N/N+1 é a única proteção dessa janela.
-
-O `make publish` agora espera os checks obrigatórios antes de armar
+O `make publish` espera os checks obrigatórios antes de armar
 `gh pr merge --auto`. Uma interrupção durante os checks deixa o pull request
 aberto sem merge automático; depois que ele é armado, a espera continua enquanto
 o pull request estiver aberto e falha somente quando o GitHub informa outro
 estado terminal.
 
-### Implementação entregue em 14 de setembro de 2026
+### Modos de falha do pipeline
 
-O repositório agora:
+Com o Actions indisponível antes do merge, o ruleset impede o merge e a produção
+não muda. Depois do merge, um App CI reprovado na `main` não dispara migrations
+nem deploy: a produção permanece na versão anterior até uma nova publicação.
+Uma migration que falha impede o deploy. Se a `main` avançar durante o pipeline,
+o deploy daquele SHA é abortado e a publicação seguinte refaz a sequência.
+O Deploy Hook não recebe SHA no payload; a checagem da `main` imediatamente
+antes do POST fecha essa janela.
 
-1. executa `deploy-production` somente depois de `migrate-production`;
-2. trata commit sem mudança de banco sem impedir o deploy;
-3. falha com mensagem clara quando o hook está ausente ou responde erro;
-4. registra SHA aprovado, identificador e estado inicial do job da Vercel;
-5. audita a cada hora o histórico local e remoto de migrations;
-6. reporta falha de migration, deploy ou auditoria pela mesma issue;
-7. serializa execuções de produção sem descartar execuções pendentes;
-8. espera os checks obrigatórios antes de armar o auto-merge no `make publish`.
+### Evidências
 
-RED/GREEN: testes novos falharam pela ausência do job de deploy, agendamento,
-detector de drift e ordem segura do auto-merge; depois da implementação, 79
-arquivos e 565 testes Vitest passaram.
+| Data       | SHA       | Execuções                                                             | Resultado                                                            |
+| ---------- | --------- | --------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| 2026-09-23 | `a00e5b4` | `35898587204`                                                         | migrations aplicadas; deploy falhou por falta do secret, issue `#43` |
+| 2026-11-02 | `ce9e7d1` | App CI `41535884511`, pipeline `41536456800`, auditoria `41537177311` | sem mudança de banco; hook disparado depois do job de migrations     |
+| 2026-11-03 | `b3ddc8f` | App CI `41555806499`, pipeline `41556272686`                          | migration `20261103001239` aplicada às 00:56:44Z; hook às 00:56:48Z  |
 
-### Estado em 18 de outubro de 2026
-
-A publicação de `a00e5b4` em 23 de setembro aplicou as migrations e falhou no
-job de deploy com `Missing VERCEL_DEPLOY_HOOK_URL in the production
-environment.`, abrindo a issue `#43`. O secret continua ausente, então toda
-publicação falhará no mesmo ponto até a configuração externa; a produção segue
-atualizada apenas pelo auto-deploy da Vercel, sem ordem garantida. As falhas da
-auditoria horária em 5 e 6 de outubro foram `FGA Authentication Error` da API do
-Supabase, transitórias; as execuções seguintes passaram.
-
-O painel da Vercel não oferece desligar o auto-deploy de uma única branch. O
-caminho adotado é `vercel.json` com `git.deploymentEnabled` desligado para
-`main`, adicionado somente depois de o hook estar cadastrado e testado. O
-roteiro exato está em
-[deploy-hook-setup.md](../operations/deploy-hook-setup.md).
-
-### Estado antes da publicação em 2 de novembro de 2026
-
-O proprietário informou a criação do hook. A API do GitHub confirmou o secret
-`VERCEL_DEPLOY_HOOK_URL` no environment `production`, com criação e atualização
-em `2026-11-02T21:39:25Z`. A URL não foi lida nem acionada. O `vercel.json`
-foi preparado no worktree para impedir auto-deploy Git da `main`, e o teste de
-release passou em RED/GREEN. Isso só altera a produção após publicação; a
-execução real do hook, a ordem e o SHA ainda não foram comprovados.
-
-Os bloqueios encontrados em ambiente e dependências foram corrigidos na
-manutenção de 2026-11-02. `make check`, reset/lint/diff/pgTAP em banco isolado,
-restore Docker e audit de produção passaram. O audit completo não tem achados
-altos ou críticos; permanecem 16 moderados em ferramentas de desenvolvimento.
-A evidência final e os E2E estão no
-[relatório de manutenção](../operations/dependency-maintenance-2026-11-02.md).
-As mudanças continuam sem commit e sem publicação, sob controle do proprietário.
-
-### Conclusão por aceite em 2 de novembro de 2026
-
-O proprietário confirmou o deployment completo. App CI `41535884511`,
-migrations/deploy `41536456800` e auditoria `41537177311` passaram no mesmo
-SHA `ce9e7d1`. A ordem observada foi quality gate → migrations → hook.
-O funcionamento do passo 5 foi aceito pelo proprietário. Os critérios abaixo
-continuam como referência operacional; cenários não executados não são
-registrados como ensaiados. Nova falha reabre a investigação.
+Em 2026-11-03, o painel da Vercel mostrou um único deployment de Production
+para `b3ddc8f` e outro para `ce9e7d1`, ambos `Ready` e disparados pelo hook. O
+deployment de `a00e5b4` ainda veio da integração Git. O registro completo está
+em [deploy-hook-setup.md](../operations/deploy-hook-setup.md).
 
 ### Responsabilidade externa
 
-1. Criar Deploy Hook para `main`, informado como concluído pelo proprietário em
-   2026-11-02.
-2. Cadastrar a URL como `VERCEL_DEPLOY_HOOK_URL` no environment GitHub
-   `production`, confirmado por metadados em 2026-11-02. O prazo da reexecução
-   histórica expirou; comprovar a entrega pela próxima publicação autorizada.
-3. Desligar o auto-deploy de produção da `main` por `vercel.json`.
-4. Publicar uma mudança inócua e confirmar pelos horários que migrations
-   terminaram antes do deployment e que o commit exibido pela Vercel coincide
-   com o SHA registrado no resumo do workflow.
-5. Manter os secrets `SUPABASE_PROJECT_REF`, `SUPABASE_ACCESS_TOKEN` e
-   `SUPABASE_DB_PASSWORD` somente no environment protegido.
+1. Manter `VERCEL_DEPLOY_HOOK_URL`, `SUPABASE_PROJECT_REF`,
+   `SUPABASE_ACCESS_TOKEN` e `SUPABASE_DB_PASSWORD` somente no environment
+   protegido `production`.
+2. Tratar a URL do hook como secret; se vazar, revogá-la na Vercel e cadastrar
+   uma nova.
+3. Em cada publicação relevante, conferir a ordem dos jobs e o deployment único
+   na Vercel.
 
 ### Critérios de conclusão
 
@@ -745,6 +697,14 @@ registrados como ensaiados. Nova falha reabre a investigação.
 - pipeline que não executa é detectado, e nenhum SHA da `main` permanece com
   migration pendente em silêncio;
 - interrupção do `make publish` deixa estado previsível e documentado.
+
+O mesmo SHA, a publicação sem migration, a publicação com migration, o aviso
+de falha e a auditoria horária estão comprovados pelas execuções acima. A
+dependência do deploy em relação às migrations e a recusa de SHA superado são
+verificadas por `make test-release-workflow`. A execução manual roda
+`make check` e `make audit-prod` antes das migrations. Migration falha em
+produção, execução manual e rollback compensatório não foram ensaiados e
+seguem como procedimento operacional.
 
 ## 6. Preservar guest completo e acesso remoto por convite
 
@@ -768,6 +728,9 @@ remota não é inicializado. O E2E acrescenta fechar/reabrir a página, continua
 editando e verificar ausência de requisições remotas de entidades. Os E2E
 locais passaram em 43 cenários, com 19 skips condicionais, e os autenticados
 em quatro cenários.
+
+A política e os testes foram publicados em produção em 2026-11-03, no SHA
+`b3ddc8f`, junto com o texto de login "O acesso à conta é somente por convite".
 
 ### Invariantes
 
@@ -849,6 +812,8 @@ O ensaio reproduziu um problema anterior: `40001` em conflito de negócio fazia
 o PostgREST repetir a transação até timeout. A correção declarativa usa `PT409`
 e mantém as mensagens, com migration gerada por diff e validação isolada.
 [Diagnóstico e rollout](../operations/incidents/2026-11-02-rpc-conflict-retries.md).
+A migration `20261103001239_avoid_rpc_conflict_retries.sql` foi aplicada em
+produção pelo pipeline ordenado em 2026-11-03, no SHA `b3ddc8f`.
 
 ### Acompanhamento
 
@@ -925,7 +890,7 @@ linhas lógicas por módulo definido no REVIEW.
 
 ### Implementação em 2026-11-02
 
-`goals-surface.tsx` passou de 4.357 para cerca de 470 linhas físicas e concentra
+`goals-surface.tsx` passou de 4.357 para 467 linhas físicas e concentra
 roteamento e composição. Cards de meta/grupo, grid, cabeçalhos, menus de
 categoria, edição de etapas e drafts possuem módulos próprios. O estado de
 arrasto está em `use-goal-drag.ts`; seu contrato de placement foi preservado.
@@ -936,7 +901,8 @@ fixtures e mocks compartilhados em `tests/support/goals-surface-harness.tsx`.
 `make test-goals` cobre esses cenários e testes próximos. Não houve mudança
 intencional de regras, desenho, nomes acessíveis ou persistência.
 Validação: 648 testes no gate completo, 43 E2E locais e quatro autenticados
-aprovados; lint, tipos, formatação e build padrão aprovados.
+aprovados; lint, tipos, formatação e build padrão aprovados. Publicado em produção
+em 2026-11-03, no SHA `b3ddc8f`.
 
 ### Critérios de conclusão
 

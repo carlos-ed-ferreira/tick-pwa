@@ -210,7 +210,7 @@ require-free-e2e-port:
 require-npm:
 	@command -v $(NPM) >/dev/null 2>&1 || { \
 		printf "Erro: npm nao encontrado no PATH.\n"; \
-		printf "Instale Node.js >=20.9.0 com npm antes de rodar este comando.\n"; \
+		printf "Instale Node.js ^20.19.0 ou >=22.12.0 com npm antes de rodar este comando.\n"; \
 		printf "Veja a secao Requisitos do README.md.\n"; \
 		exit 127; \
 	}
