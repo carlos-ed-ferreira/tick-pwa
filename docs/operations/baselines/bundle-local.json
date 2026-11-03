@@ -1,0 +1,179 @@
+{
+  "createdAt": "2026-11-03T00:22:40.001Z",
+  "buildId": "pxOrKyC6jDMD5sAusQmKB",
+  "assetCount": 34,
+  "totalBytes": 2145045,
+  "totalGzipBytes": 646913,
+  "assets": [
+    {
+      "file": ".next/static/chunks/126.5d2a172e9b4c87f8.js",
+      "bytes": 330351,
+      "gzipBytes": 111027
+    },
+    {
+      "file": ".next/static/chunks/994-de93d618728533bb.js",
+      "bytes": 266711,
+      "gzipBytes": 78118
+    },
+    {
+      "file": ".next/static/chunks/838-f857165040fab7fb.js",
+      "bytes": 247035,
+      "gzipBytes": 68363
+    },
+    {
+      "file": ".next/static/chunks/4bd1b696-7a3b7f6429414305.js",
+      "bytes": 203726,
+      "gzipBytes": 64060
+    },
+    {
+      "file": ".next/static/chunks/framework-91810027c23b22b9.js",
+      "bytes": 189685,
+      "gzipBytes": 59892
+    },
+    {
+      "file": ".next/static/chunks/main-172fdf38d4715d3b.js",
+      "bytes": 142476,
+      "gzipBytes": 42494
+    },
+    {
+      "file": ".next/static/chunks/400-d6d74bbfc50258bb.js",
+      "bytes": 137610,
+      "gzipBytes": 34379
+    },
+    {
+      "file": ".next/static/chunks/4a7b0c69.59d77c45ce650ac5.js",
+      "bytes": 124218,
+      "gzipBytes": 39208
+    },
+    {
+      "file": ".next/static/chunks/polyfills-42372ed130431b0a.js",
+      "bytes": 112594,
+      "gzipBytes": 39627
+    },
+    {
+      "file": ".next/static/chunks/220-ce4a6f976dd2a4b0.js",
+      "bytes": 80996,
+      "gzipBytes": 21375
+    },
+    {
+      "file": ".next/static/chunks/app/goals/page-ff44ddc58d11a745.js",
+      "bytes": 73142,
+      "gzipBytes": 18503
+    },
+    {
+      "file": ".next/static/chunks/app/calendar/page-7318711aa4d7d2f8.js",
+      "bytes": 67522,
+      "gzipBytes": 18144
+    },
+    {
+      "file": ".next/static/chunks/44530001-2806d121dcfa0839.js",
+      "bytes": 59039,
+      "gzipBytes": 12634
+    },
+    {
+      "file": "public/sw.js",
+      "bytes": 40972,
+      "gzipBytes": 12662
+    },
+    {
+      "file": ".next/static/chunks/571-2dedc44c79af2d15.js",
+      "bytes": 33595,
+      "gzipBytes": 11974
+    },
+    {
+      "file": ".next/static/chunks/16-b272ab4d8648d5c5.js",
+      "bytes": 18975,
+      "gzipBytes": 6446
+    },
+    {
+      "file": ".next/static/chunks/webpack-7fcbe2c4e2989482.js",
+      "bytes": 3481,
+      "gzipBytes": 1791
+    },
+    {
+      "file": ".next/static/chunks/f4898fe8-7fdf763f588c22ef.js",
+      "bytes": 2893,
+      "gzipBytes": 1133
+    },
+    {
+      "file": ".next/static/chunks/app/~offline/page-cfe4a76e4a2d2776.js",
+      "bytes": 2869,
+      "gzipBytes": 1247
+    },
+    {
+      "file": ".next/static/chunks/app/_not-found/page-ce5e04062934190f.js",
+      "bytes": 2675,
+      "gzipBytes": 991
+    },
+    {
+      "file": ".next/static/chunks/app/layout-117615bf38f254c5.js",
+      "bytes": 651,
+      "gzipBytes": 323
+    },
+    {
+      "file": ".next/static/pxOrKyC6jDMD5sAusQmKB/_buildManifest.js",
+      "bytes": 632,
+      "gzipBytes": 264
+    },
+    {
+      "file": ".next/static/chunks/f8025e75-1d9c5ed48db12106.js",
+      "bytes": 597,
+      "gzipBytes": 339
+    },
+    {
+      "file": ".next/static/chunks/main-app-eab18d89c2c95b80.js",
+      "bytes": 535,
+      "gzipBytes": 236
+    },
+    {
+      "file": ".next/static/chunks/app/page-fa59d6dddf706f63.js",
+      "bytes": 477,
+      "gzipBytes": 350
+    },
+    {
+      "file": ".next/static/chunks/5d015edf.a450152cd4959fe7.js",
+      "bytes": 408,
+      "gzipBytes": 274
+    },
+    {
+      "file": ".next/static/chunks/next/dist/client/components/builtin/global-error-1da1bde894588c67.js",
+      "bytes": 182,
+      "gzipBytes": 161
+    },
+    {
+      "file": ".next/static/chunks/app/_global-error/page-f8b99eb7a5891358.js",
+      "bytes": 153,
+      "gzipBytes": 139
+    },
+    {
+      "file": ".next/static/chunks/app/manifest.webmanifest/route-f8b99eb7a5891358.js",
+      "bytes": 153,
+      "gzipBytes": 139
+    },
+    {
+      "file": ".next/static/chunks/next/dist/client/components/builtin/app-error-f8b99eb7a5891358.js",
+      "bytes": 153,
+      "gzipBytes": 139
+    },
+    {
+      "file": ".next/static/chunks/next/dist/client/components/builtin/forbidden-f8b99eb7a5891358.js",
+      "bytes": 153,
+      "gzipBytes": 139
+    },
+    {
+      "file": ".next/static/chunks/next/dist/client/components/builtin/not-found-f8b99eb7a5891358.js",
+      "bytes": 153,
+      "gzipBytes": 139
+    },
+    {
+      "file": ".next/static/chunks/next/dist/client/components/builtin/unauthorized-f8b99eb7a5891358.js",
+      "bytes": 153,
+      "gzipBytes": 139
+    },
+    {
+      "file": ".next/static/pxOrKyC6jDMD5sAusQmKB/_ssgManifest.js",
+      "bytes": 80,
+      "gzipBytes": 64
+    }
+  ]
+}

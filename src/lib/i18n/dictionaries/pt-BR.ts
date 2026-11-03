@@ -42,7 +42,7 @@ export const ptBRDictionary = {
     localMode: 'Continuar sem sincronizar',
     localModeDescription: 'Seus dados ficarão apenas neste dispositivo.',
     allowedOnly: 'Login disponível apenas para usuários permitidos.',
-    noSignup: 'Cadastro público ainda não está disponível.',
+    noSignup: 'O acesso à conta é somente por convite.',
     prototypeNotice: 'Protótipo privado',
     localModeBadge: 'Modo local',
     cloudModeBadge: 'Conta conectada',

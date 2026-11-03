@@ -107,3 +107,12 @@ deployment Production Ready na Vercel; executar smoke funcional e conferir o
 backup cifrado de uma execução com o novo workflow. A mitigação GHCR não é
 prova de estabilidade diária antes dessa observação. Nenhuma nova prova com
 segunda pessoa é exigida; restore em dois dispositivos e limpeza já passaram.
+
+## Aceite após publicação em 2026-11-02
+
+O proprietário confirmou deploy completo e aceitou backup e GitHub Actions
+como funcionais, sem aguardar série adicional de execuções. Os passos 4 e 5
+foram encerrados por aceite, com reabertura em nova falha. Evidências conferidas,
+SHA publicado, origem da confirmação da Vercel e limites estão no
+[registro operacional](deploy-hook-setup.md#aceite-operacional-em-2026-11-02-após-publicação).
+As pendências de publicação descritas acima são histórico da preparação local.

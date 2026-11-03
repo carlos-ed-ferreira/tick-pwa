@@ -122,7 +122,6 @@ file_size_limit = "50MiB"
 [storage.s3_protocol]
 enabled = true
 
-# Image transformation API is available to Supabase Pro plan.
 # [storage.image_transformation]
 # enabled = true
 
@@ -134,7 +133,6 @@ max_namespaces = 5
 max_tables = 10
 max_catalogs = 2
 
-# Analytics Buckets is available to Supabase Pro plan.
 # [storage.analytics.buckets.my-warehouse]
 
 # Store vector embeddings in S3 for large and durable datasets
@@ -144,7 +142,6 @@ enabled = false
 max_buckets = 10
 max_indexes = 5
 
-# Vector Buckets is available to Supabase Pro plan.
 # [storage.vector.buckets.documents-openai]
 
 [auth]
@@ -288,7 +285,6 @@ message_service_sid = ""
 # DO NOT commit your Twilio auth token to git. Use environment variable substitution instead:
 auth_token = "env(SUPABASE_AUTH_SMS_TWILIO_AUTH_TOKEN)"
 
-# Multi-factor-authentication is available to Supabase Pro plan.
 [auth.mfa]
 # Control how many MFA factors can be enrolled at once per user.
 max_enrolled_factors = 10

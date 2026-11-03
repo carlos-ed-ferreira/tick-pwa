@@ -17,6 +17,52 @@ test-e2e-account-container: e2e-container-prepare
 .PHONY: help require-npm require-free-e2e-port install install-ci add-dependency update-dependency dev build start lint typecheck test test-telemetry test-backup test-account-operations test-account-persistence test-e2e test-e2e-reuse test-e2e-mobile test-e2e-offline test-e2e-account test-e2e-browsers format format-check check audit-prod deps-tree publish clean benchmark-account-rpc backup-encrypt backup-restore supabase-start supabase-start-db supabase-stop supabase-status supabase-reset supabase-diff supabase-diff-check supabase-migration-diff supabase-lint supabase-test-db supabase-types-local supabase-prod-backup supabase-prod-migrations-repair supabase-prod-migrations-check supabase-prod-db-dry-run supabase-prod-db-push
 .DEFAULT_GOAL := help
 
+.PHONY: bundle-report
+
+bundle-report: require-npm
+	node scripts/measure-bundle.mjs
+
+.PHONY: cohort-status
+
+cohort-status:
+	docker ps -a --filter name=tick-cohort- --format '{{.Names}}'
+	docker volume ls --filter name=tick-cohort- --format '{{.Name}}'
+
+.PHONY: test-goals test-access-policy test-capacity benchmark-cohort benchmark-cohort-run benchmark-compare supabase-start-account
+
+benchmark-compare: require-npm
+	node scripts/compare-benchmark.mjs
+
+test-capacity: require-npm
+	$(NPM) run test -- tests/unit/benchmark-statistics.test.mjs
+
+benchmark-cohort: require-npm
+	node scripts/benchmark-cohort.mjs
+
+benchmark-cohort-run: require-npm
+	NODE_OPTIONS="$${NODE_OPTIONS:+$$NODE_OPTIONS }--experimental-websocket" $(NPM) run supabase:benchmark:account
+
+supabase-start-account: require-npm
+	$(NPM) run supabase:start -- -x realtime,storage-api,imgproxy,studio,edge-runtime,logflare,vector,supavisor,postgres-meta,mailpit
+
+test-goals: require-npm
+	$(NPM) run test -- tests/unit/goals-surface.test.tsx tests/unit/goal-
+
+test-access-policy: require-npm
+	$(NPM) run test -- tests/integration/guest-access-policy.test.ts tests/integration/scope-isolation.test.ts tests/integration/allowlist.test.ts tests/integration/account-persistence.test.ts
+
+.PHONY: actions-status actions-run operations-issues
+
+actions-status:
+	gh run list --repo carlos-ed-ferreira/tick-pwa --limit 15 --json databaseId,name,status,conclusion,headSha,createdAt,url
+
+actions-run:
+	@test -n "$(run)" || { printf "Erro: informe run=<run-id>.\n"; exit 2; }
+	gh run view "$(run)" --repo carlos-ed-ferreira/tick-pwa --json databaseId,name,headSha,conclusion,url,jobs
+
+operations-issues:
+	gh issue list --repo carlos-ed-ferreira/tick-pwa --state open --json number,title,url,labels
+
 .PHONY: backup-image-check
 
 backup-image-check:
@@ -76,6 +122,18 @@ backup-artifacts:
 	gh api "repos/carlos-ed-ferreira/tick-pwa/actions/runs/$(run)/artifacts" --jq '.artifacts[] | {name, size_in_bytes, expired, expires_at}'
 
 help:
+	@printf "  %-26s %s\n" "make bundle-report" "Mede JS bruto/gzip e service worker do build existente"
+	@printf "  %-26s %s\n" "make cohort-status" "Confere containers e volumes de benchmarks isolados"
+	@printf "  %-26s %s\n" "make benchmark-compare" "Compara o ultimo relatorio com TICK_BENCHMARK_BASELINE; tolerancia de 10%"
+	@printf "  %-26s %s\n" "make test-capacity" "Valida estatisticas e limites do benchmark"
+	@printf "  %-26s %s\n" "make benchmark-cohort" "Prepara, mede e limpa Supabase isolado com dados sinteticos"
+	@printf "  %-26s %s\n" "make benchmark-cohort-run" "Executa o benchmark no ambiente local preparado"
+	@printf "  %-26s %s\n" "make supabase-start-account" "Sobe somente banco, Auth, REST e gateway locais"
+	@printf "  %-26s %s\n" "make test-goals" "Valida metas, grupos e arvore de etapas"
+	@printf "  %-26s %s\n" "make test-access-policy" "Valida isolamento guest e autorizacao de convidados"
+	@printf "  %-26s %s\n" "make actions-status" "Consulta as execucoes recentes do GitHub Actions"
+	@printf "  %-26s %s\n" "make actions-run run=<run-id>" "Confere jobs e etapas de uma execucao"
+	@printf "  %-26s %s\n" "make operations-issues" "Lista issues operacionais abertas"
 	@printf "  %-26s %s\n" "make backup-command-check" "Mostra o comando de dump local usando o mirror GHCR"
 	@printf "  %-26s %s\n" "make backup-image-check" "Valida pg_dump da imagem oficial GHCR usada pelo backup"
 	@printf "  %-26s %s\n" "make add-dev-dependency package=<pacote>" "Adiciona ou atualiza uma dependencia de desenvolvimento"
@@ -256,7 +314,7 @@ publish: require-npm
 	$(NPM) run publish
 
 benchmark-account-rpc: supabase-start
-	$(NPM) run supabase:benchmark:account
+	$(MAKE) benchmark-cohort-run
 
 backup-encrypt: require-npm
 	@test -n "$(input)" || { printf "Erro: informe input=<diretorio>.\n"; exit 2; }

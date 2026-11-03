@@ -297,33 +297,33 @@ Versões, licenças, overrides, limites e rollback estão no
 
 ## Matriz de quality gates
 
-| Gate               | Métrica e threshold                                                                 | Escopo                              | Estado         | Legado                                    | Bloqueia?                   |
-| ------------------ | ----------------------------------------------------------------------------------- | ----------------------------------- | -------------- | ----------------------------------------- | --------------------------- |
-| TypeScript         | 0 erros em `make typecheck`                                                         | TS/TSX                              | enforced       | todo o código                             | sim                         |
-| Comentários e lint | 0 comentários proibidos e 0 erros em `make lint`                                    | código, teste, CSS e SQL suportados | enforced       | exceções geradas configuradas             | sim                         |
-| Formatação         | 0 diferenças em `make format-check`                                                 | arquivos suportados                 | enforced       | todo o código                             | sim                         |
-| Unit/integration   | 100% dos testes Vitest aprovados                                                    | suíte existente                     | enforced       | sem redução de testes válida sem revisão  | sim                         |
-| Build              | exit 0 em `make build`                                                              | aplicação e PWA                     | enforced       | todo o código                             | sim                         |
-| E2E local          | 100% aprovados em desktop e mobile                                                  | fluxos Playwright existentes        | enforced no CI | manter baseline de 24                     | sim quando aplicável        |
-| E2E autenticado    | 100% aprovados em desktop e mobile                                                  | fluxo de latência simulado          | enforced no CI | manter baseline de 4                      | sim para auth/sync          |
-| Schema lint        | 0 erros                                                                             | Postgres local                      | enforced no CI | sem regressão                             | sim para banco              |
-| pgTAP              | 100% aprovados                                                                      | `supabase/tests`                    | enforced no CI | manter ao menos 50; remoção exige revisão | sim para banco              |
-| Banco limpo        | reset, migrations e seed com exit 0                                                 | todas as migrations                 | enforced no CI | compatibilidade obrigatória               | sim para banco              |
-| Schema declarativo | 0 divergências em `make supabase-diff-check`                                        | `supabase/schemas` e migrations     | enforced no CI | sem divergência                           | sim para banco              |
-| Dependency audit   | 0 críticas e 0 altas em `make audit-prod`                                           | dependências de produção            | enforced no CI | baseline reduzido a zero                  | sim para dependência/deploy |
-| Line coverage      | baseline inicial sem queda; objetivo global 80%; diff 90%                           | código não gerado                   | planned        | ratchet global                            | sim após automação          |
-| Branch coverage    | baseline inicial sem queda; objetivo global 70%; diff 80%                           | código não gerado                   | planned        | ratchet global                            | sim após automação          |
-| Mutation testing   | score não cai; objetivo 70% em domínio/persistência                                 | módulos críticos alterados          | planned        | baseline por módulo                       | sim após automação          |
-| Complexidade       | nova função ≤10; função legada alterada não aumenta e deve caminhar a ≤10           | funções alteradas                   | planned        | máximo atual 60                           | sim após automação          |
-| Tamanho de função  | nova função ≤80 linhas lógicas; legado alterado não aumenta                         | funções alteradas                   | planned        | máximo atual 749                          | sim após automação          |
-| Tamanho de módulo  | novo módulo ≤800 linhas lógicas; hotspot alterado não aumenta sem plano de extração | módulos alterados                   | planned        | 6 hotspots, máximo 3.861                  | sim após automação          |
-| Arquitetura        | 0 ciclos novos e 0 imports proibidos                                                | `src`                               | planned        | baseline a medir                          | sim após automação          |
-| SAST e secrets     | 0 achados críticos/altos novos e 0 secret confirmado                                | repositório e diff                  | planned        | baseline por finding                      | sim                         |
-| Acessibilidade     | 0 violação crítica/séria nova; teclado e nome acessível                             | UI alterada                         | manual/planned | baseline a medir                          | sim quando aplicável        |
-| Performance        | p95 e bundle não pioram mais de 10% sem justificativa                               | caminho medido                      | planned        | baseline por cenário                      | sim após estabilidade       |
-| Local-first        | nenhum dado perdido; retry idempotente; reconexão converge                          | persistência alterada               | manual/planned | limitações no IMPLEMENTATION              | sim quando aplicável        |
-| i18n               | tipos válidos e chaves pt/en presentes; 0 string nova fora do mecanismo             | UI alterada                         | manual         | shape tipado já existe                    | sim quando aplicável        |
-| UI responsiva      | cenários mobile e desktop aprovados                                                 | UI alterada                         | enforced no CI | manter baseline de 15 no layout mobile    | sim quando aplicável        |
+| Gate               | Métrica e threshold                                                                 | Escopo                              | Estado         | Legado                                          | Bloqueia?                                        |
+| ------------------ | ----------------------------------------------------------------------------------- | ----------------------------------- | -------------- | ----------------------------------------------- | ------------------------------------------------ |
+| TypeScript         | 0 erros em `make typecheck`                                                         | TS/TSX                              | enforced       | todo o código                                   | sim                                              |
+| Comentários e lint | 0 comentários proibidos e 0 erros em `make lint`                                    | código, teste, CSS e SQL suportados | enforced       | exceções geradas configuradas                   | sim                                              |
+| Formatação         | 0 diferenças em `make format-check`                                                 | arquivos suportados                 | enforced       | todo o código                                   | sim                                              |
+| Unit/integration   | 100% dos testes Vitest aprovados                                                    | suíte existente                     | enforced       | sem redução de testes válida sem revisão        | sim                                              |
+| Build              | exit 0 em `make build`                                                              | aplicação e PWA                     | enforced       | todo o código                                   | sim                                              |
+| E2E local          | 100% aprovados em desktop e mobile                                                  | fluxos Playwright existentes        | enforced no CI | manter baseline de 24                           | sim quando aplicável                             |
+| E2E autenticado    | 100% aprovados em desktop e mobile                                                  | fluxo de latência simulado          | enforced no CI | manter baseline de 4                            | sim para auth/sync                               |
+| Schema lint        | 0 erros                                                                             | Postgres local                      | enforced no CI | sem regressão                                   | sim para banco                                   |
+| pgTAP              | 100% aprovados                                                                      | `supabase/tests`                    | enforced no CI | manter ao menos 50; remoção exige revisão       | sim para banco                                   |
+| Banco limpo        | reset, migrations e seed com exit 0                                                 | todas as migrations                 | enforced no CI | compatibilidade obrigatória                     | sim para banco                                   |
+| Schema declarativo | 0 divergências em `make supabase-diff-check`                                        | `supabase/schemas` e migrations     | enforced no CI | sem divergência                                 | sim para banco                                   |
+| Dependency audit   | 0 críticas e 0 altas em `make audit-prod`                                           | dependências de produção            | enforced no CI | baseline reduzido a zero                        | sim para dependência/deploy                      |
+| Line coverage      | baseline inicial sem queda; objetivo global 80%; diff 90%                           | código não gerado                   | planned        | ratchet global                                  | sim após automação                               |
+| Branch coverage    | baseline inicial sem queda; objetivo global 70%; diff 80%                           | código não gerado                   | planned        | ratchet global                                  | sim após automação                               |
+| Mutation testing   | score não cai; objetivo 70% em domínio/persistência                                 | módulos críticos alterados          | planned        | baseline por módulo                             | sim após automação                               |
+| Complexidade       | nova função ≤10; função legada alterada não aumenta e deve caminhar a ≤10           | funções alteradas                   | planned        | máximo atual 60                                 | sim após automação                               |
+| Tamanho de função  | nova função ≤80 linhas lógicas; legado alterado não aumenta                         | funções alteradas                   | planned        | máximo atual 749                                | sim após automação                               |
+| Tamanho de módulo  | novo módulo ≤800 linhas lógicas; hotspot alterado não aumenta sem plano de extração | módulos alterados                   | planned        | 6 hotspots, máximo 3.861                        | sim após automação                               |
+| Arquitetura        | 0 ciclos novos e 0 imports proibidos                                                | `src`                               | planned        | baseline a medir                                | sim após automação                               |
+| SAST e secrets     | 0 achados críticos/altos novos e 0 secret confirmado                                | repositório e diff                  | planned        | baseline por finding                            | sim                                              |
+| Acessibilidade     | 0 violação crítica/séria nova; teclado e nome acessível                             | UI alterada                         | manual/planned | baseline a medir                                | sim quando aplicável                             |
+| Performance        | Interface utilizável durante sync; investigar lentidão observada sem perda de dados | uso real e caminho alterado         | manual         | otimização proporcional, sem budget obrigatório | sim para perda de dados ou bloqueio da interação |
+| Local-first        | nenhum dado perdido; retry idempotente; reconexão converge                          | persistência alterada               | manual/planned | limitações no IMPLEMENTATION                    | sim quando aplicável                             |
+| i18n               | tipos válidos e chaves pt/en presentes; 0 string nova fora do mecanismo             | UI alterada                         | manual         | shape tipado já existe                          | sim quando aplicável                             |
+| UI responsiva      | cenários mobile e desktop aprovados                                                 | UI alterada                         | enforced no CI | manter baseline de 15 no layout mobile          | sim quando aplicável                             |
 
 `make check` é o gate local. O App CI acrescenta `make audit-prod`, o job de
 banco e o job de E2E. Coverage, segurança, complexidade e performance continuam
@@ -408,22 +408,19 @@ PR/commit
 O workflow atual ainda não impõe toda essa ordem; a correção está no
 `docs/planning/implementation-plan.md`.
 
-## Trial, assinatura e migração guest
+## Guest completo e contas convidadas
 
-Quando implementados, devem existir testes para:
+Nas mudanças desses fluxos, validar:
 
-- guest limitado por regra centralizada;
-- trial autenticado inicia uma vez e dura 7 dias segundo relógio do servidor;
-- trial usa o mesmo armazenamento e sync do assinante;
-- expiração remove entitlement sem apagar dados;
-- assinatura ativa, cancelada, expirada e inadimplente;
-- preço/moeda corretos por região a partir de configuração central;
-- webhook duplicado ou fora de ordem é idempotente;
-- frontend não concede entitlement sozinho;
-- migração guest preserva ownership e é idempotente;
-- retry e falha parcial não duplicam nem corrompem;
-- usuário A nunca recebe dados migrados de B;
-- sync converge depois da migração.
+- guest oferece as funcionalidades de organização sem prazo ou limite de produto;
+- fechar/reabrir o app preserva os dados guest no IndexedDB;
+- guest funciona offline e não envia entidades ao Supabase;
+- autenticação remota exige conta autorizada pela allowlist;
+- usuário não autorizado e tentativas de ownership cruzado são rejeitados;
+- alternância guest/conta e troca entre contas não misturam dados;
+- login não importa dados guest nem altera sua origem;
+- operações da conta usam outbox durável, retry idempotente e reconexão;
+- ausência de rede não apaga trabalho nem vira negativa remota definitiva.
 
 ## Revisão visual
 
@@ -481,3 +478,57 @@ Problemas preexistentes observados:
 
 Não declare um gate aprovado sem executar o comando correspondente. Falha
 preexistente deve ser evidenciada e não pode ser agravada pela alteração.
+
+## Aceite operacional após publicação em 2026-11-02
+
+O proprietário confirmou deploy completo e aceitou os workflows como funcionais.
+A consulta de GitHub confirmou App CI `41535884511`, migrations/deploy
+`41536456800` e auditoria `41537177311` aprovados no SHA `ce9e7d1`.
+Migrations terminaram antes do acionamento do hook. O backup previamente
+restaurado foi aceito sem aguardar nova série. Não houve novo ensaio de falhas
+ou rollback nem consulta independente ao painel Vercel nesta rodada.
+[Registro e limites](docs/operations/deploy-hook-setup.md).
+
+## Implementação do plano em 2026-11-02
+
+- Guest completo e contas por convite: `make test-access-policy`, 47 testes,
+  incluindo 205 itens locais, reabertura e edição após avanço de dez anos,
+  sem inicializar persistência remota.
+- Metas: extração de cards, menus, cabeçalhos, etapas, drafts e hook de arrasto;
+  módulo principal de 4.357 para 467 linhas físicas, todos os módulos da área
+  abaixo de 800. A suíte original de 74 casos foi preservada em arquivos por
+  contexto, com fixtures compartilhadas.
+- `make test-capacity`: 10 testes de limites, percentis, falhas e comparação;
+  RED antes das implementações de estatística e regressão, GREEN depois.
+- `make benchmark-cohort`: 5.000 etapas, profundidade 20, quatro workers,
+  30 requisições por lote, zero erros/timeouts, replay idempotente e conflito
+  retornando PT409. Snapshots e limpeza concluídos; baseline preservado.
+- Banco isolado: reset, lint, diff e 50 testes pgTAP aprovados. A migration
+  gerada por diff corrige o retry indefinido de conflitos 40001 no PostgREST,
+  reproduzido pelo benchmark HTTP antes da correção.
+- `make test-e2e-container`: 43 aprovados e 19 ignorados, incluindo reabertura
+  de página guest sem requisições remotas de entidades e reload offline.
+
+O baseline local é diagnóstico opcional; não comprova capacidade remota.
+O proprietário definiu um usuário, três dispositivos e teto conservador de
+20 convidados, sem budgets estatísticos ou aprovação adicional de carga.
+Detalhes em
+[cohort-capacity.md](docs/operations/cohort-capacity.md). A correção de banco
+precisa de revisão e publicação autorizada antes de alcançar produção.
+
+Gates finais desta implementação: `make check` com 648 testes aprovados e um
+restore Docker opt-in ignorado; `make test-e2e-account-container` com quatro
+casos aprovados; `make test-backup-restore` aprovado; `make audit-prod` com zero
+vulnerabilidades. O build padrão foi refeito após os builds especiais de E2E.
+Não houve alteração visual de composição; não foi solicitado repetir o ensaio
+em aparelhos físicos. O SQL foi aplicado somente no projeto local isolado.
+
+## Diretriz de desempenho definida em 2026-11-02
+
+O uso real orienta ajustes, sem otimização compulsiva ou regressão estatística
+obrigatória de 10%. Manter decisões simples e eficientes. A sincronização pode
+ocorrer em segundo plano por cerca de 20 segundos, preservando interação e
+alterações locais. Acima disso, investigar a experiência observada; não alterar
+timeouts, apagar dados ou descartar a fila por essa referência. Os gates de
+correção, segurança, isolamento e integridade continuam obrigatórios.
+Acompanhamento de quotas é manual pelo proprietário, sem nova automação exigida.

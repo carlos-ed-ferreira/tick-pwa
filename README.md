@@ -321,9 +321,13 @@ Os nomes técnicos principais continuam `ChecklistItem`, `Goal`, `GoalGroup` e
 - persiste entidades no Postgres protegido por RLS;
 - não importa dados do modo local.
 
-Guest limitado, trial, assinatura, entitlement e migração explícita de dados
-para conta são requisitos futuros, não comportamento existente. O backlog
-canônico está no [plano de implementação](docs/planning/implementation-plan.md).
+O acesso remoto permanece fechado a convidados autorizados. O modo guest é
+completo e gratuito, sem limite de tempo ou quantidade imposto pelo produto,
+com dados somente no IndexedDB deste navegador. Fechar/reabrir o app não apaga
+progresso. Limites físicos e limpeza do armazenamento pelo navegador continuam
+possíveis; não há cópia remota dos dados guest.
+A política está em [guest-and-invited-access.md](docs/planning/guest-and-invited-access.md),
+e o backlog no [plano de implementação](docs/planning/implementation-plan.md).
 
 ## Estrutura do repositório
 
@@ -539,12 +543,12 @@ planejados ficam exclusivamente no [REVIEW.md](REVIEW.md).
 
 O repositório documenta Vercel para o frontend e Supabase gerenciado para auth e
 banco. O `vercel.json` desabilita o auto-deploy Git da `main`, mantendo os
-previews das outras branches habilitados. Essa configuração passa a valer
-quando o arquivo alcançar a branch publicada. O workflow dispara o Deploy Hook
-depois das migrations; a correspondência de SHA, a ordem e a existência de um
-único deployment ainda precisam ser comprovadas na primeira publicação com o
-arquivo. O secret do hook foi cadastrado em `production` em 2 de novembro de
-2026 e sua presença foi confirmada por consulta de metadados, sem ler a URL.
+previews das outras branches habilitados. A configuração foi publicada e o proprietário confirmou o deploy completo
+em 2026-11-02. App CI, migrations seguidas do hook e auditoria passaram no SHA
+`ce9e7d1`. Backup e deploy foram aceitos como funcionais pelo proprietário;
+nenhum novo ensaio em duas máquinas é pendente. Evidências, origem da confirmação
+da Vercel e limites do aceite estão em
+[deploy-hook-setup.md](docs/operations/deploy-hook-setup.md).
 
 O ambiente externo foi configurado em 11 de agosto de 2026 para a alfa
 controlada. O domínio canônico de produção é
@@ -601,10 +605,9 @@ etapas: migration compatível primeiro e aplicação depois. O fluxo desejado de
 produção e as lacunas de segurança estão em
 `docs/planning/implementation-plan.md`.
 
-O projeto continuará nos planos gratuitos nesta fase: não há decisão para
-contratar Vercel Pro ou Supabase Pro agora, e PowerSync foi descartado. A
-arquitetura-alvo, os custos e os gatilhos de contratação estão no passo 8 do
-[plano de implementação](docs/planning/implementation-plan.md).
+O projeto mantém GitHub Free, Vercel Hobby e Supabase Free no ambiente atual.
+A operação e a capacidade são acompanhadas para a coorte de convidados, com
+backup, isolamento de dados e deploy ordenado preservados.
 
 ## Documentação
 
@@ -649,6 +652,36 @@ confere o pg_dump no GHCR; `make backup-command-check` confere o comando local
 sem executar o dump. As decisões de atualização e resultados estão no
 [relatório de manutenção](docs/operations/dependency-maintenance-2026-11-02.md).
 
-A configuração do Deploy Hook está preparada, com secret confirmado por
-metadados. Publicação e comprovação do deployment ordenado na Vercel continuam
-sob controle do proprietário.
+O Deploy Hook foi publicado e o deploy confirmado pelo proprietário.
+`make actions-status`, `make actions-run run=<run-id>` e
+`make operations-issues` consultam o estado operacional no GitHub.
+
+## Manutenção do plano em 2026-11-02
+
+O modo guest completo e as contas por convite têm cobertura direcionada em
+`make test-access-policy`, incluindo persistência local sem prazo. A interface
+de metas foi separada por responsabilidade, preservando o comportamento;
+`make test-goals` cobre cards, grupos, menus, cabeçalhos e etapas.
+
+`make benchmark-cohort` prepara, mede e remove um Supabase local isolado, com
+uma conta sintética e 5.000 etapas. `make test-capacity` valida limites e
+estatísticas; `make benchmark-compare` compara relatórios equivalentes com
+`TICK_BENCHMARK_BASELINE` e tolerância de 10%. `make bundle-report` mede JS bruto/gzip e service worker
+do build existente; `make cohort-status` confere a limpeza dos ensaios.
+Procedimentos, resultados e limites estão no [guia de capacidade](docs/operations/cohort-capacity.md).
+Não se trata de capacidade de produção aprovada.
+
+A migration `20261103001239_avoid_rpc_conflict_retries.sql` corrige erros de
+conflito da RPC para HTTP 409, preservando a mensagem usada pelo cliente. Ela
+foi validada somente em ambiente isolado; produção recebe a alteração pelo
+fluxo autorizado de migrations após revisão e publicação.
+
+## Escopo de uso e otimização
+
+O uso atual é uma pessoa em três dispositivos; o teto conservador de
+planejamento é 20 convidados. Manter interface utilizável e alterações locais
+preservadas enquanto a sincronização acontece. Cerca de 20 segundos é uma
+referência prática para investigar demora, sem impor timeout de descarte.
+O uso real orienta melhorias simples, com complexidade proporcional ao ganho.
+Benchmarks e comparação de 10% são opcionais; não há aprovação adicional de
+budgets ou capacidade pendente. O proprietário acompanha quotas manualmente.

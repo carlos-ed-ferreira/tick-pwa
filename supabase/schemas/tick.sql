@@ -337,7 +337,7 @@ begin
     end if;
 
     if stored_result is null then
-      raise exception using errcode = '40001', message = 'operation_in_progress';
+      raise exception using errcode = 'PT409', message = 'operation_in_progress';
     end if;
 
     return stored_result;
@@ -696,7 +696,7 @@ begin
     end if;
 
     if written_revision is null then
-      raise exception using errcode = '40001', message = 'stale_revision';
+      raise exception using errcode = 'PT409', message = 'stale_revision';
     end if;
 
     mutation_results := mutation_results || jsonb_build_array(
