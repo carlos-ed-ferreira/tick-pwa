@@ -1,6 +1,6 @@
 # Guest completo e contas por convite
 
-## Política vigente em 2026-11-02
+## Política atual
 
 Tick permanece fechado para contas remotas, acessíveis somente por convidados
 explicitamente autorizados. O modo guest permite usar todas as funcionalidades
@@ -24,9 +24,10 @@ remove o progresso; não há expiração deliberada dos dados.
 - O servidor deriva identidade da sessão e aplica ownership por RLS.
 - `user:<supabaseUserId>` nunca lê nem grava dados de outra conta.
 - Alternar modo ou conta não mistura escopos, importa dados ou limpa a origem.
-- Falhas remotas mantêm operações da conta na outbox durável, com feedback e
-  retry idempotente. A negativa explícita de autorização não equivale a uma
-  falha transitória de rede.
+- Nas contas habilitadas para lotes, entidades funcionais usam outbox durável,
+  feedback e retry. Contas fora da coorte usam fila legada em memória, e
+  preferências sincronizadas usam envio separado.
+- A negativa explícita de autorização não equivale a falha transitória de rede.
 
 Dados guest não possuem cópia no Supabase. Limpeza de dados do navegador,
 perfil diferente, navegação privada ou remoção do armazenamento podem tornar
@@ -54,6 +55,19 @@ Cobrir os cenários pelos gates do REVIEW sempre que o fluxo for alterado:
 5. Usuários sem convite e acessos cruzados são rejeitados no servidor.
 6. Retry, reload com operações pendentes e reconexão não perdem dados da conta.
 
-Não há feature nova de ativação ou prazo a implementar. O trabalho futuro é
-manutenção, isolamento, robustez, capacidade e redução dos hotspots indicados
-no [plano de implementação](implementation-plan.md).
+## Conta autenticada sem internet
+
+Local-first é a continuidade do uso da conta depois da perda de conexão,
+com dados no cache e mudanças locais recuperáveis na reconexão. Guest é uso
+sem conta, sem sincronização remota e em outro escopo.
+
+O shell da PWA e os dados locais precisam estar disponíveis neste navegador.
+A reabertura autenticada usa sessão disponível e grant positivo da mesma
+conta/e-mail com até 24 horas quando o Supabase não responde. Não há acesso
+remoto autorizado por esse grant depois de uma negativa explícita do servidor.
+
+A outbox das seis entidades funcionais depende de flag e UUID habilitados no
+build. O indicador resume entidades, não a durabilidade de preferências.
+O refresh protege pendências no momento do merge; escritas já confirmadas
+podem ser afetadas por um snapshot iniciado anteriormente. Essas condições
+limitam a garantia atual de uso autenticado sem rede.

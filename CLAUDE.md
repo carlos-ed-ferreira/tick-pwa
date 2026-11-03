@@ -55,20 +55,23 @@ Code. Não duplique, enfraqueça ou contradiga o guia principal.
 
 ## Regras de implementação
 
-- UI não deve acessar tabelas Dexie diretamente; use os comandos e camadas de
-  persistência definidos no projeto.
+- Escritas IndexedDB da UI passam pelos comandos de `src/lib/db`; leituras
+  podem observar Dexie conforme o README.
 - Mudanças de UI devem reutilizar componentes, superfícies e padrões visuais já
   existentes antes de criar novos primitives.
-- Mantenha o modo local funcional sem rede.
-- Em conta autenticada, preserve commit local primeiro, fila remota ordenada,
-  restauração do valor canônico em falha e feedback visível ao usuário.
+- Guest é uso sem conta, exclusivamente local. Local-first é a continuidade
+  do uso da conta autenticada sem internet; testes de guest não aprovam conta offline.
+- Preserve commit local primeiro, fila e recuperação do caminho habilitado
+  por conta. Não substituir alterações pendentes por snapshot remoto para
+  contornar indisponibilidade.
 - Para mudanças no Postgres, trate `supabase/schemas/tick.sql` como estado
   declarativo canônico. Gere migrations por diff e revise o SQL antes de
   considerá-las prontas.
 - Não edite arquivos gerados quando existir uma fonte declarativa ou comando de
   geração correspondente.
-- Atualize `README.md` e `AGENTS.md` quando a mudança alterar regras, setup,
-  arquitetura, persistência, testes, deploy ou comportamento relevante.
+- Mantenha Markdown permanente no estado atual, sem históricos ou backlog.
+  Use o arquivo temporário de trabalho indicado no README para pendências e
+  entregue resultados específicos na revisão da tarefa.
 
 ## Critérios de conclusão
 

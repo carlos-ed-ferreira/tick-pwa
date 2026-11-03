@@ -51,7 +51,7 @@ cor. Restrições permanentes:
 
 - o âmbar `#f0c38e` e sua escala quente são fixos;
 - escuros e neutros saem do hue 212°, complementar do âmbar;
-- roxo e teal foram rejeitados e não devem voltar como base;
+- roxo e teal não compõem a paleta base permitida;
 - rose de erro, emerald de sucesso, rampa de progresso, cores de categoria e a
   marca Google ficam fora da paleta e não se alteram.
 

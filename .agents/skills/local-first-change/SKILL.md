@@ -6,6 +6,10 @@ description: >-
 
 # Local-first change
 
+Local-first cobre a continuidade do uso da conta autenticada sem internet e
+a sincronização na reconexão. Guest é uso sem conta, exclusivamente local.
+Validar guest separadamente; seus testes não comprovam a conta offline.
+
 ## Delimitar o contrato
 
 1. Ler os fluxos atuais no `../../../README.md`, as regras em
@@ -15,8 +19,9 @@ description: >-
 3. Preencher a matriz para `guest:<installationId>` e
    `user:<supabaseUserId>`: leitura, commit local, envio remoto, falha, retry,
    reconexão e troca de modo.
-4. Distinguir garantia existente de item planejado em
-   `../../../docs/planning/implementation-plan.md`.
+4. Identificar coorte de lotes, legado e preferências; distinguir comportamento
+   atual dos itens no arquivo temporário
+   `../../../docs/planning/PENDENCIAS.md`.
 
 Parar e registrar decisão antes de criar sync paralelo, migrar guest durante
 login ou introduzir uma nova fonte canônica.
@@ -57,5 +62,8 @@ Testar, conforme o alcance:
 - conta madura e fila sob carga.
 
 Executar testes direcionados, E2E autenticado/local, pgTAP e gates do REVIEW.
-Registrar limitações ainda não resolvidas em
-`docs/planning/implementation-plan.md`.
+Concentrar trabalho ainda não resolvido no arquivo temporário
+`docs/planning/PENDENCIAS.md`.
+
+Manter os documentos permanentes no estado atual, sem históricos de ensaios
+ou listas de pendências. Entregar as evidências específicas na tarefa.
