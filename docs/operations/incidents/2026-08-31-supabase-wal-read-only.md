@@ -174,14 +174,18 @@ passarem.
 
 ## Acompanhamentos
 
-- aplicar e confirmar `20260828180055_remove_powersync_poc.sql` em produção;
-- verificar calendário, categorias, metas, offline e reconexão depois da
-  migration;
-- adicionar observabilidade para uso de disco, WAL e replication slot lag;
-- definir alerta anterior ao limite de read-only;
-- documentar a ordem de retirada de futuros consumidores de replicação;
-- tratar índices de foreign keys e initplan de RLS em mudança dedicada;
-- manter Vercel Hobby e Supabase Free no ambiente atual.
+Situação em 2026-11-03:
+
+- `20260828180055_remove_powersync_poc.sql` aplicada e confirmada em produção
+  em 2026-09-21;
+- calendário, categorias, metas, offline e reconexão verificados no ensaio 1.4
+  do runbook externo, em 2026-09-22;
+- ordem de retirada de consumidores de replicação documentada abaixo;
+- Vercel Hobby e Supabase Free mantidos;
+- observabilidade automática de disco, WAL e slot lag e alerta anterior ao
+  limite de read-only não foram implementados: por decisão de 2026-11-02, o
+  proprietário acompanha esses recursos manualmente;
+- índices de foreign keys e initplan de RLS continuam sem mudança dedicada.
 
 ## Fechamento em 2026-09-21
 

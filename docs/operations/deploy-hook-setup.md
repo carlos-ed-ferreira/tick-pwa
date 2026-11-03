@@ -1,12 +1,30 @@
 # Roteiro: Deploy Hook e deploy ordenado
 
-Você vai fazer a produção ser publicada **somente depois** das migrations, pelo
-mesmo SHA aprovado. Isso fecha o passo 5 do
-[plano de implementação](../planning/implementation-plan.md) e a issue `#43`.
+A produção é publicada **somente depois** das migrations, pelo mesmo SHA
+aprovado. A configuração está concluída e comprovada; este documento registra a
+evidência e serve de referência para reconfigurar o hook ou verificar uma
+publicação. Corresponde ao passo 5 do
+[plano de implementação](../planning/implementation-plan.md).
 
-Tudo é feito no Windows/WSL2, no navegador e no terminal deste repositório.
+## Comprovação com migration real em 2026-11-03
 
-Tempo estimado: 30 minutos, mais o tempo de uma publicação.
+O merge do pull request `#46` gerou o SHA
+`b3ddc8f88f7766200c76ceada438c8cb274b3920`. O
+[App CI 41555806499](https://github.com/carlos-ed-ferreira/tick-pwa/actions/runs/41555806499)
+passou na `main` e o
+[pipeline 41556272686](https://github.com/carlos-ed-ferreira/tick-pwa/actions/runs/41556272686)
+executou:
+
+| Job                           | Resultado                                                    | Horário (UTC)       |
+| ----------------------------- | ------------------------------------------------------------ | ------------------- |
+| Confirm quality gate          | success                                                      | 00:55:35 a 00:55:38 |
+| Apply production migrations   | success; aplicou `20261103001239_avoid_rpc_conflict_retries` | 00:55:41 a 00:56:44 |
+| Deploy production application | success; hook disparado depois das migrations                | 00:56:48 a 00:56:59 |
+
+O painel **Deployments** da Vercel, filtrado por Production, mostrou um único
+deployment `Ready` para `b3ddc8f` e um para `ce9e7d1`, ambos com o ícone de
+Deploy Hook. O deployment de `a00e5b4`, de 23 de setembro, ainda veio da
+integração Git. Não houve issue operacional aberta.
 
 ## Aceite operacional em 2026-11-02 após publicação
 
@@ -58,9 +76,14 @@ não tem achados altos ou críticos e mantém 16 moderados de desenvolvimento.
 A validação final está no
 [relatório de manutenção](dependency-maintenance-2026-11-02.md).
 
-O prazo de 23/10/2026 do passo 3 já passou: essa reexecução histórica deve ser
-pulada. A comprovação do deploy depende de uma publicação futura explicitamente
-autorizada pelo proprietário. A mitigação da falha intermitente usa GHCR no workflow ainda não publicado; concluir o restore não comprova estabilidade do workflow diário.
+O prazo de 23/10/2026 da reexecução histórica passou sem uso; a comprovação
+veio das publicações de `ce9e7d1` e `b3ddc8f`.
+
+## Procedimento de referência
+
+Os passos 1, 2 e 4 só são necessários para recriar o hook ou reconfigurar a
+Vercel. O passo 3 é histórico. O passo 5 vale para verificar qualquer
+publicação.
 
 ---
 
@@ -100,14 +123,11 @@ a data de hoje.
 
 ---
 
-## Passo 3 — Testar o hook sem publicar nada novo
+## Passo 3 — Histórico: reexecutar o job que falhou
 
-A execução que abriu a `#43` falhou só no último job, por falta do hook. A
-`main` ainda está no mesmo commit (`a00e5b4`), então dá para reexecutar só
-esse job.
-
-**Prazo: até 23/10/2026.** Depois disso o GitHub não permite reexecutar. Se o
-prazo passou ou a `main` mudou, pule para o passo 4.
+Não se aplica mais. Em outubro de 2026, a execução que abriu a `#43` podia ser
+reexecutada enquanto a `main` estava em `a00e5b4`, até 23/10/2026. O prazo
+passou sem uso. O registro abaixo fica apenas como referência do procedimento.
 
 ```bash
 gh api repos/carlos-ed-ferreira/tick-pwa/commits/main --jq .sha
@@ -133,7 +153,7 @@ Confira na Vercel:
 3. Abra [tickapp.com.br](https://tickapp.com.br) e confira se calendário, metas,
    login e modo sem conta abrem.
 
-Se o job falhar, copie a mensagem de erro e me envie. Não siga para o passo 4.
+Na época, uma falha nesse job deveria ser registrada antes do passo 4.
 
 ---
 
@@ -144,7 +164,7 @@ só. A forma oficial é um arquivo `vercel.json` no repositório com
 `git.deploymentEnabled`. Não use `github.enabled: false`: essa opção bloqueia
 os Deploy Hooks.
 
-O arquivo já foi preparado no worktree em 2026-11-02 com este conteúdo:
+O `vercel.json` da raiz do repositório tem este conteúdo:
 
 ```json
 {
@@ -161,11 +181,10 @@ Os previews da branch `dev` continuam funcionando.
 
 ---
 
-## Passo 5 — Publicar e comprovar a ordem
+## Passo 5 — Verificar a ordem de uma publicação
 
-Esta publicação é a prova final. Ela leva o `vercel.json` para a `main`, e a
-Vercel lê a configuração do próprio commit. Por isso, esse merge já não gera
-auto-deploy.
+A Vercel lê o `vercel.json` do próprio commit; por isso, nenhum merge na `main`
+gera auto-deploy.
 
 1. Faça o commit na `dev` e rode:
 
@@ -206,11 +225,10 @@ A ordem deve ser: `Confirm quality gate` → `Apply production migrations` →
 
 ## Passo 6 — Registrar
 
-Cole no Claude Code:
+Envie ao agente do repositório:
 
 ```text
 Deploy ordenado comprovado.
-Run de reexecução (passo 3): <aprovado, pulado ou erro>
 Run da publicação: <run-id>
 Approved SHA: <valor>
 Vercel deploy hook job: <valor>
@@ -219,21 +237,21 @@ Deployment na Vercel: <único, via hook, Ready, iniciado às HH:MM>
 Smoke test: <ok ou o que falhou>
 ```
 
-Com isso, eu atualizo o runbook, o plano e o checklist, e você fecha a `#43`.
+O agente atualiza o runbook, o plano e o checklist.
 
 ---
 
 ## Se der errado
 
-| Situação                                                          | O que fazer                                                                                                                                                     |
-| ----------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Passo 3: `Missing VERCEL_DEPLOY_HOOK_URL`                         | O secret foi para o lugar errado. Repita o passo 2 com `--env production`                                                                                       |
-| Passo 3: `curl: (22) ... 404`                                     | URL copiada errada ou hook apagado. Crie outro hook no passo 1 e repita o passo 2                                                                               |
-| Passo 3: `gh run rerun` recusado                                  | O prazo de 30 dias passou. Vá para o passo 4                                                                                                                    |
-| Passo 5: `Confirm approved SHA is still current` falhou           | Outro merge entrou na `main` durante o pipeline. Nada foi publicado; a próxima publicação refaz o processo                                                      |
-| Passo 5: job de deploy verde, mas **nenhum** deployment na Vercel | O `vercel.json` bloqueou também o hook. Vercel → Deployments → último deployment da `main` → **⋯** → **Redeploy**. Depois me avise para retirar o `vercel.json` |
-| Passo 5: **dois** deployments de Production para o mesmo SHA      | O auto-deploy não foi desligado. Confira se o `vercel.json` está na raiz da `main` e me avise                                                                   |
-| Passo 5: deployment começou antes do fim das migrations           | Reprovado pelo mesmo motivo da linha anterior                                                                                                                   |
-| Passo 5: deployment em **Error**                                  | Vercel → Deployments → último deployment saudável → **⋯** → **Promote to Production**. Copie o log do build e me envie                                          |
+| Situação                                                          | O que fazer                                                                                                                                                 |
+| ----------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Passo 3: `Missing VERCEL_DEPLOY_HOOK_URL`                         | O secret foi para o lugar errado. Repita o passo 2 com `--env production`                                                                                   |
+| Passo 3: `curl: (22) ... 404`                                     | URL copiada errada ou hook apagado. Crie outro hook no passo 1 e repita o passo 2                                                                           |
+| Passo 3: `gh run rerun` recusado                                  | O prazo de 30 dias passou. Vá para o passo 4                                                                                                                |
+| Passo 5: `Confirm approved SHA is still current` falhou           | Outro merge entrou na `main` durante o pipeline. Nada foi publicado; a próxima publicação refaz o processo                                                  |
+| Passo 5: job de deploy verde, mas **nenhum** deployment na Vercel | O hook não criou deployment. Vercel → Deployments → último deployment da `main` → **⋯** → **Redeploy**; confira o hook em Settings → Git e registre a falha |
+| Passo 5: **dois** deployments de Production para o mesmo SHA      | O auto-deploy não foi desligado. Confira se o `vercel.json` está na raiz da `main` e registre a falha                                                       |
+| Passo 5: deployment começou antes do fim das migrations           | Reprovado pelo mesmo motivo da linha anterior                                                                                                               |
+| Passo 5: deployment em **Error**                                  | Vercel → Deployments → último deployment saudável → **⋯** → **Promote to Production**. Preserve o log do build e registre a falha                           |
 
 Nunca reaplique migrations à mão e nunca dispare a URL do hook manualmente.

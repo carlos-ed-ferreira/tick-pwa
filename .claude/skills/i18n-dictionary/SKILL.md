@@ -37,7 +37,7 @@ helpers timezone-aware de `src/lib/time` e `src/lib/i18n`.
 
 ## Validar
 
-1. Rodar testes direcionados e `npm run typecheck` para provar paridade de
+1. Rodar testes direcionados e `make typecheck` para provar paridade de
    shape.
 2. Renderizar os dois idiomas no fluxo afetado.
 3. Verificar conteúdo longo, placeholders, pluralização e interpolação.

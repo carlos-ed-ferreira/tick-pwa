@@ -5,7 +5,8 @@
 A preparação do restore em outra máquina e do deploy ordenado revelou um
 ambiente local fora do lockfile e advisories novos. A manutenção preserva o
 modelo local-first, os dados, a UI e a CLI Supabase 2.98.2. Nenhuma migration
-foi criada ou aplicada em produção. As alterações estão sem commit/publicação.
+foi criada nesta manutenção. As alterações foram publicadas em produção em
+2026-11-02, no SHA `ce9e7d1`.
 
 ## Atualizações revisadas
 
@@ -38,7 +39,8 @@ pública globSync com cwd, follow, ignore e nodir. A
 [mudança upstream](https://github.com/isaacs/node-glob/blob/main/changelog.md)
 remove APIs internas de Pattern e opções de depuração; não foi preciso mudar
 consumidores. Build PWA e testes offline são a validação do caminho afetado.
-A revisão humana dessa exceção deve acompanhar a publicação.
+A revisão humana dessa exceção ainda não foi registrada e consta nas
+pendências do [plano de implementação](../planning/implementation-plan.md#revisões-técnicas).
 
 O [advisory do Next](https://github.com/advisories/GHSA-673q-mjm6-r5xr) e as
 [notas da versão 16.4.4](https://github.com/vercel/next.js/releases/tag/v16.4.4)
@@ -105,8 +107,10 @@ O proprietário controla commit/publicação. Depois dela, ainda é necessário
 observar App CI, migrations e Deploy Hook no mesmo SHA; confirmar um único
 deployment Production Ready na Vercel; executar smoke funcional e conferir o
 backup cifrado de uma execução com o novo workflow. A mitigação GHCR não é
-prova de estabilidade diária antes dessa observação. Nenhuma nova prova com
-segunda pessoa é exigida; restore em dois dispositivos e limpeza já passaram.
+prova de estabilidade diária antes dessa observação, registrada como
+[verificação pendente](../planning/implementation-plan.md#verificar-o-backup-diário-com-ghcr).
+Nenhuma nova prova com segunda pessoa é exigida; restore em dois dispositivos e
+limpeza já passaram.
 
 ## Aceite após publicação em 2026-11-02
 
@@ -115,4 +119,5 @@ como funcionais, sem aguardar série adicional de execuções. Os passos 4 e 5
 foram encerrados por aceite, com reabertura em nova falha. Evidências conferidas,
 SHA publicado, origem da confirmação da Vercel e limites estão no
 [registro operacional](deploy-hook-setup.md#aceite-operacional-em-2026-11-02-após-publicação).
-As pendências de publicação descritas acima são histórico da preparação local.
+O deployment de produção e a ordem do pipeline foram confirmados. A observação
+do backup com GHCR continua pendente.

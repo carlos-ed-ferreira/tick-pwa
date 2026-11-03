@@ -15,7 +15,7 @@ confirma que esse código pode provocar retries indefinidos no PostgREST 14 e
 recomenda exceção padrão ou código HTTP explícito. O teste pgTAP direto não
 exercitava esse comportamento da camada HTTP.
 
-## Correção preparada
+## Correção
 
 O schema declarativo passa a usar `PT409` nos dois casos, preservando as
 mensagens e o contrato JSON. O PostgREST responde HTTP 409 e o cliente continua
@@ -28,12 +28,12 @@ pgTAP exige o novo SQLSTATE; testes do cliente preservam compatibilidade com
 mensagens antigas e novas. O benchmark HTTP exige uma rejeição por conflito,
 sem aceitar timeout como resultado normal. O ensaio HTTP corrigido respondeu PT409/stale_revision, sem timeout. Reset,
 lint, diff declarativo e 50 testes pgTAP passaram no ambiente isolado.
-Aplicar somente pelo fluxo de
-migrations autorizado após revisão e publicação pelo proprietário.
+A migration foi aplicada em produção pelo pipeline ordenado em 2026-11-03,
+no SHA `b3ddc8f`, pela execução `41556272686`, antes do deploy do mesmo SHA.
 
 ## Operação
 
-Depois da publicação, observar conflitos e fila. Trocar a função não encerra
+Observar conflitos e fila nas próximas edições simultâneas entre dispositivos. Trocar a função não encerra
 automaticamente requisições antigas que já estejam presas em retry; investigar
 somente se houver evidência no ambiente remoto e seguir o procedimento do
 fornecedor com autorização específica. Não foram encerradas sessões de produção.

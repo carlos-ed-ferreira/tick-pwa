@@ -94,7 +94,8 @@ Ao atingir 70%:
 O workflow `Production backup` roda diariamente às 03:17 UTC e também aceita
 execução manual. Ele gera os dumps oficiais de roles, schema e dados, cifra o
 arquivo com AES-256-GCM antes do upload e retém somente o artefato cifrado por
-14 dias no GitHub Actions.
+14 dias no GitHub Actions. A CLI do Supabase baixa suas imagens do GHCR, por
+`SUPABASE_INTERNAL_IMAGE_REGISTRY=ghcr.io`.
 
 Cadastrar no environment GitHub `production`:
 
@@ -125,12 +126,14 @@ backup` e baixar o artefato `.enc`.
 3. Com Docker ativo, executar:
 
 ```text
+make backup-restore-prepare
 make backup-restore archive=<caminho-do-arquivo.enc>
 ```
 
 4. O comando decifra em diretório temporário, cria um container PostgreSQL 17
-   isolado, restaura roles, schema e dados, valida a quantidade de tabelas
-   públicas, imprime RPO e RTO e remove o container e os arquivos temporários.
+   isolado, prepara os schemas Auth e Storage, restaura roles, schema e dados,
+   valida a quantidade de tabelas públicas, imprime RPO e RTO e remove
+   containers, volumes anônimos e arquivos temporários.
 5. Registrar data, responsável, `backupCreatedAt`, `publicTables`, `rpoMs` e
    `rtoMs` na seção de evidências deste documento.
 
@@ -321,7 +324,7 @@ versão do Docker não foram informadas.
 | 2026-11-02 | proprietário | 2026-11-02T20:34:59.902Z | 10      | 2.859.601 ms (47 min 39,601 s) | 3.454 ms (3,454 s) | aprovado; exit status 0; limpeza confirmada |
 
 O RPO medido é a idade desse artefato no início do restore, não comprovação da
-regularidade do backup diário. O RTO ficou abaixo do limite proposto de 30
+regularidade do backup diário. O RTO ficou abaixo do limite aceito de 30
 minutos. O sucesso valida o arquivo real e a nova chave nessa máquina; não
 comprova login do aplicativo, restore destrutivo em produção, estabilização do
 workflow diário ou independência do procedimento. O proprietário dispensou a
@@ -337,7 +340,12 @@ e recebeu `Limpeza concluída.`. A limpeza está confirmada; a instalação habi
 do projeto foi preservada. O ensaio de restore em duas máquinas está concluído.
 A estabilização das execuções diárias do backup continua aberta.
 
-## Mitigação do limite de imagens em 2026-11-02
+## Mitigação do limite de imagens
+
+Entre 19 e 31 de outubro de 2026, 9 das 13 execuções falharam com
+`toomanyrequests: Data limit exceeded` ao baixar
+`public.ecr.aws/supabase/postgres:17.6.1.106`, antes de acessar o banco. Cada
+falha comentou a issue `backup-failure` `#44`, fechada em 2026-11-02.
 
 O workflow `production-backup.yml` passa
 `SUPABASE_INTERNAL_IMAGE_REGISTRY=ghcr.io` ao Supabase CLI 2.98.2 para evitar o
@@ -345,8 +353,20 @@ limite compartilhado do ECR público. Não houve atualização major da CLI.
 `make backup-image-check` executou `pg_dump (PostgreSQL) 17.6` na imagem
 `ghcr.io/supabase/postgres:17.6.1.106`; `make backup-command-check` passou em
 modo dry-run e `make test-release-workflow` cobre a configuração do workflow.
-A alteração ainda precisa ser publicada e observada no GitHub Actions.
+A alteração foi publicada em `ce9e7d1`, em 2026-11-02.
+
+### Verificação pendente
+
+Até 2026-11-03 01:00 UTC nenhuma execução agendada com GHCR havia ocorrido; a
+última execução conferida, `41520276777`, rodou no SHA anterior `a00e5b4`.
 Aprovação do restore real não comprova estabilidade de execuções diárias.
+
+Depois de cada execução das 03:17 UTC, rodar `make backup-status`. A mitigação
+está comprovada com três execuções agendadas seguidas com `success`, em SHA
+igual ou posterior a `ce9e7d1`. Em falha, rodar `make backup-log run=<run-id>`:
+se a causa ainda for limite de registro de imagens, reabrir o passo 4 do
+[plano de implementação](../planning/implementation-plan.md#verificar-o-backup-diário-com-ghcr).
+Registrar o resultado nesta seção.
 
 ## Aceite após publicação em 2026-11-02
 
@@ -355,4 +375,4 @@ como funcionais, sem aguardar série adicional de execuções. Os passos 4 e 5
 foram encerrados por aceite, com reabertura em nova falha. Evidências conferidas,
 SHA publicado, origem da confirmação da Vercel e limites estão no
 [registro operacional](deploy-hook-setup.md#aceite-operacional-em-2026-11-02-após-publicação).
-As pendências de publicação descritas acima são histórico da preparação local.
+A estabilidade das execuções diárias continua na verificação pendente acima.
