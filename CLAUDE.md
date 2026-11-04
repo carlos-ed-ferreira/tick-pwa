@@ -13,16 +13,18 @@ Code. Não duplique, enfraqueça ou contradiga o guia principal.
 1. Antes de editar, inspecione a estrutura do repositório, os arquivos
    relevantes, os testes existentes e os padrões já usados pela feature.
 2. Para feature nova, correção comportamental ou refatoração com mudança de
-   comportamento, crie ou ajuste os testes primeiro.
+   comportamento, crie ou ajuste os testes primeiro. Mudança puramente visual
+   não exige teste RED prévio, conforme o `AGENTS.md`.
 3. Faça a menor alteração coerente que resolva a tarefa. Evite refatorações,
    renomeações e formatações fora do escopo solicitado.
 4. Preserve compatibilidade com os modos local e autenticado e verifique os
    dois fluxos sempre que a mudança tocar persistência, autenticação, escopo ou
    sincronização.
 5. Use os alvos do `Makefile` quando houver um comando equivalente.
-6. Rode primeiro as validações direcionadas à área alterada e, antes de
-   concluir mudanças amplas, rode `make check`. E2E continua separado e deve ser
-   executado quando o fluxo de navegador ou a responsividade forem afetados.
+6. Durante o trabalho, rode apenas `make test-file files="<arquivos>"` da área
+   alterada. Ao concluir, rode `make check` uma vez, sem `make test` antes. E2E
+   roda uma vez no final, somente quando layout, responsividade ou fluxo de
+   navegador forem afetados, e nunca em paralelo com `make check`.
 7. Revise o diff final para remover código morto, logs temporários, qualquer
    comentário de código, arquivos de teste descartáveis e alterações
    acidentais.

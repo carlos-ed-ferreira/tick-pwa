@@ -47,11 +47,9 @@ describe('GoalsSurface', () => {
       'items-center',
       'justify-center',
       'size-10',
-      'rounded-md',
-      'inset-ring-hairline',
-      'inset-ring-white/10',
-      'bg-white/5',
-      'text-[#cbd5e0]',
+      'rounded-full',
+      'bg-white/8',
+      'text-[#f8f3ea]',
     );
     expect(categoryButton.querySelector('.lucide-tag')).not.toBeNull();
     const clearCategoryButton = screen.getByRole('button', {

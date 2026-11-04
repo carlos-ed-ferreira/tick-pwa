@@ -9,6 +9,7 @@ export const ptBRDictionary = {
     localFirst: 'Local-first',
   },
   actions: {
+    back: 'Voltar',
     cancel: 'Cancelar',
     delete: 'Excluir',
     dismissNotification: 'Fechar notificação',
@@ -330,7 +331,6 @@ export const ptBRDictionary = {
     assignGroupCategoryMenu: 'Atribuir categoria',
     assignGroupColor: 'Atribuir cor independente',
     clearGroupCategory: 'Limpar cor/categoria do grupo',
-    backToGoalGroups: 'Voltar para grupos de metas',
     completeGoal: 'Arquivar meta',
     createGroupTitle: 'Criar grupo',
     createGroupDescription: 'Defina o nome inicial deste grupo.',

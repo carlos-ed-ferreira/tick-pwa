@@ -9,6 +9,7 @@ export const enDictionary = {
     localFirst: 'Local-first',
   },
   actions: {
+    back: 'Back',
     cancel: 'Cancel',
     delete: 'Delete',
     dismissNotification: 'Dismiss notification',
@@ -321,7 +322,6 @@ export const enDictionary = {
     assignGroupCategoryMenu: 'Assign category',
     assignGroupColor: 'Assign independent color',
     clearGroupCategory: 'Clear group color/category',
-    backToGoalGroups: 'Back to goal groups',
     completeGoal: 'Archive goal',
     createGroupTitle: 'Create group',
     createGroupDescription: 'Choose the initial name for this group.',

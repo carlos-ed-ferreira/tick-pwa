@@ -12,6 +12,7 @@ import {
   moveGoalToGroup,
   reopenGoal,
 } from '@/lib/db';
+import type { Goal } from '@/lib/domain';
 import { useAppContext } from '@/providers';
 import { useGoalGroups } from './use-goal-groups';
 import {
@@ -155,6 +156,21 @@ export function GoalsSurface() {
     router.push('/goals');
   }
 
+  function returnFromGoal(goal: Goal) {
+    const parentGroupId =
+      goal.completedAt === null &&
+      groups.some((group) => group.id === goal.groupId)
+        ? goal.groupId
+        : null;
+
+    if (parentGroupId) {
+      openGroup(parentGroupId);
+      return;
+    }
+
+    closeNestedView();
+  }
+
   async function archiveGoalAndOpenArchived(goalId: string) {
     await completeGoal({ scope: activeScope, goalId });
     setSelectedGoalIdOverride(null);
@@ -230,8 +246,8 @@ export function GoalsSurface() {
           goalCategoryMap={goalCategoryMap}
           hasGoalSteps={selectedGoalStepRows.length > 0}
           isArchived={selectedGoal.completedAt !== null}
-          onBack={closeNestedView}
-          onDelete={closeNestedView}
+          onBack={() => returnFromGoal(selectedGoal)}
+          onDelete={() => returnFromGoal(selectedGoal)}
           onArchive={archiveGoalAndOpenArchived}
           onRestore={restoreGoalAndOpenActive}
         />

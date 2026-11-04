@@ -148,7 +148,7 @@ test('caps a long goal title without deforming the back button or overflowing th
   await page.waitForURL(/\/goals\?goal=.+/);
 
   const backButton = page.getByRole('button', {
-    name: /back to goal groups|voltar para grupos de metas/i,
+    name: /^back$|^voltar$/i,
   });
   const initialButtonBox = await backButton.boundingBox();
 
@@ -182,7 +182,7 @@ test('aligns the goal category submenu with its hovered action', async ({
   await page.waitForURL(/\/goals\?goal=.+/);
   await page
     .getByRole('button', {
-      name: /back to goal groups|voltar para grupos de metas/i,
+      name: /^back$|^voltar$/i,
     })
     .click();
 

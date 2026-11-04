@@ -298,7 +298,7 @@ test.describe('mobile layout', () => {
     await page.waitForURL(/goal=/);
     await page
       .getByRole('button', {
-        name: /back to goal groups|voltar para grupos de metas/i,
+        name: /^back$|^voltar$/i,
       })
       .tap();
 

@@ -103,6 +103,18 @@ Bugfix deve reproduzir o bug em teste sempre que tecnicamente viável. Não
 enfraqueça teste para aceitar comportamento incorreto. Use dados isolados e
 nunca PII, secrets ou dados de produção.
 
+Mudança puramente visual, como classes, espaçamento, raio, cor, ícone ou
+texto, não exige teste RED prévio. Ajuste os testes existentes que quebrarem
+e cubra com teste apenas o que tiver comportamento, como clique, navegação,
+estado ou acessibilidade.
+
+Durante RED, GREEN e ajustes, rode somente os arquivos afetados com
+`make test-file files="<arquivos>"`. Rode `make check` uma única vez ao
+concluir; ele já inclui a suíte completa, então não o preceda de `make test`.
+E2E roda uma vez, ao final, apenas quando a mudança afetar layout,
+responsividade ou fluxo de navegador, e nunca em paralelo com `make check` ou
+`make build`, que reescrevem `.next`.
+
 Em feature full-stack, implemente primeiro domínio, invariantes, validação,
 persistência, autorização, contrato e seus testes; depois UI, integração,
 loading, vazio, erro e E2E. Tarefa puramente visual não exige backend artificial.

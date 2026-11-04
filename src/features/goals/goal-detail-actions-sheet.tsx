@@ -2,7 +2,8 @@
 
 import { MoreHorizontal } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
-import { BottomSheet, IconButton } from '@/components/ui';
+import { FilledIconButton } from '@/components/app';
+import { BottomSheet } from '@/components/ui';
 import { useAppContext } from '@/providers';
 
 export function GoalDetailActionsSheet({ children }: { children: ReactNode }) {
@@ -11,13 +12,12 @@ export function GoalDetailActionsSheet({ children }: { children: ReactNode }) {
 
   return (
     <>
-      <IconButton
+      <FilledIconButton
         aria-label={dictionary.navigation.moreOptions}
-        className="size-10 rounded-md inset-ring-hairline inset-ring-white/10 bg-white/5 text-[#cbd5e0] shadow-sm shadow-[#253241]/10 hover:bg-white/10 hover:text-[#fff9f2] focus-visible:outline-[#f7d9b0]"
         onClick={() => setIsOpen(true)}
       >
         <MoreHorizontal aria-hidden="true" className="size-4" />
-      </IconButton>
+      </FilledIconButton>
       <BottomSheet
         closeLabel={dictionary.actions.cancel}
         open={isOpen}

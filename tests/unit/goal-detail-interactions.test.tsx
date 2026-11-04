@@ -21,6 +21,88 @@ import { GoalsSurface } from '@/features/goals';
 import { stubPointerCapability } from '../support/pointer';
 
 describe('GoalsSurface', () => {
+  describe('back navigation hierarchy', () => {
+    it('returns from a grouped goal to its group and from the group to the overview', () => {
+      useGoalGroupsMock.mockReturnValue([group({ id: 'group-1' })]);
+      useGoalsMock.mockImplementation((_scope, options = {}) =>
+        options.archived
+          ? []
+          : [goal({ id: 'goal-1', title: 'Health', groupId: 'group-1' })],
+      );
+
+      render(<GoalsSurface />);
+      fireEvent.click(screen.getByRole('button', { name: /LifeHealth/i }));
+      fireEvent.click(screen.getByRole('button', { name: 'Health' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+
+      expect(routerPushMock).toHaveBeenLastCalledWith('/goals?group=group-1');
+      expect(screen.getByLabelText('Rename group')).toHaveValue('Life');
+
+      fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+
+      expect(routerPushMock).toHaveBeenLastCalledWith('/goals');
+      expect(
+        screen.getByRole('toolbar', { name: 'Goals' }),
+      ).toBeInTheDocument();
+    });
+
+    it('returns to the parent group after deleting a grouped goal', async () => {
+      useGoalGroupsMock.mockReturnValue([group({ id: 'group-1' })]);
+      useGoalsMock.mockImplementation((_scope, options = {}) =>
+        options.archived
+          ? []
+          : [goal({ id: 'goal-1', title: 'Health', groupId: 'group-1' })],
+      );
+
+      render(<GoalsSurface />);
+      fireEvent.click(screen.getByRole('button', { name: /LifeHealth/i }));
+      fireEvent.click(screen.getByRole('button', { name: 'Health' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Delete goal' }));
+
+      await waitFor(() => {
+        expect(routerPushMock).toHaveBeenLastCalledWith('/goals?group=group-1');
+      });
+    });
+
+    it('returns from an ungrouped goal to the overview', () => {
+      render(<GoalsSurface />);
+      fireEvent.click(screen.getByRole('button', { name: 'Focus' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+
+      expect(routerPushMock).toHaveBeenLastCalledWith('/goals');
+      expect(
+        screen.getByRole('toolbar', { name: 'Goals' }),
+      ).toBeInTheDocument();
+    });
+
+    it('returns from an archived grouped goal to the archived overview', () => {
+      useGoalGroupsMock.mockReturnValue([group({ id: 'group-1' })]);
+      useGoalsMock.mockImplementation((_scope, options = {}) =>
+        options.archived
+          ? [
+              goal({
+                id: 'goal-archived',
+                title: 'Done',
+                groupId: 'group-1',
+                completedAt: '2026-06-23T12:00:00.000Z',
+              }),
+            ]
+          : [],
+      );
+
+      render(<GoalsSurface />);
+      fireEvent.click(screen.getByRole('button', { name: 'Archived' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+
+      expect(routerPushMock).toHaveBeenLastCalledWith('/goals');
+      expect(screen.getByRole('button', { name: 'Archived' })).toHaveAttribute(
+        'aria-pressed',
+        'true',
+      );
+    });
+  });
+
   it('opens the goal category manager from the group detail header', () => {
     useGoalGroupsMock.mockReturnValue([group({ id: 'group-1' })]);
     window.history.replaceState({}, '', '/goals?group=group-1');

@@ -192,7 +192,6 @@ vi.mock('@/providers', () => ({
         assignGroupCategory: 'Assign group category',
         assignGroupCategoryMenu: 'Assign category',
         assignGroupColor: 'Assign independent color',
-        backToGoalGroups: 'Back to goal groups',
         completeGoal: 'Archive goal',
         confirmCompleteGoal: 'Archive this goal?',
         confirmDeleteGoal: 'Delete this goal?',
@@ -227,6 +226,7 @@ vi.mock('@/providers', () => ({
         restoreGoal: 'Restore goal',
       },
       actions: {
+        back: 'Back',
         cancel: 'Cancel',
         delete: 'Delete',
       },

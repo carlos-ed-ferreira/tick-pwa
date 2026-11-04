@@ -14,7 +14,7 @@ test-e2e-container: e2e-container-prepare
 test-e2e-account-container: e2e-container-prepare
 	$(E2E_CONTAINER) make test-e2e-account
 
-.PHONY: help require-npm require-free-e2e-port install install-ci add-dependency update-dependency dev build start lint typecheck test test-telemetry test-backup test-account-operations test-account-persistence test-e2e test-e2e-reuse test-e2e-mobile test-e2e-offline test-e2e-account test-e2e-browsers format format-check check audit-prod deps-tree publish clean benchmark-account-rpc backup-encrypt backup-restore supabase-start supabase-start-db supabase-stop supabase-status supabase-reset supabase-diff supabase-diff-check supabase-migration-diff supabase-lint supabase-test-db supabase-types-local supabase-prod-backup supabase-prod-migrations-repair supabase-prod-migrations-check supabase-prod-db-dry-run supabase-prod-db-push
+.PHONY: help require-npm require-free-e2e-port install install-ci add-dependency update-dependency dev build start lint typecheck test test-file test-telemetry test-backup test-account-operations test-account-persistence test-e2e test-e2e-reuse test-e2e-mobile test-e2e-offline test-e2e-account test-e2e-browsers format format-check check audit-prod deps-tree publish clean benchmark-account-rpc backup-encrypt backup-restore supabase-start supabase-start-db supabase-stop supabase-status supabase-reset supabase-diff supabase-diff-check supabase-migration-diff supabase-lint supabase-test-db supabase-types-local supabase-prod-backup supabase-prod-migrations-repair supabase-prod-migrations-check supabase-prod-db-dry-run supabase-prod-db-push
 .DEFAULT_GOAL := help
 
 .PHONY: coverage-check coverage-baseline
@@ -244,6 +244,7 @@ help:
 	@printf "  %-26s %s\n" "make lint" "Proibe comentarios de codigo e roda ESLint"
 	@printf "  %-26s %s\n" "make typecheck" "Roda TypeScript sem emitir arquivos"
 	@printf "  %-26s %s\n" "make test" "Roda testes unitarios e de integracao"
+	@printf "  %-26s %s\n" "make test-file files=<arquivos>" "Roda somente os arquivos de teste indicados"
 	@printf "  %-26s %s\n" "make test-telemetry" "Roda testes de telemetria e redaction"
 	@printf "  %-26s %s\n" "make test-backup" "Roda testes de cifra e integridade do backup"
 	@printf "  %-26s %s\n" "make test-account-operations" "Roda testes do contrato transacional"
@@ -345,6 +346,10 @@ typecheck: require-npm
 
 test: require-npm
 	$(NPM) run test
+
+test-file: require-npm
+	@test -n "$(files)" || { echo 'Use: make test-file files="tests/unit/<arquivo>.test.tsx"'; exit 1; }
+	$(NPM) run test -- $(files)
 
 test-telemetry: require-npm
 	$(NPM) run test -- tests/unit/telemetry.test.ts

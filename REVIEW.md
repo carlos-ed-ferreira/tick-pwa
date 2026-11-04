@@ -111,7 +111,8 @@ de domínio rejeita UI, Dexie e Supabase; imports dinâmicos exigem revisão man
 | migration Dexie             | upgrade desde a versão afetada e preservação de escopos                  |
 | migration Postgres          | reset limpo, lint, pgTAP, dry-run e compatibilidade de rollout           |
 | componente                  | unit/component, teclado, loading, vazio, erro e i18n                     |
-| fluxo visual                | E2E desktop e mobile, overflow e conteúdo longo                          |
+| fluxo visual                | E2E desktop e mobile, overflow e conteúdo longo, uma vez ao concluir     |
+| ajuste puramente visual     | testes existentes ajustados e `make check`; E2E se mudar layout          |
 | adaptação mobile            | `make test-e2e-mobile`, área de toque, toque em vez de hover e densidade |
 | PWA                         | build, instalação/fallback e atualização sem perda local                 |
 | bugfix                      | teste que falha sem a correção e passa com ela                           |

@@ -510,6 +510,7 @@ Desenvolvimento e gates:
 | typecheck               | `make typecheck`                            |
 | lint                    | `make lint`                                 |
 | testes                  | `make test`                                 |
+| testes direcionados     | `make test-file files="<arquivos>"`         |
 | formatar/verificar      | `make format`, `make format-check`          |
 | gate atual              | `make check`                                |
 | limpar gerados          | `make clean`                                |

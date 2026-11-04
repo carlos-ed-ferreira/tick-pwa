@@ -73,6 +73,7 @@ export interface Dictionary {
     localFirst: string;
   };
   actions: {
+    back: string;
     cancel: string;
     delete: string;
     dismissNotification: string;
@@ -239,7 +240,6 @@ export interface Dictionary {
     assignGroupCategoryMenu: string;
     assignGroupColor: string;
     clearGroupCategory: string;
-    backToGoalGroups: string;
     completeGoal: string;
     dragGoal: string;
     newGoalTitle: string;

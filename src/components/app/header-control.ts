@@ -17,3 +17,9 @@ const pillTabBaseClassName =
 export const activePillTabClassName = `${pillTabBaseClassName} bg-[#f0c38e] font-semibold text-[#253241] shadow-[0_12px_28px_rgba(240,195,142,0.16)] hover:bg-[#f5d09f] hover:shadow-[0_16px_34px_rgba(240,195,142,0.22)]`;
 
 export const pillTabClassName = `${pillTabBaseClassName} font-medium text-[#b4c1ce] hover:bg-white/8 hover:text-[#fff9f2]`;
+
+export const headerControlDangerFillClassName =
+  'bg-rose-400/14 text-rose-100 hover:bg-rose-400/22 hover:text-rose-50 focus-visible:outline-rose-200';
+
+export const headerControlAccentFillClassName =
+  'bg-[#f0c38e]/14 text-[#f7d7ad] hover:bg-[#f0c38e]/22 hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]';

@@ -1,4 +1,5 @@
 export * from './app-header';
+export * from './filled-icon-button';
 export * from './header-control';
 export * from './language-switcher';
 export * from './date-picker';
