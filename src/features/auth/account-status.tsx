@@ -40,7 +40,7 @@ export function AccountStatus() {
   if (authMode === 'guest') {
     return (
       <div className="flex flex-wrap items-center gap-2">
-        <span className="inline-flex min-h-7 items-center rounded-full inset-ring-hairline inset-ring-[#f0c38e]/60 bg-[#f0c38e]/14 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.24em] text-[#f7e8ce] shadow-sm shadow-[#f0c38e]/10">
+        <span className="inline-flex min-h-7 items-center rounded-full bg-[#f0c38e]/14 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.24em] text-[#f7e8ce] shadow-sm shadow-[#f0c38e]/10">
           {dictionary.auth.localModeBadge}
         </span>
         <button

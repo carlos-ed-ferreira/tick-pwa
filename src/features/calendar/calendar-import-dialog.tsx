@@ -2,7 +2,12 @@
 
 import { FileUp, X } from 'lucide-react';
 import { useCallback, useState } from 'react';
-import { Dialog, ModalActionButton, toast } from '@/components/ui';
+import {
+  Dialog,
+  FormTextareaField,
+  ModalActionButton,
+  toast,
+} from '@/components/ui';
 import { importCalendarDays } from '@/lib/db';
 import type { Dictionary } from '@/lib/i18n';
 import { useAppContext } from '@/providers';
@@ -115,18 +120,14 @@ export function CalendarImportDialog({
           {dictionary.calendar.importDescription}
         </p>
 
-        <label className="flex min-h-0 flex-1 flex-col gap-2 text-sm font-medium text-[#fff9f2]">
-          <span>{dictionary.calendar.importPayloadLabel}</span>
-          <textarea
-            autoCapitalize="none"
-            autoCorrect="off"
-            spellCheck={false}
-            placeholder={dictionary.calendar.importPlaceholder}
-            value={payload}
-            className="min-h-56 flex-1 resize-none rounded-[1rem] inset-ring-hairline inset-ring-white/10 bg-white/[0.055] p-3 font-mono text-xs leading-5 text-[#fff9f2] outline-none transition placeholder:text-[#7b8da0] hover:inset-ring-white/[0.16] focus:inset-ring-[#f0c38e]/[0.42] focus:bg-white/[0.075] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e]"
-            onChange={(event) => setPayload(event.target.value)}
-          />
-        </label>
+        <FormTextareaField
+          fieldClassName="min-h-56 flex-1"
+          label={dictionary.calendar.importPayloadLabel}
+          monospace
+          placeholder={dictionary.calendar.importPlaceholder}
+          value={payload}
+          onChange={(event) => setPayload(event.target.value)}
+        />
 
         <div className="flex flex-wrap items-center justify-end gap-2">
           <ModalActionButton onClick={handleClose}>

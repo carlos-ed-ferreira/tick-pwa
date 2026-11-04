@@ -28,6 +28,7 @@ import {
   type DropdownJoinShape,
 } from './dropdown-join-shape';
 import { TaskTreeClearCategoryIcon } from './task-tree-clear-category-icon';
+import type { TaskTreeRowAvailability } from './task-tree-row-availability';
 import type { TaskTreeRowActionPreferences } from './task-tree-row-action-visibility';
 
 const menuWidth = 248;
@@ -56,16 +57,12 @@ interface TaskTreeMoreActionsLabels {
 
 export function TaskTreeMoreActionsMenu({
   actionPreferences,
+  availability,
   bold,
-  canIndent,
-  canMoveDown,
-  canMoveUp,
-  canOutdent,
   categoryTagMap,
   disabled = false,
   labels,
   priority,
-  selectedCategoryTagId,
   onAdd,
   onAssignCategory,
   onDelete,
@@ -77,11 +74,8 @@ export function TaskTreeMoreActionsMenu({
   onTogglePriority,
 }: {
   actionPreferences: TaskTreeRowActionPreferences;
+  availability: TaskTreeRowAvailability;
   bold: boolean;
-  canIndent: boolean;
-  canMoveDown: boolean;
-  canMoveUp: boolean;
-  canOutdent: boolean;
   categoryTagMap: Map<
     string,
     { colorHex: string; name: string; useOwnName?: boolean }
@@ -89,7 +83,6 @@ export function TaskTreeMoreActionsMenu({
   disabled?: boolean;
   labels: TaskTreeMoreActionsLabels;
   priority: boolean;
-  selectedCategoryTagId: string | null;
   onAdd: () => Promise<void> | void;
   onAssignCategory: (categoryTagId: string | null) => Promise<void> | void;
   onDelete: () => Promise<void> | void;
@@ -400,6 +393,7 @@ export function TaskTreeMoreActionsMenu({
                 type="button"
                 aria-label={labels.addChild}
                 className={itemClassName}
+                disabled={!availability.canEditContent}
                 onClick={() => void runAction(onAdd)}
               >
                 <Plus aria-hidden="true" className="size-4" />
@@ -411,7 +405,7 @@ export function TaskTreeMoreActionsMenu({
                 type="button"
                 aria-label={labels.moveItemUp}
                 className={itemClassName}
-                disabled={!canMoveUp}
+                disabled={!availability.canMoveUp}
                 onClick={() => void runAction(onMoveUp)}
               >
                 <ArrowUp aria-hidden="true" className="size-4" />
@@ -423,7 +417,7 @@ export function TaskTreeMoreActionsMenu({
                 type="button"
                 aria-label={labels.moveItemDown}
                 className={itemClassName}
-                disabled={!canMoveDown}
+                disabled={!availability.canMoveDown}
                 onClick={() => void runAction(onMoveDown)}
               >
                 <ArrowDown aria-hidden="true" className="size-4" />
@@ -435,7 +429,7 @@ export function TaskTreeMoreActionsMenu({
                 type="button"
                 aria-label={labels.outdentItem}
                 className={itemClassName}
-                disabled={!canOutdent}
+                disabled={!availability.canOutdent}
                 onClick={() => void runAction(onOutdent)}
               >
                 <IndentDecrease aria-hidden="true" className="size-4" />
@@ -447,7 +441,7 @@ export function TaskTreeMoreActionsMenu({
                 type="button"
                 aria-label={labels.indentItem}
                 className={itemClassName}
-                disabled={!canIndent}
+                disabled={!availability.canIndent}
                 onClick={() => void runAction(onIndent)}
               >
                 <IndentIncrease aria-hidden="true" className="size-4" />
@@ -461,6 +455,7 @@ export function TaskTreeMoreActionsMenu({
                   priority ? labels.unmarkPriority : labels.markPriority
                 }
                 className={itemClassName}
+                disabled={!availability.canEditContent}
                 onClick={() => void runAction(onTogglePriority)}
               >
                 <Star
@@ -478,6 +473,7 @@ export function TaskTreeMoreActionsMenu({
                 type="button"
                 aria-label={bold ? labels.makeTextNormal : labels.makeTextBold}
                 className={itemClassName}
+                disabled={!availability.canEditContent}
                 onClick={() => void runAction(onToggleBold)}
               >
                 <span
@@ -501,7 +497,7 @@ export function TaskTreeMoreActionsMenu({
                 aria-haspopup="menu"
                 aria-label={labels.assignCategory}
                 className={itemClassName}
-                disabled={categories.length === 0}
+                disabled={!availability.canAssignCategory}
                 onClick={openCategorySubmenu}
                 onFocus={openCategorySubmenu}
                 onMouseEnter={openCategorySubmenu}
@@ -529,7 +525,7 @@ export function TaskTreeMoreActionsMenu({
                 type="button"
                 aria-label={labels.clearCategory}
                 className={itemClassName}
-                disabled={!selectedCategoryTagId}
+                disabled={!availability.canClearCategory}
                 onClick={() => void runAction(() => onAssignCategory(null))}
               >
                 <TaskTreeClearCategoryIcon />

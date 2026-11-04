@@ -260,12 +260,12 @@ export function BulkCalendarEditor({
 
           <div className="grid gap-2 sm:col-span-2">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <span className="text-sm font-medium text-[#fff9f2]">
+              <span className="px-1 text-[0.68rem] font-semibold uppercase leading-4 tracking-[0.24em] text-[#fff9f2]/90">
                 {dictionary.calendar.bulkWeekdays}
               </span>
               <span
                 role="note"
-                className="inline-flex w-fit items-center gap-1.5 rounded-lg bg-[#f0c38e]/10 px-2 py-1 text-xs font-medium text-[#f7d7ad]"
+                className="inline-flex w-fit items-center gap-1.5 rounded-full bg-[#f0c38e]/14 px-2.5 py-1 text-xs font-medium text-[#f7d7ad]"
               >
                 <CircleHelp aria-hidden="true" className="size-3.5 shrink-0" />
                 {dictionary.calendar.bulkAllWeekdaysHint}

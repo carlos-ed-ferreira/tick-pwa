@@ -38,6 +38,7 @@ vi.mock('@/features/categories', () => ({
   CategoryAssignmentMenu: ({
     assignLabel,
     clearLabel,
+    disabled,
     renderTriggerContent,
     selectedCategoryTagId,
     showClearButton = true,
@@ -46,6 +47,7 @@ vi.mock('@/features/categories', () => ({
   }: {
     assignLabel: string;
     clearLabel: string;
+    disabled?: boolean;
     renderTriggerContent?: () => ReactNode;
     selectedCategoryTagId: string | null;
     showClearButton?: boolean;
@@ -57,6 +59,7 @@ vi.mock('@/features/categories', () => ({
         type="button"
         aria-label={assignLabel}
         className={triggerClassName}
+        disabled={disabled}
         onClick={() => onAssign('category-1')}
       >
         {renderTriggerContent ? renderTriggerContent() : assignLabel}
@@ -170,6 +173,124 @@ function renderRow(
 describe('TaskTreeEditableRow', () => {
   afterEach(() => {
     cleanup();
+  });
+
+  describe('on a draft row that was not created yet', () => {
+    const everyActionInline = {
+      ...defaultTaskTreeRowActionPreferences,
+      add: 'inline',
+      bold: 'inline',
+      category: 'inline',
+      clearCategory: 'inline',
+      delete: 'inline',
+      indent: 'inline',
+      moveDown: 'inline',
+      moveUp: 'inline',
+      outdent: 'inline',
+      priority: 'inline',
+    } as const;
+
+    it('locks every inline action except reordering, indenting, outdenting and deleting', () => {
+      renderRow({
+        actionPreferences: everyActionInline,
+        depth: 1,
+        isDraft: true,
+        showScheduledTime: true,
+        text: '',
+      });
+
+      for (const name of [
+        'Add child',
+        'Mark as priority',
+        'Make text bold',
+        'Assign category',
+      ]) {
+        expect(screen.getByRole('button', { name })).toBeDisabled();
+      }
+      expect(screen.getByRole('checkbox')).toBeDisabled();
+      expect(screen.getByRole('textbox', { name: 'Task time' })).toBeDisabled();
+      for (const name of [
+        'Indent item',
+        'Outdent item',
+        'Move item up',
+        'Move item down',
+        'Drag item',
+        'Delete item',
+      ]) {
+        expect(screen.getByRole('button', { name })).toBeEnabled();
+      }
+    });
+
+    it('keeps only reordering, indenting, outdenting and deleting available in the extra options menu', () => {
+      renderRow({
+        actionPreferences: {
+          ...defaultTaskTreeRowActionPreferences,
+          add: 'menu',
+          bold: 'menu',
+          category: 'menu',
+          delete: 'menu',
+          indent: 'menu',
+          moveDown: 'menu',
+          moveUp: 'menu',
+          outdent: 'menu',
+          priority: 'menu',
+        },
+        depth: 1,
+        isDraft: true,
+        text: '',
+      });
+
+      const moreActions = screen.getByRole('button', { name: 'More actions' });
+
+      expect(moreActions).toBeEnabled();
+      fireEvent.click(moreActions);
+
+      for (const name of ['Add child', 'Mark as priority', 'Make text bold']) {
+        expect(screen.getByRole('button', { name })).toBeDisabled();
+      }
+      for (const name of [
+        'Indent item',
+        'Outdent item',
+        'Move item up',
+        'Move item down',
+        'Delete item',
+      ]) {
+        expect(screen.getByRole('button', { name })).toBeEnabled();
+      }
+    });
+
+    it('unlocks the actions as soon as the draft has content', () => {
+      renderRow({
+        actionPreferences: everyActionInline,
+        isDraft: true,
+        showScheduledTime: true,
+        text: 'Plan the week',
+      });
+
+      for (const name of [
+        'Add child',
+        'Move item up',
+        'Mark as priority',
+        'Make text bold',
+        'Assign category',
+      ]) {
+        expect(screen.getByRole('button', { name })).toBeEnabled();
+      }
+      expect(screen.getByRole('checkbox')).toBeEnabled();
+      expect(screen.getByRole('textbox', { name: 'Task time' })).toBeEnabled();
+    });
+
+    it('does not create a child from the keyboard', async () => {
+      const callbacks = renderRow({ isDraft: true, text: '' });
+
+      fireEvent.keyDown(screen.getByPlaceholderText('Write a task'), {
+        key: 'ArrowDown',
+      });
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(callbacks.onCreateChild).not.toHaveBeenCalled();
+    });
   });
 
   it('applies the shared checkbox and priority behavior immediately', async () => {

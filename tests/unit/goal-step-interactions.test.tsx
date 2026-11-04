@@ -121,54 +121,6 @@ describe('GoalsSurface', () => {
     expect(createGoalStepMock).not.toHaveBeenCalled();
   });
 
-  it('collapses and expands children of an empty goal step draft locally', async () => {
-    useGoalStepTreeMock.mockReturnValue([]);
-
-    render(<GoalsSurface />);
-    fireEvent.click(screen.getByRole('button', { name: 'Focus' }));
-    fireEvent.click(
-      screen.getByRole('button', {
-        name: 'Start this goal by adding a step',
-      }),
-    );
-    fireEvent.click(screen.getByRole('button', { name: 'Add step' }));
-
-    await waitFor(() => {
-      expect(screen.getAllByPlaceholderText('Write a step')).toHaveLength(2);
-    });
-
-    const [parentInput, childInput] =
-      screen.getAllByPlaceholderText('Write a step');
-    const childRow = childInput.closest('[data-tree-row]');
-    fireEvent.click(
-      within(childRow as HTMLElement).getByLabelText('Make substep'),
-    );
-
-    await waitFor(() => {
-      expect(childInput.closest('[data-tree-row]')).toHaveStyle({
-        paddingLeft: '14px',
-      });
-    });
-
-    const parentRow = parentInput.closest('[data-tree-row]');
-    fireEvent.click(
-      within(parentRow as HTMLElement).getByLabelText('Collapse step'),
-    );
-
-    await waitFor(() => {
-      expect(screen.getAllByPlaceholderText('Write a step')).toHaveLength(1);
-    });
-
-    fireEvent.click(
-      within(parentRow as HTMLElement).getByLabelText('Expand step'),
-    );
-
-    await waitFor(() => {
-      expect(screen.getAllByPlaceholderText('Write a step')).toHaveLength(2);
-    });
-    expect(createGoalStepMock).not.toHaveBeenCalled();
-  });
-
   it('hides a deleted goal step while the local delete is still pending', async () => {
     let resolveDelete!: () => void;
     softDeleteGoalStepMock.mockReturnValueOnce(

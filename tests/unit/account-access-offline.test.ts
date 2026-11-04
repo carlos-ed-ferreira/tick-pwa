@@ -80,3 +80,44 @@ it('uses a valid local grant while offline without consulting a potentially cach
     }),
   ).toBe('unavailable');
 });
+
+function mockAccessQueryError(error: object) {
+  mocks.from.mockReturnValue({
+    select: () => ({
+      eq: () => ({
+        maybeSingle: async () => ({ data: null, error }),
+      }),
+    }),
+  });
+}
+
+it('treats a dropped connection during the access check as unavailable without reporting an error', async () => {
+  vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(true);
+  mockAccessQueryError({ message: 'TypeError: Failed to fetch', code: '' });
+  const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+  const user = { id: 'owner', email: 'owner@example.test' } as User;
+
+  await expect(checkUserAccess(user)).resolves.toBe('unavailable');
+  expect(log).not.toHaveBeenCalled();
+});
+
+it('reports the readable cause when the access check fails on the server', async () => {
+  vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(true);
+  mockAccessQueryError(
+    Object.assign(new Error('JWT could not be verified'), {
+      code: 'PGRST301',
+      details: 'JWSInvalidSignature',
+      hint: '',
+    }),
+  );
+  const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+  const user = { id: 'owner', email: 'owner@example.test' } as User;
+
+  await expect(checkUserAccess(user)).resolves.toBe('unavailable');
+  expect(log).toHaveBeenCalledWith('Failed to verify Tick account access.', {
+    code: 'PGRST301',
+    details: 'JWSInvalidSignature',
+    hint: '',
+    message: 'JWT could not be verified',
+  });
+});

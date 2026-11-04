@@ -6,7 +6,6 @@ export interface TreeEditorDictionary {
   assignCategory: string;
   clearCategory: string;
   checklist: string;
-  backToCalendar: string;
   collapseItem: string;
   untitledItem: string;
   emptyChecklist: string;

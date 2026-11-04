@@ -17,6 +17,7 @@ import { CategoryAssignmentMenu } from '@/features/categories';
 import type { CategoryTagSurface } from '@/lib/domain';
 import { TaskTreeClearCategoryIcon } from './task-tree-clear-category-icon';
 import type { TaskTreeRowActionPreferences } from './task-tree-row-action-visibility';
+import type { TaskTreeRowAvailability } from './task-tree-row-availability';
 
 export interface TaskTreeRowActionsSheetLabels {
   addChild: string;
@@ -42,11 +43,8 @@ const actionRowClassName =
 
 export function TaskTreeRowActionsSheet({
   actionPreferences,
+  availability,
   bold,
-  canIndent,
-  canMoveDown,
-  canMoveUp,
-  canOutdent,
   categoryTagId,
   dateTrigger,
   disabled = false,
@@ -67,11 +65,8 @@ export function TaskTreeRowActionsSheet({
   onTogglePriority,
 }: {
   actionPreferences: TaskTreeRowActionPreferences;
+  availability: TaskTreeRowAvailability;
   bold: boolean;
-  canIndent: boolean;
-  canMoveDown: boolean;
-  canMoveUp: boolean;
-  canOutdent: boolean;
   categoryTagId: string | null;
   dateTrigger: ReactNode;
   disabled?: boolean;
@@ -129,6 +124,7 @@ export function TaskTreeRowActionsSheet({
           <BottomSheetAction
             ariaLabel={labels.addChild}
             icon={<Plus aria-hidden="true" className="size-4" />}
+            disabled={!availability.canEditContent}
             onSelect={() => runAction(onAdd)}
           >
             {labels.addChild}
@@ -137,7 +133,7 @@ export function TaskTreeRowActionsSheet({
         {isVisible('moveUp') ? (
           <BottomSheetAction
             ariaLabel={labels.moveItemUp}
-            disabled={!canMoveUp}
+            disabled={!availability.canMoveUp}
             icon={<ArrowUp aria-hidden="true" className="size-4" />}
             onSelect={() => runAction(onMoveUp)}
           >
@@ -147,7 +143,7 @@ export function TaskTreeRowActionsSheet({
         {isVisible('moveDown') ? (
           <BottomSheetAction
             ariaLabel={labels.moveItemDown}
-            disabled={!canMoveDown}
+            disabled={!availability.canMoveDown}
             icon={<ArrowDown aria-hidden="true" className="size-4" />}
             onSelect={() => runAction(onMoveDown)}
           >
@@ -157,7 +153,7 @@ export function TaskTreeRowActionsSheet({
         {isVisible('outdent') ? (
           <BottomSheetAction
             ariaLabel={labels.outdentItem}
-            disabled={!canOutdent}
+            disabled={!availability.canOutdent}
             icon={<IndentDecrease aria-hidden="true" className="size-4" />}
             onSelect={() => runAction(onOutdent)}
           >
@@ -167,7 +163,7 @@ export function TaskTreeRowActionsSheet({
         {isVisible('indent') ? (
           <BottomSheetAction
             ariaLabel={labels.indentItem}
-            disabled={!canIndent}
+            disabled={!availability.canIndent}
             icon={<IndentIncrease aria-hidden="true" className="size-4" />}
             onSelect={() => runAction(onIndent)}
           >
@@ -183,6 +179,7 @@ export function TaskTreeRowActionsSheet({
                 className={`size-4 ${priority ? 'fill-[#f0c38e] text-[#f0c38e]' : ''}`}
               />
             }
+            disabled={!availability.canEditContent}
             onSelect={() => runAction(onTogglePriority)}
           >
             {priority ? labels.unmarkPriority : labels.markPriority}
@@ -199,6 +196,7 @@ export function TaskTreeRowActionsSheet({
                 B
               </span>
             }
+            disabled={!availability.canEditContent}
             onSelect={() => runAction(onToggleBold)}
           >
             {bold ? labels.makeTextNormal : labels.makeTextBold}
@@ -208,6 +206,7 @@ export function TaskTreeRowActionsSheet({
           <CategoryAssignmentMenu
             assignLabel={labels.assignCategory}
             clearLabel={labels.clearCategory}
+            disabled={!availability.canEditContent}
             renderTriggerContent={() => (
               <>
                 <Tag aria-hidden="true" className="size-4" />
@@ -229,7 +228,7 @@ export function TaskTreeRowActionsSheet({
         {isVisible('clearCategory') ? (
           <BottomSheetAction
             ariaLabel={labels.clearCategory}
-            disabled={!categoryTagId}
+            disabled={!availability.canClearCategory}
             icon={<TaskTreeClearCategoryIcon className="size-4" />}
             onSelect={() => runAction(() => onAssignCategory(null))}
           >

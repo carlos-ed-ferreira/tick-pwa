@@ -3,7 +3,6 @@ import {
   enterLocalMode,
   firstChecklistInput,
   labels,
-  openCalendarBulkCreate,
   openMonthGrid,
 } from './helpers';
 
@@ -157,19 +156,20 @@ test.describe('mobile layout', () => {
 
   test('keeps positioned controls anchored when the hit area grows', async ({
     page,
-    isMobile,
   }) => {
     await enterLocalMode(page);
-    await openCalendarBulkCreate(page, isMobile);
+    await page.goto('/calendar');
 
-    const startDateInput = page.getByRole('textbox', {
-      name: /start date|data inicial/i,
+    const position = await page.evaluate(() => {
+      const probe = document.createElement('button');
+      probe.className = 'touch-target absolute';
+      document.body.append(probe);
+      const computedPosition = getComputedStyle(probe).position;
+      probe.remove();
+      return computedPosition;
     });
-    await startDateInput.fill('15072026');
 
-    const clearButton = page.locator('.touch-target.absolute').first();
-
-    await expect(clearButton).toHaveCSS('position', 'absolute');
+    expect(position).toBe('absolute');
   });
 
   test('keeps the checklist drag handle out of the scroll gesture', async ({

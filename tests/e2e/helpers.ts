@@ -8,9 +8,9 @@ export const labels = {
   goalsLink: /^goals$|^metas$/i,
   localModeBadge: /local mode|modo local/i,
   localModeButton:
-    /continue without syncing|continuar sem sincronizar|use local mode|usar em modo local/i,
+    /use without an account|usar sem conta|use local mode|usar em modo local/i,
   checklistEmpty: /start this day with a task|comece este dia com uma tarefa/i,
-  backToCalendar: /back to calendar|voltar para o calendário/i,
+  backToCalendar: /^back$|^voltar$/i,
   configureTaskPreferences:
     /configure task preferences|configurar preferências das tarefas/i,
   enableIgnoredState: /^(ignored state|estado ignorado): (enabled|ativado)$/i,

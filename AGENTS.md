@@ -217,8 +217,8 @@ desenho menor que 44px precisa de `touch-target`. Interação por arrasto precis
 de caminho equivalente no toque; HTML5 drag and drop sozinho não atende.
 
 Botões seguem o padrão preenchido e sem borda descrito na Skill
-`frontend-design`: pill com texto, redondo só com ícone. Campos de digitação
-mantêm o ring hairline.
+`frontend-design`: pill com texto, redondo só com ícone. Campos de formulário
+usam `FormField` ou `FormTextareaField`, com rótulo na borda.
 
 Reutilize primitives, tokens e padrões antes de criar componentes. Não force
 reutilização sem equivalência semântica. Preserve a linguagem visual e não

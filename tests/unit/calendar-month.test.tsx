@@ -4,6 +4,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CalendarMonth } from '@/features/calendar';
@@ -53,6 +54,7 @@ vi.mock('@/providers', () => ({
   useAppContext: () => ({
     dictionary: {
       actions: {
+        back: 'Back',
         cancel: 'Cancel',
       },
       calendar: {
@@ -75,7 +77,6 @@ vi.mock('@/providers', () => ({
       },
       dayEditor: {
         title: 'Day editor',
-        backToCalendar: 'Back to calendar',
       },
       navigation: {
         categories: 'Categories',
@@ -153,6 +154,39 @@ describe('CalendarMonth', () => {
     cleanup();
     vi.useRealTimers();
     vi.unstubAllGlobals();
+  });
+
+  it('orders the period actions as import, plan and clear', () => {
+    render(<CalendarMonth />);
+
+    const labels = ['Import JSON', 'Plan period', 'Clear period'];
+    const buttons = labels.map((name) => screen.getByRole('button', { name }));
+
+    expect(buttons.map((button) => button.textContent)).toEqual(labels);
+    expect(
+      buttons[0].compareDocumentPosition(buttons[1]) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).not.toBe(0);
+    expect(
+      buttons[1].compareDocumentPosition(buttons[2]) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).not.toBe(0);
+  });
+
+  it('orders the period actions as import, plan and clear in the touch sheet', () => {
+    stubPointerCapability(true);
+    render(<CalendarMonth />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Calendar options' }));
+
+    expect(
+      within(screen.getByRole('dialog', { name: 'Calendar options' }))
+        .getAllByRole('button')
+        .map((button) => button.textContent)
+        .filter((text) =>
+          ['Import JSON', 'Plan period', 'Clear period'].includes(text ?? ''),
+        ),
+    ).toEqual(['Import JSON', 'Plan period', 'Clear period']);
   });
 
   it('replaces the month grid with the week composition on touch', () => {
@@ -264,7 +298,7 @@ describe('CalendarMonth', () => {
     render(<CalendarMonth />);
 
     expect(screen.queryAllByTestId('calendar-week-day')).toHaveLength(0);
-    expect(screen.getByText('Back to calendar')).toBeTruthy();
+    expect(screen.getByText('Back')).toBeTruthy();
   });
 
   it('keeps the double click to open on a fine pointer', () => {
@@ -564,9 +598,7 @@ describe('CalendarMonth', () => {
     expect(
       screen.getByRole('button', { name: 'Transfer day' }),
     ).toBeInTheDocument();
-    expect(
-      screen.getByRole('button', { name: 'Back to calendar' }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Back' })).toBeInTheDocument();
   });
 
   it('navigates back to the calendar from the day detail view', () => {
@@ -574,7 +606,7 @@ describe('CalendarMonth', () => {
 
     render(<CalendarMonth />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Back to calendar' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
 
     expect(routerPushMock).toHaveBeenCalledWith('/calendar');
   });

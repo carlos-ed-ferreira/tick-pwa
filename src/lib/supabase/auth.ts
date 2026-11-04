@@ -47,6 +47,23 @@ export function toTickAuthUser(user: User): TickAuthUser {
   };
 }
 
+function reportAccessCheckFailure(error: unknown) {
+  if (isTransportUnavailableError(error)) {
+    return;
+  }
+
+  const { code, details, hint, message } = (error ?? {}) as Partial<
+    Record<'code' | 'details' | 'hint' | 'message', string>
+  >;
+
+  console.error('Failed to verify Tick account access.', {
+    code,
+    details,
+    hint,
+    message,
+  });
+}
+
 export async function checkUserAccess(user: User): Promise<UserAccessStatus> {
   const client = getSupabaseBrowserClient();
   const email = getNormalizedUserEmail(user);
@@ -71,7 +88,7 @@ export async function checkUserAccess(user: User): Promise<UserAccessStatus> {
       .maybeSingle();
 
     if (error) {
-      console.error('Failed to verify Tick account access.', error);
+      reportAccessCheckFailure(error);
       return 'unavailable';
     }
 
@@ -79,7 +96,7 @@ export async function checkUserAccess(user: User): Promise<UserAccessStatus> {
 
     return access?.active === true ? 'allowed' : 'denied';
   } catch (error) {
-    console.error('Failed to verify Tick account access.', error);
+    reportAccessCheckFailure(error);
     return 'unavailable';
   }
 }

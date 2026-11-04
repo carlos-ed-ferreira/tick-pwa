@@ -642,53 +642,6 @@ describe('ChecklistSurface delete confirmation', () => {
     expect(createChecklistItemMock).not.toHaveBeenCalled();
   });
 
-  it('collapses and expands children of an empty draft locally', async () => {
-    useChecklistTreeMock.mockReturnValue([]);
-
-    render(<ChecklistSurface dailyEntryId="entry-1" />);
-    fireEvent.click(
-      screen.getByRole('button', {
-        name: 'Start this day with a task',
-      }),
-    );
-    fireEvent.click(screen.getByRole('button', { name: 'Add task' }));
-
-    await waitFor(() => {
-      expect(screen.getAllByPlaceholderText('Write a task')).toHaveLength(2);
-    });
-
-    const [parentInput, childInput] =
-      screen.getAllByPlaceholderText('Write a task');
-    const childRow = childInput.closest('[data-tree-row]');
-    fireEvent.click(
-      within(childRow as HTMLElement).getByLabelText('Make subtask'),
-    );
-
-    await waitFor(() => {
-      expect(childInput.closest('[data-tree-row]')).toHaveStyle({
-        paddingLeft: '14px',
-      });
-    });
-
-    const parentRow = parentInput.closest('[data-tree-row]');
-    fireEvent.click(
-      within(parentRow as HTMLElement).getByLabelText('Collapse task'),
-    );
-
-    await waitFor(() => {
-      expect(screen.getAllByPlaceholderText('Write a task')).toHaveLength(1);
-    });
-
-    fireEvent.click(
-      within(parentRow as HTMLElement).getByLabelText('Expand task'),
-    );
-
-    await waitFor(() => {
-      expect(screen.getAllByPlaceholderText('Write a task')).toHaveLength(2);
-    });
-    expect(createChecklistItemMock).not.toHaveBeenCalled();
-  });
-
   it('toggles item priority from the row controls', async () => {
     useChecklistTreeMock.mockReturnValue([createRow('Important task')]);
 

@@ -69,7 +69,7 @@ const LocaleMenu = forwardRef<
   );
 });
 
-export function LanguageSwitcher() {
+export function LanguageSwitcher({ disabled = false }: { disabled?: boolean }) {
   const { dictionary, isReady, locale, setLocale } = useAppContext();
   const label = `${dictionary.settings.language}: ${LOCALE_LABELS[locale]}`;
   const estimateMenuHeight = useCallback(
@@ -105,7 +105,7 @@ export function LanguageSwitcher() {
         aria-haspopup="menu"
         aria-label={label}
         className={filledPillControlClassName}
-        disabled={!isReady}
+        disabled={!isReady || disabled}
         type="button"
         onClick={() => (isOpen ? closeMenu() : openMenu())}
       >

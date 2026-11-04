@@ -85,6 +85,37 @@ describe('AuthEntry', () => {
     signInWithPasswordMock.mockResolvedValue({ status: 'authenticated' });
   });
 
+  it('locks every control on the screen while signing in with a password', async () => {
+    const deferred = createDeferred<{ status: 'authenticated' }>();
+    signInWithPasswordMock.mockReturnValueOnce(deferred.promise);
+
+    render(<AuthEntry />);
+
+    fireEvent.change(screen.getByLabelText('Email'), {
+      target: { value: 'user@example.com' },
+    });
+    fireEvent.change(screen.getByLabelText('Password'), {
+      target: { value: 'secret' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+
+    for (const button of screen.getAllByRole('button')) {
+      expect(button).toBeDisabled();
+    }
+    for (const button of screen
+      .getAllByRole('button')
+      .filter((button) => button.closest('.group'))) {
+      expect(button.closest('.group')).toHaveClass('cursor-not-allowed');
+    }
+    expect(screen.getByLabelText('Email')).toBeDisabled();
+    expect(screen.getByLabelText('Password')).toBeDisabled();
+
+    deferred.resolve({ status: 'authenticated' });
+    await waitFor(() => {
+      expect(signInWithPasswordMock).toHaveBeenCalledOnce();
+    });
+  });
+
   it('disables native form validation and renders local validation feedback', async () => {
     render(<AuthEntry />);
 
@@ -177,7 +208,7 @@ describe('AuthEntry', () => {
     expect(
       screen.getByRole('button', { name: 'Continue without syncing' }),
     ).toBeDisabled();
-    expect(screen.getByRole('button', { name: /^Language:/ })).toBeEnabled();
+    expect(screen.getByRole('button', { name: /^Language:/ })).toBeDisabled();
     expect(
       screen.getByText('Validating credentials and preparing your account...'),
     ).toBeInTheDocument();
@@ -189,7 +220,7 @@ describe('AuthEntry', () => {
     });
   });
 
-  it('disables every action except language selection while Google sign-in is pending', async () => {
+  it('disables every action, including language selection, while Google sign-in is pending', async () => {
     const deferred = createDeferred<void>();
     signInWithGoogleMock.mockReturnValueOnce(deferred.promise);
 
@@ -208,7 +239,7 @@ describe('AuthEntry', () => {
     expect(
       screen.getByRole('button', { name: 'Continue without syncing' }),
     ).toBeDisabled();
-    expect(screen.getByRole('button', { name: /^Language:/ })).toBeEnabled();
+    expect(screen.getByRole('button', { name: /^Language:/ })).toBeDisabled();
 
     deferred.resolve();
 

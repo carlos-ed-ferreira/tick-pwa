@@ -69,6 +69,11 @@ dessas telas ali, não apenas no `body`.
   têm só ícone. Usar `filledPillControlClassName`, `filledRoundControlClassName`
   e `FilledIconButton` de `src/components/ui`, com preenchimento neutro,
   destaque em âmbar ou perigo em rose.
+- Ações de barra, como importar, criar e limpar, usam preenchimento
+  translúcido e o pill compacto: `filledCompactPillControlClassName` com
+  `filledControlNeutralClassName`, `filledControlAccentClassName` âmbar ou
+  `filledControlDangerClassName` rose. Âmbar sólido fica para a opção ativa de
+  pill tabs e para a ação primária de modal.
 - Controles preenchidos elevam levemente no hover, com
   `hover:-translate-y-0.5` e `hover:shadow-md`.
 - Escolha entre opções exclusivas, como seções ou ativas e arquivadas, usa pill
@@ -80,8 +85,11 @@ dessas telas ali, não apenas no `body`.
   com `rounded-full`, para o hover também ser redondo. O `IconButton` só aplica
   `rounded-md` quando o `className` não define raio.
 - Voltar é pill com o texto curto do dicionário `actions.back`.
-- Campos de digitação, como input e textarea, mantêm o ring hairline como
-  afordância de campo.
+- Campos de formulário usam `FormField` ou `FormTextareaField`, com o rótulo
+  recortado na borda, que funciona sobre qualquer superfície. Controle dentro
+  do campo, como o calendário do `DatePicker`, entra por `endAdornment`.
+  Edição inline em listas, como textos de tarefas e nomes de categorias,
+  mantém input simples, sem rótulo na borda.
 
 ## Projetar os estados
 

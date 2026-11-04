@@ -8,6 +8,8 @@ export const filledRoundControlClassName = `${filledControlBaseClassName} size-1
 
 export const filledPillControlClassName = `${filledControlBaseClassName} ${filledControlNeutralClassName} h-10 gap-1.5 px-3.5 text-sm font-medium`;
 
+export const filledCompactPillControlClassName = `${filledControlBaseClassName} h-8 gap-1.5 px-3 text-sm font-medium`;
+
 export const pillTabListClassName =
   'flex items-center gap-1 rounded-full bg-white/6 p-1 shadow-sm shadow-[#253241]/10';
 
