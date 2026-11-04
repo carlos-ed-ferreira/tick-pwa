@@ -45,16 +45,16 @@ export async function openCalendarBulkCreate(page: Page, isMobile: boolean) {
 }
 
 export async function openCategoryManager(page: Page, isMobile: boolean) {
+  const categoriesButton = page.getByRole('button', {
+    name: labels.categories,
+  });
+
   if (isMobile) {
-    await page.getByRole('button', { name: labels.moreOptions }).first().tap();
-    await page
-      .getByRole('dialog', { name: labels.moreOptions })
-      .getByRole('button', { name: labels.categories })
-      .tap();
+    await categoriesButton.tap();
     return;
   }
 
-  await page.getByRole('button', { name: labels.categories }).click();
+  await categoriesButton.click();
 }
 
 export async function openGoalDetailActions(page: Page, isMobile: boolean) {

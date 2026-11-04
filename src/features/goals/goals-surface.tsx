@@ -1,9 +1,7 @@
 'use client';
 
-import { Archive, Target } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useState, type CSSProperties } from 'react';
-import { Button } from '@/components/ui';
 import { useCategoryTags } from '@/features/categories';
 import { toAlphaColor } from '@/lib/color';
 import {
@@ -32,6 +30,10 @@ import { GoalGrid } from './goal-grid';
 import { GoalCard } from './goal-card';
 import { GoalGroupDetailHeader, GoalDetailHeader } from './goal-detail-headers';
 import { ArchivedGoalDetailCard, GoalDetailCard } from './goal-detail-card';
+import {
+  GoalsOverviewToolbar,
+  type GoalsOverviewView,
+} from './goals-overview-toolbar';
 
 export function GoalsSurface() {
   const { dictionary, scope } = useAppContext();
@@ -68,7 +70,7 @@ export function GoalsSurface() {
     () => new Map(stepCategoryTags.map((tag) => [tag.id, tag])),
     [stepCategoryTags],
   );
-  const [view, setView] = useState<'active' | 'archived'>('active');
+  const [view, setView] = useState<GoalsOverviewView>('active');
   const selectedGoal = selectedGoalId
     ? ([...activeGoals, ...archivedGoals].find(
         (goal) => goal.id === selectedGoalId,
@@ -291,6 +293,7 @@ export function GoalsSurface() {
   return (
     <>
       <section className="grid gap-4 pt-4 sm:pt-5 lg:pt-6">
+        <GoalsOverviewToolbar view={view} onViewChange={setView} />
         {view === 'archived' ? (
           archivedGoalGroups.length > 0 ? (
             <div className="grid gap-5">
@@ -364,90 +367,62 @@ export function GoalsSurface() {
             </p>
           )
         ) : (
-          <>
-            <div
-              className={`grid gap-3 rounded-[1.35rem] md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 ${
-                dragTarget?.type === 'ungrouped' &&
-                activeDragPayload?.type === 'goal'
-                  ? 'inset-ring-hairline inset-ring-[#f0c38e]/45'
-                  : ''
-              }`}
-              data-ungrouped-drop-zone="true"
-            >
-              {groups.map((group) => {
-                const groupGoals = activeGoals.filter(
-                  (goal) => goal.groupId === group.id,
-                );
+          <div
+            className={`grid gap-3 rounded-[1.35rem] md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 ${
+              dragTarget?.type === 'ungrouped' &&
+              activeDragPayload?.type === 'goal'
+                ? 'inset-ring-hairline inset-ring-[#f0c38e]/45'
+                : ''
+            }`}
+            data-ungrouped-drop-zone="true"
+          >
+            {groups.map((group) => {
+              const groupGoals = activeGoals.filter(
+                (goal) => goal.groupId === group.id,
+              );
 
-                return (
-                  <GoalGroupCard
-                    key={group.id}
-                    activeDragPayload={activeDragPayload}
-                    category={groupCategoryMap.get(group.categoryTagId ?? '')}
-                    dragTarget={dragTarget}
-                    goals={groupGoals}
-                    group={group}
-                    goalCategoryMap={goalCategoryMap}
-                    summaries={goalStepSummaries}
-                    onBeginPointerDrag={beginPointerDrag}
-                    onOpen={openGroup}
-                  />
-                );
-              })}
-
-              {ungroupedActiveGoals.map((goal) => (
-                <GoalCard
-                  key={goal.id}
+              return (
+                <GoalGroupCard
+                  key={group.id}
                   activeDragPayload={activeDragPayload}
-                  archived={false}
+                  category={groupCategoryMap.get(group.categoryTagId ?? '')}
                   dragTarget={dragTarget}
-                  goal={goal}
-                  goalCategory={goalCategoryMap.get(goal.categoryTagId ?? '')}
-                  groups={groups}
-                  summary={getGoalStepSummary(goalStepSummaries, goal.id)}
+                  goals={groupGoals}
+                  group={group}
+                  goalCategoryMap={goalCategoryMap}
+                  summaries={goalStepSummaries}
                   onBeginPointerDrag={beginPointerDrag}
-                  onComplete={archiveGoalAndOpenArchived}
-                  onCreateGroup={(goalId) => setPendingSingleGoalGroup(goalId)}
-                  onMoveGoal={(goalId, groupId) =>
-                    moveGoalToGroup({ scope, goalId, groupId })
-                  }
-                  onOpen={openGoal}
+                  onOpen={openGroup}
                 />
-              ))}
+              );
+            })}
 
-              <NewEntityCard
-                label={dictionary.goals.newGoalTitle}
-                onClick={() => void createGoalCard(null)}
+            {ungroupedActiveGoals.map((goal) => (
+              <GoalCard
+                key={goal.id}
+                activeDragPayload={activeDragPayload}
+                archived={false}
+                dragTarget={dragTarget}
+                goal={goal}
+                goalCategory={goalCategoryMap.get(goal.categoryTagId ?? '')}
+                groups={groups}
+                summary={getGoalStepSummary(goalStepSummaries, goal.id)}
+                onBeginPointerDrag={beginPointerDrag}
+                onComplete={archiveGoalAndOpenArchived}
+                onCreateGroup={(goalId) => setPendingSingleGoalGroup(goalId)}
+                onMoveGoal={(goalId, groupId) =>
+                  moveGoalToGroup({ scope, goalId, groupId })
+                }
+                onOpen={openGoal}
               />
-            </div>
+            ))}
 
-            <div className="grid gap-3">
-              <div aria-hidden="true" className="h-px w-full bg-white/10" />
-              <Button
-                className="min-h-10 w-fit rounded-full inset-ring-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-[#f8f3ea] shadow-sm shadow-[#253241]/10 hover:-translate-y-0.5 hover:inset-ring-white/20 hover:bg-white/10 hover:shadow-md focus-visible:outline-[#f7d9b0]"
-                tone="subtle"
-                onClick={() => setView('archived')}
-              >
-                <Archive aria-hidden="true" className="size-4 text-[#f0c38e]" />
-                {dictionary.goals.archivedGoals}
-              </Button>
-            </div>
-          </>
-        )}
-
-        {view === 'archived' ? (
-          <div className="grid gap-3">
-            <div aria-hidden="true" className="h-px w-full bg-white/10" />
-            <Button
-              className="min-h-10 w-fit rounded-full inset-ring-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-[#f8f3ea] shadow-sm shadow-[#253241]/10 hover:-translate-y-0.5 hover:inset-ring-white/20 hover:bg-white/10 hover:shadow-md focus-visible:outline-[#f7d9b0]"
-              tone="subtle"
-              onClick={() => setView('active')}
-            >
-              <Target aria-hidden="true" className="size-4 text-[#f0c38e]" />
-              {dictionary.goals.activeGoals}
-            </Button>
+            <NewEntityCard
+              label={dictionary.goals.newGoalTitle}
+              onClick={() => void createGoalCard(null)}
+            />
           </div>
-        ) : null}
+        )}
       </section>
 
       {pendingGoalCombine || pendingSingleGoalGroup ? (

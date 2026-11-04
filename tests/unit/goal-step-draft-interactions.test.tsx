@@ -531,6 +531,9 @@ describe('GoalsSurface', () => {
       });
     });
     expect(routerPushMock).toHaveBeenCalledWith('/goals');
-    expect(screen.getByRole('button', { name: 'Active' })).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Archived' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
   });
 });

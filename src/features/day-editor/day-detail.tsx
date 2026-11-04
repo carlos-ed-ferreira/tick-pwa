@@ -3,7 +3,6 @@
 import { ArrowLeft } from 'lucide-react';
 import { useCallback } from 'react';
 import { ChecklistSurface } from '@/features/checklist';
-import { CalendarTaskTransferAction } from '@/features/calendar/calendar-task-transfer-action';
 import {
   duplicateChecklistItemsToDate,
   moveChecklistItemsToDate,
@@ -12,6 +11,7 @@ import type { LocalDateString } from '@/lib/domain';
 import { formatLocalDateLabel } from '@/lib/i18n';
 import { parseLocalDateKey } from '@/lib/time';
 import { useAppContext } from '@/providers';
+import { DayActions } from './day-actions';
 import { useDayEntry } from './use-day-entry';
 
 function createDateLabelDate(date: LocalDateString): Date {
@@ -86,13 +86,11 @@ export function DayDetail({
             {title}
           </h2>
           {entry ? (
-            <div className="flex shrink-0 flex-wrap items-center gap-2">
-              <CalendarTaskTransferAction
-                sourceDate={date}
-                onDuplicateToDate={handleDuplicateDay}
-                onMoveToDate={handleMoveDay}
-              />
-            </div>
+            <DayActions
+              date={date}
+              onDuplicateToDate={handleDuplicateDay}
+              onMoveToDate={handleMoveDay}
+            />
           ) : null}
         </div>
         {showBackAction && onBack ? (

@@ -151,6 +151,7 @@ test('saves a category name even when its modal closes before blur', async ({
   isMobile,
 }) => {
   await enterLocalMode(page);
+  await page.goto('/calendar?day=2026-05-21');
   await openCategoryManager(page, Boolean(isMobile));
 
   const categoryName = page

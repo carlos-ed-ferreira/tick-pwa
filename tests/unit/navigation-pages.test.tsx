@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, render, screen } from '@testing-library/react';
 import type {
   AnchorHTMLAttributes,
   ButtonHTMLAttributes,
@@ -137,23 +137,59 @@ describe('navigation labels and icons', () => {
     ).toBeTruthy();
   });
 
-  it('places the sync control before the calendar and goals selector', async () => {
+  it('keeps only the section links inside the centered selector and the sync control among the actions', async () => {
     const { default: CalendarPage } = await import('@/app/calendar/page');
     const { default: GoalsPage } = await import('@/app/goals/page');
 
-    const { container: calendarContainer, unmount } = render(<CalendarPage />);
+    for (const Page of [CalendarPage, GoalsPage]) {
+      const { container, unmount } = render(<Page />);
+      const navigation = container.querySelector('nav');
+      const actions = container.querySelector('[data-header-actions]');
 
-    expect(
-      calendarContainer.querySelector('nav')?.firstElementChild,
-    ).toHaveAttribute('data-testid', 'sync-control');
+      expect(navigation?.querySelectorAll('a')).toHaveLength(2);
+      expect(
+        navigation?.querySelector('[data-testid="sync-control"]'),
+      ).toBeNull();
+      expect(
+        actions?.querySelector('[data-testid="sync-control"]'),
+      ).not.toBeNull();
 
-    unmount();
+      unmount();
+    }
+  });
 
-    const { container: goalsContainer } = render(<GoalsPage />);
+  it('renders the section selector as filled pills without borders', async () => {
+    const { default: CalendarPage } = await import('@/app/calendar/page');
 
-    expect(
-      goalsContainer.querySelector('nav')?.firstElementChild,
-    ).toHaveAttribute('data-testid', 'sync-control');
+    const { container } = render(<CalendarPage />);
+    const selector = container.querySelector('.app-bottom-nav');
+    const activeLink = screen.getByRole('link', { name: 'Tarefas do dia' });
+    const inactiveLink = screen.getByRole('link', { name: 'Metas' });
+
+    expect(selector).toHaveClass('rounded-full');
+    expect(selector?.className).not.toContain('inset-ring');
+    expect(activeLink).toHaveClass('rounded-full', 'bg-[#f0c38e]');
+    expect(activeLink.className).not.toContain('inset-ring');
+    expect(inactiveLink).toHaveClass('rounded-full');
+    expect(inactiveLink.className).not.toContain('inset-ring');
+  });
+
+  it('does not offer categories in the header of either section', async () => {
+    const { default: CalendarPage } = await import('@/app/calendar/page');
+    const { default: GoalsPage } = await import('@/app/goals/page');
+
+    for (const Page of [CalendarPage, GoalsPage]) {
+      const { unmount } = render(<Page />);
+
+      expect(
+        screen.queryByRole('button', { name: 'Categorias' }),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole('button', { name: 'Mais opções' }),
+      ).not.toBeInTheDocument();
+
+      unmount();
+    }
   });
 });
 
@@ -178,20 +214,5 @@ describe('touch navigation bar', () => {
     expect(screen.getByRole('link', { name: 'Metas' }).className).toContain(
       'touch-target',
     );
-  });
-
-  it('offers categories and language inside the overflow sheet on touch', async () => {
-    const { default: CalendarPage } = await import('@/app/calendar/page');
-
-    render(<CalendarPage />);
-
-    const trigger = screen.getByRole('button', { name: 'Mais opções' });
-
-    fireEvent.click(trigger);
-
-    expect(screen.getByRole('dialog', { name: 'Mais opções' })).toBeTruthy();
-    expect(
-      screen.getAllByRole('button', { name: 'Categorias' }).length,
-    ).toBeGreaterThan(0);
   });
 });

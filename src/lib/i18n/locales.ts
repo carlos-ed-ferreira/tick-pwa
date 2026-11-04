@@ -12,6 +12,11 @@ export const LOCALE_LABELS: Record<SupportedLocale, string> = {
   en: 'English',
 };
 
+export const LOCALE_SHORT_LABELS: Record<SupportedLocale, string> = {
+  'pt-BR': 'PT-BR',
+  en: 'EN',
+};
+
 export function isSupportedLocale(locale: string): locale is SupportedLocale {
   return SUPPORTED_LOCALES.includes(locale as SupportedLocale);
 }

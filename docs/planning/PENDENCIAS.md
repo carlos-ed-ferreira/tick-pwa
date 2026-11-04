@@ -124,17 +124,6 @@ já foi aprovado; isso não comprova regularidade diária.
 - [ ] Conferir o RPO operacional aceito de 26 horas; o RTO aceito é de 30 minutos
       para restore isolado, não para recuperação completa da produção.
 
-### OPS-02 — Validar sincronização em Safari macOS/iOS
-
-**P2 · validação obrigatória antes de ampliar convidados.** Origem: antigo
-plano, passo 2. O aceite de interface de toque em aparelhos físicos não prova
-sincronização no Safari.
-
-- [ ] Exercitar os cenários LF-05 em Safari macOS e iOS reais.
-- [ ] Incluir IndexedDB, Web Locks/fallback, fechamento e PWA instalada.
-- [ ] Registrar aparelho, sistema, navegador, rede, horário e resultado.
-- [ ] Corrigir divergências com RED/GREEN antes de ampliar a coorte.
-
 ### OPS-03 — Reavaliar geolocalização no Sentry
 
 **P2 · revisão antes de ampliar convidados.** Origem: runbooks de telemetria.
@@ -160,15 +149,6 @@ Os padrões analisados são arquivos/configuração do repositório, não entrad
 de usuários do aplicativo. Consultar `make audit-all`, confirmar o alcance e corrigir em mudança dedicada
 quando houver solução compatível. Não impor minimatch incompatível nem aceitar
 downgrade automático de ESLint para satisfazer a auditoria.
-
-### MAINT-03 — Reduzir hotspots ao alterar suas responsabilidades
-
-**P3 · incremental.** Origem: antigo plano e REVIEW.
-Áreas: `src/lib/db/goal-commands.ts`, `src/lib/db/checklist-commands.ts`,
-`src/features/checklist/checklist-surface.tsx`, `src/lib/db/database.ts` e
-`src/components/app/task-tree-editable-row.tsx`.
-Medir antes de modificar, preservar ratchet e extrair responsabilidades coesas;
-não fragmentar por LOC nem repetir a extração de metas já implementada.
 
 ## Automação dos gates de engenharia
 

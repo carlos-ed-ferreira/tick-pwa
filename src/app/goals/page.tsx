@@ -1,15 +1,10 @@
 'use client';
 
-import { useState } from 'react';
 import { AppHeader } from '@/components/app';
 import { AuthGate } from '@/features/auth';
 import { GoalsSurface } from '@/features/goals';
-import { CategoryManagerDialog } from '@/features/categories';
-import { useAppContext } from '@/providers';
 
 export default function GoalsPage() {
-  const { dictionary } = useAppContext();
-  const [isCategoryManagerOpen, setIsCategoryManagerOpen] = useState(false);
   return (
     <AuthGate>
       <main className="app-safe-padding relative isolate min-h-dvh overflow-hidden bg-background pt-5 text-foreground [--app-safe-padding-block-end:calc(1.25rem+var(--app-bottom-nav-height))] [--app-safe-padding-inline:1rem] sm:[--app-safe-padding-inline:1.5rem] lg:[--app-safe-padding-inline:2rem]">
@@ -22,18 +17,9 @@ export default function GoalsPage() {
           }}
         />
         <div className="relative mx-auto flex w-full max-w-[1280px] flex-col gap-4">
-          <AppHeader
-            activeSection="goals"
-            onOpenCategories={() => setIsCategoryManagerOpen(true)}
-          />
+          <AppHeader activeSection="goals" />
           <GoalsSurface />
         </div>
-        <CategoryManagerDialog
-          open={isCategoryManagerOpen}
-          surface="goal"
-          title={dictionary.goals.editCategories}
-          onClose={() => setIsCategoryManagerOpen(false)}
-        />
       </main>
     </AuthGate>
   );

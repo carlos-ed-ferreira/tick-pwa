@@ -438,10 +438,10 @@ describe('GoalsSurface', () => {
       });
     });
     expect(routerPushMock).toHaveBeenCalledWith('/goals');
-    expect(screen.getByRole('button', { name: 'Archived' })).toBeVisible();
-    expect(
-      screen.queryByRole('button', { name: 'Active' }),
-    ).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Active' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
   });
 
   it('asks for confirmation before archiving a goal from the card menu', async () => {
@@ -462,7 +462,10 @@ describe('GoalsSurface', () => {
       });
     });
     expect(routerPushMock).toHaveBeenCalledWith('/goals');
-    expect(screen.getByRole('button', { name: 'Active' })).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Archived' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
   });
 
   it('renders the uncategorized goal trigger as an action box in the goal header', () => {

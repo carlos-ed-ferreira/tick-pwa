@@ -77,6 +77,9 @@ vi.mock('@/providers', () => ({
         title: 'Day editor',
         backToCalendar: 'Back to calendar',
       },
+      navigation: {
+        categories: 'Categories',
+      },
     },
     locale: 'en',
     scope,
@@ -85,6 +88,7 @@ vi.mock('@/providers', () => ({
 }));
 
 vi.mock('@/features/categories', () => ({
+  CategoryManagerAction: () => null,
   useCategoryTags: () => [
     { id: 'category-1', colorHex: '#f43f5e' },
     { id: 'category-2', colorHex: '#22c55e' },

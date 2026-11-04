@@ -124,8 +124,9 @@ Três composições próprias de toque:
 - **Linha de tarefa e de etapa**: checkbox, texto, alça de arrasto e `⋯`. Todas
   as demais ações, inclusive hora e data, vivem em `TaskTreeRowActionsSheet`,
   com alvos de 44px e categoria sem depender de hover.
-- **Shell**: cabeçalho de uma linha e navegação fixa no rodapé, com categorias
-  e idioma em folha inferior.
+- **Shell**: cabeçalho de uma linha com logo, sincronização, idioma e saída, e
+  navegação fixa no rodapé. As categorias de tarefas ficam no cabeçalho do dia;
+  as de metas, na barra da visão geral de Metas e nos cabeçalhos de grupo e meta.
 
 Regras derivadas:
 

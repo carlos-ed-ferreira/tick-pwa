@@ -18,7 +18,10 @@ import {
 } from 'react';
 import { DatePicker, TaskTreeClearCategoryIcon } from '@/components/app';
 import { ConfirmationDialog, IconButton, Input } from '@/components/ui';
-import { CategoryAssignmentMenu } from '@/features/categories';
+import {
+  CategoryAssignmentMenu,
+  CategoryManagerAction,
+} from '@/features/categories';
 import { useDebouncedInlineEdit } from '@/hooks/use-debounced-inline-edit';
 import { toAlphaColor } from '@/lib/color';
 import {
@@ -124,6 +127,10 @@ export function GoalGroupDetailHeader({
     await softDeleteGoalGroup({ scope, goalGroupId: group.id });
     onDelete();
   }, [group.id, onDelete, scope]);
+  const assignCategory = (categoryTagId: string | null) =>
+    scope
+      ? assignGoalGroupCategory({ scope, goalGroupId: group.id, categoryTagId })
+      : undefined;
 
   return (
     <>
@@ -144,15 +151,7 @@ export function GoalGroupDetailHeader({
             </span>
           ) : null}
           <CategoryColorButton
-            onAssign={(categoryTagId) =>
-              scope
-                ? assignGoalGroupCategory({
-                    scope,
-                    goalGroupId: group.id,
-                    categoryTagId,
-                  })
-                : undefined
-            }
+            onAssign={assignCategory}
             scope={scope}
             selectedCategory={groupCategory}
             surface="goal_group"
@@ -170,15 +169,7 @@ export function GoalGroupDetailHeader({
             selectedCategoryTagId={group.categoryTagId}
             surface="goal_group"
             triggerClassName="inline-flex size-10 shrink-0 items-center justify-center rounded-md inset-ring-hairline inset-ring-white/10 bg-white/5 text-[#cbd5e0] shadow-sm shadow-[#253241]/10 hover:-translate-y-0.5 hover:inset-ring-white/20 hover:bg-white/10 hover:text-[#fff9f2] focus-visible:outline-[#f7d9b0] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0 disabled:hover:inset-ring-white/10 disabled:hover:bg-white/5 disabled:hover:text-[#cbd5e0]"
-            onAssign={(categoryTagId) => {
-              if (!scope) return;
-
-              return assignGoalGroupCategory({
-                scope,
-                goalGroupId: group.id,
-                categoryTagId,
-              });
-            }}
+            onAssign={assignCategory}
           />
           <IconButton
             aria-label={dictionary.goals.deleteGroup}
@@ -187,6 +178,10 @@ export function GoalGroupDetailHeader({
           >
             <Trash2 aria-hidden="true" className="size-4" />
           </IconButton>
+          <CategoryManagerAction
+            surface="goal"
+            title={dictionary.goals.editCategories}
+          />
         </div>
         <button
           type="button"
@@ -267,21 +262,17 @@ export function GoalDetailHeader({
     setIsGoalRestoreDialogOpen(false);
     await onRestore(goal.id);
   }, [goal.id, onRestore, scope]);
+  const assignCategory = (categoryTagId: string | null) =>
+    scope
+      ? assignGoalCategory({ scope, goalId: goal.id, categoryTagId })
+      : undefined;
 
   const detailActions = (
     <>
       {!isArchived ? (
         <>
           <CategoryColorButton
-            onAssign={(categoryTagId) =>
-              scope
-                ? assignGoalCategory({
-                    scope,
-                    goalId: goal.id,
-                    categoryTagId,
-                  })
-                : undefined
-            }
+            onAssign={assignCategory}
             scope={scope}
             selectedCategory={goalCategory}
             surface="goal"
@@ -299,14 +290,7 @@ export function GoalDetailHeader({
             selectedCategoryTagId={goal.categoryTagId}
             surface="goal"
             triggerClassName="inline-flex size-10 shrink-0 items-center justify-center rounded-md inset-ring-hairline inset-ring-white/10 bg-white/5 text-[#cbd5e0] shadow-sm shadow-[#253241]/10 hover:-translate-y-0.5 hover:inset-ring-white/20 hover:bg-white/10 hover:text-[#fff9f2] focus-visible:outline-[#f7d9b0] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0 disabled:hover:inset-ring-white/10 disabled:hover:bg-white/5 disabled:hover:text-[#cbd5e0]"
-            onAssign={(categoryTagId) => {
-              if (!scope) return;
-              return assignGoalCategory({
-                scope,
-                goalId: goal.id,
-                categoryTagId,
-              });
-            }}
+            onAssign={assignCategory}
           />
         </>
       ) : null}
@@ -373,6 +357,10 @@ export function GoalDetailHeader({
       >
         <Trash2 aria-hidden="true" className="size-4" />
       </IconButton>
+      <CategoryManagerAction
+        surface="goal"
+        title={dictionary.goals.editCategories}
+      />
     </>
   );
 
