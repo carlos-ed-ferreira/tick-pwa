@@ -50,6 +50,7 @@ vi.mock('next/link', () => ({
 }));
 
 vi.mock('@/components/ui', async () => ({
+  ...(await import('@/components/ui/filled-control')),
   BottomSheet: (await import('@/components/ui/bottom-sheet')).BottomSheet,
   BottomSheetAction: (await import('@/components/ui/bottom-sheet'))
     .BottomSheetAction,

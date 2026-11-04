@@ -2,8 +2,7 @@
 
 import { MoreHorizontal } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
-import { FilledIconButton } from '@/components/app';
-import { BottomSheet } from '@/components/ui';
+import { BottomSheet, FilledIconButton } from '@/components/ui';
 import { useAppContext } from '@/providers';
 
 export function GoalDetailActionsSheet({ children }: { children: ReactNode }) {

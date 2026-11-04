@@ -2,7 +2,7 @@
 
 import { Check, Cloud, CloudOff, LoaderCircle, RefreshCw } from 'lucide-react';
 import { useState } from 'react';
-import { headerRoundControlClassName } from '@/components/app/header-control';
+import { filledRoundControlClassName } from '@/components/ui';
 import { Tooltip } from '@/components/ui';
 import type { AppScope } from '@/lib/domain';
 import type { Dictionary } from '@/lib/i18n';
@@ -54,7 +54,7 @@ export function AccountSyncIndicator({
       <Tooltip content={statusLabel}>
         <button
           aria-label={`${statusLabel}. ${actionLabel}`}
-          className={`${headerRoundControlClassName} ${stateStyles[summary.state]}`}
+          className={`${filledRoundControlClassName} ${stateStyles[summary.state]}`}
           disabled={isSyncing}
           type="button"
           onClick={() => void forceSync()}

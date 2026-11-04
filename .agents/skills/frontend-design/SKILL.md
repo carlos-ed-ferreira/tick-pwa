@@ -63,6 +63,26 @@ O `<main>` pinta `bg-background` sobre o gradiente do `body`; em `/calendar` e
 `/goals` o que aparece é o overlay radial da própria página. Ajustar o fundo
 dessas telas ali, não apenas no `body`.
 
+## Desenhar controles
+
+- Botões são preenchidos e sem borda: pill quando têm texto e redondos quando
+  têm só ícone. Usar `filledPillControlClassName`, `filledRoundControlClassName`
+  e `FilledIconButton` de `src/components/ui`, com preenchimento neutro,
+  destaque em âmbar ou perigo em rose.
+- Controles preenchidos elevam levemente no hover, com
+  `hover:-translate-y-0.5` e `hover:shadow-md`.
+- Escolha entre opções exclusivas, como seções ou ativas e arquivadas, usa pill
+  tabs: `pillTabListClassName`, `pillTabClassName` e `activePillTabClassName`,
+  com a opção ativa em âmbar preenchido.
+- Ações de modal usam `ModalActionButton`, preenchido e sem borda; a ação
+  primária usa âmbar. O fechar do modal é redondo e preenchido.
+- Ícone-botão denso, como ações de linha e barra compacta, usa `IconButton`
+  com `rounded-full`, para o hover também ser redondo. O `IconButton` só aplica
+  `rounded-md` quando o `className` não define raio.
+- Voltar é pill com o texto curto do dicionário `actions.back`.
+- Campos de digitação, como input e textarea, mantêm o ring hairline como
+  afordância de campo.
+
 ## Projetar os estados
 
 Desenhar, no mesmo passo, carregamento, vazio, sucesso, erro, indisponibilidade
@@ -95,6 +115,7 @@ desenho precisa caber no texto mais longo dos dois idiomas.
 
 Registrar as escolhas de hierarquia, tokens, estados e composição mobile antes
 de implementar; implementar pela Skill `ui-consistency`; validar com
-`make lint`, `make test` e, quando o fluxo de navegador ou a responsividade
-forem afetados, `make test-e2e` e `make test-e2e-mobile`; registrar a evidência
-visual exigida pelo REVIEW nos dois tamanhos.
+`make test-file` durante o trabalho e `make check` ao concluir e, quando o
+layout, a responsividade ou o fluxo de navegador forem afetados, rodar uma vez
+`make test-e2e` e `make test-e2e-mobile`; registrar a evidência visual exigida
+pelo REVIEW nos dois tamanhos.

@@ -216,6 +216,10 @@ com `touch-target`, sem aumentar o tamanho pintado do controle. Controle com
 desenho menor que 44px precisa de `touch-target`. Interação por arrasto precisa
 de caminho equivalente no toque; HTML5 drag and drop sozinho não atende.
 
+Botões seguem o padrão preenchido e sem borda descrito na Skill
+`frontend-design`: pill com texto, redondo só com ícone. Campos de digitação
+mantêm o ring hairline.
+
 Reutilize primitives, tokens e padrões antes de criar componentes. Não force
 reutilização sem equivalência semântica. Preserve a linguagem visual e não
 redesenhe telas sem pedido.

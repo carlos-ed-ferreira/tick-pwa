@@ -3,7 +3,12 @@
 import { ArrowRightLeft, Copy, MoveRight, X } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
 import { DatePicker } from '@/components/app';
-import { Button, Dialog, ModalActionButton, toast } from '@/components/ui';
+import {
+  Dialog,
+  filledPillControlClassName,
+  ModalActionButton,
+  toast,
+} from '@/components/ui';
 import type { LocalDateString } from '@/lib/domain';
 import { formatLocalDateLabel } from '@/lib/i18n';
 import { parseLocalDateKey } from '@/lib/time';
@@ -82,15 +87,15 @@ export function CalendarTaskTransferAction({
 
   return (
     <>
-      <Button
-        tone="subtle"
+      <button
         aria-label={dictionary.calendar.transferItem}
-        className="rounded-full inset-ring-white/10 bg-white/5 px-4 text-[#fff9f2] shadow-sm shadow-[#253241]/10 hover:-translate-y-0.5 hover:inset-ring-white/20 hover:bg-white/10 hover:text-[#fff9f2] hover:shadow-md focus-visible:outline-[#f0c38e] active:translate-y-0"
+        className={filledPillControlClassName}
+        type="button"
         onClick={() => setIsOpen(true)}
       >
         <ArrowRightLeft aria-hidden="true" className="size-4" />
         <span>{dictionary.calendar.transferItem}</span>
-      </Button>
+      </button>
 
       <Dialog
         closeLabel={dictionary.actions.cancel}

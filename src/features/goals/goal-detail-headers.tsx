@@ -16,15 +16,15 @@ import {
   useState,
   type CSSProperties,
 } from 'react';
+import { DatePicker, TaskTreeClearCategoryIcon } from '@/components/app';
 import {
-  DatePicker,
+  ConfirmationDialog,
   FilledIconButton,
-  headerControlNeutralFillClassName,
-  headerPillControlClassName,
-  headerRoundControlClassName,
-  TaskTreeClearCategoryIcon,
-} from '@/components/app';
-import { ConfirmationDialog, Input } from '@/components/ui';
+  filledControlNeutralClassName,
+  filledPillControlClassName,
+  filledRoundControlClassName,
+  Input,
+} from '@/components/ui';
 import {
   CategoryAssignmentMenu,
   CategoryManagerAction,
@@ -51,7 +51,7 @@ import { GoalDetailActionsSheet } from './goal-detail-actions-sheet';
 import { useAppContext } from '@/providers';
 import { CategoryColorButton } from './goal-category-controls';
 
-const filledRoundControlClassName = `${headerRoundControlClassName} ${headerControlNeutralFillClassName}`;
+const neutralRoundControlClassName = `${filledRoundControlClassName} ${filledControlNeutralClassName}`;
 
 function GoalGroupTitleEditor({
   autoFocus,
@@ -167,7 +167,7 @@ export function GoalGroupDetailHeader({
           />
           <CategoryAssignmentMenu
             assignLabel={dictionary.goals.assignGroupCategory}
-            clearClassName={filledRoundControlClassName}
+            clearClassName={neutralRoundControlClassName}
             clearLabel={dictionary.goals.clearGroupCategory}
             renderClearContent={() => (
               <TaskTreeClearCategoryIcon className="size-4" />
@@ -177,7 +177,7 @@ export function GoalGroupDetailHeader({
             )}
             selectedCategoryTagId={group.categoryTagId}
             surface="goal_group"
-            triggerClassName={filledRoundControlClassName}
+            triggerClassName={neutralRoundControlClassName}
             onAssign={assignCategory}
           />
           <FilledIconButton
@@ -194,7 +194,7 @@ export function GoalGroupDetailHeader({
         </div>
         <button
           type="button"
-          className={`${headerPillControlClassName} w-fit`}
+          className={`${filledPillControlClassName} w-fit`}
           onClick={onBack}
         >
           <ArrowLeft aria-hidden="true" className="size-4" />
@@ -288,7 +288,7 @@ export function GoalDetailHeader({
           />
           <CategoryAssignmentMenu
             assignLabel={dictionary.goals.assignGoalCategory}
-            clearClassName={filledRoundControlClassName}
+            clearClassName={neutralRoundControlClassName}
             clearLabel={dictionary.goals.clearGoalCategory}
             renderClearContent={() => (
               <TaskTreeClearCategoryIcon className="size-4" />
@@ -298,7 +298,7 @@ export function GoalDetailHeader({
             )}
             selectedCategoryTagId={goal.categoryTagId}
             surface="goal"
-            triggerClassName={filledRoundControlClassName}
+            triggerClassName={neutralRoundControlClassName}
             onAssign={assignCategory}
           />
         </>
@@ -409,7 +409,7 @@ export function GoalDetailHeader({
         </div>
         <button
           type="button"
-          className={`${headerPillControlClassName} w-fit`}
+          className={`${filledPillControlClassName} w-fit`}
           onClick={onBack}
         >
           <ArrowLeft aria-hidden="true" className="size-4" />

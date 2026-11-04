@@ -98,8 +98,8 @@ describe('CalendarTaskTransferAction', () => {
     });
 
     expect(moveButton).toHaveClass('h-8', 'rounded-full');
-    expect(moveButton).toHaveClass('bg-[#5f7388]/32');
-    expect(moveButton).not.toHaveClass('bg-white/[0.055]');
+    expect(moveButton).toHaveClass('bg-[#5f7388]/40');
+    expect(moveButton.className).not.toContain('inset-ring');
     expect(duplicateButton).toHaveClass('h-8', 'rounded-full');
     expect(moveButton.querySelector('svg')).toBeInTheDocument();
     expect(duplicateButton.querySelector('svg')).toBeInTheDocument();

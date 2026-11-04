@@ -1,16 +1,16 @@
 import { forwardRef, type ButtonHTMLAttributes, type ReactNode } from 'react';
-import { Tooltip } from '@/components/ui';
+import { Tooltip } from './tooltip';
 import {
-  headerControlAccentFillClassName,
-  headerControlDangerFillClassName,
-  headerControlNeutralFillClassName,
-  headerRoundControlClassName,
-} from './header-control';
+  filledControlAccentClassName,
+  filledControlDangerClassName,
+  filledControlNeutralClassName,
+  filledRoundControlClassName,
+} from './filled-control';
 
 const fillClassNames = {
-  accent: headerControlAccentFillClassName,
-  danger: headerControlDangerFillClassName,
-  neutral: headerControlNeutralFillClassName,
+  accent: filledControlAccentClassName,
+  danger: filledControlDangerClassName,
+  neutral: filledControlNeutralClassName,
 } as const;
 
 export const FilledIconButton = forwardRef<
@@ -37,7 +37,7 @@ export const FilledIconButton = forwardRef<
       <button
         ref={ref}
         aria-label={ariaLabel}
-        className={`${headerRoundControlClassName} ${fillClassNames[fill]}`}
+        className={`${filledRoundControlClassName} ${fillClassNames[fill]}`}
         type={type}
         {...props}
       >

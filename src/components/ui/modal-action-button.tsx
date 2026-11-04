@@ -8,13 +8,13 @@ export type ModalActionButtonTone =
 
 const toneClassNames: Record<ModalActionButtonTone, string> = {
   neutral:
-    'inset-ring-hairline inset-ring-white/10 bg-white/[0.055] text-[#cbd5e0] hover:inset-ring-white/20 hover:bg-white/[0.1] hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]',
+    'bg-white/8 text-[#f8f3ea] shadow-[#253241]/10 hover:bg-white/12 hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]',
   secondary:
-    'inset-ring-hairline inset-ring-[#a4b5c7]/30 bg-[#5f7388]/32 text-[#fff9f2] hover:inset-ring-[#b3c3d7]/45 hover:bg-[#657f9b]/42 focus-visible:outline-[#b3c3d7]',
+    'bg-[#5f7388]/40 text-[#fff9f2] shadow-[#253241]/10 hover:bg-[#657f9b]/52 focus-visible:outline-[#b3c3d7]',
   accent:
-    'inset-ring-hairline inset-ring-[#f8d7aa]/70 bg-[#f0c38e] text-[#253241] shadow-[#f0c38e]/18 hover:inset-ring-[#ffe0b8] hover:bg-[#f5d09f] focus-visible:outline-[#f0c38e]',
+    'bg-[#f0c38e] text-[#253241] shadow-[#f0c38e]/18 hover:bg-[#f5d09f] focus-visible:outline-[#f0c38e]',
   danger:
-    'inset-ring-hairline inset-ring-rose-300/20 bg-rose-500/90 text-rose-50 shadow-rose-500/20 hover:inset-ring-rose-200/30 hover:bg-rose-500 focus-visible:outline-rose-200',
+    'bg-rose-500/90 text-rose-50 shadow-rose-500/20 hover:bg-rose-500 focus-visible:outline-rose-200',
 };
 
 export function ModalActionButton({
@@ -30,7 +30,7 @@ export function ModalActionButton({
   return (
     <button
       type={type}
-      className={`touch-target inline-flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-full px-3 text-sm font-medium shadow-sm transition focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${toneClassNames[tone]} ${className}`}
+      className={`touch-target inline-flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-full px-3 text-sm font-medium shadow-sm transition hover:-translate-y-0.5 hover:shadow-md active:translate-y-0 disabled:hover:translate-y-0 focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${toneClassNames[tone]} ${className}`}
       {...props}
     >
       {children}

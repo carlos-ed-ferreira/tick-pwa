@@ -232,7 +232,7 @@ export function DatePicker({
         <IconButton
           aria-label={dictionary.calendar.previousMonth}
           size="compact"
-          className="rounded-full bg-white/[0.045] text-[#aebac8] hover:bg-white/[0.1] hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
+          className="rounded-full bg-white/8 text-[#aebac8] hover:bg-white/12 hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
           onClick={() => setMonthDate((current) => moveMonth(current, -1))}
         >
           <ChevronLeft aria-hidden="true" className="size-4" />
@@ -243,7 +243,7 @@ export function DatePicker({
         <IconButton
           aria-label={dictionary.calendar.nextMonth}
           size="compact"
-          className="rounded-full bg-white/[0.045] text-[#aebac8] hover:bg-white/[0.1] hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
+          className="rounded-full bg-white/8 text-[#aebac8] hover:bg-white/12 hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
           onClick={() => setMonthDate((current) => moveMonth(current, 1))}
         >
           <ChevronRight aria-hidden="true" className="size-4" />

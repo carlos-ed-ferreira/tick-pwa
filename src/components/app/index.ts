@@ -1,6 +1,5 @@
 export * from './app-header';
-export * from './filled-icon-button';
-export * from './header-control';
+export * from '@/components/ui';
 export * from './language-switcher';
 export * from './date-picker';
 export * from './dropdown-join-shape';

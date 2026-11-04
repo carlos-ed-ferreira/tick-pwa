@@ -1,12 +1,12 @@
-const headerControlBaseClassName =
+const filledControlBaseClassName =
   'touch-target inline-flex shrink-0 items-center justify-center rounded-full shadow-sm shadow-[#253241]/10 transition hover:-translate-y-0.5 hover:shadow-md active:translate-y-0 focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-60';
 
-export const headerControlNeutralFillClassName =
+export const filledControlNeutralClassName =
   'bg-white/8 text-[#f8f3ea] hover:bg-white/12 focus-visible:outline-[#f7d9b0]';
 
-export const headerRoundControlClassName = `${headerControlBaseClassName} size-10`;
+export const filledRoundControlClassName = `${filledControlBaseClassName} size-10`;
 
-export const headerPillControlClassName = `${headerControlBaseClassName} ${headerControlNeutralFillClassName} h-10 gap-1.5 px-3.5 text-sm font-medium`;
+export const filledPillControlClassName = `${filledControlBaseClassName} ${filledControlNeutralClassName} h-10 gap-1.5 px-3.5 text-sm font-medium`;
 
 export const pillTabListClassName =
   'flex items-center gap-1 rounded-full bg-white/6 p-1 shadow-sm shadow-[#253241]/10';
@@ -18,8 +18,8 @@ export const activePillTabClassName = `${pillTabBaseClassName} bg-[#f0c38e] font
 
 export const pillTabClassName = `${pillTabBaseClassName} font-medium text-[#b4c1ce] hover:bg-white/8 hover:text-[#fff9f2]`;
 
-export const headerControlDangerFillClassName =
+export const filledControlDangerClassName =
   'bg-rose-400/14 text-rose-100 hover:bg-rose-400/22 hover:text-rose-50 focus-visible:outline-rose-200';
 
-export const headerControlAccentFillClassName =
+export const filledControlAccentClassName =
   'bg-[#f0c38e]/14 text-[#f7d7ad] hover:bg-[#f0c38e]/22 hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]';

@@ -2,7 +2,7 @@
 
 import { Tags } from 'lucide-react';
 import { useState } from 'react';
-import { headerPillControlClassName } from '@/components/app/header-control';
+import { filledPillControlClassName } from '@/components/ui';
 import type { CategoryTagSurface } from '@/lib/domain';
 import { useAppContext } from '@/providers';
 import { CategoryManagerDialog } from './category-manager';
@@ -20,7 +20,7 @@ export function CategoryManagerAction({
   return (
     <>
       <button
-        className={headerPillControlClassName}
+        className={filledPillControlClassName}
         type="button"
         onClick={() => setIsOpen(true)}
       >

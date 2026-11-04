@@ -5,7 +5,7 @@ import {
   activePillTabClassName,
   pillTabClassName,
   pillTabListClassName,
-} from '@/components/app/header-control';
+} from '@/components/ui';
 import { CategoryManagerAction } from '@/features/categories';
 import { useAppContext } from '@/providers';
 

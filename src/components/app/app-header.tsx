@@ -8,7 +8,7 @@ import {
   activePillTabClassName,
   pillTabClassName,
   pillTabListClassName,
-} from '@/components/app/header-control';
+} from '@/components/ui';
 import { LanguageSwitcher } from '@/components/app/language-switcher';
 import { AccountStatus } from '@/features/auth/account-status';
 import { AccountSyncIndicator } from '@/features/auth/account-sync-indicator';

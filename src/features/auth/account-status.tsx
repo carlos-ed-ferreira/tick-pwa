@@ -2,10 +2,10 @@
 
 import { Cloud, LogOut } from 'lucide-react';
 import {
-  headerPillControlClassName,
-  headerRoundControlClassName,
-  headerControlNeutralFillClassName,
-} from '@/components/app/header-control';
+  filledPillControlClassName,
+  filledRoundControlClassName,
+  filledControlNeutralClassName,
+} from '@/components/ui';
 import { Tooltip } from '@/components/ui';
 import { useAppContext } from '@/providers';
 
@@ -27,7 +27,7 @@ export function AccountStatus() {
       >
         <button
           aria-label={dictionary.auth.signOut}
-          className={`${headerRoundControlClassName} ${headerControlNeutralFillClassName}`}
+          className={`${filledRoundControlClassName} ${filledControlNeutralClassName}`}
           type="button"
           onClick={signOut}
         >
@@ -44,7 +44,7 @@ export function AccountStatus() {
           {dictionary.auth.localModeBadge}
         </span>
         <button
-          className={headerPillControlClassName}
+          className={filledPillControlClassName}
           type="button"
           onClick={openAuthEntry}
         >

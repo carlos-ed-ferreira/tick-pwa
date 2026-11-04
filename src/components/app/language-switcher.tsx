@@ -12,7 +12,7 @@ import {
   SUPPORTED_LOCALES,
 } from '@/lib/i18n';
 import { useAppContext } from '@/providers';
-import { headerPillControlClassName } from './header-control';
+import { filledPillControlClassName } from '@/components/ui';
 
 const menuPreferredWidth = 224;
 const menuOptionHeight = 40;
@@ -104,7 +104,7 @@ export function LanguageSwitcher() {
         aria-expanded={isOpen}
         aria-haspopup="menu"
         aria-label={label}
-        className={headerPillControlClassName}
+        className={filledPillControlClassName}
         disabled={!isReady}
         type="button"
         onClick={() => (isOpen ? closeMenu() : openMenu())}

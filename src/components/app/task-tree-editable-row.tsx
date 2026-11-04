@@ -686,7 +686,7 @@ export function TaskTreeEditableRow({
         <button
           type="button"
           aria-label={ariaLabel}
-          className="ml-2 flex h-6 w-16 shrink-0 items-center justify-center gap-1 rounded-lg inset-ring-hairline inset-ring-white/10 bg-white/4.5 px-1.5 text-center text-xs font-medium tabular-nums text-[#fff9f2] outline-none transition hover:inset-ring-white/20 hover:bg-white/6.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e] touch:ml-0 touch:h-11 touch:w-full touch:text-sm"
+          className="ml-2 flex h-6 w-16 shrink-0 items-center justify-center gap-1 rounded-full bg-white/8 px-1.5 text-center text-xs font-medium tabular-nums text-[#fff9f2] outline-none transition hover:bg-white/12 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e] touch:ml-0 touch:h-11 touch:w-full touch:text-sm"
           onClick={onClick}
         >
           {scheduledDate ? (
