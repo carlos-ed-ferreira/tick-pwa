@@ -171,7 +171,7 @@ backup-restore-prepare:
 	docker pull public.ecr.aws/supabase/gotrue:v2.197.0
 	docker pull docker.io/supabase/storage-api:v1.81.0
 
-.PHONY: backup-status backup-log backup-artifacts backup-key-status
+.PHONY: backup-status backup-log backup-artifacts actions-artifact-download backup-key-status
 
 backup-key-status:
 	gh api repos/carlos-ed-ferreira/tick-pwa/environments/production/secrets/TICK_BACKUP_ENCRYPTION_KEY --jq '{name, created_at, updated_at}'
@@ -182,6 +182,10 @@ backup-status:
 backup-log:
 	@test -n "$(run)" || { printf "Erro: informe run=<run-id>.\n"; exit 2; }
 	gh run view "$(run)" --repo carlos-ed-ferreira/tick-pwa --log-failed
+
+actions-artifact-download:
+	@test -n "$(run)" && test -n "$(name)" && test -n "$(dir)" || { printf "Erro: informe run=<run-id> name=<artefato> dir=<pasta>.\n"; exit 2; }
+	gh run download "$(run)" --repo carlos-ed-ferreira/tick-pwa --name "$(name)" --dir "$(dir)"
 
 backup-artifacts:
 	@test -n "$(run)" || { printf "Erro: informe run=<run-id>.\n"; exit 2; }
@@ -232,6 +236,7 @@ help:
 	@printf "  %-26s %s\n" "make backup-key-status" "Consulta somente as datas do secret de cifra do backup"
 	@printf "  %-26s %s\n" "make backup-status" "Consulta as ultimas execucoes do backup no GitHub"
 	@printf "  %-26s %s\n" "make backup-log run=<run-id>" "Consulta o log de falha do backup no GitHub"
+	@printf "  %-26s %s\n" "make actions-artifact-download run=<run-id> name=<artefato> dir=<pasta>" "Baixa um artefato do Actions para uma pasta"
 	@printf "  %-26s %s\n" "make backup-artifacts run=<run-id>" "Confere os artefatos e a validade do backup no GitHub"
 	@printf "\n"
 	@printf "  %-26s %s\n" "make install" "Instala dependencias do projeto"
