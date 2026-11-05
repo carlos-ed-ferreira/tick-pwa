@@ -183,7 +183,10 @@ o verificador foi corrigido e coberto por testes. Com a correção, o App CI do
 `44cdc07` reprovou por um achado real, `js/file-system-race`, sem localização
 no log. O verificador passou a listar arquivo e linha de cada achado alto, e o
 par verificar-depois-escrever do relatório em `scripts/benchmark-cohort.mjs`
-foi removido.
+foi removido. O PR #51 passou, porque o CodeQL analisa só as linhas alteradas,
+mas o push do `571b204` na `main`, com análise completa, reprovou três
+`js/insecure-randomness` originados no fallback de UUID com `Math.random`. Os
+geradores de id passaram a usar `crypto.getRandomValues` nesse fallback.
 
 - [ ] Confirmar no próximo App CI que `Check security` passa; se reprovar,
       tratar cada achado pela localização informada.

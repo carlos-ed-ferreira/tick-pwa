@@ -1,5 +1,5 @@
 import type { Table } from 'dexie';
-import type { SyncEntityType } from '@/lib/domain';
+import { createRandomUuid, type SyncEntityType } from '@/lib/domain';
 import { db } from './database';
 
 export interface PersistedAccountEntity {
@@ -45,18 +45,7 @@ export function getAccountEntityTable(entityType: SyncEntityType) {
 }
 
 export function createOperationId(): string {
-  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
-    return crypto.randomUUID();
-  }
-
-  const values = Array.from({ length: 16 }, () =>
-    Math.floor(Math.random() * 256),
-  );
-  values[6] = (values[6] & 0x0f) | 0x40;
-  values[8] = (values[8] & 0x3f) | 0x80;
-  const hex = values.map((value) => value.toString(16).padStart(2, '0'));
-
-  return `${hex.slice(0, 4).join('')}-${hex.slice(4, 6).join('')}-${hex.slice(6, 8).join('')}-${hex.slice(8, 10).join('')}-${hex.slice(10).join('')}`;
+  return createRandomUuid();
 }
 
 export interface AccountEntityReference {
