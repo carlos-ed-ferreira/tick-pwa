@@ -280,6 +280,14 @@ describe('TaskTreeEditableRow', () => {
       expect(screen.getByRole('textbox', { name: 'Task time' })).toBeEnabled();
     });
 
+    it('keeps the selection button in place but disabled', () => {
+      renderRow({ isDraft: true, text: '' });
+
+      expect(
+        screen.getByRole('button', { name: 'Select item' }),
+      ).toBeDisabled();
+    });
+
     it('does not create a child from the keyboard', async () => {
       const callbacks = renderRow({ isDraft: true, text: '' });
 

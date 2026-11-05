@@ -486,7 +486,7 @@ describe('GoalsSurface', () => {
     expect(screen.getByDisplayValue('Existing step')).toBeInTheDocument();
   });
 
-  it('does not offer selection on goal steps that are still drafts', async () => {
+  it('keeps selection disabled on goal steps that are still drafts', async () => {
     useGoalStepTreeMock.mockReturnValue([goalStep()]);
 
     render(<GoalsSurface />);
@@ -504,8 +504,8 @@ describe('GoalsSurface', () => {
       .closest('[data-tree-row]');
 
     expect(
-      within(draftRow as HTMLElement).queryByLabelText('Select step'),
-    ).not.toBeInTheDocument();
+      within(draftRow as HTMLElement).getByLabelText('Select step'),
+    ).toBeDisabled();
   });
 
   it('creates a local goal step draft after flushing the edited row', async () => {

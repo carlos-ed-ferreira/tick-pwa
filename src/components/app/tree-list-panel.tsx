@@ -2,7 +2,12 @@
 
 import { Plus, X } from 'lucide-react';
 import { useState, type DragEvent, type ReactNode } from 'react';
-import { ConfirmationDialog, DashedRing } from '@/components/ui';
+import {
+  ConfirmationDialog,
+  DashedRing,
+  filledCompactPillControlClassName,
+  filledControlNeutralClassName,
+} from '@/components/ui';
 import { useFocusAfterCreate } from '@/hooks/use-focus-after-create';
 
 interface BulkDeleteDialog {
@@ -126,7 +131,7 @@ export function TreeListPanel({
                 {selectionActions}
                 <button
                   type="button"
-                  className="touch-target flex min-h-8 items-center gap-1.5 rounded-full bg-white/8 px-2.5 py-1 text-xs font-medium text-[#aebac8] shadow-sm transition hover:bg-white/12 hover:text-[#fff9f2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e]"
+                  className={`${filledCompactPillControlClassName} ${filledControlNeutralClassName}`}
                   onClick={onClearSelection}
                 >
                   <X aria-hidden="true" className="size-3.5" />
