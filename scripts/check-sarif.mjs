@@ -38,14 +38,23 @@ function findRule(result, components) {
   );
 }
 
-function assertSafeRule(rule) {
+function isHighSeverity(rule) {
   if (!rule) throw new Error('SARIF result has no rule.');
   const rawSeverity = rule.properties?.['security-severity'];
-  if (rawSeverity === undefined) return;
+  if (rawSeverity === undefined) return false;
   const severity = Number(rawSeverity);
   if (!Number.isFinite(severity)) throw new Error('Invalid SARIF severity.');
-  if (severity >= 7)
-    throw new Error(`High or critical security finding: ${rule.id}`);
+  return severity >= 7;
+}
+
+function describeLocation(result) {
+  const location = result.locations?.[0]?.physicalLocation;
+  const uri = location?.artifactLocation?.uri;
+
+  if (!uri) return '';
+
+  const line = location.region?.startLine;
+  return line ? ` at ${uri}:${line}` : ` at ${uri}`;
 }
 
 export function assertSafeSarif(report) {
@@ -56,12 +65,18 @@ export function assertSafeSarif(report) {
   ) {
     throw new Error('Missing or malformed SARIF report.');
   }
+  const findings = [];
   for (const run of report.runs) {
     const components = getRuleComponents(run);
     for (const result of run.results) {
-      assertSafeRule(findRule(result, components));
+      const rule = findRule(result, components);
+      if (isHighSeverity(rule))
+        findings.push(
+          `High or critical security finding: ${rule.id}${describeLocation(result)}`,
+        );
     }
   }
+  if (findings.length) throw new Error(findings.join('\n'));
 }
 
 function main(directory) {

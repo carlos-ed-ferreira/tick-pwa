@@ -33,6 +33,20 @@ const projectId = `tick-cohort-${process.pid}`;
 let cleanupSucceeded = false;
 if (databaseAction === 'benchmark') rmSync(reportPath, { force: true });
 
+function markCleanupCompleted(reportPath) {
+  let report;
+
+  try {
+    report = JSON.parse(readFileSync(reportPath, 'utf8'));
+  } catch (error) {
+    if (error.code === 'ENOENT') return;
+    throw error;
+  }
+
+  report.cleanupCompleted = true;
+  writeFileSync(reportPath, JSON.stringify(report, null, 2) + '\n');
+}
+
 async function make(target, args = [], { capture = false, env = {} } = {}) {
   return new Promise((resolve, reject) => {
     const child = spawn('make', ['--no-print-directory', target, ...args], {
@@ -247,10 +261,6 @@ try {
   }
   if (cleanupSucceeded) {
     rmSync(directory, { recursive: true, force: true });
-    if (databaseAction === 'benchmark' && existsSync(reportPath)) {
-      const report = JSON.parse(readFileSync(reportPath, 'utf8'));
-      report.cleanupCompleted = true;
-      writeFileSync(reportPath, JSON.stringify(report, null, 2) + '\n');
-    }
+    if (databaseAction === 'benchmark') markCleanupCompleted(reportPath);
   }
 }

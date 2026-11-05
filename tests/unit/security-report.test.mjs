@@ -68,6 +68,35 @@ describe('SAST release gate', () => {
       assertSafeSarif(codeqlReport('5.0', [packRuleReference])),
     ).not.toThrow();
   });
+  it('reports the location of every high finding without source content', () => {
+    const located = (uri, startLine) => ({
+      ...packRuleReference,
+      locations: [
+        {
+          physicalLocation: {
+            artifactLocation: { uri },
+            region: { startLine, snippet: { text: 'secret source' } },
+          },
+        },
+      ],
+    });
+    let message = '';
+
+    try {
+      assertSafeSarif(
+        codeqlReport('7.7', [
+          located('scripts/first.mjs', 12),
+          located('scripts/second.mjs', 40),
+        ]),
+      );
+    } catch (error) {
+      message = error.message;
+    }
+
+    expect(message).toContain('js/security-test at scripts/first.mjs:12');
+    expect(message).toContain('js/security-test at scripts/second.mjs:40');
+    expect(message).not.toContain('secret source');
+  });
   it('fails closed when a grouped finding points to an unknown rule', () => {
     expect(() =>
       assertSafeSarif(

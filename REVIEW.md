@@ -79,7 +79,8 @@ Playwright. Nova exceção exige comprovação de falso positivo. CodeQL executa
 `security-extended` no job de segurança, produz SARIF local ao runner e bloqueia
 severity de segurança ≥7. O gate resolve a regra de cada achado no `driver` e
 nos pacotes de consultas em `tool.extensions`, formato agrupado que o CodeQL do
-Actions produz. Relatório ausente/inválido ou achado sem regra reprova. Não há upload de
+Actions produz, e lista todos os achados altos com regra, arquivo e linha, sem
+trecho de código. Relatório ausente/inválido ou achado sem regra reprova. Não há upload de
 SARIF habilitado. `make check-sast` exige `.next/codeql` previamente produzido;
 o scanner completo é executado no Actions.
 

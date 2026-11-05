@@ -58,6 +58,19 @@ somente a aba atual.
 - [ ] Verificar resposta perdida durante push forçado e preservação das operações
       criadas enquanto o lote anterior está em trânsito.
 
+### LF-06 — Investigar instabilidade dos ensaios de conta com API real
+
+**P1 · investigação.** Origem: App CI de 2026-11-05. No `df80a15`, o ensaio de
+fechamento completo e reabertura offline excedeu 90 s; no `44cdc07`, a
+convergência de duas sessões terminou com a edição do primeiro dispositivo em
+vez da do segundo após o push forçado. Cada execução falhou em um teste
+diferente, e ambos passaram no `1fc3c42`.
+
+- [ ] Reexecutar o job e, se repetir, analisar o trace do Playwright publicado
+      como artefato.
+- [ ] Distinguir instabilidade do teste de corrida real entre push forçado,
+      drenagem e refresh canônico, relacionando com LF-04.
+
 ### LF-05 — Completar os ensaios integrados de conta sem rede
 
 **P2 · validação complementar.** O Chromium com API real isolada cobre
@@ -166,10 +179,14 @@ localmente. O repositório público preserva o plano GitHub Free. As primeiras
 execuções na `main` (`0669711` e `1fc3c42`) reprovaram no passo do gate, sem
 log recuperável pelo `gh`. A causa provável era o verificador não reconhecer as
 regras agrupadas por pacote em `tool.extensions`, formato do CodeQL do Actions;
-o verificador foi corrigido e coberto por testes.
+o verificador foi corrigido e coberto por testes. Com a correção, o App CI do
+`44cdc07` reprovou por um achado real, `js/file-system-race`, sem localização
+no log. O verificador passou a listar arquivo e linha de cada achado alto, e o
+par verificar-depois-escrever do relatório em `scripts/benchmark-cohort.mjs`
+foi removido.
 
-- [ ] Confirmar no próximo App CI da `main` que `Check security` passa ou, se
-      reprovar, que a mensagem aponta um achado alto/crítico real a tratar.
+- [ ] Confirmar no próximo App CI que `Check security` passa; se reprovar,
+      tratar cada achado pela localização informada.
 - [ ] Avaliar adicionar `Check security` ao ruleset remoto da `main`; o pipeline
       de produção já exige esse job e a execução completa aprovada.
 
