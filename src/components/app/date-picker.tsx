@@ -12,7 +12,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { IconButton, Input, ModalActionButton } from '@/components/ui';
+import { FormField, IconButton, ModalActionButton } from '@/components/ui';
 import type { LocalDateString } from '@/lib/domain';
 import {
   createLocalDateKey,
@@ -232,7 +232,7 @@ export function DatePicker({
         <IconButton
           aria-label={dictionary.calendar.previousMonth}
           size="compact"
-          className="rounded-full bg-white/[0.045] text-[#aebac8] hover:bg-white/[0.1] hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
+          className="rounded-full bg-white/8 text-[#aebac8] hover:bg-white/12 hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
           onClick={() => setMonthDate((current) => moveMonth(current, -1))}
         >
           <ChevronLeft aria-hidden="true" className="size-4" />
@@ -243,7 +243,7 @@ export function DatePicker({
         <IconButton
           aria-label={dictionary.calendar.nextMonth}
           size="compact"
-          className="rounded-full bg-white/[0.045] text-[#aebac8] hover:bg-white/[0.1] hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
+          className="rounded-full bg-white/8 text-[#aebac8] hover:bg-white/12 hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
           onClick={() => setMonthDate((current) => moveMonth(current, 1))}
         >
           <ChevronRight aria-hidden="true" className="size-4" />
@@ -321,44 +321,39 @@ export function DatePicker({
   }
 
   return (
-    <div
-      ref={fieldRef}
-      className="grid gap-2 text-sm font-medium text-[#fff9f2]"
-    >
-      <span>{label}</span>
-      <div className="relative">
-        <Input
-          ref={inputRef}
-          aria-label={label}
-          inputMode="numeric"
-          maxLength={10}
-          placeholder={placeholder}
-          value={value}
-          className="h-11 w-full rounded-xl inset-ring-hairline inset-ring-white/10 bg-white/[0.04] px-3 pr-11 text-sm text-[#fff9f2] outline-none transition placeholder:text-[#7b8da0] hover:inset-ring-white/[0.16] focus:inset-ring-[#f0c38e]/40 focus:bg-white/[0.06] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e]"
-          disabled={disabled}
-          onChange={(event) => {
-            const nextValue = maskDateInput(event.target.value);
-            const nextDate = parseDateInputValue(nextValue);
+    <div ref={fieldRef}>
+      <FormField
+        ref={inputRef}
+        disabled={disabled}
+        inputMode="numeric"
+        label={label}
+        maxLength={10}
+        placeholder={placeholder}
+        value={value}
+        endAdornment={
+          <IconButton
+            aria-label={openDatePickerLabel}
+            aria-controls={popoverId}
+            aria-expanded={isOpen}
+            size="compact"
+            className="rounded-full bg-[#f0c38e]/14 text-[#f7d7ad] hover:bg-[#f0c38e]/22 hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
+            disabled={disabled}
+            onClick={toggleOpen}
+          >
+            <CalendarDays aria-hidden="true" className="size-4" />
+          </IconButton>
+        }
+        onChange={(event) => {
+          const nextValue = maskDateInput(event.target.value);
+          const nextDate = parseDateInputValue(nextValue);
 
-            if (nextDate) {
-              setMonthDate(nextDate);
-            }
+          if (nextDate) {
+            setMonthDate(nextDate);
+          }
 
-            onChange(nextValue);
-          }}
-        />
-        <IconButton
-          aria-label={openDatePickerLabel}
-          aria-controls={popoverId}
-          aria-expanded={isOpen}
-          size="compact"
-          className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded-full bg-[#f0c38e]/10 text-[#f7d7ad] hover:bg-[#f0c38e]/18 hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
-          disabled={disabled}
-          onClick={toggleOpen}
-        >
-          <CalendarDays aria-hidden="true" className="size-4" />
-        </IconButton>
-      </div>
+          onChange(nextValue);
+        }}
+      />
       {typeof document === 'undefined' || !calendar
         ? calendar
         : createPortal(calendar, document.body)}

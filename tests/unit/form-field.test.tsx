@@ -1,8 +1,12 @@
-import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
-import { FormField } from '@/components/ui';
+import { cleanup, render, screen } from '@testing-library/react';
+import { afterEach, describe, expect, it } from 'vitest';
+import { FormField, FormTextareaField } from '@/components/ui';
 
 describe('FormField', () => {
+  afterEach(() => {
+    cleanup();
+  });
+
   it('associates the floating label with the input and renders errors inline', () => {
     render(
       <FormField
@@ -21,5 +25,39 @@ describe('FormField', () => {
     expect(
       screen.getByText('Enter a valid email address.'),
     ).toBeInTheDocument();
+  });
+
+  it('cuts the border notch without repeating the label text', () => {
+    const { container } = render(<FormField label="Email" type="text" />);
+
+    expect(screen.getAllByText('Email')).toHaveLength(1);
+    expect(container.querySelector('fieldset')).toHaveAttribute(
+      'aria-hidden',
+      'true',
+    );
+  });
+
+  it('renders a trailing control inside the field', () => {
+    render(
+      <FormField
+        endAdornment={<button type="button">Open calendar</button>}
+        label="Start date"
+        type="text"
+      />,
+    );
+
+    expect(screen.getByLabelText('Start date')).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Open calendar' }),
+    ).toBeInTheDocument();
+  });
+
+  it('associates the floating label with a multiline field', () => {
+    render(<FormTextareaField label="JSON" placeholder="{}" />);
+
+    const textarea = screen.getByLabelText('JSON');
+
+    expect(textarea.tagName).toBe('TEXTAREA');
+    expect(textarea).toHaveAttribute('placeholder', '{}');
   });
 });

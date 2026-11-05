@@ -1,6 +1,6 @@
 'use client';
 
-import { GripVertical, MoreHorizontal, Palette, Trash2 } from 'lucide-react';
+import { GripVertical, Palette, Trash2 } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import {
   useCallback,
@@ -14,7 +14,8 @@ import {
   TaskTreeClearCategoryIcon,
   type DropdownJoinShape,
 } from '@/components/app';
-import { ConfirmationDialog, IconButton, Tooltip } from '@/components/ui';
+import { ConfirmationDialog, Tooltip } from '@/components/ui';
+import { GoalCardMenuTrigger } from './goal-card-menu-trigger';
 import { canUseOwnName } from '@/features/categories';
 import { toAlphaColor } from '@/lib/color';
 import { assignGoalGroupCategory, softDeleteGoalGroup } from '@/lib/db';
@@ -392,11 +393,10 @@ export function GoalGroupCard({
             data-status={taskStatus}
             data-testid={`goal-group-task-indicator-${group.id}`}
           />
-          <IconButton
+          <GoalCardMenuTrigger
             ref={triggerRef}
             aria-expanded={isMenuOpen}
             aria-label={dictionary.goals.groupMenu}
-            className="size-8 rounded-full text-[#aebac8] hover:bg-white/[0.08] hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
             onClick={(event) => {
               event.stopPropagation();
 
@@ -412,9 +412,7 @@ export function GoalGroupCard({
                 setIsMenuOpen(true);
               }
             }}
-          >
-            <MoreHorizontal aria-hidden="true" className="size-4" />
-          </IconButton>
+          />
         </span>
         <span className="grid grid-cols-2 gap-2 self-start">
           {goals.slice(0, goals.length > 4 ? 3 : 4).map((goal) => {

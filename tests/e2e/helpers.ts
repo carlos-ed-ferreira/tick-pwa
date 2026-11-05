@@ -8,9 +8,9 @@ export const labels = {
   goalsLink: /^goals$|^metas$/i,
   localModeBadge: /local mode|modo local/i,
   localModeButton:
-    /continue without syncing|continuar sem sincronizar|use local mode|usar em modo local/i,
+    /use without an account|usar sem conta|use local mode|usar em modo local/i,
   checklistEmpty: /start this day with a task|comece este dia com uma tarefa/i,
-  backToCalendar: /back to calendar|voltar para o calendário/i,
+  backToCalendar: /^back$|^voltar$/i,
   configureTaskPreferences:
     /configure task preferences|configurar preferências das tarefas/i,
   enableIgnoredState: /^(ignored state|estado ignorado): (enabled|ativado)$/i,
@@ -45,16 +45,16 @@ export async function openCalendarBulkCreate(page: Page, isMobile: boolean) {
 }
 
 export async function openCategoryManager(page: Page, isMobile: boolean) {
+  const categoriesButton = page.getByRole('button', {
+    name: labels.categories,
+  });
+
   if (isMobile) {
-    await page.getByRole('button', { name: labels.moreOptions }).first().tap();
-    await page
-      .getByRole('dialog', { name: labels.moreOptions })
-      .getByRole('button', { name: labels.categories })
-      .tap();
+    await categoriesButton.tap();
     return;
   }
 
-  await page.getByRole('button', { name: labels.categories }).click();
+  await categoriesButton.click();
 }
 
 export async function openGoalDetailActions(page: Page, isMobile: boolean) {

@@ -1,3 +1,4 @@
+import { isTransportUnavailableError } from '@/lib/supabase/transport-errors';
 import Dexie, { type Transaction } from 'dexie';
 import type {
   AccountOperationOutboxItem,
@@ -10,6 +11,11 @@ import {
   isStaleRevisionError,
 } from '@/lib/supabase/account-operations';
 import { db } from './database';
+import {
+  enqueueAccountSyncTask as enqueueOperation,
+  withAccountSyncLock as withOutboxLock,
+  waitForAccountSyncTasks,
+} from './account-sync-queue';
 import { createTimestamp } from './entity-metadata';
 import {
   accountEntityTypes,
@@ -43,31 +49,10 @@ const transactionBatches = new WeakMap<
   AccountOperationOutboxItem[]
 >();
 const registeredTransactionScopes = new WeakMap<Transaction, Set<string>>();
-const operationQueues = new Map<string, Promise<void>>();
 const retryTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
 function isBrowserOffline(): boolean {
   return typeof navigator !== 'undefined' && navigator.onLine === false;
-}
-
-function isTransportUnavailableError(error: unknown): boolean {
-  if (error instanceof TypeError) {
-    return /failed to fetch|load failed|networkerror/i.test(error.message);
-  }
-
-  if (typeof error !== 'object' || error === null) {
-    return false;
-  }
-
-  const values = ['message', 'details']
-    .filter((key) => key in error)
-    .map((key) => String(Reflect.get(error, key)));
-
-  return values.some((value) =>
-    /failed to fetch|load failed|networkerror|network request failed/i.test(
-      value,
-    ),
-  );
 }
 
 function createOutboxItem(scope: AppScope): AccountOperationOutboxItem {
@@ -127,25 +112,6 @@ function scheduleRetry(scope: AppScope, delayMs: number): void {
   }, delayMs);
 
   retryTimers.set(scope.id, timer);
-}
-
-function enqueueOperation(
-  scopeId: string,
-  task: () => Promise<void>,
-): Promise<void> {
-  const previousTask = operationQueues.get(scopeId) ?? Promise.resolve();
-  const nextTask = previousTask
-    .catch(() => undefined)
-    .then(task)
-    .finally(() => {
-      if (operationQueues.get(scopeId) === nextTask) {
-        operationQueues.delete(scopeId);
-      }
-    });
-
-  operationQueues.set(scopeId, nextTask);
-
-  return nextTask;
 }
 
 function registerTransactionDrain(
@@ -706,20 +672,6 @@ function hasExhaustedAutomaticAttempts(
   return item.attempts >= MAX_AUTOMATIC_ATTEMPTS;
 }
 
-async function withOutboxLock(
-  scopeId: string,
-  task: () => Promise<void>,
-): Promise<void> {
-  const locks = typeof navigator === 'undefined' ? undefined : navigator.locks;
-
-  if (!locks) {
-    await task();
-    return;
-  }
-
-  await locks.request(`tick-account-outbox:${scopeId}`, task);
-}
-
 async function drainOperations(
   scope: AppScope,
   {
@@ -881,14 +833,5 @@ export async function retryFailedAccountOperationOutbox(
 export async function waitForAccountOperationOutbox(
   scopeId?: string,
 ): Promise<void> {
-  if (scopeId) {
-    while (operationQueues.has(scopeId)) {
-      await operationQueues.get(scopeId);
-    }
-    return;
-  }
-
-  while (operationQueues.size > 0) {
-    await Promise.all([...operationQueues.values()]);
-  }
+  await waitForAccountSyncTasks(scopeId);
 }

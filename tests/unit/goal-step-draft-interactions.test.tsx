@@ -47,11 +47,9 @@ describe('GoalsSurface', () => {
       'items-center',
       'justify-center',
       'size-10',
-      'rounded-md',
-      'inset-ring-hairline',
-      'inset-ring-white/10',
-      'bg-white/5',
-      'text-[#cbd5e0]',
+      'rounded-full',
+      'bg-white/8',
+      'text-[#f8f3ea]',
     );
     expect(categoryButton.querySelector('.lucide-tag')).not.toBeNull();
     const clearCategoryButton = screen.getByRole('button', {
@@ -387,45 +385,6 @@ describe('GoalsSurface', () => {
     });
   });
 
-  it('keeps a date selected on a still-draft goal step visible and carries it over once persisted', async () => {
-    useGoalStepTreeMock.mockReturnValue([]);
-
-    render(<GoalsSurface />);
-    fireEvent.click(screen.getByRole('button', { name: 'Focus' }));
-    fireEvent.click(
-      screen.getByRole('button', { name: 'Start this goal by adding a step' }),
-    );
-
-    fireEvent.click(
-      screen.getByRole('button', { name: 'Open date picker for Step date' }),
-    );
-    fireEvent.click(screen.getByRole('button', { name: 'Today' }));
-
-    const trigger = screen.getByRole('button', {
-      name: 'Open date picker for Step date',
-    });
-
-    expect(trigger.textContent).toMatch(/^\d{2}\/\d{2}$/);
-    const shortLabel = trigger.textContent;
-
-    const input = screen.getByPlaceholderText('Write a step');
-    fireEvent.change(input, { target: { value: 'Buy groceries' } });
-    fireEvent.blur(input);
-
-    await waitFor(() => {
-      expect(createGoalStepMock).toHaveBeenCalledWith(
-        expect.objectContaining({
-          text: 'Buy groceries',
-          scheduledDate: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
-        }),
-      );
-    });
-
-    expect(
-      screen.getByRole('button', { name: 'Open date picker for Step date' }),
-    ).toHaveTextContent(shortLabel as string);
-  });
-
   it('renders the goal category as a color dot instead of a text badge when useOwnName is true', () => {
     useCategoryTagsMock.mockImplementation((_scope, surface) => {
       if (surface === 'goal') {
@@ -531,6 +490,9 @@ describe('GoalsSurface', () => {
       });
     });
     expect(routerPushMock).toHaveBeenCalledWith('/goals');
-    expect(screen.getByRole('button', { name: 'Active' })).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Archived' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
   });
 });

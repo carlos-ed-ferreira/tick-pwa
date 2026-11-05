@@ -2,8 +2,8 @@
 
 import { ArrowLeft } from 'lucide-react';
 import { useCallback } from 'react';
+import { filledPillControlClassName } from '@/components/ui';
 import { ChecklistSurface } from '@/features/checklist';
-import { CalendarTaskTransferAction } from '@/features/calendar/calendar-task-transfer-action';
 import {
   duplicateChecklistItemsToDate,
   moveChecklistItemsToDate,
@@ -12,6 +12,7 @@ import type { LocalDateString } from '@/lib/domain';
 import { formatLocalDateLabel } from '@/lib/i18n';
 import { parseLocalDateKey } from '@/lib/time';
 import { useAppContext } from '@/providers';
+import { DayActions } from './day-actions';
 import { useDayEntry } from './use-day-entry';
 
 function createDateLabelDate(date: LocalDateString): Date {
@@ -86,23 +87,21 @@ export function DayDetail({
             {title}
           </h2>
           {entry ? (
-            <div className="flex shrink-0 flex-wrap items-center gap-2">
-              <CalendarTaskTransferAction
-                sourceDate={date}
-                onDuplicateToDate={handleDuplicateDay}
-                onMoveToDate={handleMoveDay}
-              />
-            </div>
+            <DayActions
+              date={date}
+              onDuplicateToDate={handleDuplicateDay}
+              onMoveToDate={handleMoveDay}
+            />
           ) : null}
         </div>
         {showBackAction && onBack ? (
           <button
             type="button"
-            className="touch-target inline-flex min-h-10 w-fit shrink-0 items-center gap-2 rounded-full inset-ring-hairline inset-ring-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-[#f8f3ea] shadow-sm shadow-[#253241]/10 transition hover:-translate-y-0.5 hover:inset-ring-white/20 hover:bg-white/10 active:translate-y-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0]"
+            className={`${filledPillControlClassName} w-fit`}
             onClick={onBack}
           >
             <ArrowLeft aria-hidden="true" className="size-4" />
-            {dictionary.dayEditor.backToCalendar}
+            {dictionary.actions.back}
           </button>
         ) : null}
       </header>

@@ -9,6 +9,7 @@ export const enDictionary = {
     localFirst: 'Local-first',
   },
   actions: {
+    back: 'Back',
     cancel: 'Cancel',
     delete: 'Delete',
     dismissNotification: 'Dismiss notification',
@@ -17,8 +18,8 @@ export const enDictionary = {
   auth: {
     title: 'Sign in to sync your data',
     subtitle:
-      'Tick is currently a prototype. Only approved users can sign in with an authorized account to save and sync cloud data.',
-    passwordFormHint: 'Sign in with your approved account to sync your data.',
+      'Tick is in prototype. Accounts are invite-only and keep your data in sync across devices.',
+    passwordFormHint: 'Sign in with your invited account.',
     emailLabel: 'Email',
     emailPlaceholder: 'example@email.com',
     emailRequired: 'Enter your email.',
@@ -39,10 +40,12 @@ export const enDictionary = {
     signInWithGoogle: 'Continue with Google',
     signInDescription:
       'Use an approved Google account to keep backups and sync across devices.',
-    localMode: 'Continue without syncing',
-    localModeDescription: 'Your data will stay only on this device.',
-    allowedOnly: 'Login is available only for approved users.',
-    noSignup: 'Account access is by invitation only.',
+    localMode: 'Use without an account',
+    localModeDescription:
+      'All features, no limits. Everything is saved in this browser and never sent to the cloud.',
+    allowedOnly: 'Invite-only access',
+    noSignup:
+      "Sign-up isn't open yet. Without an invite, you can still use Tick on this device.",
     prototypeNotice: 'Private prototype',
     localModeBadge: 'Local mode',
     cloudModeBadge: 'Connected account',
@@ -168,7 +171,6 @@ export const enDictionary = {
     assignCategory: 'Assign category',
     clearCategory: 'Clear category',
     checklist: 'Tasks',
-    backToCalendar: 'Back to calendar',
     collapseItem: 'Collapse task',
     untitledItem: 'New task',
     emptyChecklist: 'Start this day with a task',
@@ -236,7 +238,6 @@ export const enDictionary = {
     assignCategory: 'Assign category',
     clearCategory: 'Clear category',
     checklist: 'Steps',
-    backToCalendar: 'Back to goals',
     collapseItem: 'Collapse step',
     untitledItem: 'New step',
     emptyChecklist: 'Start this goal by adding a step',
@@ -321,7 +322,6 @@ export const enDictionary = {
     assignGroupCategoryMenu: 'Assign category',
     assignGroupColor: 'Assign independent color',
     clearGroupCategory: 'Clear group color/category',
-    backToGoalGroups: 'Back to goal groups',
     completeGoal: 'Archive goal',
     createGroupTitle: 'Create group',
     createGroupDescription: 'Choose the initial name for this group.',

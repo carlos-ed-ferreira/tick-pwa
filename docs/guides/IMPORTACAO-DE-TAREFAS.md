@@ -38,7 +38,7 @@ grava as tarefas nos dias informados.
 }
 ```
 
-`version` é opcional e ignorado hoje; existe para versionar o formato no futuro.
+`version` é opcional e não participa da validação nem altera o processamento.
 Um array puro de dias também é aceito:
 
 ```json

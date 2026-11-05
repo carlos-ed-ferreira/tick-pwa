@@ -53,7 +53,8 @@ Regras práticas:
 - respeite `env(safe-area-inset-*)` nas superfícies de borda com
   `.app-safe-padding`.
 
-Registre a evidência mobile com `make test-e2e-mobile`.
+Quando o layout mudar, registre a evidência mobile com `make test-e2e-mobile`
+uma vez, ao concluir. Ajustes de cor, borda ou raio dispensam E2E.
 
 ## Compor a interface
 

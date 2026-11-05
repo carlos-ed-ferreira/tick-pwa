@@ -1,0 +1,630 @@
+{
+  "metadata": {
+    "measuredAt": "2026-11-03T18:07:28.114Z",
+    "sourceRef": "b744087cf899059067c95ce582e91571059965c4",
+    "tool": "TypeScript AST",
+    "version": "5.9.3",
+    "scope": "src/**/*.ts, src/**/*.tsx excluding database.types.ts"
+  },
+  "files": {
+    "src/components/app/date-picker.tsx": {
+      "lines": 334,
+      "functions": {
+        "/DatePicker#0": {
+          "lines": 295,
+          "complexity": 11
+        }
+      }
+    },
+    "src/components/app/move-tree-item-to-target.ts": {
+      "lines": 84,
+      "functions": {
+        "/moveTreeItemToTarget#0": {
+          "lines": 78,
+          "complexity": 21
+        }
+      }
+    },
+    "src/components/app/task-completion-checkbox.tsx": {
+      "lines": 217,
+      "functions": {
+        "/TaskCompletionCheckbox#0": {
+          "lines": 166,
+          "complexity": 7
+        }
+      }
+    },
+    "src/components/app/task-tree-bulk-actions.tsx": {
+      "lines": 164,
+      "functions": {
+        "/TaskTreeBulkActions#0": {
+          "lines": 135,
+          "complexity": 8
+        }
+      }
+    },
+    "src/components/app/task-tree-editable-row.tsx": {
+      "lines": 938,
+      "functions": {
+        "/TaskTreeEditableRow#0": {
+          "lines": 789,
+          "complexity": 54
+        },
+        "/TaskTreeEditableRow#0/handleKeyDown#0": {
+          "lines": 47,
+          "complexity": 14
+        }
+      }
+    },
+    "src/components/app/task-tree-more-actions-menu.tsx": {
+      "lines": 534,
+      "functions": {
+        "/TaskTreeMoreActionsMenu#0": {
+          "lines": 482,
+          "complexity": 25
+        }
+      }
+    },
+    "src/components/app/task-tree-row-actions-menu.tsx": {
+      "lines": 338,
+      "functions": {
+        "/TaskTreeRowActionsMenu#0": {
+          "lines": 138,
+          "complexity": 2
+        }
+      }
+    },
+    "src/components/app/task-tree-row-actions-sheet.tsx": {
+      "lines": 248,
+      "functions": {
+        "/TaskTreeRowActionsSheet#0": {
+          "lines": 207,
+          "complexity": 20
+        }
+      }
+    },
+    "src/components/app/task-tree-row-layout.tsx": {
+      "lines": 89,
+      "functions": {
+        "/TaskTreeRowLayout#0": {
+          "lines": 81,
+          "complexity": 15
+        }
+      }
+    },
+    "src/components/app/tree-list-panel.tsx": {
+      "lines": 142,
+      "functions": {
+        "/TreeListPanel#0": {
+          "lines": 128,
+          "complexity": 8
+        }
+      }
+    },
+    "src/components/app/tree-touch-drag.ts": {
+      "lines": 257,
+      "functions": {
+        "/validateTreeDrop#0": {
+          "lines": 25,
+          "complexity": 11
+        },
+        "/useTreeTouchDrag#0": {
+          "lines": 111,
+          "complexity": 4
+        }
+      }
+    },
+    "src/components/ui/dialog.tsx": {
+      "lines": 155,
+      "functions": {
+        "/Dialog#0": {
+          "lines": 135,
+          "complexity": 4
+        }
+      }
+    },
+    "src/components/ui/tooltip.tsx": {
+      "lines": 250,
+      "functions": {
+        "/Tooltip#0": {
+          "lines": 209,
+          "complexity": 13
+        }
+      }
+    },
+    "src/features/auth/auth-entry.tsx": {
+      "lines": 195,
+      "functions": {
+        "/AuthEntry#0": {
+          "lines": 164,
+          "complexity": 6
+        },
+        "/AuthEntry#0/handlePasswordSignIn#0": {
+          "lines": 47,
+          "complexity": 12
+        }
+      }
+    },
+    "src/features/auth/auth-shell.tsx": {
+      "lines": 109,
+      "functions": {
+        "/AuthShell#0": {
+          "lines": 96,
+          "complexity": 2
+        }
+      }
+    },
+    "src/features/calendar/bulk-calendar-editor.tsx": {
+      "lines": 762,
+      "functions": {
+        "/BulkCalendarEditor#0": {
+          "lines": 269,
+          "complexity": 10
+        },
+        "/BulkChecklistSurface#0": {
+          "lines": 208,
+          "complexity": 3
+        },
+        "/BulkChecklistRow#0": {
+          "lines": 222,
+          "complexity": 1
+        }
+      }
+    },
+    "src/features/calendar/bulk-checklist-draft.ts": {
+      "lines": 452,
+      "functions": {
+        "/moveBulkChecklistDraftItemToTarget#0": {
+          "lines": 71,
+          "complexity": 15
+        }
+      }
+    },
+    "src/features/calendar/calendar-import-dialog.tsx": {
+      "lines": 131,
+      "functions": {
+        "/CalendarImportDialog#0": {
+          "lines": 88,
+          "complexity": 1
+        }
+      }
+    },
+    "src/features/calendar/calendar-import-parser.ts": {
+      "lines": 236,
+      "functions": {
+        "/parseCalendarImportPayload#0": {
+          "lines": 157,
+          "complexity": 8
+        },
+        "/parseCalendarImportPayload#0/collectItems#0": {
+          "lines": 95,
+          "complexity": 1
+        },
+        "/parseCalendarImportPayload#0/collectItems#0/input.forEach callback#0": {
+          "lines": 82,
+          "complexity": 21
+        }
+      }
+    },
+    "src/features/calendar/calendar-month-grid.tsx": {
+      "lines": 288,
+      "functions": {
+        "/DayCell#0": {
+          "lines": 197,
+          "complexity": 31
+        }
+      }
+    },
+    "src/features/calendar/calendar-month.tsx": {
+      "lines": 442,
+      "functions": {
+        "/CalendarMonth#0": {
+          "lines": 368,
+          "complexity": 10
+        }
+      }
+    },
+    "src/features/calendar/calendar-task-transfer-action.tsx": {
+      "lines": 134,
+      "functions": {
+        "/CalendarTaskTransferAction#0": {
+          "lines": 113,
+          "complexity": 1
+        }
+      }
+    },
+    "src/features/calendar/calendar-week-strip.tsx": {
+      "lines": 226,
+      "functions": {
+        "/CalendarWeekStrip#0": {
+          "lines": 82,
+          "complexity": 1
+        },
+        "/WeekDay#0": {
+          "lines": 127,
+          "complexity": 23
+        }
+      }
+    },
+    "src/features/categories/category-assignment-menu.tsx": {
+      "lines": 192,
+      "functions": {
+        "/CategoryAssignmentMenu#0": {
+          "lines": 182,
+          "complexity": 18
+        }
+      }
+    },
+    "src/features/categories/category-manager.tsx": {
+      "lines": 277,
+      "functions": {
+        "/CategoryManagerRow#0": {
+          "lines": 160,
+          "complexity": 2
+        }
+      }
+    },
+    "src/features/checklist/checklist-surface.tsx": {
+      "lines": 1093,
+      "functions": {
+        "/insertChecklistDraftRow#0": {
+          "lines": 93,
+          "complexity": 16
+        },
+        "/ChecklistSurface#0": {
+          "lines": 412,
+          "complexity": 9
+        },
+        "/ChecklistRow#0": {
+          "lines": 386,
+          "complexity": 4
+        },
+        "/ChecklistRow#0/moveItemToTarget#0": {
+          "lines": 75,
+          "complexity": 13
+        },
+        "/ChecklistRow#0/moveItem#0": {
+          "lines": 30,
+          "complexity": 11
+        }
+      }
+    },
+    "src/features/day-editor/day-detail.tsx": {
+      "lines": 116,
+      "functions": {
+        "/DayDetail#0": {
+          "lines": 91,
+          "complexity": 5
+        }
+      }
+    },
+    "src/features/goals/goal-card.tsx": {
+      "lines": 612,
+      "functions": {
+        "/GoalCard#0": {
+          "lines": 484,
+          "complexity": 51
+        }
+      }
+    },
+    "src/features/goals/goal-category-menu.tsx": {
+      "lines": 265,
+      "functions": {
+        "/CategoryMenuSection#0": {
+          "lines": 211,
+          "complexity": 6
+        }
+      }
+    },
+    "src/features/goals/goal-detail-card.tsx": {
+      "lines": 563,
+      "functions": {
+        "/GoalDetailCard#0": {
+          "lines": 431,
+          "complexity": 8
+        }
+      }
+    },
+    "src/features/goals/goal-detail-headers.tsx": {
+      "lines": 476,
+      "functions": {
+        "/GoalGroupDetailHeader#0": {
+          "lines": 106,
+          "complexity": 5
+        },
+        "/GoalDetailHeader#0": {
+          "lines": 233,
+          "complexity": 11
+        }
+      }
+    },
+    "src/features/goals/goal-drag-target.ts": {
+      "lines": 157,
+      "functions": {
+        "/getDragTargetFromPoint#0": {
+          "lines": 43,
+          "complexity": 20
+        }
+      }
+    },
+    "src/features/goals/goal-group-card.tsx": {
+      "lines": 434,
+      "functions": {
+        "/GoalGroupCard#0": {
+          "lines": 399,
+          "complexity": 40
+        }
+      }
+    },
+    "src/features/goals/goal-step-drafts.ts": {
+      "lines": 245,
+      "functions": {
+        "/insertGoalStepDraftRow#0": {
+          "lines": 92,
+          "complexity": 16
+        }
+      }
+    },
+    "src/features/goals/goal-step-row.tsx": {
+      "lines": 436,
+      "functions": {
+        "/GoalStepRow#0": {
+          "lines": 397,
+          "complexity": 4
+        },
+        "/GoalStepRow#0/handleMoveGoalStepToTarget#0": {
+          "lines": 80,
+          "complexity": 13
+        },
+        "/GoalStepRow#0/moveGoalStepItem#0": {
+          "lines": 32,
+          "complexity": 11
+        }
+      }
+    },
+    "src/features/goals/goals-overview-controls.tsx": {
+      "lines": 129,
+      "functions": {
+        "/CreateGoalGroupDialog#0": {
+          "lines": 81,
+          "complexity": 3
+        }
+      }
+    },
+    "src/features/goals/goals-surface.tsx": {
+      "lines": 438,
+      "functions": {
+        "/GoalsSurface#0": {
+          "lines": 405,
+          "complexity": 23
+        },
+        "/GoalsSurface#0/archivedGoalGroups.map callback#0": {
+          "lines": 62,
+          "complexity": 13
+        }
+      }
+    },
+    "src/features/goals/use-goal-drag.ts": {
+      "lines": 217,
+      "functions": {
+        "/useGoalDrag#0": {
+          "lines": 192,
+          "complexity": 1
+        },
+        "/useGoalDrag#0/useEffect callback#1": {
+          "lines": 111,
+          "complexity": 1
+        },
+        "/useGoalDrag#0/useEffect callback#1/handlePointerUp#0": {
+          "lines": 80,
+          "complexity": 24
+        }
+      }
+    },
+    "src/hooks/use-anchored-menu.ts": {
+      "lines": 124,
+      "functions": {
+        "/useAnchoredMenu#0": {
+          "lines": 119,
+          "complexity": 1
+        }
+      }
+    },
+    "src/hooks/use-debounced-inline-edit.ts": {
+      "lines": 94,
+      "functions": {
+        "/useDebouncedInlineEdit#0": {
+          "lines": 92,
+          "complexity": 4
+        }
+      }
+    },
+    "src/lib/db/account-entity-tables.ts": {
+      "lines": 154,
+      "functions": {
+        "/collectPendingEntityClosure#0": {
+          "lines": 52,
+          "complexity": 12
+        }
+      }
+    },
+    "src/lib/db/account-operation-outbox.ts": {
+      "lines": 762,
+      "functions": {
+        "/drainOperations#0": {
+          "lines": 52,
+          "complexity": 18
+        }
+      }
+    },
+    "src/lib/db/calendar-import-commands.ts": {
+      "lines": 154,
+      "functions": {
+        "/resolveCategoryTagIds#0": {
+          "lines": 54,
+          "complexity": 11
+        }
+      }
+    },
+    "src/lib/db/category-commands.ts": {
+      "lines": 408,
+      "functions": {
+        "/updateCategoryTag#0/db.transaction callback#0": {
+          "lines": 53,
+          "complexity": 19
+        },
+        "/reorderCategoryTag#0/db.transaction callback#0": {
+          "lines": 39,
+          "complexity": 14
+        },
+        "/softDeleteCategoryTag#0": {
+          "lines": 168,
+          "complexity": 1
+        },
+        "/softDeleteCategoryTag#0/db.transaction callback#0": {
+          "lines": 147,
+          "complexity": 10
+        }
+      }
+    },
+    "src/lib/db/checklist-commands.ts": {
+      "lines": 1537,
+      "functions": {
+        "/createChecklistItem#0": {
+          "lines": 89,
+          "complexity": 2
+        },
+        "/assignChecklistItemCategory#0/db.transaction callback#0": {
+          "lines": 31,
+          "complexity": 11
+        },
+        "/moveChecklistItemToTarget#0/db.transaction callback#0": {
+          "lines": 47,
+          "complexity": 16
+        },
+        "/duplicateChecklistItemToDate#0": {
+          "lines": 100,
+          "complexity": 6
+        },
+        "/moveChecklistItemToDate#0": {
+          "lines": 83,
+          "complexity": 7
+        },
+        "/applyChecklistTemplateToDateRange#0": {
+          "lines": 104,
+          "complexity": 3
+        }
+      }
+    },
+    "src/lib/db/daily-entry-commands.ts": {
+      "lines": 175,
+      "functions": {
+        "/recalculateDailyEntrySummary#0": {
+          "lines": 90,
+          "complexity": 14
+        }
+      }
+    },
+    "src/lib/db/database.ts": {
+      "lines": 1000,
+      "functions": {
+        "/reconcileAuthenticatedDailyEntries#0": {
+          "lines": 84,
+          "complexity": 14
+        },
+        "/anonymous#0": {
+          "lines": 525,
+          "complexity": 1
+        },
+        "/anonymous#0/this.version(9)\n      .stores({\n        dailyEntries:\n          'id, scopeId, date, updatedAt, deletedAt, [scopeId+date], [scopeId+updatedAt]',\n        checklistItems:\n          'id, scopeId, dailyEntryId, parentId, updatedAt, deletedAt, [scopeId+dailyEntryId], [scopeId+parentId], [scopeId+updatedAt]',\n        colorTags:\n          'id, scopeId, surface, position, updatedAt, deletedAt, [scopeId+surface], [scopeId+surface+position], [scopeId+updatedAt]',\n        goalGroups: 'id, scopeId, updatedAt, deletedAt, [scopeId+updatedAt]',\n        goals:\n          'id, scopeId, groupId, category, completedAt, updatedAt, deletedAt, [scopeId+groupId], [scopeId+category], [scopeId+completedAt], [scopeId+updatedAt]',\n        goalSteps:\n          'id, scopeId, goalId, parentId, updatedAt, deletedAt, [scopeId+goalId], [scopeId+parentId], [scopeId+updatedAt]',\n        localPreferences: 'key, scopeId, updatedAt',\n      })\n      .upgrade callback#0": {
+          "lines": 121,
+          "complexity": 17
+        }
+      }
+    },
+    "src/lib/db/goal-commands.ts": {
+      "lines": 1631,
+      "functions": {
+        "/assignGoalCategory#0/db.transaction callback#0": {
+          "lines": 31,
+          "complexity": 11
+        },
+        "/createGoalStep#0": {
+          "lines": 82,
+          "complexity": 2
+        },
+        "/assignGoalStepCategory#0/db.transaction callback#0": {
+          "lines": 27,
+          "complexity": 11
+        },
+        "/moveGoalStepToTarget#0/db.transaction callback#0": {
+          "lines": 52,
+          "complexity": 16
+        }
+      }
+    },
+    "src/lib/db/seed.ts": {
+      "lines": 335,
+      "functions": {
+        "/seedDefaultCategoryTags#0": {
+          "lines": 109,
+          "complexity": 2
+        },
+        "/seedDefaultCategoryTags#0/db.transaction callback#0": {
+          "lines": 100,
+          "complexity": 13
+        }
+      }
+    },
+    "src/lib/supabase/account-cache.ts": {
+      "lines": 281,
+      "functions": {
+        "/mergeRemoteRows#0": {
+          "lines": 38,
+          "complexity": 11
+        },
+        "/readAccountSnapshotIntoCache#0": {
+          "lines": 113,
+          "complexity": 2
+        }
+      }
+    },
+    "src/lib/supabase/account-data.ts": {
+      "lines": 196,
+      "functions": {
+        "/restoreAccountEntity#0": {
+          "lines": 108,
+          "complexity": 15
+        }
+      }
+    },
+    "src/lib/supabase/entity-mappers.ts": {
+      "lines": 359,
+      "functions": {
+        "/toRemotePayload#0": {
+          "lines": 90,
+          "complexity": 9
+        }
+      }
+    },
+    "src/lib/time/date-input.ts": {
+      "lines": 85,
+      "functions": {
+        "/parseDateInputValue#0": {
+          "lines": 31,
+          "complexity": 12
+        }
+      }
+    },
+    "src/providers/app-provider.tsx": {
+      "lines": 596,
+      "functions": {
+        "/AppProvider#0": {
+          "lines": 472,
+          "complexity": 2
+        }
+      }
+    }
+  },
+  "cycles": []
+}

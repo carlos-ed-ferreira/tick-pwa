@@ -10,7 +10,7 @@ description: >-
 
 1. Ler a política em `../../../REVIEW.md`, as regras em
    `../../../AGENTS.md` e gaps em
-   `../../../docs/planning/implementation-plan.md`.
+   `../../../docs/planning/PENDENCIAS.md`.
 2. Identificar se a dependência é direta ou transitiva e de produção ou
    desenvolvimento.
 3. Registrar versão atual, versão alvo, severidade, alcance real, licença,

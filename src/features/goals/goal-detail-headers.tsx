@@ -17,8 +17,18 @@ import {
   type CSSProperties,
 } from 'react';
 import { DatePicker, TaskTreeClearCategoryIcon } from '@/components/app';
-import { ConfirmationDialog, IconButton, Input } from '@/components/ui';
-import { CategoryAssignmentMenu } from '@/features/categories';
+import {
+  ConfirmationDialog,
+  FilledIconButton,
+  filledControlNeutralClassName,
+  filledPillControlClassName,
+  filledRoundControlClassName,
+  Input,
+} from '@/components/ui';
+import {
+  CategoryAssignmentMenu,
+  CategoryManagerAction,
+} from '@/features/categories';
 import { useDebouncedInlineEdit } from '@/hooks/use-debounced-inline-edit';
 import { toAlphaColor } from '@/lib/color';
 import {
@@ -40,6 +50,8 @@ import { useTouchComposition } from '@/hooks/use-touch-composition';
 import { GoalDetailActionsSheet } from './goal-detail-actions-sheet';
 import { useAppContext } from '@/providers';
 import { CategoryColorButton } from './goal-category-controls';
+
+const neutralRoundControlClassName = `${filledRoundControlClassName} ${filledControlNeutralClassName}`;
 
 function GoalGroupTitleEditor({
   autoFocus,
@@ -124,6 +136,10 @@ export function GoalGroupDetailHeader({
     await softDeleteGoalGroup({ scope, goalGroupId: group.id });
     onDelete();
   }, [group.id, onDelete, scope]);
+  const assignCategory = (categoryTagId: string | null) =>
+    scope
+      ? assignGoalGroupCategory({ scope, goalGroupId: group.id, categoryTagId })
+      : undefined;
 
   return (
     <>
@@ -144,22 +160,14 @@ export function GoalGroupDetailHeader({
             </span>
           ) : null}
           <CategoryColorButton
-            onAssign={(categoryTagId) =>
-              scope
-                ? assignGoalGroupCategory({
-                    scope,
-                    goalGroupId: group.id,
-                    categoryTagId,
-                  })
-                : undefined
-            }
+            onAssign={assignCategory}
             scope={scope}
             selectedCategory={groupCategory}
             surface="goal_group"
           />
           <CategoryAssignmentMenu
             assignLabel={dictionary.goals.assignGroupCategory}
-            clearClassName="inline-flex size-10 shrink-0 items-center justify-center rounded-md inset-ring-hairline inset-ring-white/10 bg-white/5 text-[#cbd5e0] shadow-sm shadow-[#253241]/10 transition hover:-translate-y-0.5 hover:inset-ring-white/20 hover:bg-white/10 hover:text-[#fff9f2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0]"
+            clearClassName={neutralRoundControlClassName}
             clearLabel={dictionary.goals.clearGroupCategory}
             renderClearContent={() => (
               <TaskTreeClearCategoryIcon className="size-4" />
@@ -169,32 +177,28 @@ export function GoalGroupDetailHeader({
             )}
             selectedCategoryTagId={group.categoryTagId}
             surface="goal_group"
-            triggerClassName="inline-flex size-10 shrink-0 items-center justify-center rounded-md inset-ring-hairline inset-ring-white/10 bg-white/5 text-[#cbd5e0] shadow-sm shadow-[#253241]/10 hover:-translate-y-0.5 hover:inset-ring-white/20 hover:bg-white/10 hover:text-[#fff9f2] focus-visible:outline-[#f7d9b0] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0 disabled:hover:inset-ring-white/10 disabled:hover:bg-white/5 disabled:hover:text-[#cbd5e0]"
-            onAssign={(categoryTagId) => {
-              if (!scope) return;
-
-              return assignGoalGroupCategory({
-                scope,
-                goalGroupId: group.id,
-                categoryTagId,
-              });
-            }}
+            triggerClassName={neutralRoundControlClassName}
+            onAssign={assignCategory}
           />
-          <IconButton
+          <FilledIconButton
             aria-label={dictionary.goals.deleteGroup}
-            className="size-10 rounded-md inset-ring-hairline inset-ring-rose-300/20 bg-rose-400/10 text-rose-100 hover:bg-rose-400/18 hover:text-rose-50 focus-visible:outline-rose-200"
+            fill="danger"
             onClick={() => setIsDeleteDialogOpen(true)}
           >
             <Trash2 aria-hidden="true" className="size-4" />
-          </IconButton>
+          </FilledIconButton>
+          <CategoryManagerAction
+            surface="goal"
+            title={dictionary.goals.editCategories}
+          />
         </div>
         <button
           type="button"
-          className="inline-flex min-h-10 w-fit shrink-0 items-center gap-2 rounded-full inset-ring-hairline inset-ring-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-[#f8f3ea] shadow-sm shadow-[#253241]/10 transition hover:-translate-y-0.5 hover:inset-ring-white/20 hover:bg-white/10 active:translate-y-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0]"
+          className={`${filledPillControlClassName} w-fit`}
           onClick={onBack}
         >
           <ArrowLeft aria-hidden="true" className="size-4" />
-          {dictionary.goals.backToGoalGroups}
+          {dictionary.actions.back}
         </button>
       </header>
       <ConfirmationDialog
@@ -267,28 +271,24 @@ export function GoalDetailHeader({
     setIsGoalRestoreDialogOpen(false);
     await onRestore(goal.id);
   }, [goal.id, onRestore, scope]);
+  const assignCategory = (categoryTagId: string | null) =>
+    scope
+      ? assignGoalCategory({ scope, goalId: goal.id, categoryTagId })
+      : undefined;
 
   const detailActions = (
     <>
       {!isArchived ? (
         <>
           <CategoryColorButton
-            onAssign={(categoryTagId) =>
-              scope
-                ? assignGoalCategory({
-                    scope,
-                    goalId: goal.id,
-                    categoryTagId,
-                  })
-                : undefined
-            }
+            onAssign={assignCategory}
             scope={scope}
             selectedCategory={goalCategory}
             surface="goal"
           />
           <CategoryAssignmentMenu
             assignLabel={dictionary.goals.assignGoalCategory}
-            clearClassName="inline-flex size-10 shrink-0 items-center justify-center rounded-md inset-ring-hairline inset-ring-white/10 bg-white/5 text-[#cbd5e0] shadow-sm shadow-[#253241]/10 transition hover:-translate-y-0.5 hover:inset-ring-white/20 hover:bg-white/10 hover:text-[#fff9f2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0]"
+            clearClassName={neutralRoundControlClassName}
             clearLabel={dictionary.goals.clearGoalCategory}
             renderClearContent={() => (
               <TaskTreeClearCategoryIcon className="size-4" />
@@ -298,15 +298,8 @@ export function GoalDetailHeader({
             )}
             selectedCategoryTagId={goal.categoryTagId}
             surface="goal"
-            triggerClassName="inline-flex size-10 shrink-0 items-center justify-center rounded-md inset-ring-hairline inset-ring-white/10 bg-white/5 text-[#cbd5e0] shadow-sm shadow-[#253241]/10 hover:-translate-y-0.5 hover:inset-ring-white/20 hover:bg-white/10 hover:text-[#fff9f2] focus-visible:outline-[#f7d9b0] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0 disabled:hover:inset-ring-white/10 disabled:hover:bg-white/5 disabled:hover:text-[#cbd5e0]"
-            onAssign={(categoryTagId) => {
-              if (!scope) return;
-              return assignGoalCategory({
-                scope,
-                goalId: goal.id,
-                categoryTagId,
-              });
-            }}
+            triggerClassName={neutralRoundControlClassName}
+            onAssign={assignCategory}
           />
         </>
       ) : null}
@@ -336,43 +329,46 @@ export function GoalDetailHeader({
             });
           }}
           renderTrigger={({ onClick, ariaLabel }) => (
-            <IconButton
+            <FilledIconButton
               aria-label={ariaLabel}
               title={dictionary.goals.assignGoalDueDate}
-              className="size-10 rounded-md inset-ring-hairline inset-ring-white/10 bg-white/5 text-[#cbd5e0] shadow-sm shadow-[#253241]/10 transition hover:-translate-y-0.5 hover:inset-ring-white/20 hover:bg-white/10 hover:text-[#fff9f2] focus-visible:outline-[#f7d9b0]"
               onClick={onClick}
             >
               <CalendarDays aria-hidden="true" className="size-4" />
-            </IconButton>
+            </FilledIconButton>
           )}
         />
       ) : null}
       {!isArchived ? (
-        <IconButton
+        <FilledIconButton
           aria-label={dictionary.goals.completeGoal}
-          className="size-10 rounded-md inset-ring-hairline inset-ring-[#f0c38e]/25 bg-[#f0c38e]/10 text-[#f7d7ad] hover:bg-[#f0c38e]/18 hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
+          fill="accent"
           onClick={() => setIsGoalArchiveDialogOpen(true)}
         >
           <Archive aria-hidden="true" className="size-4" />
-        </IconButton>
+        </FilledIconButton>
       ) : (
-        <IconButton
+        <FilledIconButton
           aria-label={dictionary.goals.restoreGoal}
-          className="size-10 rounded-md inset-ring-hairline inset-ring-[#f0c38e]/25 bg-[#f0c38e]/10 text-[#f7d7ad] hover:bg-[#f0c38e]/18 hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
+          fill="accent"
           onClick={() => setIsGoalRestoreDialogOpen(true)}
         >
           <RotateCcw aria-hidden="true" className="size-4" />
-        </IconButton>
+        </FilledIconButton>
       )}
-      <IconButton
+      <FilledIconButton
         aria-label={dictionary.goals.deleteGoal}
-        className="size-10 rounded-md inset-ring-hairline inset-ring-rose-300/20 bg-rose-400/10 text-rose-100 hover:bg-rose-400/18 hover:text-rose-50 focus-visible:outline-rose-200"
+        fill="danger"
         onClick={() =>
           hasGoalSteps ? setIsGoalDeleteDialogOpen(true) : void deleteGoal()
         }
       >
         <Trash2 aria-hidden="true" className="size-4" />
-      </IconButton>
+      </FilledIconButton>
+      <CategoryManagerAction
+        surface="goal"
+        title={dictionary.goals.editCategories}
+      />
     </>
   );
 
@@ -413,11 +409,11 @@ export function GoalDetailHeader({
         </div>
         <button
           type="button"
-          className="inline-flex min-h-10 w-fit shrink-0 items-center gap-2 rounded-full inset-ring-hairline inset-ring-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-[#f8f3ea] shadow-sm shadow-[#253241]/10 transition hover:-translate-y-0.5 hover:inset-ring-white/20 hover:bg-white/10 active:translate-y-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0]"
+          className={`${filledPillControlClassName} w-fit`}
           onClick={onBack}
         >
           <ArrowLeft aria-hidden="true" className="size-4" />
-          {dictionary.goals.backToGoalGroups}
+          {dictionary.actions.back}
         </button>
       </header>
 

@@ -51,7 +51,7 @@ cor. Restrições permanentes:
 
 - o âmbar `#f0c38e` e sua escala quente são fixos;
 - escuros e neutros saem do hue 212°, complementar do âmbar;
-- roxo e teal foram rejeitados e não devem voltar como base;
+- roxo e teal não compõem a paleta base permitida;
 - rose de erro, emerald de sucesso, rampa de progresso, cores de categoria e a
   marca Google ficam fora da paleta e não se alteram.
 
@@ -62,6 +62,34 @@ texto, ícone e estado de foco nos temas claro e escuro.
 O `<main>` pinta `bg-background` sobre o gradiente do `body`; em `/calendar` e
 `/goals` o que aparece é o overlay radial da própria página. Ajustar o fundo
 dessas telas ali, não apenas no `body`.
+
+## Desenhar controles
+
+- Botões são preenchidos e sem borda: pill quando têm texto e redondos quando
+  têm só ícone. Usar `filledPillControlClassName`, `filledRoundControlClassName`
+  e `FilledIconButton` de `src/components/ui`, com preenchimento neutro,
+  destaque em âmbar ou perigo em rose.
+- Ações de barra, como importar, criar e limpar, usam preenchimento
+  translúcido e o pill compacto: `filledCompactPillControlClassName` com
+  `filledControlNeutralClassName`, `filledControlAccentClassName` âmbar ou
+  `filledControlDangerClassName` rose. Âmbar sólido fica para a opção ativa de
+  pill tabs e para a ação primária de modal.
+- Controles preenchidos elevam levemente no hover, com
+  `hover:-translate-y-0.5` e `hover:shadow-md`.
+- Escolha entre opções exclusivas, como seções ou ativas e arquivadas, usa pill
+  tabs: `pillTabListClassName`, `pillTabClassName` e `activePillTabClassName`,
+  com a opção ativa em âmbar preenchido.
+- Ações de modal usam `ModalActionButton`, preenchido e sem borda; a ação
+  primária usa âmbar. O fechar do modal é redondo e preenchido.
+- Ícone-botão denso, como ações de linha e barra compacta, usa `IconButton`
+  com `rounded-full`, para o hover também ser redondo. O `IconButton` só aplica
+  `rounded-md` quando o `className` não define raio.
+- Voltar é pill com o texto curto do dicionário `actions.back`.
+- Campos de formulário usam `FormField` ou `FormTextareaField`, com o rótulo
+  recortado na borda, que funciona sobre qualquer superfície. Controle dentro
+  do campo, como o calendário do `DatePicker`, entra por `endAdornment`.
+  Edição inline em listas, como textos de tarefas e nomes de categorias,
+  mantém input simples, sem rótulo na borda.
 
 ## Projetar os estados
 
@@ -95,6 +123,7 @@ desenho precisa caber no texto mais longo dos dois idiomas.
 
 Registrar as escolhas de hierarquia, tokens, estados e composição mobile antes
 de implementar; implementar pela Skill `ui-consistency`; validar com
-`make lint`, `make test` e, quando o fluxo de navegador ou a responsividade
-forem afetados, `make test-e2e` e `make test-e2e-mobile`; registrar a evidência
-visual exigida pelo REVIEW nos dois tamanhos.
+`make test-file` durante o trabalho e `make check` ao concluir e, quando o
+layout, a responsividade ou o fluxo de navegador forem afetados, rodar uma vez
+`make test-e2e` e `make test-e2e-mobile`; registrar a evidência visual exigida
+pelo REVIEW nos dois tamanhos.

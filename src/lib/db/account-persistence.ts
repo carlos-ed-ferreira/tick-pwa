@@ -1,4 +1,13 @@
 import Dexie from 'dexie';
+import {
+  drainAccountPreferences,
+  resumeAccountPreferences,
+  getAccountPreferenceSyncSummary,
+} from './account-preference-outbox';
+import {
+  enqueueAccountSyncTask,
+  withAccountSyncLock,
+} from './account-sync-queue';
 import type { AppScope, SyncEntityType, SyncOperation } from '@/lib/domain';
 import { shouldUseAccountOperationBatchesForUser } from '@/lib/environment';
 import {
@@ -147,10 +156,16 @@ export async function waitForAccountPersistence(scopeId?: string) {
 export async function getAccountSyncSummary(
   scopeId: string,
 ): Promise<AccountSyncSummary> {
+  const preferences = await getAccountPreferenceSyncSummary(scopeId);
   const ownerId = scopeId.startsWith('user:') ? scopeId.slice(5) : null;
 
   if (ownerId && shouldUseAccountOperationBatchesForUser(ownerId)) {
-    const summary = await getAccountOperationOutboxSummary(scopeId);
+    const entities = await getAccountOperationOutboxSummary(scopeId);
+    const summary = {
+      failedCount: entities.failedCount + preferences.failedCount,
+      pendingCount: entities.pendingCount + preferences.pendingCount,
+      syncingCount: entities.syncingCount + preferences.syncingCount,
+    };
     const state: AccountSyncState = summary.failedCount
       ? 'failed'
       : summary.syncingCount
@@ -172,15 +187,15 @@ export async function getAccountSyncSummary(
       ),
     )
   ).flat();
-  const failedCount = entities.filter(
-    (entity) => entity.syncStatus === 'failed',
-  ).length;
-  const syncingCount = entities.filter(
-    (entity) => entity.syncStatus === 'syncing',
-  ).length;
-  const pendingCount = entities.filter(
-    (entity) => entity.syncStatus === 'pending',
-  ).length;
+  const failedCount =
+    entities.filter((entity) => entity.syncStatus === 'failed').length +
+    preferences.failedCount;
+  const syncingCount =
+    entities.filter((entity) => entity.syncStatus === 'syncing').length +
+    preferences.syncingCount;
+  const pendingCount =
+    entities.filter((entity) => entity.syncStatus === 'pending').length +
+    preferences.pendingCount;
   const state: AccountSyncState = failedCount
     ? 'failed'
     : syncingCount
@@ -276,7 +291,12 @@ export async function forceSyncAccount(scope: AppScope): Promise<void> {
   }
 
   await enqueueAccountPersistence(scope.id, () =>
-    syncAccountFromThisDevice(scope),
+    enqueueAccountSyncTask(scope.id, () =>
+      withAccountSyncLock(scope.id, async () => {
+        await syncAccountFromThisDevice(scope);
+        await drainAccountPreferences(scope, true);
+      }),
+    ),
   );
 }
 
@@ -438,9 +458,10 @@ export function resumeAccountPersistence(scope: AppScope): Promise<void> {
     return Promise.resolve();
   }
 
-  if (shouldUseAccountOperationBatchesForUser(scope.ownerId)) {
-    return resumeInterruptedAccountOperationOutbox(scope);
-  }
-
-  return retryFailedAccountPersistence(scope);
+  return Promise.all([
+    resumeAccountPreferences(scope),
+    shouldUseAccountOperationBatchesForUser(scope.ownerId)
+      ? resumeInterruptedAccountOperationOutbox(scope)
+      : retryFailedAccountPersistence(scope),
+  ]).then(() => undefined);
 }

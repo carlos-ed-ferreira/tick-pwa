@@ -24,6 +24,25 @@ const panelSizeClassNames: Record<DialogSize, string> = {
 
 const openDialogCloseHandlers: Array<() => void> = [];
 
+function DialogCloseButton({
+  label,
+  onClose,
+}: {
+  label: string;
+  onClose: () => void;
+}) {
+  return (
+    <IconButton
+      aria-label={label}
+      size="compact"
+      className="rounded-full bg-white/8 text-[#cbd5e0] hover:bg-white/12 hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
+      onClick={onClose}
+    >
+      <X aria-hidden="true" className="size-4" />
+    </IconButton>
+  );
+}
+
 export function Dialog({
   children,
   closeLabel = 'Close',
@@ -156,14 +175,7 @@ export function Dialog({
           >
             {title}
           </h2>
-          <IconButton
-            aria-label={closeLabel}
-            size="compact"
-            className="rounded-full inset-ring-hairline inset-ring-white/10 bg-white/5 text-[#cbd5e0] hover:bg-white/10 hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
-            onClick={onClose}
-          >
-            <X aria-hidden="true" className="size-4" />
-          </IconButton>
+          <DialogCloseButton label={closeLabel} onClose={onClose} />
         </div>
         {size === 'sheet' ? (
           <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>

@@ -3,7 +3,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AccountSyncIndicator } from '@/features/auth/account-sync-indicator';
 import { AccountStatus } from '@/features/auth/account-status';
 import type { Dictionary } from '@/lib/i18n';
-import { simulateClippedText } from '../support/truncation';
 
 const syncDictionary: Dictionary['sync'] = {
   failed: 'Sync failed',
@@ -78,13 +77,17 @@ describe('AccountStatus', () => {
 
     expect(screen.getByText('Local mode')).toBeInTheDocument();
     expect(signInButton).toBeEnabled();
+    expect(signInButton).toHaveClass('rounded-full');
+    expect(signInButton.className).not.toContain('inset-ring');
 
     fireEvent.click(signInButton);
 
     expect(openAuthEntryMock).toHaveBeenCalledOnce();
   });
 
-  it('shows the complete authenticated email in the project tooltip', async () => {
+  it('renders sign out as a round icon button that names the account in its tooltip', async () => {
+    const signOutMock = vi.fn();
+
     useAppContextMock.mockReturnValue({
       authMode: 'authenticated',
       authUser: { email: 'a-very-long-email-address@example.com' },
@@ -103,29 +106,31 @@ describe('AccountStatus', () => {
         kind: 'user',
         ownerId: 'authenticated-user',
       },
-      signOut: vi.fn(),
+      signOut: signOutMock,
     });
 
     render(<AccountStatus />);
 
-    const email = screen.getByText('a-very-long-email-address@example.com');
+    const signOutButton = screen.getByRole('button', { name: 'Sign out' });
 
-    expect(email).toHaveClass('truncate');
-    expect(email.parentElement).not.toHaveAttribute('title');
+    expect(signOutButton).toHaveTextContent('');
+    expect(signOutButton).toHaveClass('rounded-full', 'size-10');
+    expect(signOutButton.className).not.toContain('inset-ring');
+    expect(signOutButton).not.toHaveAttribute('title');
 
-    const tooltipTrigger = email.parentElement?.parentElement;
+    fireEvent.mouseEnter(signOutButton.parentElement as HTMLElement);
 
-    expect(tooltipTrigger).not.toBeNull();
-    expect(email.parentElement).toHaveAttribute('tabindex', '0');
-    simulateClippedText(email);
-    fireEvent.mouseEnter(tooltipTrigger as HTMLElement);
+    const tooltip = await screen.findByRole('tooltip');
 
-    expect(await screen.findByRole('tooltip')).toHaveTextContent(
-      'a-very-long-email-address@example.com',
-    );
+    expect(tooltip).toHaveTextContent('Sign out');
+    expect(tooltip).toHaveTextContent('a-very-long-email-address@example.com');
+
+    fireEvent.click(signOutButton);
+
+    expect(signOutMock).toHaveBeenCalledOnce();
   });
 
-  it('keeps a sync status within its maximum width and exposes its complete label', async () => {
+  it('renders the sync control as a round icon button that exposes its status in a tooltip', async () => {
     useAccountSyncStatusMock.mockReturnValue({
       retry: retryAccountSyncMock,
       summary: {
@@ -151,18 +156,15 @@ describe('AccountStatus', () => {
       name: 'Synced. Sync now',
     });
 
-    expect(syncButton).toHaveClass('max-w-[10rem]');
+    expect(syncButton).toHaveTextContent('');
+    expect(syncButton).toHaveClass('rounded-full', 'size-10');
+    expect(syncButton.className).not.toContain('inset-ring');
     expect(syncButton).toHaveClass(
       'hover:-translate-y-0.5',
       'hover:shadow-md',
       'active:translate-y-0',
     );
 
-    const statusLabel = syncButton.querySelector('span');
-
-    expect(statusLabel).toHaveClass('truncate');
-
-    simulateClippedText(statusLabel as HTMLElement);
     fireEvent.mouseEnter(syncButton.parentElement as HTMLElement);
 
     expect(await screen.findByRole('tooltip')).toHaveTextContent('Synced');

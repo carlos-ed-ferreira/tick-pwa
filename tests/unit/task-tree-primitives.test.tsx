@@ -144,7 +144,7 @@ describe('task tree primitives', () => {
       'shrink-0',
       'items-center',
       'justify-center',
-      'rounded-md',
+      'rounded-full',
       'transition',
       'hover:bg-white/[0.08]',
       'hover:text-[#fff9f2]',

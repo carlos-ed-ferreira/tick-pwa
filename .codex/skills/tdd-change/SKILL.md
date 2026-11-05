@@ -46,7 +46,9 @@ ou demonstrar que o comportamento não é testável naquele nível.
 
 1. Executar a matriz aplicável do `REVIEW.md`.
 2. Rodar `make check` para mudança ampla; rodar E2E e banco quando o REVIEW
-   exigir.
+   exigir. Executar `make quality-check`, `make test-coverage`,
+   `make coverage-check` e `make test-mutation` quando afetar os contratos
+   medidos; não regravar baselines para encobrir regressões.
 3. Revisar o diff por ruído, logs, código morto e regressão de baseline.
 4. Informar evidência RED/GREEN, gates aprovados, gates omitidos e problemas
    preexistentes.

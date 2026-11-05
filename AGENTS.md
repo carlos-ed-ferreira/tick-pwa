@@ -4,9 +4,9 @@
 
 Este arquivo rege agentes no repositório inteiro, salvo `AGENTS.md` mais
 específico. Leia primeiro o [README.md](README.md) para o estado real e o
-[REVIEW.md](REVIEW.md) para gates e evidências. Consulte o
-[plano de implementação](docs/planning/implementation-plan.md) para lacunas futuras; não trate um item
-planejado como já implementado.
+[REVIEW.md](REVIEW.md) para gates e critérios de revisão. O
+[arquivo temporário de trabalho](docs/planning/PENDENCIAS.md) concentra
+as pendências; não trate um item dele como garantia implementada.
 
 ## Antes de editar
 
@@ -103,11 +103,28 @@ Bugfix deve reproduzir o bug em teste sempre que tecnicamente viável. Não
 enfraqueça teste para aceitar comportamento incorreto. Use dados isolados e
 nunca PII, secrets ou dados de produção.
 
+Mudança puramente visual, como classes, espaçamento, raio, cor, ícone ou
+texto, não exige teste RED prévio. Ajuste os testes existentes que quebrarem
+e cubra com teste apenas o que tiver comportamento, como clique, navegação,
+estado ou acessibilidade.
+
+Durante RED, GREEN e ajustes, rode somente os arquivos afetados com
+`make test-file files="<arquivos>"`. Rode `make check` uma única vez ao
+concluir; ele já inclui a suíte completa, então não o preceda de `make test`.
+E2E roda uma vez, ao final, apenas quando a mudança afetar layout,
+responsividade ou fluxo de navegador, e nunca em paralelo com `make check` ou
+`make build`, que reescrevem `.next`.
+
 Em feature full-stack, implemente primeiro domínio, invariantes, validação,
 persistência, autorização, contrato e seus testes; depois UI, integração,
 loading, vazio, erro e E2E. Tarefa puramente visual não exige backend artificial.
 
-## Local-first e escopos
+## Local-first autenticado, guest e escopos
+
+Local-first significa que o usuário autenticado pode continuar usando os dados
+da conta quando perde a internet e sincronizar ao reconectar. Guest é uso sem
+conta, exclusivamente local. Testes de guest não comprovam o contrato da conta
+offline; validar cada modo e o caminho remoto efetivamente habilitado.
 
 A interação principal deve confirmar localmente antes da rede. Toda mudança de
 persistência deve considerar retry, idempotência, ordem, duplicação, conflito,
@@ -136,7 +153,7 @@ Preserve GitHub Free, Vercel Hobby e Supabase Free no ambiente atual.
 Não migre dados guest incidentalmente durante login. Guest e contas convidadas
 permanecem em escopos independentes; entrar em uma conta não autoriza enviar os
 dados locais ao Supabase. O contrato está em
-`docs/planning/guest-and-invited-access.md`.
+`docs/planning/MODOS-DE-ACESSO.md`.
 
 ## Banco, API e segurança
 
@@ -157,8 +174,14 @@ use atualização destrutiva ou `--force` automaticamente.
 
 Use inglês para nomes de diretórios, arquivos, módulos, símbolos, tipos,
 funções, variáveis, targets, artefatos técnicos e demais identificadores do
-repositório. Apenas o conteúdo textual de documentação pode permanecer em
-português. Não introduza nomenclatura técnica nova em português.
+repositório. Documentos Markdown usam nomes em português, em maiúsculas,
+sem acentos e com palavras separadas por hífens, mantendo a extensão `.md`.
+Escolha nomes curtos que indiquem a finalidade do documento, sem traduções
+literais ou detalhes redundantes. Arquivos
+convencionais como `README.md`, `AGENTS.md`, `CLAUDE.md`, `REVIEW.md` e
+`SKILL.md` preservam seus nomes em inglês. Diretórios e identificadores de
+skills continuam em inglês. Não introduza outros identificadores técnicos
+em português.
 
 Não adicione comentários de linha, bloco, JSDoc, TODO, código comentado ou
 comentários gerados por IA em código, testes, CSS ou SQL. Expresse intenção com
@@ -192,6 +215,10 @@ mínimo é 44px em ponteiro grosso e deve ser obtido ampliando a área de acerto
 com `touch-target`, sem aumentar o tamanho pintado do controle. Controle com
 desenho menor que 44px precisa de `touch-target`. Interação por arrasto precisa
 de caminho equivalente no toque; HTML5 drag and drop sozinho não atende.
+
+Botões seguem o padrão preenchido e sem borda descrito na Skill
+`frontend-design`: pill com texto, redondo só com ícone. Campos de formulário
+usam `FormField` ou `FormTextareaField`, com rótulo na borda.
 
 Reutilize primitives, tokens e padrões antes de criar componentes. Não force
 reutilização sem equivalência semântica. Preserve a linguagem visual e não
@@ -240,10 +267,21 @@ gates funcionais, de segurança e de integridade do REVIEW.
 ## Documentação e conclusão
 
 Atualize o README quando mudar estado real, setup, arquitetura, comandos,
-integrações ou operação. Atualize AGENTS quando mudar como o agente trabalha,
-REVIEW quando mudar gates e o plano de implementação quando descobrir uma
-lacuna ainda não resolvida. Atualize a Skill quando mudar o procedimento que ela
-operacionaliza. Documentação detalhada de feature fica em `docs/`.
+integrações ou operação. Atualize AGENTS quando mudar como o agente trabalha e
+REVIEW quando mudar gates. Atualize a Skill quando mudar seu procedimento e
+mantenha os espelhos sincronizados. Documentação detalhada fica em `docs/`.
+
+Títulos e subtítulos usam capitalização natural e preservam termos técnicos,
+nomes convencionais, marcas e siglas. Não usar caixa alta em todo o título;
+a convenção de maiúsculas se aplica aos nomes dos arquivos.
+
+Markdown permanente descreve comportamento, regras e procedimentos atuais,
+sem histórico de releases, incidentes, aceites ou resultados antigos de gates.
+Resultados específicos são entregues na tarefa ou revisão correspondente.
+Concentre toda pendência no arquivo temporário de trabalho, com origem, estado
+e critério de resolução. Remova itens resolvidos e atualize apenas o estado
+resultante nos documentos permanentes. Remova o arquivo temporário e suas
+referências quando não houver itens abertos.
 
 Antes de concluir:
 

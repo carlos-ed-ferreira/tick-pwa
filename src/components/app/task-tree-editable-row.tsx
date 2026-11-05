@@ -1,17 +1,6 @@
 'use client';
 
-import {
-  ArrowDown,
-  ArrowUp,
-  CalendarDays,
-  GripVertical,
-  IndentDecrease,
-  IndentIncrease,
-  Plus,
-  Star,
-  Tag,
-  Trash2,
-} from 'lucide-react';
+import { CalendarDays, GripVertical } from 'lucide-react';
 import {
   useCallback,
   useEffect,
@@ -25,7 +14,6 @@ import {
   ConfirmationDialog,
   IconButton,
 } from '@/components/ui';
-import { CategoryAssignmentMenu } from '@/features/categories';
 import { useDebouncedInlineEdit } from '@/hooks/use-debounced-inline-edit';
 import { useFocusAfterCreate } from '@/hooks/use-focus-after-create';
 import { useTouchComposition } from '@/hooks/use-touch-composition';
@@ -45,7 +33,8 @@ import { TaskCompletionCheckbox } from './task-completion-checkbox';
 import { TaskTreeActionGroup } from './task-tree-action-group';
 import { TaskTreeCategoryChip } from './task-tree-category-chip';
 import { TaskTreeCollapseButton } from './task-tree-collapse-button';
-import { TaskTreeClearCategoryIcon } from './task-tree-clear-category-icon';
+import { TaskTreeInlineActions } from './task-tree-inline-actions';
+import { getTaskTreeRowAvailability } from './task-tree-row-availability';
 import { TaskTreeMoreActionsMenu } from './task-tree-more-actions-menu';
 import { TaskTreeRowActionsSheet } from './task-tree-row-actions-sheet';
 import { TaskTreeRowLayout } from './task-tree-row-layout';
@@ -153,7 +142,12 @@ function useOptimisticValue<TValue>(currentValue: TValue) {
 async function createAndFocusNewItem(
   createItem: () => Promise<string | null> | string | null,
   focusAfterCreate: (itemId: string) => void,
+  isAllowed = true,
 ) {
+  if (!isAllowed) {
+    return;
+  }
+
   const newItemId = await createItem();
 
   if (newItemId) {
@@ -212,7 +206,10 @@ export function TaskTreeEditableRow({
   actionPreferences?: TaskTreeRowActionPreferences;
   bold: boolean;
   categoryTagId: string | null;
-  categoryTagMap: Map<string, { colorHex: string; name: string }>;
+  categoryTagMap: Map<
+    string,
+    { colorHex: string; name: string; useOwnName?: boolean }
+  >;
   checked: boolean;
   completionSettings?: TaskCompletionSettings;
   ignored?: boolean;
@@ -305,6 +302,19 @@ export function TaskTreeEditableRow({
   } = useDebouncedInlineEdit({
     onSave: onSaveText,
     value: sourceText,
+  });
+  const availability = getTaskTreeRowAvailability({
+    categoryTagId,
+    depth,
+    hasAssignableCategories: [...categoryTagMap.values()].some(
+      (category) => !category.useOwnName,
+    ),
+    isDraft,
+    isFirstSibling,
+    isLastSibling,
+    isSelected: selection?.isSelected === true,
+    isSelectionMode,
+    text,
   });
 
   const timeText =
@@ -461,7 +471,11 @@ export function TaskTreeEditableRow({
         return;
       }
 
-      await createAndFocusNewItem(onCreateChild, focusAfterCreate);
+      await createAndFocusNewItem(
+        onCreateChild,
+        focusAfterCreate,
+        availability.actions.canEditContent,
+      );
       return;
     }
 
@@ -654,14 +668,20 @@ export function TaskTreeEditableRow({
     });
   }
 
+  async function addChild() {
+    await flushText();
+    await createAndFocusNewItem(onCreateChild, focusAfterCreate);
+  }
+
   const scheduledTimeField = (
     <input
       aria-label={labels.itemTime}
+      disabled={availability.isEmptyDraft}
       inputMode="numeric"
       maxLength={5}
       placeholder="00:00"
       value={timeText}
-      className="ml-2 h-6 w-[4rem] shrink-0 rounded-lg inset-ring-hairline inset-ring-white/10 bg-white/[0.045] px-1.5 text-center text-xs font-medium tabular-nums text-[#fff9f2] outline-none transition placeholder:text-[#7b8da0] focus:inset-ring-[#f0c38e]/40 focus:bg-white/[0.065] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e] touch:ml-0 touch:h-11 touch:w-20 touch:text-sm"
+      className="ml-2 h-6 w-[4rem] shrink-0 rounded-full bg-white/8 px-1.5 text-center text-xs font-medium tabular-nums text-[#fff9f2] outline-none transition placeholder:text-[#7b8da0] hover:bg-white/12 focus:inset-ring-hairline focus:inset-ring-[#f0c38e]/70 focus:bg-white/12 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e] touch:ml-0 touch:h-11 touch:w-20 touch:text-base"
       spellCheck={false}
       autoCorrect="off"
       autoCapitalize="none"
@@ -686,7 +706,8 @@ export function TaskTreeEditableRow({
         <button
           type="button"
           aria-label={ariaLabel}
-          className="ml-2 flex h-6 w-16 shrink-0 items-center justify-center gap-1 rounded-lg inset-ring-hairline inset-ring-white/10 bg-white/4.5 px-1.5 text-center text-xs font-medium tabular-nums text-[#fff9f2] outline-none transition hover:inset-ring-white/20 hover:bg-white/6.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e] touch:ml-0 touch:h-11 touch:w-full touch:text-sm"
+          disabled={availability.isEmptyDraft}
+          className="ml-2 flex h-6 w-16 shrink-0 items-center justify-center gap-1 rounded-full bg-white/8 px-1.5 text-center text-xs font-medium tabular-nums text-[#fff9f2] outline-none transition hover:bg-white/12 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e] touch:ml-0 touch:h-11 touch:w-full touch:text-sm"
           onClick={onClick}
         >
           {scheduledDate ? (
@@ -730,7 +751,7 @@ export function TaskTreeEditableRow({
       >
         <TaskTreeCollapseButton
           collapseLabel={labels.collapseItem}
-          disabled={isSelectionMode}
+          disabled={availability.isLocked}
           expandLabel={labels.expandItem}
           hasChildren={hasChildren}
           isCollapsed={collapsed}
@@ -757,9 +778,7 @@ export function TaskTreeEditableRow({
 
         <TaskCompletionCheckbox
           completionSettings={completionSettings}
-          disabled={
-            selection?.isSelectionMode === true && !selection.isSelected
-          }
+          disabled={availability.inlineDisabled.checkbox}
           labels={labels}
           values={displayedCompletion}
           onSelect={
@@ -821,140 +840,29 @@ export function TaskTreeEditableRow({
               onToggle={selection.onToggle}
             />
           ) : null}
-          {effectivePreferences.add === 'inline' ? (
-            <IconButton
-              aria-label={labels.addChild}
-              className="rounded-full hover:bg-white/[0.08] hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
-              disabled={isSelectionMode}
-              onClick={() =>
-                void (async () => {
-                  await flushText();
-                  await createAndFocusNewItem(onCreateChild, focusAfterCreate);
-                })()
-              }
-            >
-              <Plus aria-hidden="true" className="size-4" />
-            </IconButton>
-          ) : null}
-          {effectivePreferences.moveUp === 'inline' ? (
-            <IconButton
-              aria-label={labels.moveItemUp}
-              className="rounded-full hover:bg-white/[0.08] hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
-              disabled={isSelectionMode || isFirstSibling}
-              onClick={() => void onMoveUp()}
-            >
-              <ArrowUp aria-hidden="true" className="size-4" />
-            </IconButton>
-          ) : null}
-          {effectivePreferences.moveDown === 'inline' ? (
-            <IconButton
-              aria-label={labels.moveItemDown}
-              className="rounded-full hover:bg-white/[0.08] hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
-              disabled={isSelectionMode || isLastSibling}
-              onClick={() => void onMoveDown()}
-            >
-              <ArrowDown aria-hidden="true" className="size-4" />
-            </IconButton>
-          ) : null}
-          {effectivePreferences.outdent === 'inline' ? (
-            <IconButton
-              aria-label={labels.outdentItem}
-              className="rounded-full hover:bg-white/[0.08] hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
-              disabled={isSelectionMode || depth === 0}
-              onClick={() => void onOutdent()}
-            >
-              <IndentDecrease aria-hidden="true" className="size-4" />
-            </IconButton>
-          ) : null}
-          {effectivePreferences.indent === 'inline' ? (
-            <IconButton
-              aria-label={labels.indentItem}
-              className="rounded-full hover:bg-white/[0.08] hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
-              disabled={isSelectionMode || isFirstSibling}
-              onClick={() => void onIndent()}
-            >
-              <IndentIncrease aria-hidden="true" className="size-4" />
-            </IconButton>
-          ) : null}
-          {effectivePreferences.priority === 'inline' ? (
-            <IconButton
-              aria-label={
-                displayedPriority ? labels.unmarkPriority : labels.markPriority
-              }
-              className="rounded-full hover:bg-white/[0.08] hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
-              disabled={isSelectionMode}
-              onClick={() => void togglePriority()}
-            >
-              <Star
-                aria-hidden="true"
-                className={`size-4 ${
-                  displayedPriority ? 'fill-current text-[#f0c38e]' : ''
-                }`}
-              />
-            </IconButton>
-          ) : null}
-          {effectivePreferences.bold === 'inline' ? (
-            <IconButton
-              aria-label={
-                displayedBold ? labels.makeTextNormal : labels.makeTextBold
-              }
-              className="rounded-full hover:bg-white/[0.08] hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
-              disabled={isSelectionMode}
-              onClick={() => void toggleBold()}
-            >
-              <span
-                aria-hidden="true"
-                className={`text-base leading-none ${
-                  displayedBold ? 'font-bold' : 'font-normal'
-                }`}
-              >
-                B
-              </span>
-            </IconButton>
-          ) : null}
-          {effectivePreferences.category === 'inline' ? (
-            <CategoryAssignmentMenu
-              assignLabel={labels.assignCategory}
-              clearLabel={labels.clearCategory}
-              disabled={isSelectionMode}
-              renderTriggerContent={() => (
-                <Tag aria-hidden="true" className="size-4" />
-              )}
-              selectedCategoryTagId={categoryTagId}
-              showClearButton={false}
-              surface={surface}
-              triggerClassName="inline-flex size-9 shrink-0 items-center justify-center rounded-md text-muted transition hover:bg-background hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground disabled:cursor-not-allowed disabled:opacity-40 rounded-full hover:bg-white/[0.08] hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
-              onAssign={onAssignCategory}
-            />
-          ) : null}
-          {effectivePreferences.clearCategory === 'inline' ? (
-            <IconButton
-              aria-label={labels.clearCategory}
-              className="rounded-full hover:bg-white/[0.08] hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
-              disabled={isSelectionMode || !categoryTagId}
-              onClick={() => void onAssignCategory(null)}
-            >
-              <TaskTreeClearCategoryIcon className="size-4" />
-            </IconButton>
-          ) : null}
-          {effectivePreferences.delete === 'inline' ? (
-            <IconButton
-              aria-label={labels.deleteItem}
-              className="rounded-full text-rose-200 hover:bg-rose-400/[0.12] hover:text-rose-100 focus-visible:outline-[#f0c38e]"
-              disabled={isSelectionMode}
-              onClick={() => void requestDelete()}
-            >
-              <Trash2 aria-hidden="true" className="size-4" />
-            </IconButton>
-          ) : null}
+          <TaskTreeInlineActions
+            actionPreferences={effectivePreferences}
+            availability={availability}
+            bold={displayedBold}
+            categoryTagId={categoryTagId}
+            labels={labels}
+            priority={displayedPriority}
+            surface={surface}
+            onAdd={addChild}
+            onAssignCategory={onAssignCategory}
+            onDelete={requestDelete}
+            onIndent={onIndent}
+            onMoveDown={onMoveDown}
+            onMoveUp={onMoveUp}
+            onOutdent={onOutdent}
+            onToggleBold={toggleBold}
+            onTogglePriority={togglePriority}
+          />
           {isTouchComposition ? (
             <TaskTreeRowActionsSheet
               actionPreferences={effectivePreferences}
               bold={displayedBold}
-              canIndent={!isFirstSibling}
-              canMoveDown={!isLastSibling}
-              canMoveUp={!isFirstSibling}
-              canOutdent={depth > 0}
+              availability={availability.actions}
               categoryTagId={categoryTagId}
               dateTrigger={scheduledDateField}
               disabled={isSelectionMode}
@@ -964,10 +872,7 @@ export function TaskTreeEditableRow({
               showScheduledTime={showScheduledTime}
               surface={surface}
               timeField={scheduledTimeField}
-              onAdd={async () => {
-                await flushText();
-                await createAndFocusNewItem(onCreateChild, focusAfterCreate);
-              }}
+              onAdd={addChild}
               onAssignCategory={onAssignCategory}
               onDelete={requestDelete}
               onIndent={onIndent}
@@ -981,19 +886,12 @@ export function TaskTreeEditableRow({
             <TaskTreeMoreActionsMenu
               actionPreferences={effectivePreferences}
               bold={displayedBold}
-              canIndent={!isFirstSibling}
-              canMoveDown={!isLastSibling}
-              canMoveUp={!isFirstSibling}
-              canOutdent={depth > 0}
+              availability={availability.actions}
               categoryTagMap={categoryTagMap}
               disabled={isSelectionMode}
               labels={labels}
               priority={displayedPriority}
-              selectedCategoryTagId={categoryTagId}
-              onAdd={async () => {
-                await flushText();
-                await createAndFocusNewItem(onCreateChild, focusAfterCreate);
-              }}
+              onAdd={addChild}
               onAssignCategory={onAssignCategory}
               onDelete={requestDelete}
               onIndent={onIndent}

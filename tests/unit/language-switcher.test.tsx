@@ -26,26 +26,49 @@ describe('LanguageSwitcher', () => {
     setLocaleMock.mockClear();
   });
 
-  it('renders the current locale as a visible button and toggles to the other locale', () => {
+  it('shows the short code of the current locale in a borderless pill menu trigger', () => {
     render(<LanguageSwitcher />);
 
-    const button = screen.getByRole('button', {
+    const trigger = screen.getByRole('button', {
       name: 'Language: English',
     });
 
-    expect(button).toHaveTextContent('English');
-    expect(button).toHaveClass('inset-ring-hairline');
-
-    fireEvent.click(button);
-
-    expect(setLocaleMock).toHaveBeenCalledWith('pt-BR');
+    expect(trigger).toHaveTextContent('EN');
+    expect(trigger).not.toHaveTextContent('English');
+    expect(trigger).toHaveAttribute('aria-haspopup', 'menu');
+    expect(trigger).toHaveAttribute('aria-expanded', 'false');
+    expect(trigger).toHaveClass('rounded-full');
+    expect(trigger.className).not.toContain('inset-ring');
   });
 
-  it('does not repeat the visible locale label in a tooltip', () => {
+  it('opens a menu with every locale and switches to the chosen one', () => {
     render(<LanguageSwitcher />);
 
-    fireEvent.focus(screen.getByRole('button', { name: 'Language: English' }));
+    const trigger = screen.getByRole('button', { name: 'Language: English' });
 
-    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+    fireEvent.click(trigger);
+
+    expect(trigger).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByRole('menu', { name: 'Language' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('menuitemradio', { name: 'English' }),
+    ).toHaveAttribute('aria-checked', 'true');
+
+    fireEvent.click(
+      screen.getByRole('menuitemradio', { name: 'Português (Brasil)' }),
+    );
+
+    expect(setLocaleMock).toHaveBeenCalledWith('pt-BR');
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+  });
+
+  it('keeps the current locale when it is chosen again', () => {
+    render(<LanguageSwitcher />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Language: English' }));
+    fireEvent.click(screen.getByRole('menuitemradio', { name: 'English' }));
+
+    expect(setLocaleMock).not.toHaveBeenCalled();
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument();
   });
 });

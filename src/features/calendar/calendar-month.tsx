@@ -12,7 +12,15 @@ import {
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { BottomSheet, BottomSheetAction, IconButton } from '@/components/ui';
+import {
+  BottomSheet,
+  BottomSheetAction,
+  filledCompactPillControlClassName,
+  filledControlAccentClassName,
+  filledControlDangerClassName,
+  filledControlNeutralClassName,
+  IconButton,
+} from '@/components/ui';
 import { useCategoryTags } from '@/features/categories';
 import { BulkCalendarEditor } from '@/features/calendar/bulk-calendar-editor';
 import { CalendarImportDialog } from '@/features/calendar/calendar-import-dialog';
@@ -240,7 +248,7 @@ export function CalendarMonth() {
         <header className="calendar-header-panel flex flex-col gap-2.5 px-4 py-2.5 sm:px-5 lg:px-6">
           <div className="flex flex-col gap-2.5 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex min-w-0 items-center gap-3">
-              <span className="inline-flex size-8 shrink-0 items-center justify-center rounded-full inset-ring-hairline inset-ring-[#f0c38e]/24 bg-[#f0c38e]/10 text-[#f0c38e] shadow-sm shadow-[#253241]/10">
+              <span className="inline-flex size-8 shrink-0 items-center justify-center rounded-full bg-[#f0c38e]/14 text-[#f0c38e] shadow-sm shadow-[#253241]/10">
                 <CalendarDays aria-hidden="true" className="size-4" />
               </span>
               <div className="min-w-0">
@@ -270,7 +278,7 @@ export function CalendarMonth() {
 
             <div
               aria-label={dictionary.calendar.today}
-              className="flex h-8 w-fit items-center gap-1 rounded-full touch:hidden inset-ring-hairline inset-ring-white/10 bg-white/4 px-1 shadow-sm shadow-[#253241]/10"
+              className="flex h-8 w-fit items-center gap-1 rounded-full touch:hidden bg-white/6 px-1 shadow-sm shadow-[#253241]/10"
             >
               <button
                 type="button"
@@ -316,7 +324,7 @@ export function CalendarMonth() {
               ref={monthStripRef}
               role="tablist"
               aria-label={periodLabel}
-              className="calendar-month-strip flex flex-1 items-center gap-1 overflow-x-auto rounded-full inset-ring-hairline inset-ring-white/8 bg-white/[0.025] p-0.5 sm:justify-between"
+              className="calendar-month-strip flex flex-1 items-center gap-1 overflow-x-auto rounded-full bg-white/6 p-0.5 shadow-sm shadow-[#253241]/10 sm:justify-between"
             >
               {monthOptions.map((monthOption) => (
                 <button
@@ -324,10 +332,10 @@ export function CalendarMonth() {
                   type="button"
                   role="tab"
                   aria-selected={visibleMonthIndex === monthOption.monthIndex}
-                  className={`inline-flex h-8 shrink-0 items-center justify-center rounded-full inset-ring-hairline px-2.5 text-xs font-medium uppercase leading-none tracking-[0.16em] transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0] ${
+                  className={`inline-flex h-7 shrink-0 items-center justify-center rounded-full px-2.5 text-xs font-medium uppercase leading-none tracking-[0.16em] transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f7d9b0] ${
                     visibleMonthIndex === monthOption.monthIndex
-                      ? 'inset-ring-[#f3d2aa] bg-[#f0c38e] text-[#253241] shadow-[0_12px_30px_rgba(240,195,142,0.16)]'
-                      : 'inset-ring-transparent bg-transparent text-[#98a6b5] hover:inset-ring-white/10 hover:bg-white/6 hover:text-[#fff9f2] active:bg-white/10'
+                      ? 'bg-[#f0c38e] font-semibold text-[#253241] shadow-[0_12px_30px_rgba(240,195,142,0.16)]'
+                      : 'bg-transparent text-[#98a6b5] hover:bg-white/8 hover:text-[#fff9f2] active:bg-white/12'
                   }`}
                   onClick={() =>
                     selectVisibleMonth(
@@ -343,39 +351,27 @@ export function CalendarMonth() {
             <div className="flex shrink-0 flex-wrap items-center gap-2 touch:hidden">
               <button
                 type="button"
-                className="group inline-flex h-9 items-center gap-2 rounded-[0.75rem] inset-ring-hairline inset-ring-[#f8d7aa]/70 bg-[#f0c38e] pl-1.5 pr-3 text-left text-[#253241] shadow-md shadow-[#f0c38e]/18 transition hover:inset-ring-[#ffe0b8] hover:bg-[#f5d09f] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e] disabled:cursor-not-allowed disabled:opacity-65"
-                onClick={() => setBulkEditorMode('create')}
-              >
-                <span className="grid size-6 shrink-0 place-items-center rounded-[0.5rem] bg-[#253241]/10 text-[#253241]">
-                  <Plus aria-hidden="true" className="size-4" />
-                </span>
-                <span className="text-sm font-semibold">
-                  {dictionary.calendar.bulkCreate}
-                </span>
-              </button>
-              <button
-                type="button"
-                className="group inline-flex h-9 items-center gap-2 rounded-[0.75rem] inset-ring-hairline inset-ring-[#fff9f2]/22 bg-[#fff9f2]/10 pl-1.5 pr-3 text-left text-[#fff9f2] shadow-sm shadow-[#253241]/8 transition hover:inset-ring-[#fff9f2]/34 hover:bg-[#fff9f2]/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e] disabled:cursor-not-allowed disabled:opacity-65"
+                className={`${filledCompactPillControlClassName} ${filledControlNeutralClassName}`}
                 onClick={() => setIsImportOpen(true)}
               >
-                <span className="grid size-6 shrink-0 place-items-center rounded-[0.5rem] bg-[#fff9f2]/12 text-[#fff9f2]">
-                  <FileJson aria-hidden="true" className="size-4" />
-                </span>
-                <span className="text-sm font-semibold">
-                  {dictionary.calendar.importCreate}
-                </span>
+                <FileJson aria-hidden="true" className="size-4" />
+                {dictionary.calendar.importCreate}
               </button>
               <button
                 type="button"
-                className="group inline-flex h-9 items-center gap-2 rounded-[0.75rem] inset-ring-hairline inset-ring-[#fff9f2]/22 bg-[#fff9f2]/10 pl-1.5 pr-3 text-left text-[#fff9f2] shadow-sm shadow-[#253241]/8 transition hover:inset-ring-[#fff9f2]/34 hover:bg-[#fff9f2]/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e] disabled:cursor-not-allowed disabled:opacity-65"
+                className={`${filledCompactPillControlClassName} ${filledControlAccentClassName}`}
+                onClick={() => setBulkEditorMode('create')}
+              >
+                <Plus aria-hidden="true" className="size-4" />
+                {dictionary.calendar.bulkCreate}
+              </button>
+              <button
+                type="button"
+                className={`${filledCompactPillControlClassName} ${filledControlDangerClassName}`}
                 onClick={() => setBulkEditorMode('clear')}
               >
-                <span className="grid size-6 shrink-0 place-items-center rounded-[0.5rem] bg-[#fff9f2]/12 text-[#fff9f2]">
-                  <Trash2 aria-hidden="true" className="size-4" />
-                </span>
-                <span className="text-sm font-semibold">
-                  {dictionary.calendar.bulkClear}
-                </span>
+                <Trash2 aria-hidden="true" className="size-4" />
+                {dictionary.calendar.bulkClear}
               </button>
             </div>
           </div>
@@ -432,15 +428,6 @@ export function CalendarMonth() {
         onClose={() => setIsActionsSheetOpen(false)}
       >
         <BottomSheetAction
-          icon={<Plus aria-hidden="true" className="size-4 text-[#f0c38e]" />}
-          onSelect={() => {
-            setIsActionsSheetOpen(false);
-            setBulkEditorMode('create');
-          }}
-        >
-          {dictionary.calendar.bulkCreate}
-        </BottomSheetAction>
-        <BottomSheetAction
           icon={<FileJson aria-hidden="true" className="size-4" />}
           onSelect={() => {
             setIsActionsSheetOpen(false);
@@ -450,7 +437,16 @@ export function CalendarMonth() {
           {dictionary.calendar.importCreate}
         </BottomSheetAction>
         <BottomSheetAction
-          icon={<Trash2 aria-hidden="true" className="size-4" />}
+          icon={<Plus aria-hidden="true" className="size-4 text-[#f0c38e]" />}
+          onSelect={() => {
+            setIsActionsSheetOpen(false);
+            setBulkEditorMode('create');
+          }}
+        >
+          {dictionary.calendar.bulkCreate}
+        </BottomSheetAction>
+        <BottomSheetAction
+          icon={<Trash2 aria-hidden="true" className="size-4 text-rose-300" />}
           onSelect={() => {
             setIsActionsSheetOpen(false);
             setBulkEditorMode('clear');

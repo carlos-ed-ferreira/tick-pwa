@@ -17,6 +17,7 @@ concurrency:
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
   quality-gate:
@@ -28,35 +29,24 @@ jobs:
       github.event.workflow_run.head_branch == 'main' &&
       github.event.workflow_run.conclusion == 'success')
     runs-on: ubuntu-latest
+    environment: production
+    env:
+      GH_TOKEN: ${{ github.token }}
+      APPROVED_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      VERCEL_TEAM_ID: ${{ secrets.VERCEL_TEAM_ID }}
     steps:
-      - name: Confirm completed App CI
-        if: github.event_name == 'workflow_run'
-        env:
-          APPROVED_SHA: ${{ github.event.workflow_run.head_sha }}
-        run: test -n "$APPROVED_SHA"
-
-      - name: Checkout manual release
-        if: github.event_name == 'workflow_dispatch'
+      - name: Checkout approved release
         uses: actions/checkout@v6
-
-      - name: Setup Node.js for manual release
-        if: github.event_name == 'workflow_dispatch'
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+      - name: Setup Node.js
         uses: actions/setup-node@v7
         with:
           node-version: 22
-          cache: npm
-
-      - name: Install dependencies for manual release
-        if: github.event_name == 'workflow_dispatch'
-        run: make install-ci
-
-      - name: Run checks for manual release
-        if: github.event_name == 'workflow_dispatch'
-        run: make check
-
-      - name: Audit production dependencies for manual release
-        if: github.event_name == 'workflow_dispatch'
-        run: make audit-prod
+      - name: Confirm App CI and deployment configuration
+        run: make production-release-preflight
 
   migrate-production:
     name: Apply production migrations
@@ -76,44 +66,26 @@ jobs:
           fetch-depth: 2
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
-      - name: Detect database changes
-        id: database-changes
-        env:
-          APPROVED_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
-          EVENT_NAME: ${{ github.event_name }}
-        run: |
-          test "$(git rev-parse HEAD)" = "$APPROVED_SHA"
-          echo "Approved SHA: $APPROVED_SHA" >> "$GITHUB_STEP_SUMMARY"
-          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
-            echo "changed=true" >> "$GITHUB_OUTPUT"
-          elif git diff --quiet HEAD^ HEAD -- supabase/config.toml supabase/migrations supabase/schemas supabase/tests; then
-            echo "changed=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "changed=true" >> "$GITHUB_OUTPUT"
-          fi
-
       - name: Setup Node.js
-        if: steps.database-changes.outputs.changed == 'true'
         uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
 
       - name: Install dependencies
-        if: steps.database-changes.outputs.changed == 'true'
         run: make install-ci
 
       - name: Repair superseded migration history
-        if: steps.database-changes.outputs.changed == 'true'
         run: make supabase-prod-migrations-repair
 
       - name: Preview migrations
-        if: steps.database-changes.outputs.changed == 'true'
         run: make supabase-prod-db-dry-run
 
       - name: Apply migrations
-        if: steps.database-changes.outputs.changed == 'true'
         run: make supabase-prod-db-push
+
+      - name: Confirm migration history before deployment
+        run: make supabase-prod-migrations-check
 
   deploy-production:
     name: Deploy production application
@@ -122,31 +94,25 @@ jobs:
     runs-on: ubuntu-latest
     environment: production
 
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+      APPROVED_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      VERCEL_TEAM_ID: ${{ secrets.VERCEL_TEAM_ID }}
+      VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
     steps:
-      - name: Confirm approved SHA is still current
-        env:
-          GH_TOKEN: ${{ github.token }}
-          APPROVED_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
-        run: |
-          current_sha="$(gh api "repos/${{ github.repository }}/commits/main" --jq '.sha')"
-          test "$current_sha" = "$APPROVED_SHA"
-
-      - name: Trigger the Vercel deployment
-        id: deployment
-        env:
-          APPROVED_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
-          VERCEL_DEPLOY_HOOK_URL: ${{ secrets.VERCEL_DEPLOY_HOOK_URL }}
-        run: |
-          test -n "$VERCEL_DEPLOY_HOOK_URL" || {
-            printf '%s\n' 'Missing VERCEL_DEPLOY_HOOK_URL in the production environment.' >&2
-            exit 1
-          }
-          response="$(curl --fail-with-body --silent --show-error --request POST "$VERCEL_DEPLOY_HOOK_URL")"
-          job_id="$(printf '%s' "$response" | jq -er '.job.id | strings | select(length > 0)')"
-          job_state="$(printf '%s' "$response" | jq -er '.job.state | strings | select(length > 0)')"
-          echo "job-id=$job_id" >> "$GITHUB_OUTPUT"
-          echo "Approved SHA: $APPROVED_SHA" >> "$GITHUB_STEP_SUMMARY"
-          echo "Vercel deploy hook job: $job_id ($job_state)" >> "$GITHUB_STEP_SUMMARY"
+      - name: Checkout approved release
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: Deploy approved SHA and confirm application health
+        run: make production-release
 
   audit-production-migrations:
     name: Audit production migration history

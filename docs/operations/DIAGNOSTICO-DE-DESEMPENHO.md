@@ -14,13 +14,13 @@ profundidade 20 e mede o pull paginado dessas etapas. Não é o refresh completo
 mutações, conflito concorrente e replay idempotente pela API real local.
 
 São quatro workers para uma conta sintética, não quatro usuários independentes
-nem 20 usuários simultâneos. O proprietário definiu uso atual de uma pessoa
+nem 20 usuários simultâneos. O uso atual é de uma pessoa
 em três dispositivos e teto conservador de 20 convidados. Este ensaio não
 comprova capacidade em produção e não é requisito para continuar a manutenção.
 
 ## Política de uso das ferramentas
 
-O proprietário decidiu priorizar uso real e otimização simples, proporcional
+O proprietário prioriza uso real e otimização simples, proporcional
 ao benefício. Não existem budgets obrigatórios de latência ou capacidade nesta
 etapa. Sincronização em segundo plano deve permitir edição contínua sem perder
 ou sobrescrever alterações locais. Cerca de 20 segundos é uma referência para
@@ -87,7 +87,7 @@ TICK_BENCHMARK_BASELINE=docs/operations/baselines/cohort-local.json make benchma
 
 O comando rejeita opções ou cardinalidades diferentes e falha se p95 por lote
 ou duração do primeiro pull piorarem mais de 10%. Só aceita relatórios com
-checagens de correção e limpeza concluídas. O primeiro pull desta amostra tem
+checagens de correção e limpeza concluídas. O primeiro pull do relatório usa
 uma medição, não um p95 entre sessões. Não atualizar baseline para esconder
 regressão; reproduzir em ambiente comparável e justificar a mudança.
 
@@ -99,37 +99,20 @@ removidos por builds; preservar a amostra aprovada antes de reconstruir o app.
 ## Acompanhamento pelo proprietário
 
 Observar uso nos três dispositivos e acompanhar manualmente os painéis. Relatar
-lentidão ou falhas concretas para investigação. Não há aprovação adicional de
-budgets, modelo de carga, monitoramento automático ou ambiente novo pendente.
+lentidão ou falhas concretas para investigação. O escopo atual usa acompanhamento manual, sem gates adicionais de budgets
+ou carga.
 O ensaio sintético permanece disponível para uso voluntário, sem acesso a
 produção e sem necessidade de credenciais reais.
 
-## Primeira amostra em 2026-11-02
-
-O [baseline preservado](baselines/cohort-local.json) foi medido às
-00:14:54Z de 2026-11-03, 21:14:54 de 2026-11-02 em São Paulo, em Node 20.20.2,
-Linux x64 com 12 CPUs lógicas. Foram 30 sucessos e zero erros/timeouts por
-lote; p95 de 54,68 ms para uma mutação e 19,14 ms para cem. O primeiro pull
-leu 5.000 linhas em 10 páginas, 3.140.610 bytes, em 1.139,80 ms.
-
-Uma das duas atualizações concorrentes foi confirmada e a outra respondeu
-PT409/stale_revision. Replay idempotente passou. Os snapshots de memória do
-Postgres foram 84,79 MiB e 109,4 MiB antes/depois, sem deadlocks registrados.
-Reset, lint, diff, 50 testes pgTAP e limpeza do projeto temporário passaram.
-Essa é a primeira referência: não há comparação entre versões do app nem
-aprovação de budgets reais. O compare com a própria amostra valida o comando;
-os testes unitários exercitam a detecção de regressão maior que 10%.
-
 ## Build e limpeza
 
-`make bundle-report` mede o build padrão já existente, sem reconstruí-lo. O
-[baseline de assets](baselines/bundle-local.json) registra 34 arquivos JS,
-incluindo chunks e service worker: 2.145.045 bytes brutos e 646.913 bytes gzip.
+`make bundle-report` mede o build padrão já existente, sem reconstruí-lo. O relatório inclui todos os arquivos JS, chunks e service worker.
+O arquivo `baselines/bundle-local.json` é uma referência para comparação local.
 São todos os assets JS produzidos, inclusive chunks lazy; não é payload da
 primeira rota, tamanho instalado ou medição de abertura em rede móvel.
 
-`make cohort-status` lista containers e volumes com o prefixo do benchmark;
-após este ensaio ambas as listas estavam vazias. Se uma execução informar um
+`make cohort-status` lista containers e volumes com o prefixo do benchmark.
+Conferir a limpeza após cada execução. Se uma execução informar um
 diretório temporário retido por falha de limpeza, usar naquele diretório
 `make supabase-stop args=--no-backup`, conferindo o project_id antes. Não executar
 o comando de limpeza no checkout de trabalho para remover um ensaio isolado.

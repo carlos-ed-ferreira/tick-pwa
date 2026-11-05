@@ -13,16 +13,18 @@ Code. Não duplique, enfraqueça ou contradiga o guia principal.
 1. Antes de editar, inspecione a estrutura do repositório, os arquivos
    relevantes, os testes existentes e os padrões já usados pela feature.
 2. Para feature nova, correção comportamental ou refatoração com mudança de
-   comportamento, crie ou ajuste os testes primeiro.
+   comportamento, crie ou ajuste os testes primeiro. Mudança puramente visual
+   não exige teste RED prévio, conforme o `AGENTS.md`.
 3. Faça a menor alteração coerente que resolva a tarefa. Evite refatorações,
    renomeações e formatações fora do escopo solicitado.
 4. Preserve compatibilidade com os modos local e autenticado e verifique os
    dois fluxos sempre que a mudança tocar persistência, autenticação, escopo ou
    sincronização.
 5. Use os alvos do `Makefile` quando houver um comando equivalente.
-6. Rode primeiro as validações direcionadas à área alterada e, antes de
-   concluir mudanças amplas, rode `make check`. E2E continua separado e deve ser
-   executado quando o fluxo de navegador ou a responsividade forem afetados.
+6. Durante o trabalho, rode apenas `make test-file files="<arquivos>"` da área
+   alterada. Ao concluir, rode `make check` uma vez, sem `make test` antes. E2E
+   roda uma vez no final, somente quando layout, responsividade ou fluxo de
+   navegador forem afetados, e nunca em paralelo com `make check`.
 7. Revise o diff final para remover código morto, logs temporários, qualquer
    comentário de código, arquivos de teste descartáveis e alterações
    acidentais.
@@ -55,20 +57,23 @@ Code. Não duplique, enfraqueça ou contradiga o guia principal.
 
 ## Regras de implementação
 
-- UI não deve acessar tabelas Dexie diretamente; use os comandos e camadas de
-  persistência definidos no projeto.
+- Escritas IndexedDB da UI passam pelos comandos de `src/lib/db`; leituras
+  podem observar Dexie conforme o README.
 - Mudanças de UI devem reutilizar componentes, superfícies e padrões visuais já
   existentes antes de criar novos primitives.
-- Mantenha o modo local funcional sem rede.
-- Em conta autenticada, preserve commit local primeiro, fila remota ordenada,
-  restauração do valor canônico em falha e feedback visível ao usuário.
+- Guest é uso sem conta, exclusivamente local. Local-first é a continuidade
+  do uso da conta autenticada sem internet; testes de guest não aprovam conta offline.
+- Preserve commit local primeiro, fila e recuperação do caminho habilitado
+  por conta. Não substituir alterações pendentes por snapshot remoto para
+  contornar indisponibilidade.
 - Para mudanças no Postgres, trate `supabase/schemas/tick.sql` como estado
   declarativo canônico. Gere migrations por diff e revise o SQL antes de
   considerá-las prontas.
 - Não edite arquivos gerados quando existir uma fonte declarativa ou comando de
   geração correspondente.
-- Atualize `README.md` e `AGENTS.md` quando a mudança alterar regras, setup,
-  arquitetura, persistência, testes, deploy ou comportamento relevante.
+- Mantenha Markdown permanente no estado atual, sem históricos ou backlog.
+  Use o arquivo temporário de trabalho indicado no README para pendências e
+  entregue resultados específicos na revisão da tarefa.
 
 ## Critérios de conclusão
 

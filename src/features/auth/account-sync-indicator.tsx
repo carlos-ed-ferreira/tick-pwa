@@ -2,20 +2,21 @@
 
 import { Check, Cloud, CloudOff, LoaderCircle, RefreshCw } from 'lucide-react';
 import { useState } from 'react';
-import { Button, Tooltip } from '@/components/ui';
+import { filledRoundControlClassName } from '@/components/ui';
+import { Tooltip } from '@/components/ui';
 import type { AppScope } from '@/lib/domain';
 import type { Dictionary } from '@/lib/i18n';
 import { useAccountSyncStatus } from './use-account-sync-status';
 
 const stateStyles = {
   saved:
-    'inset-ring-emerald-300/20 bg-emerald-400/10 text-emerald-100 hover:bg-emerald-400/20 focus-visible:outline-emerald-200',
+    'bg-emerald-400/14 text-emerald-100 hover:bg-emerald-400/22 focus-visible:outline-emerald-200',
   syncing:
-    'inset-ring-sky-300/20 bg-sky-400/10 text-sky-100 hover:bg-sky-400/20 focus-visible:outline-sky-200',
+    'bg-sky-400/14 text-sky-100 hover:bg-sky-400/22 focus-visible:outline-sky-200',
   pending:
-    'inset-ring-amber-300/25 bg-amber-400/12 text-amber-100 hover:bg-amber-400/20 focus-visible:outline-amber-200',
+    'bg-amber-400/16 text-amber-100 hover:bg-amber-400/24 focus-visible:outline-amber-200',
   failed:
-    'inset-ring-rose-300/30 bg-rose-400/12 text-rose-100 hover:bg-rose-400/20 focus-visible:outline-rose-200',
+    'bg-rose-400/16 text-rose-100 hover:bg-rose-400/24 focus-visible:outline-rose-200',
 } as const;
 
 export function AccountSyncIndicator({
@@ -50,12 +51,12 @@ export function AccountSyncIndicator({
 
   return (
     <>
-      <Tooltip content={statusLabel} whenTruncated>
-        <Button
+      <Tooltip content={statusLabel}>
+        <button
           aria-label={`${statusLabel}. ${actionLabel}`}
-          className={`min-h-10 max-w-[10rem] rounded-full px-3.5 text-xs shadow-sm shadow-[#253241]/10 hover:-translate-y-0.5 hover:shadow-md active:translate-y-0 ${stateStyles[summary.state]}`}
+          className={`${filledRoundControlClassName} ${stateStyles[summary.state]}`}
           disabled={isSyncing}
-          tone="subtle"
+          type="button"
           onClick={() => void forceSync()}
         >
           {isSyncing ? (
@@ -75,8 +76,7 @@ export function AccountSyncIndicator({
           ) : (
             <Cloud aria-hidden="true" className="size-4 shrink-0" />
           )}
-          <span className="truncate">{statusLabel}</span>
-        </Button>
+        </button>
       </Tooltip>
       <span aria-live="polite" className="sr-only" role="status">
         {statusLabel}

@@ -6,6 +6,8 @@ export * from './checkbox';
 export * from './confirmation-dialog';
 export * from './dashed-ring';
 export * from './dialog';
+export * from './filled-control';
+export * from './filled-icon-button';
 export * from './form-field';
 export * from './icon-button';
 export * from './input';

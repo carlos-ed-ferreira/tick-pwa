@@ -1,16 +1,11 @@
 'use client';
 
-import { useState, Suspense } from 'react';
+import { Suspense } from 'react';
 import { AppHeader } from '@/components/app';
 import { AuthGate } from '@/features/auth';
 import { CalendarMonth } from '@/features/calendar';
-import { CategoryManagerDialog } from '@/features/categories';
-import { useAppContext } from '@/providers';
 
 export default function CalendarPage() {
-  const { dictionary } = useAppContext();
-  const [isCategoryManagerOpen, setIsCategoryManagerOpen] = useState(false);
-
   return (
     <AuthGate>
       <main className="app-safe-padding relative isolate min-h-dvh overflow-hidden bg-background pt-5 text-foreground [--app-safe-padding-block-end:calc(1.25rem+var(--app-bottom-nav-height))] [--app-safe-padding-inline:1rem] sm:[--app-safe-padding-inline:1.5rem] lg:[--app-safe-padding-inline:2rem] lg:has-[.calendar-shell]:h-dvh">
@@ -23,10 +18,7 @@ export default function CalendarPage() {
           }}
         />
         <div className="relative mx-auto flex w-full max-w-[1280px] flex-col gap-4 lg:min-h-0 lg:has-[.calendar-shell]:h-full">
-          <AppHeader
-            activeSection="calendar"
-            onOpenCategories={() => setIsCategoryManagerOpen(true)}
-          />
+          <AppHeader activeSection="calendar" />
           <Suspense
             fallback={
               <section className="calendar-shell min-h-[70vh] lg:min-h-0 lg:flex-1" />
@@ -35,12 +27,6 @@ export default function CalendarPage() {
             <CalendarMonth />
           </Suspense>
         </div>
-        <CategoryManagerDialog
-          open={isCategoryManagerOpen}
-          surface="checklist_item"
-          title={dictionary.calendar.editCategories}
-          onClose={() => setIsCategoryManagerOpen(false)}
-        />
       </main>
     </AuthGate>
   );

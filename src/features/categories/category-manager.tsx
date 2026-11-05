@@ -59,7 +59,7 @@ export function CategoryManager({
         )}
         <button
           type="button"
-          className="flex shrink-0 items-center gap-1.5 rounded-full inset-ring-hairline inset-ring-[#f0c38e]/22 bg-[#f0c38e]/10 px-3 py-1.5 text-sm font-medium text-[#f7d7ad] shadow-sm transition hover:inset-ring-[#f0c38e]/36 hover:bg-[#f0c38e]/16 hover:text-[#fff9f2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e]"
+          className="flex shrink-0 items-center gap-1.5 rounded-full bg-[#f0c38e]/14 px-3 py-1.5 text-sm font-medium text-[#f7d7ad] shadow-sm transition hover:-translate-y-0.5 hover:bg-[#f0c38e]/22 hover:text-[#fff9f2] hover:shadow-md active:translate-y-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e]"
           onClick={() => void addCategory()}
         >
           <Plus aria-hidden="true" className="size-3.5" />
@@ -192,7 +192,7 @@ function CategoryManagerRow({
 
   return (
     <div className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 rounded-xl bg-white/[0.035] px-3 py-3 text-sm transition hover:bg-white/[0.055]">
-      <label className="relative block size-8 shrink-0 rounded-full inset-ring-hairline inset-ring-white/10 bg-white/5 p-1 shadow-sm focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-[#f0c38e]">
+      <label className="relative block size-8 shrink-0 rounded-full bg-white/8 p-1 shadow-sm focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-[#f0c38e]">
         <input
           aria-label={`${dictionary.dayEditor.assignCategory}: ${tag.name}`}
           className="absolute inset-0 h-full w-full cursor-pointer opacity-0"

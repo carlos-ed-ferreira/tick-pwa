@@ -260,12 +260,12 @@ export function BulkCalendarEditor({
 
           <div className="grid gap-2 sm:col-span-2">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <span className="text-sm font-medium text-[#fff9f2]">
+              <span className="px-1 text-[0.68rem] font-semibold uppercase leading-4 tracking-[0.24em] text-[#fff9f2]/90">
                 {dictionary.calendar.bulkWeekdays}
               </span>
               <span
                 role="note"
-                className="inline-flex w-fit items-center gap-1.5 rounded-lg bg-[#f0c38e]/10 px-2 py-1 text-xs font-medium text-[#f7d7ad]"
+                className="inline-flex w-fit items-center gap-1.5 rounded-full bg-[#f0c38e]/14 px-2.5 py-1 text-xs font-medium text-[#f7d7ad]"
               >
                 <CircleHelp aria-hidden="true" className="size-3.5 shrink-0" />
                 {dictionary.calendar.bulkAllWeekdaysHint}
@@ -280,10 +280,10 @@ export function BulkCalendarEditor({
                     key={weekday}
                     type="button"
                     aria-pressed={isSelected}
-                    className={`h-8 rounded-full inset-ring-hairline px-3 text-sm font-medium shadow-sm transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e] ${
+                    className={`h-8 rounded-full px-3 text-sm font-medium shadow-sm transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e] ${
                       isSelected
-                        ? 'inset-ring-[#f8d7aa]/70 bg-[#f0c38e] text-[#253241] shadow-[0_12px_24px_rgba(240,195,142,0.16)]'
-                        : 'inset-ring-white/10 bg-white/[0.045] text-[#aebac8] hover:inset-ring-[#f0c38e]/[0.28] hover:bg-[#f0c38e]/10 hover:text-[#fff9f2]'
+                        ? 'bg-[#f0c38e] text-[#253241] shadow-[0_12px_24px_rgba(240,195,142,0.16)]'
+                        : 'bg-white/8 text-[#aebac8] hover:bg-[#f0c38e]/14 hover:text-[#fff9f2]'
                     }`}
                     onClick={() => toggleWeekday(weekday)}
                   >
@@ -505,8 +505,7 @@ function BulkChecklistSurface({
             <IconButton
               aria-label={dictionary.calendar.sortByTime}
               size="compact"
-              title={dictionary.calendar.sortByTime}
-              className="rounded-full inset-ring-hairline inset-ring-white/10 bg-white/5 text-[#aebac8] hover:bg-white/10 hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
+              className="rounded-full bg-white/8 text-[#aebac8] hover:bg-white/12 hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
               onClick={() =>
                 setDraftItems((currentItems) =>
                   reorderBulkChecklistDraftItemsByScheduledTime(currentItems),

@@ -1,12 +1,8 @@
 import type { AppScope } from '@/lib/domain';
 import {
-  clearAccountPreferencePending,
-  hasNewerAccountPreferenceWrite,
-  markAccountPreferencePending,
-  persistAccountPreference,
-  restoreAccountPreference,
-} from '@/lib/supabase/account-preferences';
-import { enqueueAccountPersistence } from './account-persistence';
+  resumeAccountPreferences,
+  writePendingAccountPreference,
+} from './account-preference-outbox';
 import { getLocalPreference, setLocalPreference } from './local-preferences';
 
 export async function setScopedPreference<TValue>({
@@ -18,33 +14,14 @@ export async function setScopedPreference<TValue>({
   scope: AppScope;
   value: TValue;
 }): Promise<void> {
-  await setLocalPreference(key, value, scope);
-
   if (scope.kind === 'guest') {
+    await setLocalPreference(key, value, scope);
     return;
   }
-
-  markAccountPreferencePending(scope.id, key);
-  enqueueAccountPersistence(scope.id, async () => {
-    try {
-      await persistAccountPreference({ key, scope, value });
-    } catch (error) {
-      console.error('Failed to persist Tick account preference.', error);
-
-      if (!hasNewerAccountPreferenceWrite(scope.id, key)) {
-        try {
-          await restoreAccountPreference({ key, scope });
-        } catch (restoreError) {
-          console.error(
-            'Failed to restore Tick account preference after persistence error.',
-            restoreError,
-          );
-        }
-      }
-    } finally {
-      clearAccountPreferencePending(scope.id, key);
-    }
-  });
+  await writePendingAccountPreference(scope, key, value);
+  void resumeAccountPreferences(scope).catch((error) =>
+    console.error('Failed to schedule account preferences.', error),
+  );
 }
 
 export async function getScopedPreference<TValue>(

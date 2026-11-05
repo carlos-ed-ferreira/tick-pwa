@@ -9,6 +9,7 @@ export const ptBRDictionary = {
     localFirst: 'Local-first',
   },
   actions: {
+    back: 'Voltar',
     cancel: 'Cancelar',
     delete: 'Excluir',
     dismissNotification: 'Fechar notificação',
@@ -17,9 +18,8 @@ export const ptBRDictionary = {
   auth: {
     title: 'Entre para sincronizar seus dados',
     subtitle:
-      'O Tick está em protótipo. Apenas usuários permitidos podem entrar com uma conta autorizada para salvar e sincronizar dados na nuvem.',
-    passwordFormHint:
-      'Entre com sua conta autorizada para sincronizar seus dados.',
+      'O Tick está em fase de protótipo. Contas são liberadas por convite e mantêm seus dados sincronizados entre dispositivos.',
+    passwordFormHint: 'Entre com sua conta convidada.',
     emailLabel: 'E-mail',
     emailPlaceholder: 'exemplo@email.com',
     emailRequired: 'Informe seu e-mail.',
@@ -39,10 +39,12 @@ export const ptBRDictionary = {
     signInWithGoogle: 'Entrar com Google',
     signInDescription:
       'Use uma conta Google autorizada para manter backup e sincronização entre dispositivos.',
-    localMode: 'Continuar sem sincronizar',
-    localModeDescription: 'Seus dados ficarão apenas neste dispositivo.',
-    allowedOnly: 'Login disponível apenas para usuários permitidos.',
-    noSignup: 'O acesso à conta é somente por convite.',
+    localMode: 'Usar sem conta',
+    localModeDescription:
+      'Todos os recursos, sem limite. Tudo fica salvo neste navegador e não é enviado para a nuvem.',
+    allowedOnly: 'Acesso por convite',
+    noSignup:
+      'Ainda não há cadastro aberto. Sem convite, você pode usar o Tick normalmente neste dispositivo.',
     prototypeNotice: 'Protótipo privado',
     localModeBadge: 'Modo local',
     cloudModeBadge: 'Conta conectada',
@@ -174,7 +176,6 @@ export const ptBRDictionary = {
     assignCategory: 'Atribuir categoria',
     clearCategory: 'Limpar categoria',
     checklist: 'Tarefas',
-    backToCalendar: 'Voltar para o calendário',
     collapseItem: 'Recolher tarefa',
     untitledItem: 'Nova tarefa',
     emptyChecklist: 'Comece este dia com uma tarefa',
@@ -244,7 +245,6 @@ export const ptBRDictionary = {
     assignCategory: 'Atribuir categoria',
     clearCategory: 'Limpar categoria',
     checklist: 'Etapas',
-    backToCalendar: 'Voltar para metas',
     collapseItem: 'Recolher etapa',
     untitledItem: 'Nova etapa',
     emptyChecklist: 'Comece esta meta adicionando uma etapa',
@@ -330,7 +330,6 @@ export const ptBRDictionary = {
     assignGroupCategoryMenu: 'Atribuir categoria',
     assignGroupColor: 'Atribuir cor independente',
     clearGroupCategory: 'Limpar cor/categoria do grupo',
-    backToGoalGroups: 'Voltar para grupos de metas',
     completeGoal: 'Arquivar meta',
     createGroupTitle: 'Criar grupo',
     createGroupDescription: 'Defina o nome inicial deste grupo.',

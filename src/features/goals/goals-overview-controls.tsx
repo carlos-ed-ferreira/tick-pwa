@@ -2,7 +2,12 @@
 
 import { Plus, X } from 'lucide-react';
 import { useCallback, useState } from 'react';
-import { DashedRing, Dialog, Input, ModalActionButton } from '@/components/ui';
+import {
+  DashedRing,
+  Dialog,
+  FormField,
+  ModalActionButton,
+} from '@/components/ui';
 import { PositionSide } from './goal-drag-target';
 
 export function CreateGoalGroupDialog({
@@ -53,25 +58,14 @@ export function CreateGoalGroupDialog({
           }
         }}
       >
-        <label
-          className={`grid gap-2 text-sm font-medium text-[#fff9f2] ${
-            isCreatingGroup ? 'opacity-75' : ''
-          }`}
-        >
-          <span className="text-xs font-semibold uppercase tracking-[0.14em] text-[#909cab]">
-            {groupTitleLabel}
-          </span>
-          <Input
-            aria-label={groupTitleLabel}
-            className="h-10 w-full rounded-xl inset-ring-hairline inset-ring-white/10 bg-white/[0.04] px-3 text-base font-medium text-[#fff9f2] outline-none placeholder:text-[#7b8da0] focus:inset-ring-[#f0c38e]/40 focus:bg-white/[0.06] disabled:cursor-not-allowed disabled:text-muted/60"
-            disabled={isCreatingGroup}
-            placeholder={initialTitle}
-            value={groupTitle}
-            onChange={(event) =>
-              setGroupTitle(event.target.value.toUpperCase())
-            }
-          />
-        </label>
+        <FormField
+          className="font-medium"
+          disabled={isCreatingGroup}
+          label={groupTitleLabel}
+          placeholder={initialTitle}
+          value={groupTitle}
+          onChange={(event) => setGroupTitle(event.target.value.toUpperCase())}
+        />
         <div className="flex items-center justify-end gap-2">
           <ModalActionButton onClick={closeDialog}>
             <X aria-hidden="true" className="size-3.5" />

@@ -318,10 +318,9 @@ describe('UI primitives', () => {
       />,
     );
 
-    expect(screen.getByRole('button', { name: 'Archive' })).toHaveClass(
-      'inset-ring-[#f8d7aa]/70',
-      'bg-[#f0c38e]',
-      'text-[#253241]',
-    );
+    const archiveAction = screen.getByRole('button', { name: 'Archive' });
+
+    expect(archiveAction).toHaveClass('bg-[#f0c38e]', 'text-[#253241]');
+    expect(archiveAction.className).not.toContain('inset-ring');
   });
 });

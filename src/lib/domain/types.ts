@@ -204,4 +204,8 @@ export interface LocalPreference<TValue = unknown> {
   scopeId: AppScopeId | null;
   value: TValue;
   updatedAt: string;
+  syncStatus?: SyncOutboxStatus;
+  attempts?: number;
+  nextAttemptAt?: string | null;
+  writeId?: string;
 }

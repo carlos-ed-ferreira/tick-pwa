@@ -207,12 +207,14 @@ describe('GoalsSurface', () => {
     expect(
       screen.queryByRole('button', { name: /new group/i }),
     ).not.toBeInTheDocument();
-    expect(
-      screen.getByRole('button', { name: 'Archived' }),
-    ).toBeInTheDocument();
-    expect(
-      screen.queryByRole('button', { name: 'Active' }),
-    ).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Active' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    expect(screen.getByRole('button', { name: 'Archived' })).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    );
     expect(screen.getByRole('button', { name: 'Focus' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Focus' })).toHaveClass(
       'cursor-pointer',
@@ -249,39 +251,69 @@ describe('GoalsSurface', () => {
     expect(routerPushMock).toHaveBeenCalledWith('/goals?goal=goal-new');
   });
 
-  it('uses the same button pattern to enter and leave archived goals', () => {
+  it('switches between active and archived goals from the overview toolbar', () => {
     render(<GoalsSurface />);
 
-    const archivedButton = screen.getByRole('button', { name: 'Archived' });
+    const toolbar = screen.getByRole('toolbar', { name: 'Goals' });
 
-    expect(archivedButton).toHaveClass(
-      'min-h-10',
-      'w-fit',
-      'rounded-full',
-      'inset-ring-white/10',
-      'bg-white/5',
-      'px-4',
-      'py-2',
-      'text-sm',
-      'font-semibold',
+    expect(
+      within(toolbar).queryByRole('heading', { name: 'Goals' }),
+    ).not.toBeInTheDocument();
+    expect(toolbar.firstElementChild).toContainElement(
+      within(toolbar).getByRole('button', { name: 'Active' }),
     );
+
+    const activeButton = within(toolbar).getByRole('button', {
+      name: 'Active',
+    });
+    const archivedButton = within(toolbar).getByRole('button', {
+      name: 'Archived',
+    });
+
+    for (const button of [activeButton, archivedButton]) {
+      expect(button).toHaveClass('rounded-full');
+      expect(button.className).not.toContain('inset-ring');
+    }
+    expect(activeButton).toHaveClass('bg-[#f0c38e]');
 
     fireEvent.click(archivedButton);
 
-    const activeButton = screen.getByRole('button', { name: 'Active' });
+    expect(
+      within(screen.getByRole('toolbar', { name: 'Goals' })).getByRole(
+        'button',
+        { name: 'Archived' },
+      ),
+    ).toHaveAttribute('aria-pressed', 'true');
+    expect(
+      screen.getByText('There are no archived goals.'),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'New goal' }),
+    ).not.toBeInTheDocument();
 
-    expect(activeButton).toHaveClass(
-      'min-h-10',
-      'w-fit',
-      'rounded-full',
-      'inset-ring-white/10',
-      'bg-white/5',
-      'px-4',
-      'py-2',
-      'text-sm',
-      'font-semibold',
+    fireEvent.click(
+      within(screen.getByRole('toolbar', { name: 'Goals' })).getByRole(
+        'button',
+        { name: 'Active' },
+      ),
     );
-    expect(activeButton.querySelector('.lucide-target')).not.toBeNull();
+
+    expect(screen.getByRole('button', { name: 'New goal' })).toBeVisible();
+  });
+
+  it('opens the goal category manager from the overview toolbar', () => {
+    render(<GoalsSurface />);
+
+    fireEvent.click(
+      within(screen.getByRole('toolbar', { name: 'Goals' })).getByRole(
+        'button',
+        { name: 'Categories' },
+      ),
+    );
+
+    expect(
+      screen.getByRole('dialog', { name: 'Edit goal categories' }),
+    ).toHaveAttribute('data-surface', 'goal');
   });
 
   it('groups archived goals in flat sections and omits origin from cards', () => {
@@ -375,7 +407,7 @@ describe('GoalsSurface', () => {
     ).toEqual(['Life', 'Work', 'No group']);
     expect(
       lifeSection.compareDocumentPosition(activeButton) &
-        Node.DOCUMENT_POSITION_FOLLOWING,
+        Node.DOCUMENT_POSITION_PRECEDING,
     ).not.toBe(0);
   });
 

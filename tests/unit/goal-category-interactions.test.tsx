@@ -346,23 +346,13 @@ describe('GoalsSurface', () => {
     render(<GoalsSurface />);
     fireEvent.click(screen.getByRole('button', { name: /LifeHealth/i }));
 
-    const backButton = screen.getByRole('button', {
-      name: 'Back to goal groups',
-    });
+    const backButton = screen.getByRole('button', { name: 'Back' });
     const titleInput = screen.getByLabelText('Rename group');
     const categoryButton = screen.getByRole('button', {
       name: 'Assign group category',
     });
 
-    expect(backButton).toHaveClass(
-      'min-h-10',
-      'rounded-full',
-      'inset-ring-hairline',
-      'inset-ring-white/10',
-      'bg-white/5',
-      'px-4',
-      'py-2',
-    );
+    expect(backButton).toHaveClass('h-10', 'rounded-full', 'bg-white/8');
     expect(titleInput).toHaveValue('Life');
     expect(titleInput).not.toHaveAttribute('placeholder');
     expect(titleInput).toHaveClass(
@@ -388,11 +378,9 @@ describe('GoalsSurface', () => {
       'items-center',
       'justify-center',
       'size-10',
-      'rounded-md',
-      'inset-ring-hairline',
-      'inset-ring-white/10',
-      'bg-white/5',
-      'text-[#cbd5e0]',
+      'rounded-full',
+      'bg-white/8',
+      'text-[#f8f3ea]',
     );
     expect(categoryButton.querySelector('.lucide-tag')).not.toBeNull();
     const clearCategoryButton = screen.getByRole('button', {

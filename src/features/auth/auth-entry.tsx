@@ -33,6 +33,16 @@ function isValidEmail(value: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
 
+function AuthDivider({ label }: { label: string }) {
+  return (
+    <div className="my-3 flex items-center gap-3 text-xs uppercase tracking-[0.24em] text-[#fff9f2]/78">
+      <span className="h-px flex-1 bg-[#fff9f2]/20" />
+      <span>{label}</span>
+      <span className="h-px flex-1 bg-[#fff9f2]/20" />
+    </div>
+  );
+}
+
 export function AuthEntry() {
   const { dictionary, enterLocalMode, signInWithGoogle, signInWithPassword } =
     useAppContext();
@@ -113,13 +123,14 @@ export function AuthEntry() {
   return (
     <AuthShell
       badge={dictionary.auth.prototypeNotice}
+      isLocked={isSigningIn}
       subtitle={dictionary.auth.subtitle}
       title={dictionary.auth.title}
     >
       <div className="grid gap-5">
         <form className="grid gap-4" noValidate onSubmit={handlePasswordSignIn}>
           <div className="grid gap-3">
-            <Text as="p" className="px-1 text-xl mb-6">
+            <Text as="p" className="mb-2 px-1" size="sm" tone="muted">
               {dictionary.auth.passwordFormHint}
             </Text>
 
@@ -184,11 +195,7 @@ export function AuthEntry() {
           ) : null}
         </form>
 
-        <div className="flex items-center gap-3 text-xs uppercase tracking-[0.24em] text-[#fff9f2]/78 my-3">
-          <span className="h-px flex-1 bg-[#fff9f2]/20" />
-          <span>{dictionary.auth.orContinueWith}</span>
-          <span className="h-px flex-1 bg-[#fff9f2]/20" />
-        </div>
+        <AuthDivider label={dictionary.auth.orContinueWith} />
 
         <div className="grid gap-3">
           <ActionButton

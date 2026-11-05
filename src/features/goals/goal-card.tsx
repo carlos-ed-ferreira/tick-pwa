@@ -4,7 +4,6 @@ import {
   Archive,
   FolderPlus,
   GripVertical,
-  MoreHorizontal,
   LogOut,
   Palette,
   RotateCcw,
@@ -23,7 +22,8 @@ import {
   TaskTreeClearCategoryIcon,
   type DropdownJoinShape,
 } from '@/components/app';
-import { ConfirmationDialog, IconButton, Tooltip } from '@/components/ui';
+import { ConfirmationDialog, Tooltip } from '@/components/ui';
+import { GoalCardMenuTrigger } from './goal-card-menu-trigger';
 import { canUseOwnName } from '@/features/categories';
 import { formatCountLabel, formatProgressLabel } from '@/lib/i18n';
 import { assignGoalCategory, softDeleteGoal } from '@/lib/db';
@@ -500,11 +500,10 @@ export function GoalCard({
               </span>
             </Tooltip>
           ) : null}
-          <IconButton
+          <GoalCardMenuTrigger
             ref={triggerRef}
             aria-expanded={isMenuOpen}
             aria-label={dictionary.goals.goalMenu}
-            className="size-8 rounded-full text-[#aebac8] hover:bg-white/[0.08] hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
             onClick={(event) => {
               event.stopPropagation();
               if (isMenuOpen) {
@@ -515,9 +514,7 @@ export function GoalCard({
               setMenuStyle(getMenuStyle());
               setIsMenuOpen(true);
             }}
-          >
-            <MoreHorizontal aria-hidden="true" className="size-4" />
-          </IconButton>
+          />
         </div>
         {menu}
         <ConfirmationDialog

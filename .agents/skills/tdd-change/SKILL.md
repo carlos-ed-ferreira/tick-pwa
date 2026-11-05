@@ -6,6 +6,12 @@ description: >-
 
 # TDD change
 
+## Quando não usar RED
+
+Mudança puramente visual, como classes, espaçamento, raio, cor, ícone ou
+texto, não exige teste RED prévio. Ajuste os testes existentes que quebrarem e
+siga para `Concluir`.
+
 ## Preparar
 
 1. Ler `../../../AGENTS.md` e os gates aplicáveis em `../../../REVIEW.md`.
@@ -19,7 +25,8 @@ description: >-
 
 1. Criar ou ajustar primeiro o menor teste representativo.
 2. Usar dados isolados, sem PII, secrets ou produção.
-3. Executar somente o teste direcionado.
+3. Executar somente o teste direcionado com
+   `make test-file files="<arquivos>"`.
 4. Confirmar que ele falha pela ausência do comportamento, não por setup,
    import, mock ou expectativa incorreta.
 5. Para bugfix, preservar a reprodução como teste de regressão.
@@ -33,7 +40,8 @@ ou demonstrar que o comportamento não é testável naquele nível.
 2. Preservar arquitetura, linguagem de domínio e padrões existentes.
 3. Não enfraquecer a expectativa, ampliar mocks nem alterar dados apenas para
    produzir verde.
-4. Executar novamente o teste direcionado e os testes imediatamente afetados.
+4. Executar novamente, com `make test-file`, o teste direcionado e os testes
+   imediatamente afetados.
 
 ## REFACTOR
 
@@ -45,8 +53,11 @@ ou demonstrar que o comportamento não é testável naquele nível.
 ## Concluir
 
 1. Executar a matriz aplicável do `REVIEW.md`.
-2. Rodar `make check` para mudança ampla; rodar E2E e banco quando o REVIEW
-   exigir.
+2. Rodar `make check` uma única vez, sem `make test` antes; rodar E2E uma vez,
+   somente quando layout, responsividade ou fluxo de navegador forem afetados,
+   e nunca em paralelo com `make check`; rodar banco quando o REVIEW exigir. Executar `make quality-check`, `make test-coverage`,
+   `make coverage-check` e `make test-mutation` quando afetar os contratos
+   medidos; não regravar baselines para encobrir regressões.
 3. Revisar o diff por ruído, logs, código morto e regressão de baseline.
 4. Informar evidência RED/GREEN, gates aprovados, gates omitidos e problemas
    preexistentes.

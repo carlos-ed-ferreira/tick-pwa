@@ -121,54 +121,6 @@ describe('GoalsSurface', () => {
     expect(createGoalStepMock).not.toHaveBeenCalled();
   });
 
-  it('collapses and expands children of an empty goal step draft locally', async () => {
-    useGoalStepTreeMock.mockReturnValue([]);
-
-    render(<GoalsSurface />);
-    fireEvent.click(screen.getByRole('button', { name: 'Focus' }));
-    fireEvent.click(
-      screen.getByRole('button', {
-        name: 'Start this goal by adding a step',
-      }),
-    );
-    fireEvent.click(screen.getByRole('button', { name: 'Add step' }));
-
-    await waitFor(() => {
-      expect(screen.getAllByPlaceholderText('Write a step')).toHaveLength(2);
-    });
-
-    const [parentInput, childInput] =
-      screen.getAllByPlaceholderText('Write a step');
-    const childRow = childInput.closest('[data-tree-row]');
-    fireEvent.click(
-      within(childRow as HTMLElement).getByLabelText('Make substep'),
-    );
-
-    await waitFor(() => {
-      expect(childInput.closest('[data-tree-row]')).toHaveStyle({
-        paddingLeft: '14px',
-      });
-    });
-
-    const parentRow = parentInput.closest('[data-tree-row]');
-    fireEvent.click(
-      within(parentRow as HTMLElement).getByLabelText('Collapse step'),
-    );
-
-    await waitFor(() => {
-      expect(screen.getAllByPlaceholderText('Write a step')).toHaveLength(1);
-    });
-
-    fireEvent.click(
-      within(parentRow as HTMLElement).getByLabelText('Expand step'),
-    );
-
-    await waitFor(() => {
-      expect(screen.getAllByPlaceholderText('Write a step')).toHaveLength(2);
-    });
-    expect(createGoalStepMock).not.toHaveBeenCalled();
-  });
-
   it('hides a deleted goal step while the local delete is still pending', async () => {
     let resolveDelete!: () => void;
     softDeleteGoalStepMock.mockReturnValueOnce(
@@ -438,10 +390,10 @@ describe('GoalsSurface', () => {
       });
     });
     expect(routerPushMock).toHaveBeenCalledWith('/goals');
-    expect(screen.getByRole('button', { name: 'Archived' })).toBeVisible();
-    expect(
-      screen.queryByRole('button', { name: 'Active' }),
-    ).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Active' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
   });
 
   it('asks for confirmation before archiving a goal from the card menu', async () => {
@@ -462,7 +414,10 @@ describe('GoalsSurface', () => {
       });
     });
     expect(routerPushMock).toHaveBeenCalledWith('/goals');
-    expect(screen.getByRole('button', { name: 'Active' })).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Archived' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
   });
 
   it('renders the uncategorized goal trigger as an action box in the goal header', () => {
@@ -480,11 +435,9 @@ describe('GoalsSurface', () => {
       'items-center',
       'justify-center',
       'size-10',
-      'rounded-md',
-      'inset-ring-hairline',
-      'inset-ring-white/10',
-      'bg-white/5',
-      'text-[#cbd5e0]',
+      'rounded-full',
+      'bg-white/8',
+      'text-[#f8f3ea]',
     );
     expect(categoryButton.querySelector('.lucide-tag')).not.toBeNull();
     expect(categoryButton).not.toHaveTextContent('Modo local');

@@ -1,5 +1,5 @@
 export * from './app-header';
-export * from './app-header-overflow-menu';
+export * from '@/components/ui';
 export * from './language-switcher';
 export * from './date-picker';
 export * from './dropdown-join-shape';

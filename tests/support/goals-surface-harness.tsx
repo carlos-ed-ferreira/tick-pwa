@@ -173,6 +173,7 @@ vi.mock('@/providers', () => ({
         resetPreferences: 'Restore defaults',
       },
       goals: {
+        editCategories: 'Edit goal categories',
         activeGoals: 'Active',
         viewMode: 'Step view',
         viewModeList: 'Single list',
@@ -191,7 +192,6 @@ vi.mock('@/providers', () => ({
         assignGroupCategory: 'Assign group category',
         assignGroupCategoryMenu: 'Assign category',
         assignGroupColor: 'Assign independent color',
-        backToGoalGroups: 'Back to goal groups',
         completeGoal: 'Archive goal',
         confirmCompleteGoal: 'Archive this goal?',
         confirmDeleteGoal: 'Delete this goal?',
@@ -226,10 +226,13 @@ vi.mock('@/providers', () => ({
         restoreGoal: 'Restore goal',
       },
       actions: {
+        back: 'Back',
         cancel: 'Cancel',
         delete: 'Delete',
       },
       navigation: {
+        categories: 'Categories',
+        goals: 'Goals',
         moreOptions: 'More options',
       },
     },
@@ -239,6 +242,24 @@ vi.mock('@/providers', () => ({
       timezone: 'America/Sao_Paulo',
     },
   }),
+}));
+
+vi.mock('@/features/categories/category-manager', async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import('@/features/categories/category-manager')
+  >()),
+  CategoryManagerDialog: ({
+    open,
+    surface,
+    title,
+  }: {
+    open: boolean;
+    surface: string;
+    title: string;
+  }) =>
+    open ? (
+      <div aria-label={title} data-surface={surface} role="dialog" />
+    ) : null,
 }));
 
 vi.mock('@/features/categories/use-category-tags', () => ({

@@ -1,5 +1,6 @@
 import type { User } from '@supabase/supabase-js';
 import { getSupabaseBrowserClient } from './client';
+import { isTransportUnavailableError } from './transport-errors';
 
 export interface TickAuthUser {
   id: string;
@@ -46,6 +47,23 @@ export function toTickAuthUser(user: User): TickAuthUser {
   };
 }
 
+function reportAccessCheckFailure(error: unknown) {
+  if (isTransportUnavailableError(error)) {
+    return;
+  }
+
+  const { code, details, hint, message } = (error ?? {}) as Partial<
+    Record<'code' | 'details' | 'hint' | 'message', string>
+  >;
+
+  console.error('Failed to verify Tick account access.', {
+    code,
+    details,
+    hint,
+    message,
+  });
+}
+
 export async function checkUserAccess(user: User): Promise<UserAccessStatus> {
   const client = getSupabaseBrowserClient();
   const email = getNormalizedUserEmail(user);
@@ -58,6 +76,10 @@ export async function checkUserAccess(user: User): Promise<UserAccessStatus> {
     return 'unavailable';
   }
 
+  if (typeof navigator !== 'undefined' && !navigator.onLine) {
+    return 'unavailable';
+  }
+
   try {
     const { data, error } = await client
       .from('account_access')
@@ -66,7 +88,7 @@ export async function checkUserAccess(user: User): Promise<UserAccessStatus> {
       .maybeSingle();
 
     if (error) {
-      console.error('Failed to verify Tick account access.', error);
+      reportAccessCheckFailure(error);
       return 'unavailable';
     }
 
@@ -74,7 +96,7 @@ export async function checkUserAccess(user: User): Promise<UserAccessStatus> {
 
     return access?.active === true ? 'allowed' : 'denied';
   } catch (error) {
-    console.error('Failed to verify Tick account access.', error);
+    reportAccessCheckFailure(error);
     return 'unavailable';
   }
 }
@@ -109,6 +131,9 @@ export function resolveUserAccess({
 }
 
 export async function ensureUserProfile(user: User): Promise<void> {
+  if (typeof navigator !== 'undefined' && !navigator.onLine) {
+    return;
+  }
   const client = getSupabaseBrowserClient();
   const tickUser = toTickAuthUser(user);
 
@@ -116,18 +141,23 @@ export async function ensureUserProfile(user: User): Promise<void> {
     return;
   }
 
-  const { error } = await client.from('profiles').upsert(
-    {
-      id: tickUser.id,
-      email: tickUser.email,
-      full_name: tickUser.name,
-      avatar_url: tickUser.avatarUrl,
-      deleted_at: null,
-    },
-    { onConflict: 'id' },
-  );
-
-  if (error) {
-    throw error;
+  try {
+    const { error } = await client.from('profiles').upsert(
+      {
+        id: tickUser.id,
+        email: tickUser.email,
+        full_name: tickUser.name,
+        avatar_url: tickUser.avatarUrl,
+        deleted_at: null,
+      },
+      { onConflict: 'id' },
+    );
+    if (error) throw error;
+  } catch (error) {
+    if (!isTransportUnavailableError(error)) throw error;
+    console.error(
+      'Profile metadata will be retried on the next account activation.',
+      error,
+    );
   }
 }

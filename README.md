@@ -2,8 +2,10 @@
 
 Tick é uma PWA mobile-first de produtividade pessoal para organizar tarefas
 diárias, checklists hierárquicos, categorias, grupos de metas, metas e etapas.
-O produto funciona no navegador em dois modos: local sem conta e autenticado
-com persistência remota.
+O produto funciona no navegador em dois modos: guest sem conta e autenticado
+com dados locais e persistência remota. Neste projeto, local-first significa
+que o usuário autenticado pode continuar trabalhando ao perder a internet;
+guest é o uso sem conta e não comprova o contrato da conta offline.
 
 ## Capacidades atuais
 
@@ -122,8 +124,9 @@ Três composições próprias de toque:
 - **Linha de tarefa e de etapa**: checkbox, texto, alça de arrasto e `⋯`. Todas
   as demais ações, inclusive hora e data, vivem em `TaskTreeRowActionsSheet`,
   com alvos de 44px e categoria sem depender de hover.
-- **Shell**: cabeçalho de uma linha e navegação fixa no rodapé, com categorias
-  e idioma em folha inferior.
+- **Shell**: cabeçalho de uma linha com logo, sincronização, idioma e saída, e
+  navegação fixa no rodapé. As categorias de tarefas ficam no cabeçalho do dia;
+  as de metas, na barra da visão geral de Metas e nos cabeçalhos de grupo e meta.
 
 Regras derivadas:
 
@@ -144,14 +147,16 @@ transações Dexie. Nenhuma entidade do usuário é enviada ao Supabase.
 
 No modo autenticado, o app baixa snapshots das tabelas da conta para um cache
 Dexie. Os snapshots são paginados em blocos de 1.000 linhas, ordenados apenas
-pelo identificador, que é imutável, e só reconciliam exclusões depois que todas
-as páginas terminam com sucesso. Refreshes simultâneos do mesmo escopo
-compartilham uma única leitura remota, e o conjunto protegido de entidades
-pendentes é calculado dentro da transação de merge. No rollout controlado, a alteração funcional e seu lote
+pelo identificador, que é imutável, e só reconciliam exclusões das entidades depois que todas
+as páginas terminam com sucesso. Preferências são atualizadas separadamente. Refreshes simultâneos do mesmo escopo
+compartilham uma única leitura remota, e o merge compara a versão local capturada antes da rede com a versão atual.
+Escritas criadas, alteradas ou confirmadas durante a leitura ficam protegidas,
+assim como suas dependências. Revisões remotas inferiores ou iguais não
+sobrescrevem versões sincronizadas mais recentes. No rollout controlado, a alteração funcional e seu lote
 remoto são gravados atomicamente no IndexedDB. A outbox preserva o mesmo
 `operation_id` entre reloads, mantém a ordem, agrupa até 100 mutações e envia
 uma RPC transacional; falhas continuam visíveis e podem ser reenviadas. Contas
-fora da allowlist permanecem no caminho legado de `upsert` direto e fila em
+fora da coorte de lotes permanecem no caminho legado de `upsert` direto e fila em
 memória. Não existe dual-write entre os dois caminhos.
 
 Uma operação que falha é retentada automaticamente no máximo cinco vezes, com
@@ -162,7 +167,9 @@ operações remotas e aparece como falha recuperável, resolvida pela
 sincronização forçada. Uma rejeição `stale_revision` é rebaseada uma vez pela
 revisão atual do servidor e reenviada automaticamente; se ainda assim falhar, a
 operação permanece visível e recuperável. A drenagem da outbox usa um lock por
-conta para que abas do mesmo navegador não disputem o mesmo `operation_id`.
+conta, compartilhado com a sincronização forçada e o envio de preferências,
+para que abas do mesmo navegador não disputem o mesmo `operation_id`. Sem
+Web Locks, a serialização cobre somente a aba atual.
 Quando o navegador informa que está offline, uma operação nova permanece
 pendente sem iniciar RPC. Se a conexão cai durante uma chamada, a operação volta
 de `syncing` para `pending` e conserva o mesmo identificador para a retomada na
@@ -172,6 +179,14 @@ dreno para e uma tentativa limitada usa o backoff da outbox. Refreshes remotos
 disparados por foco ou sessão também não começam enquanto o navegador está
 offline; indisponibilidade esperada não é apresentada como falha definitiva de
 sincronização.
+
+Preferências de conta confirmam localmente e guardam estado de envio, número
+de tentativas e prazo de retry em `localPreferences`. Reabertura e reconexão
+retomam o último valor local; falha remota não restaura um valor antigo. O
+acknowledgement só confirma a versão enviada. São no máximo cinco tentativas
+automáticas, com backoff de 1 s a 30 s; a sincronização forçada permite nova
+tentativa. O indicador inclui entidades e preferências. Essa persistência de
+preferências vale também fora da coorte funcional; guest permanece somente local.
 
 O indicador de sincronização é acionável em qualquer estado. A ação baixa o
 snapshot remoto e depois envia o que este dispositivo alterou, nessa ordem. O
@@ -203,32 +218,23 @@ adapter de telemetria quando o DSN está configurado.
 Métricas de fila, tentativas, rejeições, falhas de transporte, conflitos,
 tamanho e duração dos lotes, idade da operação mais antiga e latência de
 confirmação são acumuladas por conta em
-`src/lib/db/account-sync-metrics.ts`, sem conteúdo do usuário. Elas ainda não
+`src/lib/db/account-sync-metrics.ts`, sem conteúdo do usuário. Elas não
 têm identidade nem conteúdo funcional. Um adapter independente envia os
 agregados e resultados de refresh ao Sentry quando o DSN é configurado. Todas
 as integrações automáticas ficam desligadas e uma allowlist remove identidade,
 conteúdo funcional, tokens e payloads antes do fornecedor.
 
-Limitações conhecidas: a sincronização ainda não foi validada manualmente em
-Safari macOS/iOS, o evento do Sentry mantém `user.geo` e o backup diário ainda
-precisa comprovar estabilidade após a troca para GHCR. Elas estão registradas no
-[plano de implementação](docs/planning/implementation-plan.md) e não devem ser
-confundidas com garantias já implementadas.
-
 O backend contém `apply_account_operation_batch` e recibos por conta e
 `operation_id`. O contrato aceita até 100 mutações de categoria, dia, tarefa,
 grupo de metas, meta e etapa, deriva ownership do JWT, aplica compare-and-set
 por revisão e confirma o lote inteiro em uma transação. Cada chamada também
-descarta os recibos da própria conta com mais de sete dias. O consumidor
-funcional é habilitado somente para contas internas explicitamente autorizadas.
-A ativação, os ensaios e o rollback estão no passo 1 do
-[plano de implementação](docs/planning/implementation-plan.md).
+descarta os recibos da própria conta com mais de sete dias.
 
-A arquitetura de sincronização autenticada foi consolidada na outbox própria.
-O POC PowerSync e seus objetos isolados foram retirados; não existe runtime,
-rota, flag ou dual-write alternativo no produto. A comparação, o custo e o
-procedimento de remoção estão registrados no passo 3 do
-[plano de implementação](docs/planning/implementation-plan.md).
+A estratégia de lotes usa Dexie e Supabase, sem outra fonte canônica. As
+contas fora da coorte continuam no caminho legado descrito acima. Consultas
+Supabase usam `cache: no-store`; autorização e dados não dependem do cache HTTP
+do navegador. Quando o navegador informa ausência de rede, a verificação de
+acesso usa o contrato de grant local e a atualização do perfil remoto é adiada.
 
 ### PWA e offline
 
@@ -238,17 +244,18 @@ navegações usam `NetworkFirst` com fallback em `/~offline`. O shell de `/`,
 quando a rota foi aberta originalmente por navegação client-side. Parâmetros
 locais, como o dia ou a meta selecionada, reutilizam o mesmo shell precacheado e
 são reconstruídos do IndexedDB. O modo local continua funcional sem Supabase. A
-sessão e o refresh do modo autenticado ainda dependem do grant local válido
-quando o Supabase está indisponível.
+reabertura da conta offline depende da sessão disponível e de grant positivo
+da mesma conta/e-mail com até 24 horas quando o Supabase está indisponível.
+Uma sessão já aberta e a reabertura autenticada são cenários diferentes;
+a primeira visita e um login novo dependem dos serviços remotos.
 
 ### Navegadores suportados
 
 - Chrome desktop e Chrome Android nas versões estáveis atual e anterior são o
   alvo primário e têm cobertura automatizada;
 - Safari macOS e Safari iOS nas versões estáveis atual e anterior são alvo
-  oficial; a interface de toque foi validada em iPhone físico em 2026-10-18, e
-  a sincronização no Safari exige validação manual antes de autorizar novos
-  convidados;
+  oficial; a cobertura automatizada de navegador usa Chromium e a aprovação de
+  sincronização no Safari depende de ensaio manual;
 - outros navegadores Chromium podem funcionar, mas não compõem a matriz oficial;
 - Firefox não faz parte da matriz oficial;
 - o produto exige IndexedDB e service worker. Se o armazenamento
@@ -298,8 +305,9 @@ containers; o projeto não possui Dockerfile nem Compose próprios.
 | Subetapa          | descendente de uma etapa                                |
 | Nível de marcação | grau de conclusão da tarefa ou etapa, de 1 até o máximo |
 | Estado ignorado   | marcação opcional que exclui a tarefa das contagens     |
-| Modo local        | uso sem conta, no escopo `guest:<installationId>`       |
+| Modo guest        | uso sem conta, no escopo `guest:<installationId>`       |
 | Modo autenticado  | uso no escopo `user:<supabaseUserId>`                   |
+| Local-first       | continuidade do uso autenticado ao perder a internet    |
 | Allowlist         | tabela `account_access` que libera as contas convidadas |
 
 Os nomes técnicos principais continuam `ChecklistItem`, `Goal`, `GoalGroup` e
@@ -307,7 +315,7 @@ Os nomes técnicos principais continuam `ChecklistItem`, `Goal`, `GoalGroup` e
 
 ## Modos de uso atuais
 
-### Local sem conta
+### Guest sem conta
 
 - usa o escopo `guest:<installationId>`;
 - salva entidades apenas no IndexedDB do dispositivo;
@@ -324,15 +332,15 @@ Os nomes técnicos principais continuam `ChecklistItem`, `Goal`, `GoalGroup` e
   permitir reload offline, sem converter falha de rede em acesso negado;
 - mantém cache IndexedDB separado por usuário;
 - persiste entidades no Postgres protegido por RLS;
-- não importa dados do modo local.
+- não importa dados guest.
 
 O acesso remoto permanece fechado a convidados autorizados. O modo guest é
 completo e gratuito, sem limite de tempo ou quantidade imposto pelo produto,
 com dados somente no IndexedDB deste navegador. Fechar/reabrir o app não apaga
 progresso. Limites físicos e limpeza do armazenamento pelo navegador continuam
 possíveis; não há cópia remota dos dados guest.
-A política está em [guest-and-invited-access.md](docs/planning/guest-and-invited-access.md),
-e o backlog no [plano de implementação](docs/planning/implementation-plan.md).
+A política está em
+[MODOS-DE-ACESSO.md](docs/planning/MODOS-DE-ACESSO.md).
 
 ## Estrutura do repositório
 
@@ -363,7 +371,7 @@ docs                documentação detalhada
 - Node.js 20.19+ ou 22.12+ com npm, conforme o `engines` do `package.json` e
   o requisito do Vite 8 usado pelas ferramentas de teste;
 - Docker acessível ao usuário local;
-- `make`, opcional;
+- GNU Make;
 - portas locais 3000 e 54320–54329 disponíveis para o fluxo padrão;
 - acesso ao repositório;
 - para produção, acesso separado à Vercel, Supabase e ao ambiente `production`
@@ -423,8 +431,8 @@ de localhost, só aceita o ambiente explícito `production`.
 
 As variáveis `NEXT_PUBLIC_TICK_ENABLE_ACCOUNT_BATCHES` e
 `NEXT_PUBLIC_TICK_ACCOUNT_BATCH_USER_IDS` também permanecem vazias por padrão.
-Elas controlam a outbox funcional e a RPC transacional. Consulte o rollout
-controlado antes de preenchê-las.
+Elas controlam a outbox funcional e a RPC transacional; somente UUIDs
+listados usam esse caminho. A configuração está no runbook de operação.
 
 Produção requer:
 
@@ -470,9 +478,8 @@ conexão PostgreSQL direta.
 Comandos de produção são bloqueados pelo wrapper fora do GitHub Actions. O
 workflow de produção faz repair do histórico conhecido, dry-run, push e só
 então dispara o Deploy Hook da Vercel. Ele depende do quality gate aprovado do
-mesmo SHA e falha se a `main` avançar antes do disparo. A configuração externa
-está concluída e a ordem foi comprovada com migration real; as evidências estão
-em [deploy-hook-setup.md](docs/operations/deploy-hook-setup.md).
+mesmo SHA e falha se a `main` avançar antes do disparo. A confirmação do deployment segue o
+[runbook de deploy](docs/operations/PUBLICACAO.md).
 
 ## APIs e serviços externos
 
@@ -495,31 +502,38 @@ recorrente sem target, adicione-a ao `Makefile` e ao `make help` primeiro.
 
 Desenvolvimento e gates:
 
-| Objetivo           | Comando                             |
-| ------------------ | ----------------------------------- |
-| instalar           | `make install` ou `make install-ci` |
-| desenvolver        | `make dev`                          |
-| build/start        | `make build`, `make start`          |
-| typecheck          | `make typecheck`                    |
-| lint               | `make lint`                         |
-| testes             | `make test`                         |
-| formatar/verificar | `make format`, `make format-check`  |
-| gate atual         | `make check`                        |
-| limpar gerados     | `make clean`                        |
+| Objetivo                | Comando                                     |
+| ----------------------- | ------------------------------------------- |
+| instalar                | `make install` ou `make install-ci`         |
+| desenvolver             | `make dev`                                  |
+| build/start             | `make build`, `make start`                  |
+| typecheck               | `make typecheck`                            |
+| lint                    | `make lint`                                 |
+| testes                  | `make test`                                 |
+| testes direcionados     | `make test-file files="<arquivos>"`         |
+| formatar/verificar      | `make format`, `make format-check`          |
+| gate atual              | `make check`                                |
+| limpar gerados          | `make clean`                                |
+| estrutura e arquitetura | `make quality-check`                        |
+| cobertura e ratchet     | `make test-coverage`, `make coverage-check` |
+| mutação e ratchet       | `make test-mutation`                        |
+| secrets e SAST          | `make check-secrets`, `make check-sast`     |
 
 Testes direcionados:
 
-| Objetivo                   | Comando                         |
-| -------------------------- | ------------------------------- |
-| telemetria                 | `make test-telemetry`           |
-| contrato transacional      | `make test-account-operations`  |
-| outbox autenticada         | `make test-account-persistence` |
-| guest e convidados         | `make test-access-policy`       |
-| metas e etapas             | `make test-goals`               |
-| cifra do backup            | `make test-backup`              |
-| restore em Docker          | `make test-backup-restore`      |
-| ordem do pipeline e Vercel | `make test-release-workflow`    |
-| estatísticas de benchmark  | `make test-capacity`            |
+| Objetivo                           | Comando                         |
+| ---------------------------------- | ------------------------------- |
+| telemetria                         | `make test-telemetry`           |
+| contrato transacional              | `make test-account-operations`  |
+| outbox autenticada                 | `make test-account-persistence` |
+| corridas de refresh e preferências | `make test-sync-safety`         |
+| validadores dos gates              | `make test-quality`             |
+| guest e convidados                 | `make test-access-policy`       |
+| metas e etapas                     | `make test-goals`               |
+| cifra do backup                    | `make test-backup`              |
+| restore em Docker                  | `make test-backup-restore`      |
+| ordem do pipeline e Vercel         | `make test-release-workflow`    |
+| estatísticas de benchmark          | `make test-capacity`            |
 
 E2E:
 
@@ -531,13 +545,19 @@ E2E:
 | reload offline             | `make test-e2e-offline`           |
 | autenticado                | `make test-e2e-account`           |
 | instalar Chromium          | `make test-e2e-browsers`          |
+| acessibilidade WCAG        | `make test-e2e-a11y`              |
+| conta com API real isolada | `make test-account-browser`       |
 | imagem Playwright          | `make e2e-container-prepare`      |
 | padrão em container        | `make test-e2e-container`         |
 | autenticado em container   | `make test-e2e-account-container` |
 
 Os targets em container usam a imagem oficial do Playwright 1.62.1 com GNU
 Make, o UID/GID local e nenhuma porta publicada. Use-os em Linux sem as
-bibliotecas do Chromium no host. Não execute builds ou E2E simultâneos no mesmo
+bibliotecas do Chromium no host. `make test-account-browser` cria checkout e
+Supabase temporários nas portas 56320–56329 e app em 3102, usa rede host no
+container e uma conta sintética do seed; não lê `.env` nem reseta o banco de
+trabalho. Os artefatos ficam em `.next/playwright-account-real-results`.
+Não execute builds ou E2E simultâneos no mesmo
 checkout; a versão da imagem e a dependência Playwright devem permanecer iguais.
 
 Dependências:
@@ -564,7 +584,7 @@ Diagnóstico de desempenho, opcional e somente local:
 | limpeza dos ensaios         | `make cohort-status`         |
 
 O procedimento e os limites estão no
-[guia de capacidade](docs/operations/cohort-capacity.md); os resultados não
+[guia de capacidade](docs/operations/DIAGNOSTICO-DE-DESEMPENHO.md); os resultados não
 representam capacidade aprovada de produção.
 
 Backup, publicação e operação:
@@ -575,7 +595,7 @@ Backup, publicação e operação:
 | execuções recentes          | `make actions-status`                           |
 | jobs de uma execução        | `make actions-run run=<run-id>`                 |
 | issues operacionais abertas | `make operations-issues`                        |
-| metadados do Deploy Hook    | `make deploy-hook-status`                       |
+| configuração da API Vercel  | `make production-release-status`                |
 | execuções do backup         | `make backup-status`                            |
 | log de backup falho         | `make backup-log run=<run-id>`                  |
 | artefatos de backup         | `make backup-artifacts run=<run-id>`            |
@@ -588,102 +608,111 @@ Backup, publicação e operação:
 
 Supabase:
 
-| Objetivo        | Comando                                     |
-| --------------- | ------------------------------------------- |
-| iniciar/parar   | `make supabase-start`, `make supabase-stop` |
-| só o banco      | `make supabase-start-db`                    |
-| banco e Auth    | `make supabase-start-account`               |
-| status          | `make supabase-status`                      |
-| reset           | `make supabase-reset`                       |
-| diff            | `make supabase-diff`                        |
-| conferir diff   | `make supabase-diff-check`                  |
-| gerar migration | `make supabase-migration-diff name=<nome>`  |
-| lint            | `make supabase-lint`                        |
-| pgTAP           | `make supabase-test-db`                     |
-| tipos           | `make supabase-types-local`                 |
-| histórico prod. | `make supabase-prod-migrations-check`       |
+| Objetivo                                   | Comando                                        |
+| ------------------------------------------ | ---------------------------------------------- |
+| iniciar/parar                              | `make supabase-start`, `make supabase-stop`    |
+| só o banco                                 | `make supabase-start-db`                       |
+| banco e Auth                               | `make supabase-start-account`                  |
+| status                                     | `make supabase-status`                         |
+| reset                                      | `make supabase-reset`                          |
+| diff                                       | `make supabase-diff`                           |
+| conferir diff                              | `make supabase-diff-check`                     |
+| gerar migration                            | `make supabase-migration-diff name=<nome>`     |
+| validar sem resetar o ambiente de trabalho | `make validate-database`                       |
+| gerar diff em banco temporário             | `make generate-database-migration name=<nome>` |
+| lint                                       | `make supabase-lint`                           |
+| pgTAP                                      | `make supabase-test-db`                        |
+| tipos                                      | `make supabase-types-local`                    |
+| histórico prod.                            | `make supabase-prod-migrations-check`          |
 
 Os targets `supabase-prod-*` só executam no GitHub Actions; o wrapper os
 bloqueia fora dele.
 
 `make check` executa typecheck, lint, Vitest, format-check e build. E2E e
 validações de banco são separados. Os critérios de aprovação e gates
-planejados ficam exclusivamente no [REVIEW.md](REVIEW.md).
+atuais estão definidos no [REVIEW.md](REVIEW.md).
 
 ## Deploy atual
 
-O repositório documenta Vercel para o frontend e Supabase gerenciado para auth e
-banco. O `vercel.json` desabilita o auto-deploy Git da `main`, mantendo os
-previews das outras branches habilitados. A produção é publicada somente pelo
-Deploy Hook, disparado pelo workflow de migrations depois do quality gate e das
-migrations do mesmo SHA. A ordem foi comprovada em 2026-11-03 com a migration
-`20261103001239_avoid_rpc_conflict_retries.sql` no SHA `b3ddc8f`, com um único
-deployment de Production disparado pelo hook. Evidências em
-[deploy-hook-setup.md](docs/operations/deploy-hook-setup.md).
+O frontend é hospedado na Vercel, com Supabase gerenciado para autenticação e
+banco. O domínio canônico é [tickapp.com.br](https://tickapp.com.br).
+GitHub Free, Vercel Hobby e Supabase Free são os planos adotados. Previews da
+Vercel não recebem configuração do Supabase de produção.
 
-O ambiente externo foi configurado em 11 de agosto de 2026 para a alfa
-controlada. O domínio canônico de produção é
-[https://tickapp.com.br](https://tickapp.com.br). Estão configurados a proteção
-da `main` e os checks obrigatórios no GitHub, o projeto e os ambientes da
-Vercel, o domínio e a autenticação do Supabase e o procedimento de backup
-manual. As contas dos provedores usam autenticação em dois fatores.
+O ruleset da `main` exige `Check app`, `Check database` e `Check end-to-end`.
+O App CI roda em pull requests e pushes da `main`, com auditoria de produção,
+`make check`, cobertura, mutação, estrutura/arquitetura, SAST/secrets, banco
+limpo/lint/diff/pgTAP e E2E local e autenticado. Axe verifica calendário e metas
+em desktop e mobile dentro da suíte local. O E2E de
+conta cobre API simulada com latência e Chromium com API real temporária,
+fechamento completo e conflito entre duas sessões. Falhas de push na `main` abrem ou comentam
+issue `ci-failure` atribuída ao proprietário.
 
-Os previews da Vercel permanecem sem acesso ao Supabase de produção. Em 17 de
-agosto de 2026, os secrets que autorizam migrations foram cadastrados no
-ambiente GitHub `production` e o workflow executou com sucesso o quality gate e
-as migrations de produção.
+O `vercel.json` desabilita auto-deploy Git somente da `main`. O workflow
+`supabase-migrations.yml` exige App CI completo aprovado para o SHA da ponta
+atual da `main`, tanto na execução automática quanto na manual. O preflight
+confere credenciais e vínculo do projeto Vercel antes de tocar o banco.
+Toda publicação consulta e aplica migrations pendentes, independentemente dos
+arquivos alterados no último commit, e confirma o histórico remoto antes do deploy.
 
-`.github/workflows/app-ci.yml` executa `make audit-prod` e `make check` em
-PRs e pushes para `main`, além de dois jobs paralelos: `Check database` sobe apenas o
-Postgres local com `make supabase-start-db`, recria o banco pelas migrations,
-roda lint, `make supabase-diff-check` e pgTAP; `Check end-to-end` roda os E2E locais e
-autenticados e guarda os artefatos do Playwright em caso de falha. Desde 25 de
-agosto de 2026, o ruleset `main-protection` exige os três checks, de modo que um
-SHA reprovado em banco ou E2E não alcança a `main`. Quando um push na `main`
-falha, o job `Report failed run` abre a issue `App CI falhou na main` com o
-rótulo `ci-failure`, atribuída ao dono do repositório, e comenta o link do run
-nas falhas seguintes enquanto a issue continuar aberta; execuções bem-sucedidas
-e pull requests não geram aviso. O workflow de produção usa a mesma action
-composta com o rótulo `pipeline-failure` para migrations, deploy e auditoria.
-Uma execução horária compara o histórico remoto de migrations com o
-repositório e detecta eventos de publicação perdidos assim que o GitHub Actions
-volta a operar. `.github/workflows/supabase-migrations.yml` só aceita o SHA de
-um `App CI` aprovado na `main`; execução manual roda o mesmo quality gate antes
-de acessar o environment `production`. O workflow registra o SHA, detecta
-mudanças de banco, aplica migrations e depois dispara o Deploy Hook da Vercel.
+O deploy usa a API Vercel com o SHA explícito, sem Deploy Hook. O job confere
+SHA, projeto e ambiente Production, espera `READY` e verifica HTML e marcador
+`tick-release` em `/`, `/calendar` e `/goals`. Retomadas procuram deployment do
+mesmo SHA; resposta perdida não gera repetição cega do POST. O timeout exige
+inspeção na Vercel antes de nova tentativa. O smoke ocorre após a promoção e
+não substitui validação funcional do domínio canônico. Configuração e retomada
+estão no [runbook](docs/operations/PUBLICACAO.md).
 
-O workflow `Production backup`, habilitado desde 2026-09-22, gera diariamente
-às 03:17 UTC um dump lógico, cifra-o antes do upload e mantém somente o artefato
-cifrado por 14 dias. As imagens da CLI do Supabase vêm do GHCR
-(`SUPABASE_INTERNAL_IMAGE_REGISTRY=ghcr.io`) desde a publicação de `ce9e7d1`,
-para evitar o limite do ECR público que fez falhar 9 de 13 execuções entre 19 e
-31 de outubro. Falhas abrem ou comentam a issue `backup-failure`. O restore do
-artefato real foi aprovado em outra máquina em 2026-11-02. A estabilidade com
-GHCR ainda não foi observada; a verificação pendente está no
-[plano de implementação](docs/planning/implementation-plan.md#pendências-abertas).
-Configuração, alertas, restore isolado e medição de RPO/RTO estão no
-[runbook operacional](docs/operations/observability-backup-restore.md).
+Execuções de produção são serializadas. Falhas abrem ou comentam issue
+`pipeline-failure`. A auditoria horária compara migrations, sem publicar nem
+verificar a aplicação servida; avisos no GitHub dependem de sua disponibilidade.
 
-A publicação cotidiana parte da branch `dev`. Depois de criar o commit, execute
-`make publish`. O comando exige worktree limpo, envia `dev`, cria ou reutiliza
-o pull request para `main` e silencia as notificações desse pull request para o
-autor. O comando aguarda os checks obrigatórios, só então habilita squash
-automático, continua aguardando enquanto o pull request estiver aberto,
-confirma o merge e reconcilia `dev` com a nova `main` para preparar a publicação
-seguinte. Um estado terminal diferente de merge encerra o comando com erro. Não
-faça push direto para `main` nem
-use force push para contornar essa proteção.
+`make publish` exige branch `dev` e worktree limpo, sincroniza a branch, cria
+ou reutiliza PR, silencia notificações desse PR e aguarda os checks obrigatórios
+antes de armar squash automático. Depois confirma o merge e reconcilia `dev`.
+A conclusão significa `main` atualizada, não deployment concluído. Interromper
+antes de armar auto-merge deixa o PR aberto; depois de armado, o merge pode
+acontecer sem o processo local continuar executando.
 
-Commits e `make publish` são decisões manuais do desenvolvedor. Agentes devem
-entregar alterações sem commit e não podem publicar, criar PR ou fazer merge sem
-um pedido explícito para essa operação no turno atual.
+Commits, PRs, merges e publicação são controlados pelo desenvolvedor. Agentes
+não os executam sem pedido explícito da operação no turno atual. Mudanças de
+banco precisam ser compatíveis com a aplicação anterior e com clientes abertos:
+Supabase e Vercel não compartilham uma transação de publicação. Rollback de
+aplicação não desfaz migrations.
 
-Mudanças de banco usadas pelo frontend devem ser aditivas e publicadas em duas
-etapas: migration compatível primeiro e aplicação depois. Procedimentos de
-rollback estão no
-[runbook operacional](docs/operations/observability-backup-restore.md).
+O workflow `Production backup` está habilitado, com agendamento diário às
+03:17 UTC, dump pelo GHCR, cifra AES-256-GCM e retenção de 14 dias no GitHub.
+Falhas abrem ou comentam issue `backup-failure`. Backup e restore são descritos
+no [runbook operacional](docs/operations/MONITORAMENTO-E-RECUPERACAO.md).
 
-O projeto mantém GitHub Free, Vercel Hobby e Supabase Free no ambiente atual.
+### Credenciais e variáveis de produção
+
+`VERCEL_TOKEN` e `VERCEL_PROJECT_ID` estão criados e cadastrados como secrets
+no environment GitHub `production`. O token autoriza o GitHub Actions a
+consultar e criar deployments; o ID identifica o projeto Tick na Vercel.
+Os tokens de integração criados manualmente pelo proprietário, incluindo
+`VERCEL_TOKEN` e `SUPABASE_ACCESS_TOKEN`, estão configurados sem expiração
+automática, conforme informado pelo proprietário. O cadastro foi confirmado
+por metadados, sem ler valores; validade e permissões são conferidas pelo
+preflight da publicação.
+
+O [inventário de credenciais e configuração](docs/operations/AMBIENTE-DE-PRODUCAO.md#inventário-de-credenciais-do-github)
+descreve a origem, a finalidade, o consumidor e o efeito de remover cada um dos
+oito secrets cadastrados no GitHub e das sete variáveis de Production na Vercel.
+Distingue tokens privados, senha do banco, chave do backup, identificadores,
+chaves públicas de cliente e flags de funcionamento.
+
+`VERCEL_DEPLOY_HOOK_URL` permanece cadastrada, mas não é consumida pelo fluxo
+por SHA deste repositório. Sua remoção exige confirmar que nenhum workflow
+ativo depende do hook e revogá-lo também na Vercel. A chave de backup deve ser
+preservada enquanto existirem arquivos cifrados que dependam dela.
+
+```sh
+make production-release-status
+```
+
+Esse comando consulta somente nomes e datas dos secrets da API Vercel.
+Os valores ficam nos provedores e no cofre do proprietário.
 
 ## Escopo de uso
 
@@ -696,50 +725,21 @@ acompanha quotas manualmente e os benchmarks são diagnóstico opcional.
 
 ## Documentação
 
-Diretórios, arquivos, módulos, símbolos e demais identificadores técnicos usam
-nomes em inglês em todo o repositório. Apenas o conteúdo textual de documentos
-pode permanecer em português.
+Os Markdown permanentes descrevem comportamento, regras e procedimentos atuais.
+Identificadores técnicos usam inglês; o conteúdo textual pode usar português.
+Documentos Markdown usam nomes em português e maiúsculas, com as exceções
+convencionais definidas no AGENTS. Títulos e subtítulos internos usam
+capitalização natural e preservam os termos técnicos.
 
-- [AGENTS.md](AGENTS.md): regras operacionais para agentes;
-- [REVIEW.md](REVIEW.md): baselines, métricas, quality gates e histórico de
-  evidências;
-- [.agents/skills](.agents/skills): workflows reutilizáveis para agentes,
-  espelhados em `.claude/skills` e `.codex/skills`.
-
-Planejamento:
-
-- [docs/planning/implementation-plan.md](docs/planning/implementation-plan.md):
-  plano único de evolução, pendências abertas, rollouts e responsabilidades
-  externas;
-- [docs/planning/guest-and-invited-access.md](docs/planning/guest-and-invited-access.md):
-  contrato do modo guest completo e das contas por convite.
-
-Guias e operação:
-
-- [docs/guides/calendar-task-json-import.md](docs/guides/calendar-task-json-import.md):
-  guia funcional e contrato da importação JSON do calendário;
-- [docs/operations/external-production-runbook.md](docs/operations/external-production-runbook.md):
-  configurações externas de produção e o que exige outra máquina ou aparelho;
-- [docs/operations/observability-backup-restore.md](docs/operations/observability-backup-restore.md):
-  telemetria, backup, restore, rollback e comunicação de incidente;
-- [docs/operations/two-machine-backup-restore.md](docs/operations/two-machine-backup-restore.md):
-  roteiro do restore do backup de produção em uma segunda máquina;
-- [docs/operations/deploy-hook-setup.md](docs/operations/deploy-hook-setup.md):
-  Deploy Hook, deploy ordenado e suas evidências;
-- [docs/operations/cohort-capacity.md](docs/operations/cohort-capacity.md):
-  benchmarks locais opcionais e baselines em `docs/operations/baselines`;
-- [docs/operations/dependency-maintenance-2026-11-02.md](docs/operations/dependency-maintenance-2026-11-02.md):
-  atualização de dependências de 2026-11-02, licenças, overrides e rollback.
-
-Incidentes:
-
-- [2026-08-31-supabase-wal-read-only.md](docs/operations/incidents/2026-08-31-supabase-wal-read-only.md):
-  saturação de WAL e modo somente leitura do Supabase;
-- [2026-08-31-account-batch-stale-revision.md](docs/operations/incidents/2026-08-31-account-batch-stale-revision.md):
-  rejeição `stale_revision` terminal na outbox;
-- [2026-11-02-rpc-conflict-retries.md](docs/operations/incidents/2026-11-02-rpc-conflict-retries.md):
-  retry indefinido do PostgREST em conflito da RPC.
-
-`docs/planning/implementation-plan.md` é a fonte canônica do backlog técnico.
-Os demais documentos em `docs/` cobrem contratos, procedimentos e registros
-específicos que não pertencem ao plano geral.
+- [AGENTS.md](AGENTS.md): regras operacionais de agentes.
+- [REVIEW.md](REVIEW.md): gates e critérios de revisão vigentes.
+- [.agents/skills](.agents/skills): workflows espelhados em `.claude/skills` e `.codex/skills`.
+- [Contrato de acesso](docs/planning/MODOS-DE-ACESSO.md): guest e conta convidada.
+- [Importação JSON](docs/guides/IMPORTACAO-DE-TAREFAS.md): uso e contrato de entrada.
+- [Configuração externa](docs/operations/AMBIENTE-DE-PRODUCAO.md): contas, secrets e operação.
+- [Publicação](docs/operations/PUBLICACAO.md): gates, deploy por SHA e recuperação.
+- [Telemetria e backup](docs/operations/MONITORAMENTO-E-RECUPERACAO.md): alertas, recuperação e rollback.
+- [Restore em outra máquina](docs/operations/TESTE-DE-RESTAURACAO.md): ensaio isolado.
+- [Capacidade local](docs/operations/DIAGNOSTICO-DE-DESEMPENHO.md): ferramentas opcionais de diagnóstico.
+- [Dependências](docs/operations/DEPENDENCIAS.md): configuração e manutenção atuais.
+- [Arquivo temporário de trabalho](docs/planning/PENDENCIAS.md): único concentrador de pendências; removível após sua resolução.

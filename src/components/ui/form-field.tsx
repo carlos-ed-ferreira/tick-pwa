@@ -1,78 +1,176 @@
 'use client';
 
-import { forwardRef, useId, type InputHTMLAttributes } from 'react';
+import {
+  forwardRef,
+  useId,
+  type InputHTMLAttributes,
+  type ReactNode,
+  type TextareaHTMLAttributes,
+} from 'react';
 import { Input } from './input';
 import { Text } from './text';
 
-type FormFieldProps = Omit<
-  InputHTMLAttributes<HTMLInputElement>,
-  'className' | 'id'
-> & {
+const fieldTextClassName =
+  'w-full bg-transparent text-foreground outline-none placeholder:text-[#fff9f2]/50 focus-visible:outline-none disabled:cursor-not-allowed disabled:text-muted/60';
+
+const labelTypographyClassName =
+  'px-1 text-[0.68rem] font-semibold uppercase leading-4 tracking-[0.24em]';
+
+function LabeledField({
+  children,
+  className = '',
+  endAdornment,
+  error,
+  errorId,
+  inputId,
+  isDisabled,
+  label,
+}: {
+  children: ReactNode;
   className?: string;
+  endAdornment?: ReactNode;
+  error?: string | null;
+  errorId?: string;
+  inputId: string;
+  isDisabled: boolean;
+  label: string;
+}) {
+  return (
+    <div className={`flex flex-col gap-1.5 pt-2 ${className}`}>
+      <div
+        className={`group relative flex flex-1 items-center gap-1 rounded-[0.75rem] bg-background/40 ${
+          endAdornment ? 'pr-1.5' : ''
+        } ${isDisabled ? 'opacity-75' : ''}`}
+      >
+        <label
+          className={`absolute left-5 top-0 z-10 -translate-y-1/2 cursor-text ${labelTypographyClassName} ${
+            error ? 'text-rose-300' : 'text-[#fff9f2]/90'
+          }`}
+          htmlFor={inputId}
+        >
+          {label}
+        </label>
+        {children}
+        {endAdornment}
+        <fieldset
+          aria-hidden="true"
+          className={`pointer-events-none absolute inset-x-0 -top-2 bottom-0 m-0 min-w-0 rounded-[0.75rem] border px-5 transition ${
+            error
+              ? 'border-rose-400/55'
+              : 'border-white/18 group-hover:border-white/28 group-focus-within:border-[#f0c38e]/70'
+          }`}
+        >
+          <legend
+            className={`invisible whitespace-nowrap ${labelTypographyClassName}`}
+          >
+            <span
+              className="before:content-[attr(data-label)]"
+              data-label={label}
+            />
+          </legend>
+        </fieldset>
+      </div>
+      {error ? (
+        <Text
+          as="span"
+          id={errorId}
+          className="block px-4"
+          size="xs"
+          tone="danger"
+        >
+          {error}
+        </Text>
+      ) : null}
+    </div>
+  );
+}
+
+type FieldProps = {
   error?: string | null;
   id?: string;
   label: string;
 };
 
-const cardBackground =
-  'color-mix(in srgb, var(--background) 25%, var(--surface) 75%)';
-const fieldBackground = `color-mix(in srgb, var(--background) 55%, ${cardBackground} 45%)`;
-const labelBackground = `linear-gradient(to bottom, ${cardBackground} 0 50%, ${fieldBackground} 50% 100%)`;
+export const FormField = forwardRef<
+  HTMLInputElement,
+  Omit<InputHTMLAttributes<HTMLInputElement>, 'id'> &
+    FieldProps & { endAdornment?: ReactNode }
+>(function FormField(
+  { className = '', endAdornment, error, id, label, ...props },
+  ref,
+) {
+  const generatedId = useId();
+  const inputId = id ?? generatedId;
+  const errorId = error ? `${inputId}-error` : undefined;
 
-export const FormField = forwardRef<HTMLInputElement, FormFieldProps>(
-  function FormField({ className = '', error, id, label, ...props }, ref) {
-    const generatedId = useId();
-    const inputId = id ?? generatedId;
-    const labelId = `${inputId}-label`;
-    const errorId = error ? `${inputId}-error` : undefined;
-    const isDisabled = Boolean(props.disabled);
+  return (
+    <LabeledField
+      endAdornment={endAdornment}
+      error={error}
+      errorId={errorId}
+      inputId={inputId}
+      isDisabled={Boolean(props.disabled)}
+      label={label}
+    >
+      <Input
+        ref={ref}
+        id={inputId}
+        aria-describedby={errorId}
+        aria-invalid={error ? true : undefined}
+        className={`h-11 pl-6 text-base ${endAdornment ? 'pr-2' : 'pr-4'} ${fieldTextClassName} ${className}`}
+        {...props}
+      />
+    </LabeledField>
+  );
+});
 
-    return (
-      <div className="space-y-1.5">
-        <div
-          className="relative pt-2"
-          style={{ backgroundColor: cardBackground }}
-        >
-          <label
-            id={labelId}
-            className={`absolute left-8 top-2 z-10 -translate-y-1/2 !cursor-text ps-2 pe-1 text-[0.68rem] font-semibold uppercase leading-4 tracking-[0.24em] ${
-              error ? 'text-rose-600' : 'text-[#fff9f2]/90'
-            }`}
-            htmlFor={inputId}
-            style={{ backgroundImage: labelBackground }}
-          >
-            {label}
-          </label>
-          <div
-            className={`rounded-[0.75rem] py-2 shadow-sm ring-hairline transition ${
-              error
-                ? 'ring-rose-500/35 focus-within:ring-2 focus-within:ring-rose-500/55 focus-within:shadow-[0_0_0_4px_rgba(244,63,94,0.08)]'
-                : 'ring-2 ring-[#fff9f2]/88 focus-within:ring-2 focus-within:ring-[#fff9f2] focus-within:shadow-[0_0_0_4px_rgba(255,249,242,0.12)]'
-            } ${isDisabled ? 'opacity-75' : ''}`}
-            style={{ backgroundColor: fieldBackground }}
-          >
-            <Input
-              ref={ref}
-              id={inputId}
-              aria-describedby={errorId}
-              aria-invalid={error ? true : undefined}
-              className={`h-8 w-full border-0 bg-transparent p-0 pl-6 text-base leading-8 text-foreground outline-none placeholder:text-[#fff9f2]/72 focus-visible:outline-none disabled:cursor-not-allowed disabled:text-muted/60 ${className}`}
-              {...props}
-            />
-          </div>
-        </div>
-        {error ? (
-          <Text
-            as="span"
-            id={errorId}
-            className="block px-4"
-            size="xs"
-            tone="danger"
-          >
-            {error}
-          </Text>
-        ) : null}
-      </div>
-    );
+export const FormTextareaField = forwardRef<
+  HTMLTextAreaElement,
+  Omit<TextareaHTMLAttributes<HTMLTextAreaElement>, 'id'> &
+    FieldProps & { fieldClassName?: string; monospace?: boolean }
+>(function FormTextareaField(
+  {
+    autoCapitalize = 'none',
+    autoCorrect = 'off',
+    className = '',
+    error,
+    fieldClassName = '',
+    id,
+    label,
+    monospace = false,
+    spellCheck = false,
+    ...props
   },
-);
+  ref,
+) {
+  const generatedId = useId();
+  const inputId = id ?? generatedId;
+  const errorId = error ? `${inputId}-error` : undefined;
+
+  return (
+    <LabeledField
+      className={fieldClassName}
+      error={error}
+      errorId={errorId}
+      inputId={inputId}
+      isDisabled={Boolean(props.disabled)}
+      label={label}
+    >
+      <textarea
+        ref={ref}
+        id={inputId}
+        aria-describedby={errorId}
+        aria-invalid={error ? true : undefined}
+        autoCapitalize={autoCapitalize}
+        autoCorrect={autoCorrect}
+        spellCheck={spellCheck}
+        className={`h-full resize-none self-stretch px-6 py-4 ${
+          monospace
+            ? 'font-mono text-xs leading-5 touch:text-base'
+            : 'text-base'
+        } ${fieldTextClassName} ${className}`}
+        {...props}
+      />
+    </LabeledField>
+  );
+});
