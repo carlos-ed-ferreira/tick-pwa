@@ -69,8 +69,9 @@ bloquear somente operações rejeitadas pelo servidor, com teste de integração
 Em outra execução, a convergência de duas sessões terminou com a edição do
 primeiro dispositivo em vez da do segundo após o push forçado.
 
-- [ ] Confirmar no App CI que o ensaio de reabertura offline passa de forma
-      estável.
+O ensaio passou no App CI do `59c372b`.
+
+- [ ] Acompanhar as próximas execuções do App CI para confirmar estabilidade.
 - [ ] Se a convergência voltar a falhar, analisar o trace e distinguir
       instabilidade do teste de corrida entre push forçado, drenagem e refresh
       canônico, relacionando com LF-04.
@@ -98,16 +99,12 @@ sessões da mesma conta. Permanecem os cenários abaixo.
 preflight, antes das migrations, se faltarem. Não existe fallback para Deploy
 Hook. A configuração externa está completa: `VERCEL_TOKEN`, `VERCEL_PROJECT_ID`
 e `VERCEL_AUTOMATION_BYPASS_SECRET` estão cadastrados, e `VERCEL_TEAM_ID` não se
-aplica à conta pessoal Hobby. A próxima publicação depende do App CI da `main`
-voltar a passar (QA-05); até lá, a migration `20261103180224` segue sem aplicar
-e a auditoria horária do histórico de migrations reprova.
+aplica à conta pessoal Hobby. Em 2026-11-05, a primeira publicação pela API
+aplicou a migration `20261103180224` e publicou o `59c372b`: quality gate,
+migrations e deploy com smoke aprovados, e o domínio canônico serve o mesmo
+SHA. O Deploy Hook antigo foi removido do GitHub e revogado na Vercel.
 
-- [ ] Na próxima publicação autorizada, validar permissões do token, contrato
-      real da API, SHA, Production, `READY`, smoke e domínio canônico.
 - [ ] Conferir execução manual com evidência completa do App CI do mesmo SHA.
-- [ ] Após validar e ativar o fluxo por API, conferir consumidores do hook antigo;
-      quando não houver dependência ativa, remover `VERCEL_DEPLOY_HOOK_URL` do
-      GitHub e revogar o hook na Vercel.
 
 ### DEP-05 — Ensaiar interrupções, retomada e rollback
 
@@ -174,28 +171,6 @@ A cobertura global medida permanece abaixo dos objetivos de 80% de linhas e
 
 - [ ] Aumentar cobertura com cenários de contrato relevantes nas áreas alteradas.
 - [ ] Após melhoria comprovada, revisar e elevar o piso versionado.
-
-### QA-05 — Validar o scanner SAST no Actions
-
-**P1 · validação externa.** Gitleaks e o verificador SARIF possuem gates;
-CodeQL `security-extended` está configurado no App CI e não foi executado
-localmente. O repositório público preserva o plano GitHub Free. As primeiras
-execuções na `main` (`0669711` e `1fc3c42`) reprovaram no passo do gate, sem
-log recuperável pelo `gh`. A causa provável era o verificador não reconhecer as
-regras agrupadas por pacote em `tool.extensions`, formato do CodeQL do Actions;
-o verificador foi corrigido e coberto por testes. Com a correção, o App CI do
-`44cdc07` reprovou por um achado real, `js/file-system-race`, sem localização
-no log. O verificador passou a listar arquivo e linha de cada achado alto, e o
-par verificar-depois-escrever do relatório em `scripts/benchmark-cohort.mjs`
-foi removido. O PR #51 passou, porque o CodeQL analisa só as linhas alteradas,
-mas o push do `571b204` na `main`, com análise completa, reprovou três
-`js/insecure-randomness` originados no fallback de UUID com `Math.random`. Os
-geradores de id passaram a usar `crypto.getRandomValues` nesse fallback.
-
-- [ ] Confirmar no próximo App CI que `Check security` passa; se reprovar,
-      tratar cada achado pela localização informada.
-- [ ] Avaliar adicionar `Check security` ao ruleset remoto da `main`; o pipeline
-      de produção já exige esse job e a execução completa aprovada.
 
 Performance continua acompanhada pelo uso real. Os benchmarks existentes são
 diagnóstico opcional; não há gate novo de p95/p99, capacidade, margem estatística

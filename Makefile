@@ -159,7 +159,13 @@ audit-all: require-npm
 test-release-workflow: require-npm
 	$(NPM) run test -- tests/unit/release-workflow.test.mjs tests/unit/production-release.test.mjs
 
-.PHONY: production-release-status
+.PHONY: production-release-status production-secrets-status main-ruleset-status
+
+production-secrets-status:
+	gh secret list --env production --repo carlos-ed-ferreira/tick-pwa --json name,updatedAt
+
+main-ruleset-status:
+	gh api "repos/carlos-ed-ferreira/tick-pwa/rules/branches/main" --jq '.[] | select(.type == "required_status_checks") | .parameters.required_status_checks[].context'
 
 production-release-status:
 	gh secret list --env production --repo carlos-ed-ferreira/tick-pwa --json name,updatedAt --jq '.[] | select(.name == "VERCEL_TOKEN" or .name == "VERCEL_PROJECT_ID" or .name == "VERCEL_TEAM_ID" or .name == "VERCEL_AUTOMATION_BYPASS_SECRET")'
@@ -230,6 +236,8 @@ help:
 	@printf "  %-26s %s\n" "make dependency-info package=<pacote>" "Consulta versao, runtime, peers e licenca no registro npm"
 	@printf "  %-26s %s\n" "make audit-all" "Audita dependencias de producao e desenvolvimento"
 	@printf "  %-26s %s\n" "make test-release-workflow" "Valida a ordem do pipeline e a configuracao Git da Vercel"
+	@printf "  %-26s %s\n" "make production-secrets-status" "Lista nomes e datas dos secrets de production, sem valores"
+	@printf "  %-26s %s\n" "make main-ruleset-status" "Lista os checks obrigatorios do ruleset da main"
 	@printf "  %-26s %s\n" "make production-release-status" "Consulta metadados dos secrets da API Vercel, sem valores"
 	@printf "  %-26s %s\n" "make backup-restore-prepare" "Baixa as imagens Postgres, Auth e Storage antes do restore"
 	@printf "  %-26s %s\n" "make test-backup-restore" "Testa restore sintetico em container Postgres isolado"
