@@ -570,7 +570,7 @@ describe('ChecklistSurface delete confirmation', () => {
     expect(moveChecklistItemToTargetMock).not.toHaveBeenCalled();
   });
 
-  it('does not offer selection on rows that are still drafts', async () => {
+  it('keeps selection disabled on rows that are still drafts', async () => {
     useChecklistTreeMock.mockReturnValue([createRow('Original task')]);
 
     render(<ChecklistSurface dailyEntryId="entry-1" />);
@@ -596,8 +596,8 @@ describe('ChecklistSurface delete confirmation', () => {
       .closest('[data-tree-row]');
 
     expect(
-      within(draftRow as HTMLElement).queryByLabelText('Select task'),
-    ).not.toBeInTheDocument();
+      within(draftRow as HTMLElement).getByLabelText('Select task'),
+    ).toBeDisabled();
   });
 
   it('indents and outdents an empty draft locally', async () => {

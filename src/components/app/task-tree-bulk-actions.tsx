@@ -1,7 +1,12 @@
 'use client';
 
 import { Star, Tag, Trash2 } from 'lucide-react';
-import { CheckboxIndicator } from '@/components/ui';
+import {
+  CheckboxIndicator,
+  filledCompactPillControlClassName,
+  filledControlDangerClassName,
+  filledControlNeutralClassName,
+} from '@/components/ui';
 import { CategoryAssignmentMenu } from '@/features/categories';
 import {
   defaultTaskCompletionSettings,
@@ -58,8 +63,7 @@ export function TaskTreeBulkActions({
   onToggleChecked: (nextValues: TaskCompletionValues) => Promise<void> | void;
   onTogglePriority: () => Promise<void> | void;
 }) {
-  const buttonClassName =
-    'touch-target inline-flex min-h-8 items-center gap-1.5 rounded-full inset-ring-hairline inset-ring-white/10 bg-white/5 px-2.5 py-1 text-xs font-medium text-[#cbd5e0] shadow-sm transition hover:bg-white/10 hover:text-[#fff9f2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e] disabled:cursor-not-allowed disabled:opacity-40';
+  const buttonClassName = `${filledCompactPillControlClassName} ${filledControlNeutralClassName}`;
 
   return (
     <div
@@ -88,7 +92,6 @@ export function TaskTreeBulkActions({
           indeterminate={completionValues.ignored}
           level={completionValues.markLevel}
           levels={completionSettings.levels}
-          size="compact"
         />
         <span>{labels.mark}</span>
       </button>
@@ -163,7 +166,7 @@ export function TaskTreeBulkActions({
         <button
           type="button"
           aria-label={bulkAriaLabel(labels.delete, labels.selected)}
-          className={`${buttonClassName} text-rose-200 hover:bg-rose-400/[0.12] hover:text-rose-100`}
+          className={`${filledCompactPillControlClassName} ${filledControlDangerClassName}`}
           onClick={onDelete}
         >
           <Trash2 aria-hidden="true" className="size-3.5" />

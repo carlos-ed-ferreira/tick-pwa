@@ -21,8 +21,10 @@ API de dados ou resolução do domínio canônico.
 
 ## Configuração
 
-`VERCEL_TOKEN` e `VERCEL_PROJECT_ID` já estão criados e cadastrados no
-environment GitHub `production`, com presença conferida por metadados. O token
+`VERCEL_TOKEN`, `VERCEL_PROJECT_ID` e `VERCEL_AUTOMATION_BYPASS_SECRET` já estão
+criados e cadastrados no environment GitHub `production`, com presença conferida
+por metadados. O projeto fica na conta pessoal Hobby da Vercel, sem time, por
+isso `VERCEL_TEAM_ID` não é cadastrado. O token
 autoriza a API; o ID seleciona o projeto. Esse cadastro não comprova que o token
 é válido ou tem o escopo necessário: o preflight faz essa verificação.
 Origem, finalidade e consumidores de todas as credenciais estão no

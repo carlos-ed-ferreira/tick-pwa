@@ -22,7 +22,94 @@ function report(severity, results = [{ ruleIndex: 0 }]) {
   };
 }
 
+function codeqlReport(severity, results) {
+  return {
+    version: '2.1.0',
+    runs: [
+      {
+        tool: {
+          driver: { name: 'CodeQL' },
+          extensions: [
+            { name: 'codeql/javascript-all', rules: [] },
+            {
+              name: 'codeql/javascript-queries',
+              rules: [
+                { id: 'js/low-impact', properties: {} },
+                {
+                  id: 'js/security-test',
+                  properties: { 'security-severity': severity },
+                },
+              ],
+            },
+          ],
+        },
+        results,
+      },
+    ],
+  };
+}
+
+const packRuleReference = {
+  ruleId: 'js/security-test',
+  rule: { id: 'js/security-test', index: 1, toolComponent: { index: 1 } },
+};
+
 describe('SAST release gate', () => {
+  it('accepts a CodeQL report that groups rules by pack and has no findings', () => {
+    expect(() => assertSafeSarif(codeqlReport('9.8', []))).not.toThrow();
+  });
+  it('resolves rules grouped by pack to block high findings', () => {
+    expect(() =>
+      assertSafeSarif(codeqlReport('9.8', [packRuleReference])),
+    ).toThrow('js/security-test');
+  });
+  it('resolves rules grouped by pack to accept lower severity findings', () => {
+    expect(() =>
+      assertSafeSarif(codeqlReport('5.0', [packRuleReference])),
+    ).not.toThrow();
+  });
+  it('reports the location of every high finding without source content', () => {
+    const located = (uri, startLine) => ({
+      ...packRuleReference,
+      locations: [
+        {
+          physicalLocation: {
+            artifactLocation: { uri },
+            region: { startLine, snippet: { text: 'secret source' } },
+          },
+        },
+      ],
+    });
+    let message = '';
+
+    try {
+      assertSafeSarif(
+        codeqlReport('7.7', [
+          located('scripts/first.mjs', 12),
+          located('scripts/second.mjs', 40),
+        ]),
+      );
+    } catch (error) {
+      message = error.message;
+    }
+
+    expect(message).toContain('js/security-test at scripts/first.mjs:12');
+    expect(message).toContain('js/security-test at scripts/second.mjs:40');
+    expect(message).not.toContain('secret source');
+  });
+  it('fails closed when a grouped finding points to an unknown rule', () => {
+    expect(() =>
+      assertSafeSarif(
+        codeqlReport('5.0', [
+          {
+            ruleId: 'js/unknown',
+            rule: { id: 'js/unknown', index: 9, toolComponent: { index: 1 } },
+          },
+        ]),
+      ),
+    ).toThrow('SARIF result has no rule.');
+  });
+
   it('blocks high and critical findings without printing source content', () => {
     expect(() => assertSafeSarif(report('7.0'))).toThrow('security-test');
     expect(() => assertSafeSarif(report('9.8'))).toThrow('security-test');

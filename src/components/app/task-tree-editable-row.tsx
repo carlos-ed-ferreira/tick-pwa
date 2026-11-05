@@ -832,12 +832,13 @@ export function TaskTreeEditableRow({
         ) : null}
 
         <TaskTreeActionGroup>
-          {selection ? (
+          {selection || isDraft ? (
             <TaskTreeSelectionButton
               deselectLabel={labels.deselectItem}
-              isSelected={selection.isSelected}
+              disabled={!selection}
+              isSelected={selection?.isSelected === true}
               selectLabel={labels.selectItem}
-              onToggle={selection.onToggle}
+              onToggle={(shiftKey) => selection?.onToggle(shiftKey)}
             />
           ) : null}
           <TaskTreeInlineActions

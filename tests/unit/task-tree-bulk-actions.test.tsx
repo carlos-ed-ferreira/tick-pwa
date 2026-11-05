@@ -71,7 +71,7 @@ describe('TaskTreeBulkActions', () => {
     const uncheckedIndicator = container.querySelector('.tick-checkbox');
 
     expect(uncheckedIndicator).not.toBeNull();
-    expect(uncheckedIndicator).toHaveClass('size-4');
+    expect(uncheckedIndicator).toHaveClass('size-5', 'rounded-lg');
     expect(uncheckedIndicator).not.toHaveAttribute('data-checked');
     expect(uncheckedIndicator).not.toHaveAttribute('data-ignored');
 
