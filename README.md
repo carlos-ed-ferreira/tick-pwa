@@ -641,11 +641,13 @@ atuais estão definidos no [REVIEW.md](REVIEW.md).
 ## Deploy atual
 
 O frontend é hospedado na Vercel, com Supabase gerenciado para autenticação e
-banco. O domínio canônico é [tickapp.com.br](https://tickapp.com.br).
+banco. O domínio canônico é [tickapp.com.br](https://tickapp.com.br), que redireciona
+para `www.tickapp.com.br`.
 GitHub Free, Vercel Hobby e Supabase Free são os planos adotados. Previews da
 Vercel não recebem configuração do Supabase de produção.
 
-O ruleset da `main` exige `Check app`, `Check database` e `Check end-to-end`.
+O ruleset da `main` exige `Check app`, `Check database`, `Check end-to-end` e
+`Check security`.
 O App CI roda em pull requests e pushes da `main`, com auditoria de produção,
 `make check`, cobertura, mutação, estrutura/arquitetura, SAST/secrets, banco
 limpo/lint/diff/pgTAP e E2E local e autenticado. Axe verifica calendário e metas
@@ -707,20 +709,23 @@ preflight da publicação.
 
 O [inventário de credenciais e configuração](docs/operations/AMBIENTE-DE-PRODUCAO.md#inventário-de-credenciais-do-github)
 descreve a origem, a finalidade, o consumidor e o efeito de remover cada um dos
-nove secrets cadastrados no GitHub e das sete variáveis de Production na Vercel.
+oito secrets cadastrados no GitHub e das sete variáveis de Production na Vercel.
 Distingue tokens privados, senha do banco, chave do backup, identificadores,
 chaves públicas de cliente e flags de funcionamento.
 
-`VERCEL_DEPLOY_HOOK_URL` permanece cadastrada, mas não é consumida pelo fluxo
-por SHA deste repositório. Sua remoção exige confirmar que nenhum workflow
-ativo depende do hook e revogá-lo também na Vercel. A chave de backup deve ser
-preservada enquanto existirem arquivos cifrados que dependam dela.
+O Deploy Hook da Vercel foi removido e revogado; a publicação usa somente a
+API. A chave de backup deve ser preservada enquanto existirem arquivos cifrados
+que dependam dela.
 
 ```sh
 make production-release-status
+make production-secrets-status
+make main-ruleset-status
 ```
 
-Esse comando consulta somente nomes e datas dos secrets da API Vercel.
+O primeiro comando consulta nomes e datas dos secrets da API Vercel, o segundo
+lista todos os secrets de `production` e o terceiro, os checks obrigatórios da
+`main`, sempre sem valores.
 Os valores ficam nos provedores e no cofre do proprietário.
 
 ## Escopo de uso

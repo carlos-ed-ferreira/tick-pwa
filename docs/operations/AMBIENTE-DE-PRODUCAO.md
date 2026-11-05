@@ -32,7 +32,8 @@ provedores nem impõe budgets estatísticos de capacidade.
 
 ## GitHub e Vercel
 
-O ruleset da `main` exige `Check app`, `Check database` e `Check end-to-end`.
+O ruleset da `main` exige `Check app`, `Check database`, `Check end-to-end` e
+`Check security`, conferido por `make main-ruleset-status`.
 O environment `production` guarda os secrets abaixo. O pipeline publica o SHA aprovado pela API Vercel; auto-deploy Git de `main`
 está desligado no `vercel.json`. O preflight exige os secrets da API antes de
 qualquer migration, sem fallback para hook.
@@ -42,8 +43,10 @@ qualquer migration, sem fallback para hook.
 A Vercel usa uma conta pessoal no plano Hobby, sem time. `VERCEL_TOKEN`,
 `VERCEL_PROJECT_ID` e `VERCEL_AUTOMATION_BYPASS_SECRET` estão criados e
 cadastrados no environment GitHub `production`, com presença confirmada pelos
-metadados de secrets. Os outros seis secrets cadastrados abaixo constam no
-painel informado pelo proprietário. Cadastro confirma a existência do nome; validade e escopo são conferidos
+metadados de secrets, assim como os outros cinco secrets abaixo: o environment
+tem oito secrets, listados por nome e data com `make production-secrets-status`.
+O Deploy Hook antigo foi removido do GitHub e revogado na Vercel em 2026-11-05,
+depois da primeira publicação validada pela API. Cadastro confirma a existência do nome; validade e escopo são conferidos
 pelos respectivos consumidores. Os tokens de integração criados manualmente
 pelo proprietário, incluindo `VERCEL_TOKEN` e `SUPABASE_ACCESS_TOKEN`, estão
 configurados sem expiração automática, conforme informado pelo proprietário.
@@ -60,7 +63,6 @@ Este inventário registra finalidade e estado atual, sem armazenar valores.
 | `SUPABASE_DB_URL`                 | Connection string do Session pooler do Supabase, incluindo usuário e senha do banco.                                                                                                            | `production-backup.yml` e o comando de dump. Ausente ou inválida, o backup falha. Não é a URL pública da API usada pelo aplicativo.                                                                                                        |
 | `TICK_BACKUP_ENCRYPTION_KEY`      | Chave independente gerada pelo proprietário para cifrar os backups.                                                                                                                             | O workflow de backup cifra os dumps; o restore precisa da chave correspondente ao arquivo. Perder a chave impede recuperar os backups cifrados com ela. Ao rotacionar, preservar no cofre as chaves necessárias aos backups ainda retidos. |
 | `VERCEL_AUTOMATION_BYPASS_SECRET` | Segredo gerado em Project Settings → Deployment Protection → Protection Bypass for Automation, na Vercel. Permite que a automação acesse a URL imutável `*.vercel.app` do deployment protegido. | `scripts/production-release.mjs` envia o valor no cabeçalho `x-vercel-protection-bypass` durante o smoke pós-deploy de `/`, `/calendar` e `/goals`. Ausente ou revogado, o smoke recebe a página de proteção e a publicação falha.         |
-| `VERCEL_DEPLOY_HOOK_URL`          | URL secreta criada em Settings → Git → Deploy Hooks da Vercel para disparar publicação da branch `main`. Permanece cadastrada; o pipeline por SHA deste repositório não a utiliza.              | Serve aos workflows que ainda chamam o hook. Antes de removê-la, confirmar a publicação e ativação do fluxo por API e a ausência de consumidores ativos. Remover o secret do GitHub não revoga o hook na Vercel.                           |
 
 `VERCEL_TEAM_ID` não é cadastrado: o projeto pertence à conta pessoal Hobby,
 sem time, e o script só envia `teamId` à API quando o secret existe. Cadastrá-lo
