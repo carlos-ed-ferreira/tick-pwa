@@ -58,18 +58,22 @@ somente a aba atual.
 - [ ] Verificar resposta perdida durante push forçado e preservação das operações
       criadas enquanto o lote anterior está em trânsito.
 
-### LF-06 — Investigar instabilidade dos ensaios de conta com API real
+### LF-06 — Confirmar a retomada após falhas de rede e a convergência
 
-**P1 · investigação.** Origem: App CI de 2026-11-05. No `df80a15`, o ensaio de
-fechamento completo e reabertura offline excedeu 90 s; no `44cdc07`, a
-convergência de duas sessões terminou com a edição do primeiro dispositivo em
-vez da do segundo após o push forçado. Cada execução falhou em um teste
-diferente, e ambos passaram no `1fc3c42`.
+**P1 · validação.** Origem: App CI de 2026-11-05. O ensaio de fechamento
+completo e reabertura offline excedeu 90 s em duas de três execuções. O trace
+mostrou cinco tentativas de envio falhando por falta de rede, duas antes do
+fechamento e três na reabertura; a quinta esgotou as tentativas automáticas e a
+drenagem deixou de enviar a operação mesmo após a reconexão. O limite passou a
+bloquear somente operações rejeitadas pelo servidor, com teste de integração.
+Em outra execução, a convergência de duas sessões terminou com a edição do
+primeiro dispositivo em vez da do segundo após o push forçado.
 
-- [ ] Reexecutar o job e, se repetir, analisar o trace do Playwright publicado
-      como artefato.
-- [ ] Distinguir instabilidade do teste de corrida real entre push forçado,
-      drenagem e refresh canônico, relacionando com LF-04.
+- [ ] Confirmar no App CI que o ensaio de reabertura offline passa de forma
+      estável.
+- [ ] Se a convergência voltar a falhar, analisar o trace e distinguir
+      instabilidade do teste de corrida entre push forçado, drenagem e refresh
+      canônico, relacionando com LF-04.
 
 ### LF-05 — Completar os ensaios integrados de conta sem rede
 
@@ -183,7 +187,10 @@ o verificador foi corrigido e coberto por testes. Com a correção, o App CI do
 `44cdc07` reprovou por um achado real, `js/file-system-race`, sem localização
 no log. O verificador passou a listar arquivo e linha de cada achado alto, e o
 par verificar-depois-escrever do relatório em `scripts/benchmark-cohort.mjs`
-foi removido.
+foi removido. O PR #51 passou, porque o CodeQL analisa só as linhas alteradas,
+mas o push do `571b204` na `main`, com análise completa, reprovou três
+`js/insecure-randomness` originados no fallback de UUID com `Math.random`. Os
+geradores de id passaram a usar `crypto.getRandomValues` nesse fallback.
 
 - [ ] Confirmar no próximo App CI que `Check security` passa; se reprovar,
       tratar cada achado pela localização informada.

@@ -669,7 +669,7 @@ async function processOperation(
 function hasExhaustedAutomaticAttempts(
   item: AccountOperationOutboxItem,
 ): boolean {
-  return item.attempts >= MAX_AUTOMATIC_ATTEMPTS;
+  return item.status === 'failed' && item.attempts >= MAX_AUTOMATIC_ATTEMPTS;
 }
 
 async function drainOperations(

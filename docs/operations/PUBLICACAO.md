@@ -73,6 +73,12 @@ make actions-run run=<run-id>
 make operations-issues
 ```
 
+Quando um E2E reprova no App CI, o job publica `playwright-artifacts`. Baixe-o
+para uma pasta vazia com
+`make actions-artifact-download run=<run-id> name=playwright-artifacts dir=<pasta>`
+e leia o `error-context.md` do teste, com o passo e o estado da página no
+momento da falha, e o `trace.zip`, com a rede de cada contexto do navegador.
+
 1. Localizar o App CI e o pipeline do mesmo SHA; distinguir auditoria horária
    de execução de publicação.
 2. Conferir `Confirm quality gate`, `Apply production migrations` e

@@ -2046,6 +2046,51 @@ describe('account persistence boundaries', () => {
     });
   });
 
+  it('sends a write after reconnecting even when transport failures used every automatic attempt', async () => {
+    environmentMocks.shouldUseAccountOperationBatchesForUser.mockReturnValue(
+      true,
+    );
+    const scope = createUserScope('reconnect-after-transport-failures-user');
+    const sync = createSyncClient();
+    const rpc = vi.fn().mockResolvedValue({
+      data: null,
+      error: {
+        code: '',
+        details: 'TypeError: Failed to fetch',
+        hint: '',
+        message: 'TypeError: Failed to fetch',
+      },
+    });
+    supabaseMocks.getSupabaseBrowserClient.mockReturnValue({ rpc });
+
+    await createCategoryTag({
+      scope,
+      surface: 'calendar',
+      name: 'RECONNECT',
+      colorHex: '#2563eb',
+    });
+    await waitForAccountPersistence(scope.id);
+
+    for (let attempt = 1; attempt < 5; attempt += 1) {
+      await retryFailedAccountPersistence(scope);
+      await waitForAccountPersistence(scope.id);
+    }
+
+    await expect(db.syncOutbox.toArray()).resolves.toEqual([
+      expect.objectContaining({ attempts: 5, status: 'pending' }),
+    ]);
+
+    rpc.mockImplementation(sync.rpc);
+    await resumeAccountPersistence(scope);
+    await waitForAccountPersistence(scope.id);
+
+    await expect(db.syncOutbox.count()).resolves.toBe(0);
+    await expect(getAccountSyncSummary(scope.id)).resolves.toMatchObject({
+      pendingCount: 0,
+      state: 'saved',
+    });
+  });
+
   it('stops retrying an account operation automatically after five attempts', async () => {
     environmentMocks.shouldUseAccountOperationBatchesForUser.mockReturnValue(
       true,

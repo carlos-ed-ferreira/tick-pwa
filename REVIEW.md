@@ -80,7 +80,9 @@ Playwright. Nova exceção exige comprovação de falso positivo. CodeQL executa
 severity de segurança ≥7. O gate resolve a regra de cada achado no `driver` e
 nos pacotes de consultas em `tool.extensions`, formato agrupado que o CodeQL do
 Actions produz, e lista todos os achados altos com regra, arquivo e linha, sem
-trecho de código. Relatório ausente/inválido ou achado sem regra reprova. Não há upload de
+trecho de código. Em pull request, o CodeQL analisa só as linhas alteradas; no
+push para a `main`, analisa o repositório inteiro e pode reprovar achados
+antigos que o PR não mostrou. Relatório ausente/inválido ou achado sem regra reprova. Não há upload de
 SARIF habilitado. `make check-sast` exige `.next/codeql` previamente produzido;
 o scanner completo é executado no Actions.
 

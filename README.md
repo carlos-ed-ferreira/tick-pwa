@@ -161,7 +161,10 @@ memória. Não existe dual-write entre os dois caminhos.
 
 Uma operação que falha é retentada automaticamente no máximo cinco vezes, com
 espera exponencial de 1 s a 30 s entre as tentativas; reconexão e retry manual
-ignoram essa espera. A fila durável é limitada a 200 operações por conta: ao
+ignoram essa espera. O limite de cinco bloqueia apenas operações rejeitadas pelo
+servidor. Uma operação que esgotou as tentativas por falta de rede para de
+agendar novos timers, mas continua pendente e é enviada na próxima reconexão,
+foco ou retomada, sem depender de sincronização manual. A fila durável é limitada a 200 operações por conta: ao
 atingir o limite, a alteração continua salva localmente, deixa de gerar novas
 operações remotas e aparece como falha recuperável, resolvida pela
 sincronização forçada. Uma rejeição `stale_revision` é rebaseada uma vez pela
@@ -591,22 +594,23 @@ representam capacidade aprovada de produção.
 
 Backup, publicação e operação:
 
-| Objetivo                    | Comando                                         |
-| --------------------------- | ----------------------------------------------- |
-| publicar em `main`          | `make publish`                                  |
-| execuções recentes          | `make actions-status`                           |
-| jobs de uma execução        | `make actions-run run=<run-id>`                 |
-| issues operacionais abertas | `make operations-issues`                        |
-| configuração da API Vercel  | `make production-release-status`                |
-| execuções do backup         | `make backup-status`                            |
-| log de backup falho         | `make backup-log run=<run-id>`                  |
-| artefatos de backup         | `make backup-artifacts run=<run-id>`            |
-| datas da chave de backup    | `make backup-key-status`                        |
-| pg_dump da imagem GHCR      | `make backup-image-check`                       |
-| comando de dump, sem rodar  | `make backup-command-check`                     |
-| cifrar backup lógico        | `make backup-encrypt input=<dir> output=<file>` |
-| baixar imagens do restore   | `make backup-restore-prepare`                   |
-| restaurar backup            | `make backup-restore archive=<file>`            |
+| Objetivo                    | Comando                                                                   |
+| --------------------------- | ------------------------------------------------------------------------- |
+| publicar em `main`          | `make publish`                                                            |
+| execuções recentes          | `make actions-status`                                                     |
+| jobs de uma execução        | `make actions-run run=<run-id>`                                           |
+| artefato do Actions         | `make actions-artifact-download run=<run-id> name=<artefato> dir=<pasta>` |
+| issues operacionais abertas | `make operations-issues`                                                  |
+| configuração da API Vercel  | `make production-release-status`                                          |
+| execuções do backup         | `make backup-status`                                                      |
+| log de backup falho         | `make backup-log run=<run-id>`                                            |
+| artefatos de backup         | `make backup-artifacts run=<run-id>`                                      |
+| datas da chave de backup    | `make backup-key-status`                                                  |
+| pg_dump da imagem GHCR      | `make backup-image-check`                                                 |
+| comando de dump, sem rodar  | `make backup-command-check`                                               |
+| cifrar backup lógico        | `make backup-encrypt input=<dir> output=<file>`                           |
+| baixar imagens do restore   | `make backup-restore-prepare`                                             |
+| restaurar backup            | `make backup-restore archive=<file>`                                      |
 
 Supabase:
 
