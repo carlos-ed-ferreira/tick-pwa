@@ -271,6 +271,17 @@ integrações ou operação. Atualize AGENTS quando mudar como o agente trabalha
 REVIEW quando mudar gates. Atualize a Skill quando mudar seu procedimento e
 mantenha os espelhos sincronizados. Documentação detalhada fica em `docs/`.
 
+Toda informação sobre produção e serviços externos entra na documentação no
+mesmo turno em que é feita, descoberta ou informada pelo usuário: conta e plano
+de cada provedor, secrets e variáveis criados, alterados ou removidos, hooks,
+rulesets, proteções, flags e o resultado de consultas operacionais relevantes.
+O inventário de credenciais e configuração fica em
+`docs/operations/AMBIENTE-DE-PRODUCAO.md`; procedimentos de publicação, em
+`docs/operations/PUBLICACAO.md`; o que ainda falta configurar ou validar, no
+arquivo temporário de trabalho. Registre nomes, origem, finalidade e
+consumidores, nunca valores. Ao encontrar documentação divergente do estado
+real, corrija-a na mesma mudança.
+
 Títulos e subtítulos usam capitalização natural e preservam termos técnicos,
 nomes convencionais, marcas e siglas. Não usar caixa alta em todo o título;
 a convenção de maiúsculas se aplica aos nomes dos arquivos.

@@ -448,7 +448,9 @@ O deploy de migrations usa secrets do ambiente GitHub `production`:
 SUPABASE_PROJECT_REF=
 SUPABASE_ACCESS_TOKEN=
 SUPABASE_DB_PASSWORD=
-VERCEL_DEPLOY_HOOK_URL=
+VERCEL_TOKEN=
+VERCEL_PROJECT_ID=
+VERCEL_AUTOMATION_BYPASS_SECRET=
 ```
 
 Esses valores são configurados fora do repositório. Nunca os adicione a um
@@ -477,7 +479,7 @@ conexão PostgreSQL direta.
 
 Comandos de produção são bloqueados pelo wrapper fora do GitHub Actions. O
 workflow de produção faz repair do histórico conhecido, dry-run, push e só
-então dispara o Deploy Hook da Vercel. Ele depende do quality gate aprovado do
+então publica o SHA aprovado pela API da Vercel. Ele depende do quality gate aprovado do
 mesmo SHA e falha se a `main` avançar antes do disparo. A confirmação do deployment segue o
 [runbook de deploy](docs/operations/PUBLICACAO.md).
 
@@ -687,9 +689,12 @@ no [runbook operacional](docs/operations/MONITORAMENTO-E-RECUPERACAO.md).
 
 ### Credenciais e variáveis de produção
 
-`VERCEL_TOKEN` e `VERCEL_PROJECT_ID` estão criados e cadastrados como secrets
-no environment GitHub `production`. O token autoriza o GitHub Actions a
-consultar e criar deployments; o ID identifica o projeto Tick na Vercel.
+`VERCEL_TOKEN`, `VERCEL_PROJECT_ID` e `VERCEL_AUTOMATION_BYPASS_SECRET` estão
+criados e cadastrados como secrets no environment GitHub `production`. O token
+autoriza o GitHub Actions a consultar e criar deployments, o ID identifica o
+projeto Tick na Vercel e o bypass permite ao smoke acessar o deployment
+protegido. A Vercel usa conta pessoal Hobby, sem time, então `VERCEL_TEAM_ID`
+não é cadastrado.
 Os tokens de integração criados manualmente pelo proprietário, incluindo
 `VERCEL_TOKEN` e `SUPABASE_ACCESS_TOKEN`, estão configurados sem expiração
 automática, conforme informado pelo proprietário. O cadastro foi confirmado
@@ -698,7 +703,7 @@ preflight da publicação.
 
 O [inventário de credenciais e configuração](docs/operations/AMBIENTE-DE-PRODUCAO.md#inventário-de-credenciais-do-github)
 descreve a origem, a finalidade, o consumidor e o efeito de remover cada um dos
-oito secrets cadastrados no GitHub e das sete variáveis de Production na Vercel.
+nove secrets cadastrados no GitHub e das sete variáveis de Production na Vercel.
 Distingue tokens privados, senha do banco, chave do backup, identificadores,
 chaves públicas de cliente e flags de funcionamento.
 

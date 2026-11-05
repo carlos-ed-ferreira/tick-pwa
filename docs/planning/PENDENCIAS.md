@@ -77,14 +77,14 @@ sessões da mesma conta. Permanecem os cenários abaixo.
 
 ### DEP-01 — Validar a publicação por SHA no provedor
 
-**P1 · configuração externa e validação.** O pipeline exige credenciais da API
-Vercel e falha no preflight, antes das migrations, se faltarem. Não existe
-fallback para Deploy Hook. `VERCEL_TOKEN` e `VERCEL_PROJECT_ID` já estão
-cadastrados; resta validar seu funcionamento no provedor.
+**P1 · validação.** O pipeline exige credenciais da API Vercel e falha no
+preflight, antes das migrations, se faltarem. Não existe fallback para Deploy
+Hook. A configuração externa está completa: `VERCEL_TOKEN`, `VERCEL_PROJECT_ID`
+e `VERCEL_AUTOMATION_BYPASS_SECRET` estão cadastrados, e `VERCEL_TEAM_ID` não se
+aplica à conta pessoal Hobby. A próxima publicação depende do App CI da `main`
+voltar a passar (QA-05); até lá, a migration `20261103180224` segue sem aplicar
+e a auditoria horária do histórico de migrations reprova.
 
-- [ ] Conferir se o escopo do token exige `VERCEL_TEAM_ID` e cadastrá-lo somente
-      quando necessário.
-- [ ] Configurar bypass do smoke se Deployment Protection exigir autenticação.
 - [ ] Na próxima publicação autorizada, validar permissões do token, contrato
       real da API, SHA, Production, `READY`, smoke e domínio canônico.
 - [ ] Conferir execução manual com evidência completa do App CI do mesmo SHA.
@@ -112,13 +112,10 @@ cadastrados; resta validar seu funcionamento no provedor.
 
 **P2 · validação.** Origem: antigo plano, passo 4, e runbooks de backup.
 
-A consulta de 2026-11-03 confirmou o primeiro sucesso agendado com GHCR:
-[run 41571538651](https://github.com/carlos-ed-ferreira/tick-pwa/actions/runs/41571538651),
-SHA `e5a91cd`, dump/cifra/upload aprovados e artefato não expirado. Não houve
-novo restore desse artefato na auditoria. O restore real em segunda máquina
-já foi aprovado; isso não comprova regularidade diária.
+Três execuções agendadas consecutivas com GHCR foram bem-sucedidas, de
+2026-11-03 a 2026-11-05, no SHA `e5a91cd`. O restore real em segunda máquina já
+foi aprovado. Resta acompanhar a regularidade e os critérios abaixo.
 
-- [ ] Registrar três execuções agendadas consecutivas bem-sucedidas com GHCR.
 - [ ] Usar `make backup-status` e `make backup-log run=<id>` para classificar falhas.
 - [ ] Se o limite de imagens persistir, avaliar cache ou outro registro.
 - [ ] Conferir o RPO operacional aceito de 26 horas; o RTO aceito é de 30 minutos
@@ -163,12 +160,16 @@ A cobertura global medida permanece abaixo dos objetivos de 80% de linhas e
 
 ### QA-05 — Validar o scanner SAST no Actions
 
-**P2 · validação externa.** Gitleaks e o verificador SARIF possuem gates;
+**P1 · validação externa.** Gitleaks e o verificador SARIF possuem gates;
 CodeQL `security-extended` está configurado no App CI e não foi executado
-localmente. O repositório público preserva o plano GitHub Free.
+localmente. O repositório público preserva o plano GitHub Free. As primeiras
+execuções na `main` (`0669711` e `1fc3c42`) reprovaram no passo do gate, sem
+log recuperável pelo `gh`. A causa provável era o verificador não reconhecer as
+regras agrupadas por pacote em `tool.extensions`, formato do CodeQL do Actions;
+o verificador foi corrigido e coberto por testes.
 
-- [ ] Conferir a primeira execução do job `Check security`, incluindo geração
-      de SARIF e reprovação para achados altos/críticos.
+- [ ] Confirmar no próximo App CI da `main` que `Check security` passa ou, se
+      reprovar, que a mensagem aponta um achado alto/crítico real a tratar.
 - [ ] Avaliar adicionar `Check security` ao ruleset remoto da `main`; o pipeline
       de produção já exige esse job e a execução completa aprovada.
 

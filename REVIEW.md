@@ -77,7 +77,9 @@ Gitleaks varre o histórico Git com redação integral; `.gitleaksignore` conté
 somente o fingerprint do JWT sintético sem assinatura válida do fixture de
 Playwright. Nova exceção exige comprovação de falso positivo. CodeQL executa
 `security-extended` no job de segurança, produz SARIF local ao runner e bloqueia
-severity de segurança ≥7. Relatório ausente/inválido reprova. Não há upload de
+severity de segurança ≥7. O gate resolve a regra de cada achado no `driver` e
+nos pacotes de consultas em `tool.extensions`, formato agrupado que o CodeQL do
+Actions produz. Relatório ausente/inválido ou achado sem regra reprova. Não há upload de
 SARIF habilitado. `make check-sast` exige `.next/codeql` previamente produzido;
 o scanner completo é executado no Actions.
 
