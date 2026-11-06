@@ -84,6 +84,8 @@ dessas telas ali, não apenas no `body`.
 - Ícone-botão denso, como ações de linha e barra compacta, usa `IconButton`
   com `rounded-full`, para o hover também ser redondo. O `IconButton` só aplica
   `rounded-md` quando o `className` não define raio.
+  O tamanho vem da prop `size`, nunca de `size-*` no `className`; o lint rejeita
+  esse uso.
 - Voltar é pill com o texto curto do dicionário `actions.back`.
 - Campos de formulário usam `FormField` ou `FormTextareaField`, com o rótulo
   recortado na borda, que funciona sobre qualquer superfície. Controle dentro

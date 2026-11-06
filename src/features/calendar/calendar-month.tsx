@@ -259,7 +259,8 @@ export function CalendarMonth() {
               <span className="hidden shrink-0 touch:inline-flex">
                 <IconButton
                   aria-label={dictionary.calendar.openMonth}
-                  className="size-8 rounded-full text-[#cbd5e0] hover:bg-white/8 hover:text-[#fff9f2] focus-visible:outline-[#f7d9b0]"
+                  size="compact"
+                  className="rounded-full text-[#cbd5e0] hover:bg-white/8 hover:text-[#fff9f2] focus-visible:outline-[#f7d9b0]"
                   onClick={() => setIsMonthSheetOpen(true)}
                 >
                   <CalendarRange aria-hidden="true" className="size-4" />
@@ -268,7 +269,8 @@ export function CalendarMonth() {
               <span className="ml-auto hidden shrink-0 touch:inline-flex">
                 <IconButton
                   aria-label={dictionary.calendar.moreActions}
-                  className="size-8 rounded-full text-[#cbd5e0] hover:bg-white/8 hover:text-[#fff9f2] focus-visible:outline-[#f7d9b0]"
+                  size="compact"
+                  className="rounded-full text-[#cbd5e0] hover:bg-white/8 hover:text-[#fff9f2] focus-visible:outline-[#f7d9b0]"
                   onClick={() => setIsActionsSheetOpen(true)}
                 >
                   <MoreHorizontal aria-hidden="true" className="size-4" />
@@ -293,7 +295,8 @@ export function CalendarMonth() {
               <span aria-hidden="true" className="h-5 w-px bg-white/10" />
               <IconButton
                 aria-label={dictionary.calendar.previousYear}
-                className="size-7 rounded-full text-[#cbd5e0] hover:bg-white/8 hover:text-[#fff9f2] active:bg-white/12 focus-visible:outline-[#f7d9b0]"
+                size="dense"
+                className="rounded-full text-[#cbd5e0] hover:bg-white/8 hover:text-[#fff9f2] active:bg-white/12 focus-visible:outline-[#f7d9b0]"
                 onClick={() =>
                   selectVisibleMonth(
                     createMonthKey(visibleYear - 1, visibleMonthIndex),
@@ -307,7 +310,8 @@ export function CalendarMonth() {
               </span>
               <IconButton
                 aria-label={dictionary.calendar.nextYear}
-                className="size-7 rounded-full text-[#cbd5e0] hover:bg-white/8 hover:text-[#fff9f2] active:bg-white/12 focus-visible:outline-[#f7d9b0]"
+                size="dense"
+                className="rounded-full text-[#cbd5e0] hover:bg-white/8 hover:text-[#fff9f2] active:bg-white/12 focus-visible:outline-[#f7d9b0]"
                 onClick={() =>
                   selectVisibleMonth(
                     createMonthKey(visibleYear + 1, visibleMonthIndex),

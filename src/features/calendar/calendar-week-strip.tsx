@@ -71,7 +71,8 @@ export function CalendarWeekStrip({
     <div className="flex items-center gap-1 px-2 pt-2 pb-1">
       <IconButton
         aria-label={dictionary.calendar.previousWeek}
-        className="size-8 shrink-0 rounded-full text-[#cbd5e0] hover:bg-white/8 hover:text-[#fff9f2] focus-visible:outline-[#f7d9b0]"
+        size="compact"
+        className="shrink-0 rounded-full text-[#cbd5e0] hover:bg-white/8 hover:text-[#fff9f2] focus-visible:outline-[#f7d9b0]"
         onClick={() => onShiftWeek(-1)}
       >
         <ChevronLeft aria-hidden="true" className="size-4" />
@@ -101,7 +102,8 @@ export function CalendarWeekStrip({
       </div>
       <IconButton
         aria-label={dictionary.calendar.nextWeek}
-        className="size-8 shrink-0 rounded-full text-[#cbd5e0] hover:bg-white/8 hover:text-[#fff9f2] focus-visible:outline-[#f7d9b0]"
+        size="compact"
+        className="shrink-0 rounded-full text-[#cbd5e0] hover:bg-white/8 hover:text-[#fff9f2] focus-visible:outline-[#f7d9b0]"
         onClick={() => onShiftWeek(1)}
       >
         <ChevronRight aria-hidden="true" className="size-4" />

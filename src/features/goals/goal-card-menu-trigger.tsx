@@ -9,7 +9,8 @@ export const GoalCardMenuTrigger = forwardRef<
   return (
     <IconButton
       ref={ref}
-      className="size-8 rounded-full text-[#aebac8] hover:bg-white/[0.08] hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
+      size="compact"
+      className="rounded-full text-[#aebac8] hover:bg-white/[0.08] hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
       {...props}
     >
       <MoreHorizontal aria-hidden="true" className="size-4" />

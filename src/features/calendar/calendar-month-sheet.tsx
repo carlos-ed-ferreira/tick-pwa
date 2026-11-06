@@ -45,7 +45,7 @@ export function CalendarMonthSheet({
       <div className="flex items-center justify-between gap-2 px-1">
         <IconButton
           aria-label={dictionary.calendar.previousMonth}
-          className="size-9 rounded-full text-[#cbd5e0] hover:bg-white/8 hover:text-[#fff9f2] focus-visible:outline-[#f7d9b0]"
+          className="rounded-full text-[#cbd5e0] hover:bg-white/8 hover:text-[#fff9f2] focus-visible:outline-[#f7d9b0]"
           onClick={() => onSelectMonthOffset(-1)}
         >
           <ChevronLeft aria-hidden="true" className="size-4" />
@@ -55,7 +55,7 @@ export function CalendarMonthSheet({
         </span>
         <IconButton
           aria-label={dictionary.calendar.nextMonth}
-          className="size-9 rounded-full text-[#cbd5e0] hover:bg-white/8 hover:text-[#fff9f2] focus-visible:outline-[#f7d9b0]"
+          className="rounded-full text-[#cbd5e0] hover:bg-white/8 hover:text-[#fff9f2] focus-visible:outline-[#f7d9b0]"
           onClick={() => onSelectMonthOffset(1)}
         >
           <ChevronRight aria-hidden="true" className="size-4" />
