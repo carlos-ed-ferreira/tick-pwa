@@ -298,7 +298,8 @@ export interface Dictionary {
     viewsLabel: string;
     viewExecute: string;
     viewManage: string;
-    moreActions: string;
+    actionLabel: string;
+    countsSummary: string;
     actionEdit: string;
     actionPause: string;
     actionResume: string;

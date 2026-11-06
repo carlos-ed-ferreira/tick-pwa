@@ -7,6 +7,7 @@ import {
   Tooltip,
   filledAccentPillControlClassName,
   filledMediumPillControlClassName,
+  taskListSurfaceClassName,
 } from '@/components/ui';
 import { getProgressTone } from '@/features/calendar/calendar-progress-tone';
 import { CategoryManagerAction, useCategoryTags } from '@/features/categories';
@@ -19,49 +20,60 @@ import {
   type RecurrenceResponse,
 } from '@/lib/domain';
 import { useAppContext } from '@/providers';
-import { RecurrenceActionsMenu } from './recurrence-actions-menu';
+import { RecurrenceActions } from './recurrence-actions';
 import { formatRecurrenceFrequency } from './recurrence-format';
 
-function RecurrenceCounts({
+function RecurrenceRate({
   done,
+  name,
   notDone,
+  rate,
 }: {
   done: number;
+  name: string;
   notDone: number;
+  rate: number | null;
 }) {
   const labels = useAppContext().dictionary.recurring;
-
-  return (
-    <p className="flex w-44 shrink-0 items-center gap-3 text-xs whitespace-nowrap text-[#aebac8] touch:w-full">
-      <span>
-        {done === 1
-          ? labels.doneCountOne
-          : labels.doneCount.replace('{count}', String(done))}
-      </span>
-      <span>
-        {notDone === 1
-          ? labels.notDoneCountOne
-          : labels.notDoneCount.replace('{count}', String(notDone))}
-      </span>
-    </p>
-  );
-}
-
-function RecurrenceRate({ name, rate }: { name: string; rate: number | null }) {
-  const labels = useAppContext().dictionary.recurring;
   const percent = rate === null ? null : Math.round(rate);
+  const countsLabel = labels.countsSummary
+    .replace(
+      '{done}',
+      done === 1
+        ? labels.doneCountOne
+        : labels.doneCount.replace('{count}', String(done)),
+    )
+    .replace(
+      '{notDone}',
+      notDone === 1
+        ? labels.notDoneCountOne
+        : labels.notDoneCount.replace('{count}', String(notDone)),
+    );
 
   return (
-    <div className="flex w-52 shrink-0 items-center gap-3 touch:w-full">
-      <span
-        className={`w-20 shrink-0 text-right whitespace-nowrap touch:w-auto touch:text-left ${
-          percent === null
-            ? 'text-xs text-[#aebac8]'
-            : 'text-base font-semibold text-[#f7d7ad]'
-        }`}
-      >
-        {percent === null ? labels.noData : `${percent}%`}
-      </span>
+    <div className="flex w-64 shrink-0 items-center gap-3 touch:w-full">
+      {percent === null ? (
+        <span
+          role="img"
+          aria-label={labels.noData}
+          className="w-12 shrink-0 text-right text-base font-semibold text-[#aebac8] touch:w-auto touch:text-left"
+        >
+          -%
+        </span>
+      ) : (
+        <span className="w-12 shrink-0 text-right text-base font-semibold text-[#f7d7ad] touch:w-auto touch:text-left">
+          {percent}%
+        </span>
+      )}
+      <Tooltip content={countsLabel}>
+        <span
+          role="img"
+          aria-label={countsLabel}
+          className="w-12 shrink-0 text-xs tabular-nums whitespace-nowrap text-[#aebac8] touch:w-auto"
+        >
+          {done}/{notDone}
+        </span>
+      </Tooltip>
       {percent === null ? (
         <span
           className="block h-1.5 min-w-0 flex-1 rounded-full"
@@ -108,7 +120,7 @@ function RecurrenceRow({
 
   return (
     <li
-      className={`card-surface-soft relative flex flex-wrap items-center gap-x-6 gap-y-2 py-2.5 pr-12 pl-4 ${
+      className={`relative flex flex-wrap items-center gap-x-6 gap-y-2 rounded-lg py-2 pr-30 pl-3 transition hover:bg-white/[0.055] ${
         isRecurrencePaused(recurrence.schedule) ? 'opacity-70' : ''
       }`}
     >
@@ -141,10 +153,14 @@ function RecurrenceRow({
           {formatRecurrenceFrequency(recurrence, dictionary)}
         </p>
       </div>
-      <RecurrenceCounts done={done} notDone={notDone} />
-      <RecurrenceRate name={recurrence.text} rate={rate} />
+      <RecurrenceRate
+        done={done}
+        name={recurrence.text}
+        notDone={notDone}
+        rate={rate}
+      />
       <span className="absolute top-1/2 right-2 -translate-y-1/2 touch:top-2.5 touch:translate-y-0">
-        <RecurrenceActionsMenu
+        <RecurrenceActions
           answerCount={responses.length}
           recurrence={recurrence}
           today={today}
@@ -208,7 +224,10 @@ export function RecurringOverviewList({
   );
 
   return (
-    <ul className="flex flex-col gap-2">
+    <ul
+      data-testid="task-list-surface"
+      className={`grid grid-cols-1 gap-1 ${taskListSurfaceClassName}`}
+    >
       {ordered.map((recurrence) => (
         <RecurrenceRow
           key={recurrence.id}

@@ -13,7 +13,7 @@ const recurringLabels = {
   newActivity:
     /^(new activity|nova atividade|start by creating a recurring activity|comece criando uma atividade recorrente)$/i,
   nameLabel: /^(activity name|nome da atividade)$/i,
-  noData: /^(no data|sem dados)$/i,
+  noData: /^-%$/,
   previousDay: /^(previous day|dia anterior)$/i,
   save: /^(save|salvar)$/i,
   today: /^(today|hoje)$/i,
@@ -39,12 +39,8 @@ async function chooseAction(page: Page, action: RegExp, name: string) {
   await showView(page, recurringLabels.manage);
   await page
     .getByRole('button', {
-      name: new RegExp(`^(more actions|mais ações): ${name}`, 'i'),
+      name: new RegExp(`^${action.source}: ${name}$`, 'i'),
     })
-    .click();
-  await page
-    .getByRole('menuitem', { name: action })
-    .or(page.getByRole('dialog').getByRole('button', { name: action }))
     .click();
 }
 
@@ -149,7 +145,7 @@ test('asks how to apply a content change after answers exist', async ({
     'true',
   );
 
-  await chooseAction(page, /^(edit activity|editar atividade)$/i, 'Stretch');
+  await chooseAction(page, /(edit activity|editar atividade)/, 'Stretch');
 
   const editor = page.getByRole('dialog');
 
@@ -175,15 +171,15 @@ test('pauses, reactivates and deletes an activity', async ({ page }) => {
 
   const day = page.getByRole('region', { name: recurringLabels.dayView });
 
-  await chooseAction(page, /^(pause|pausar)$/i, 'Stretch');
+  await chooseAction(page, /(pause|pausar)/, 'Stretch');
   await showView(page, recurringLabels.execute);
   await expect(answerButton(day, 'done', 'Stretch')).toBeHidden();
 
-  await chooseAction(page, /^(reactivate|reativar)$/i, 'Stretch');
+  await chooseAction(page, /(reactivate|reativar)/, 'Stretch');
   await showView(page, recurringLabels.execute);
   await expect(answerButton(day, 'done', 'Stretch')).toBeVisible();
 
-  await chooseAction(page, /^(delete activity|excluir atividade)$/i, 'Stretch');
+  await chooseAction(page, /(delete activity|excluir atividade)/, 'Stretch');
   await page
     .getByRole('dialog')
     .getByRole('button', { name: /^(delete|excluir)$/i })
@@ -264,7 +260,7 @@ test('keeps the actions inside the card with a long activity name', async ({
   });
   const card = overview.getByRole('listitem');
   const menu = card.getByRole('button', {
-    name: /^(more actions|mais ações): /i,
+    name: /^(delete activity|excluir atividade): /i,
   });
 
   await expect(menu).toBeVisible();
@@ -274,6 +270,9 @@ test('keeps the actions inside the card with a long activity name', async ({
 
   expect(menuBox!.x + menuBox!.width).toBeLessThanOrEqual(
     cardBox!.x + cardBox!.width,
+  );
+  expect(cardBox!.x + cardBox!.width).toBeLessThanOrEqual(
+    page.viewportSize()!.width,
   );
   expect(await hasOverflow()).toBe(false);
 });

@@ -37,12 +37,6 @@ vi.mock('@/providers', () => ({
 }));
 
 const clock = vi.hoisted(() => ({ today: '2026-11-06' }));
-const composition = vi.hoisted(() => ({ touch: false }));
-
-vi.mock('@/hooks/use-touch-composition', () => ({
-  touchCompositionQuery: '',
-  useTouchComposition: () => composition.touch,
-}));
 
 vi.mock('@/lib/time', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/time')>()),
@@ -97,23 +91,21 @@ function overviewSection() {
   return showView('Activities', dictionary.recurring.viewManage);
 }
 
+async function findActivity(name = 'Stretch') {
+  return within(daySection()).findByRole('group', { name });
+}
+
 async function chooseAction(action: string, name = 'Stretch') {
   fireEvent.click(
     await within(overviewSection()).findByRole('button', {
-      name: `More actions: ${name}`,
+      name: `${action}: ${name}`,
     }),
   );
-  fireEvent.click(await screen.findByRole('menuitem', { name: action }));
-}
-
-async function findActivity(name = 'Stretch') {
-  return within(daySection()).findByRole('group', { name });
 }
 
 describe('RecurringSurface', () => {
   beforeEach(async () => {
     clock.today = '2026-11-06';
-    composition.touch = false;
     await db.delete();
     await db.open();
   });
@@ -482,7 +474,8 @@ describe('RecurringSurface', () => {
       const overview = overviewSection();
 
       await within(overview).findByText('Stretch');
-      expect(within(overview).getByText('No data')).toBeTruthy();
+      await within(overview).findByText('-%');
+      expect(within(overview).getByText('-%')).toBeTruthy();
       expect(within(overview).getByText('Every day')).toBeTruthy();
     });
 
@@ -509,8 +502,11 @@ describe('RecurringSurface', () => {
       const overview = overviewSection();
 
       await within(overview).findByText('50%');
-      expect(within(overview).getByText('1 done')).toBeTruthy();
-      expect(within(overview).getByText('1 not done')).toBeTruthy();
+      expect(within(overview).getByText('1/1')).toBeTruthy();
+      expect(
+        within(overview).getByRole('img', { name: '1 done, 1 not done' }),
+      ).toBeTruthy();
+      expect(within(overview).queryByText('1 done')).toBeNull();
       expect(
         within(overview)
           .getByRole('progressbar', { name: 'Completion rate: Stretch' })
@@ -524,18 +520,21 @@ describe('RecurringSurface', () => {
 
       const overview = overviewSection();
 
-      await within(overview).findByText('No data');
+      await within(overview).findByText('-%');
+      expect(within(overview).getByText('0/0')).toBeTruthy();
+      expect(within(overview).queryByText('No data')).toBeNull();
+      expect(
+        within(overview).getByRole('img', { name: 'No data' }),
+      ).toBeTruthy();
       expect(within(overview).queryByRole('progressbar')).toBeNull();
     });
 
-    it('pauses and reactivates an activity from the menu', async () => {
+    it('pauses and reactivates an activity', async () => {
       await createRecurrence({ scope, content, rule: daily });
       await renderSurface();
 
       await chooseAction(dictionary.recurring.actionPause);
       await within(overviewSection()).findByText('Paused · Every day');
-      expect(screen.queryByRole('menu')).toBeNull();
-
       expect(
         within(daySection()).queryByRole('group', { name: 'Stretch' }),
       ).toBeNull();
@@ -544,30 +543,41 @@ describe('RecurringSurface', () => {
       await within(overviewSection()).findByText('Every day');
     });
 
-    it('closes the menu with Escape and returns the focus', async () => {
+    it('keeps every activity in one container', async () => {
+      await createRecurrence({ scope, content, rule: daily });
+      await createRecurrence({
+        scope,
+        content: { ...content, text: 'Read', children: [] },
+        rule: daily,
+      });
+      await renderSurface();
+
+      const overview = overviewSection();
+      const panel = await within(overview).findByTestId('task-list-surface');
+
+      expect(await within(panel).findAllByRole('listitem')).toHaveLength(2);
+      expect(panel.querySelector('.card-surface-soft')).toBeNull();
+    });
+
+    it('keeps the three actions on the row with icons only', async () => {
       await createRecurrence({ scope, content, rule: daily });
       await renderSurface();
 
-      const trigger = await within(overviewSection()).findByRole('button', {
-        name: 'More actions: Stretch',
-      });
+      const overview = overviewSection();
 
-      fireEvent.click(trigger);
+      for (const action of [
+        dictionary.recurring.actionEdit,
+        dictionary.recurring.actionPause,
+        dictionary.recurring.actionDelete,
+      ]) {
+        const button = await within(overview).findByRole('button', {
+          name: `${action}: Stretch`,
+        });
 
-      const items = await screen.findAllByRole('menuitem');
+        expect(button.textContent).toBe('');
+      }
 
-      await waitFor(() => expect(document.activeElement).toBe(items[0]));
-      fireEvent.keyDown(items[0], { key: 'ArrowDown' });
-      expect(document.activeElement).toBe(items[1]);
-      fireEvent.keyDown(items[1], { key: 'ArrowUp' });
-      expect(document.activeElement).toBe(items[0]);
-      fireEvent.keyDown(items[0], { key: 'ArrowUp' });
-      expect(document.activeElement).toBe(items[2]);
-
-      fireEvent.keyDown(document, { key: 'Escape' });
-
-      await waitFor(() => expect(screen.queryByRole('menu')).toBeNull());
-      expect(document.activeElement).toBe(trigger);
+      expect(screen.queryByRole('menu')).toBeNull();
     });
 
     it('states what deleting removes and requires confirmation', async () => {
@@ -603,62 +613,7 @@ describe('RecurringSurface', () => {
     });
   });
 
-  describe('actions on touch', () => {
-    async function openSheet() {
-      composition.touch = true;
-      await createRecurrence({ scope, content, rule: daily });
-      await renderSurface();
-      fireEvent.click(
-        await within(overviewSection()).findByRole('button', {
-          name: 'More actions: Stretch',
-        }),
-      );
-
-      return screen.findByRole('dialog');
-    }
-
-    it('offers the same actions in a sheet instead of a menu', async () => {
-      const sheet = await openSheet();
-
-      expect(screen.queryByRole('menu')).toBeNull();
-
-      for (const action of [
-        dictionary.recurring.actionEdit,
-        dictionary.recurring.actionPause,
-        dictionary.recurring.actionDelete,
-      ]) {
-        expect(
-          within(sheet).getByRole('button', { name: action }),
-        ).toBeTruthy();
-      }
-    });
-
-    it('closes the sheet and runs the chosen action', async () => {
-      const sheet = await openSheet();
-
-      fireEvent.click(
-        within(sheet).getByRole('button', {
-          name: dictionary.recurring.actionPause,
-        }),
-      );
-
-      await within(overviewSection()).findByText('Paused · Every day');
-      expect(screen.queryByRole('dialog')).toBeNull();
-    });
-
-    it('closes the sheet without acting', async () => {
-      const sheet = await openSheet();
-
-      fireEvent.click(
-        within(sheet).getByRole('button', { name: dictionary.actions.cancel }),
-      );
-
-      await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
-      expect(within(overviewSection()).getByText('Every day')).toBeTruthy();
-    });
-  });
-
-  it('keeps the activity when a menu action fails', async () => {
+  it('keeps the activity when an action fails', async () => {
     const failure = vi
       .spyOn(db.recurrences, 'put')
       .mockRejectedValueOnce(new Error('storage unavailable'));
