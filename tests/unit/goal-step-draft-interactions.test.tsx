@@ -46,7 +46,7 @@ describe('GoalsSurface', () => {
       'inline-flex',
       'items-center',
       'justify-center',
-      'size-10',
+      'size-9',
       'rounded-full',
       'bg-white/8',
       'text-[#f8f3ea]',
@@ -61,7 +61,7 @@ describe('GoalsSurface', () => {
     expect(clearCategoryButton.querySelector('.lucide-x')).toBeNull();
     expect(categoryBadge).toHaveClass(
       'inline-flex',
-      'min-h-10',
+      'min-h-9',
       'max-w-full',
       'rounded-full',
       'inset-ring-hairline',

@@ -38,18 +38,32 @@ test('has no serious or critical accessibility violations in the recurring dialo
   await enterLocalMode(page);
   await page.goto('/recurring');
   await page
-    .getByRole('button', { name: /^(new activity|nova atividade)$/i })
+    .getByRole('button', {
+      name: /^(new activity|nova atividade|start by creating a recurring activity|comece criando uma atividade recorrente)$/i,
+    })
     .click();
   await expect(page.getByRole('dialog')).toBeVisible();
   await expectNoSeriousViolations(page);
 
   await page
     .getByRole('dialog')
-    .getByRole('button', { name: /^(cancel|cancelar)$/i })
-    .last()
-    .click();
+    .getByLabel(/^(activity name|nome da atividade)$/i)
+    .fill('Accessibility');
   await page
-    .getByRole('button', { name: /^(choose date|escolher data)$/i })
+    .getByRole('dialog')
+    .getByRole('button', { name: /^(save|salvar)$/i })
+    .click();
+  await expect(page.getByRole('dialog')).toBeHidden();
+  await page.getByRole('button', { name: /^(manage|gerenciar)$/i }).click();
+  await expect(
+    page.getByRole('region', { name: /^(activities|atividades)$/i }),
+  ).toBeVisible();
+  await expectNoSeriousViolations(page);
+  await page.getByRole('button', { name: /^(execute|executar)$/i }).click();
+  await page
+    .getByRole('button', {
+      name: /^(choose another date|escolher outra data)$/i,
+    })
     .click();
   await expect(page.getByRole('dialog')).toBeVisible();
   await expectNoSeriousViolations(page);

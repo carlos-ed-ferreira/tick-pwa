@@ -37,15 +37,16 @@ vi.mock('@/providers', () => ({
 }));
 
 const clock = vi.hoisted(() => ({ today: '2026-11-06' }));
-const navigation = vi.hoisted(() => ({ search: '' }));
+const composition = vi.hoisted(() => ({ touch: false }));
+
+vi.mock('@/hooks/use-touch-composition', () => ({
+  touchCompositionQuery: '',
+  useTouchComposition: () => composition.touch,
+}));
 
 vi.mock('@/lib/time', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/time')>()),
   getTodayKey: () => clock.today,
-}));
-
-vi.mock('next/navigation', () => ({
-  useSearchParams: () => new URLSearchParams(navigation.search),
 }));
 
 const daily: RecurrenceRule = {
@@ -71,12 +72,38 @@ const content: RecurrenceContent = {
   ],
 };
 
+async function renderSurface() {
+  render(<RecurringSurface />);
+  await screen.findByRole('region', { name: /^(Activities|Day view)$/ });
+}
+
+function showView(name: string, tab: string) {
+  const current = screen.queryByRole('region', { name });
+
+  if (current) {
+    return current;
+  }
+
+  fireEvent.click(screen.getByRole('button', { name: tab }));
+
+  return screen.getByRole('region', { name });
+}
+
 function daySection() {
-  return screen.getByRole('region', { name: 'Day view' });
+  return showView('Day view', dictionary.recurring.viewExecute);
 }
 
 function overviewSection() {
-  return screen.getByRole('region', { name: 'Activities' });
+  return showView('Activities', dictionary.recurring.viewManage);
+}
+
+async function chooseAction(action: string, name = 'Stretch') {
+  fireEvent.click(
+    await within(overviewSection()).findByRole('button', {
+      name: `More actions: ${name}`,
+    }),
+  );
+  fireEvent.click(await screen.findByRole('menuitem', { name: action }));
 }
 
 async function findActivity(name = 'Stretch') {
@@ -86,7 +113,7 @@ async function findActivity(name = 'Stretch') {
 describe('RecurringSurface', () => {
   beforeEach(async () => {
     clock.today = '2026-11-06';
-    navigation.search = '';
+    composition.touch = false;
     await db.delete();
     await db.open();
   });
@@ -97,17 +124,28 @@ describe('RecurringSurface', () => {
   });
 
   describe('loading and empty states', () => {
-    it('explains the next step without activities', async () => {
-      render(<RecurringSurface />);
+    it('shows only the large create action without activities', async () => {
+      await renderSurface();
 
+      const create = within(overviewSection()).getByRole('button', {
+        name: dictionary.recurring.emptyCreate,
+      });
+
+      expect(screen.queryByRole('region', { name: 'Day view' })).toBeNull();
       expect(
-        await within(overviewSection()).findByText(
-          dictionary.recurring.overviewEmpty,
-        ),
-      ).toBeTruthy();
+        within(overviewSection()).queryByRole('button', {
+          name: dictionary.recurring.newActivity,
+        }),
+      ).toBeNull();
       expect(
-        within(daySection()).getByText(dictionary.recurring.dayEmpty),
+        within(overviewSection()).getByRole('button', {
+          name: dictionary.navigation.categories,
+        }),
       ).toBeTruthy();
+
+      fireEvent.click(create);
+
+      expect(await screen.findByRole('dialog')).toBeTruthy();
     });
 
     it('announces the initial loading', () => {
@@ -127,7 +165,7 @@ describe('RecurringSurface', () => {
         rule: { kind: 'monthly_day', day: 1 },
       });
       await createRecurrence({ scope, content, rule: daily });
-      render(<RecurringSurface />);
+      await renderSurface();
 
       await findActivity();
 
@@ -138,7 +176,7 @@ describe('RecurringSurface', () => {
 
     it('records, swaps and clears an answer only on that date', async () => {
       const { id } = await createRecurrence({ scope, content, rule: daily });
-      render(<RecurringSurface />);
+      await renderSurface();
 
       const activity = await findActivity();
       const done = within(activity).getByRole('button', {
@@ -176,7 +214,7 @@ describe('RecurringSurface', () => {
 
     it('answers a child separately and shows it read-only', async () => {
       await createRecurrence({ scope, content, rule: daily });
-      render(<RecurringSurface />);
+      await renderSurface();
 
       const activity = await findActivity();
 
@@ -199,7 +237,7 @@ describe('RecurringSurface', () => {
 
     it('collapses and expands the children', async () => {
       await createRecurrence({ scope, content, rule: daily });
-      render(<RecurringSurface />);
+      await renderSurface();
 
       const activity = await findActivity();
       fireEvent.click(
@@ -240,7 +278,7 @@ describe('RecurringSurface', () => {
         },
         rule: daily,
       });
-      render(<RecurringSurface />);
+      await renderSurface();
 
       const activity = await findActivity();
 
@@ -264,9 +302,44 @@ describe('RecurringSurface', () => {
       await within(activity).findByText('Neck');
     });
 
+    it('keeps every activity in one container', async () => {
+      await createRecurrence({ scope, content, rule: daily });
+      await createRecurrence({
+        scope,
+        content: { ...content, text: 'Read', children: [] },
+        rule: daily,
+      });
+      await renderSurface();
+
+      const panel =
+        await within(daySection()).findByTestId('task-list-surface');
+
+      expect(
+        within(panel).getByRole('group', { name: 'Stretch' }),
+      ).toBeTruthy();
+      expect(within(panel).getByRole('group', { name: 'Read' })).toBeTruthy();
+      expect(panel.querySelector('.card-surface-soft')).toBeNull();
+    });
+
+    it('shows the empty message inside the container', async () => {
+      await createRecurrence({
+        scope,
+        content,
+        rule: { kind: 'monthly_day', day: 1 },
+      });
+      await renderSurface();
+
+      const panel =
+        await within(daySection()).findByTestId('task-list-surface');
+
+      expect(
+        within(panel).getByText(dictionary.recurring.dayEmpty),
+      ).toBeTruthy();
+    });
+
     it('moves between days and returns to today', async () => {
       await createRecurrence({ scope, content, rule: daily });
-      render(<RecurringSurface />);
+      await renderSurface();
 
       await findActivity();
       const section = daySection();
@@ -276,13 +349,22 @@ describe('RecurringSurface', () => {
       );
       await within(section).findByText(/November 5, 2026/);
 
-      fireEvent.click(within(section).getByRole('button', { name: 'Today' }));
+      fireEvent.click(
+        within(section).getByRole('button', {
+          name: dictionary.recurring.chooseDate,
+        }),
+      );
+      fireEvent.click(
+        within(await screen.findByRole('dialog')).getByRole('button', {
+          name: 'Today',
+        }),
+      );
       await within(section).findByText(/November 6, 2026/);
     });
 
     it('keeps future dates visible but not answerable', async () => {
       await createRecurrence({ scope, content, rule: daily });
-      render(<RecurringSurface />);
+      await renderSurface();
 
       await findActivity();
       fireEvent.click(
@@ -299,37 +381,9 @@ describe('RecurringSurface', () => {
       expect(done.disabled).toBe(true);
     });
 
-    it('links to the daily tasks of the selected date', async () => {
-      render(<RecurringSurface />);
-
-      const link = within(daySection()).getByRole('link', {
-        name: dictionary.recurring.openDailyTasks,
-      });
-
-      expect(link.getAttribute('href')).toBe(
-        `/calendar?day=${today}&from=recurring`,
-      );
-    });
-
-    it('opens on the date it returned to from the daily tasks', async () => {
-      navigation.search = 'date=2026-10-20';
-      render(<RecurringSurface />);
-
-      await within(daySection()).findByText(/October 20, 2026/);
-    });
-
-    it.each(['2026-99-99', '2026-02-31', 'not-a-date'])(
-      'ignores the invalid date %s in the address',
-      async (date) => {
-        navigation.search = `date=${date}`;
-        render(<RecurringSurface />);
-
-        await within(daySection()).findByText(/November 6, 2026/);
-      },
-    );
-
     it('follows the day turning while on today', async () => {
-      render(<RecurringSurface />);
+      await createRecurrence({ scope, content, rule: daily });
+      await renderSurface();
 
       await within(daySection()).findByText(/November 6, 2026/);
 
@@ -340,7 +394,8 @@ describe('RecurringSurface', () => {
     });
 
     it('keeps a chosen date when the day turns', async () => {
-      render(<RecurringSurface />);
+      await createRecurrence({ scope, content, rule: daily });
+      await renderSurface();
 
       fireEvent.click(
         within(daySection()).getByRole('button', { name: 'Previous day' }),
@@ -350,70 +405,79 @@ describe('RecurringSurface', () => {
       clock.today = '2026-11-07';
       fireEvent(document, new Event('visibilitychange'));
 
-      await waitFor(() =>
-        expect(
-          within(daySection()).getByRole('button', { name: 'Today' }),
-        ).toBeTruthy(),
-      );
       expect(within(daySection()).getByText(/November 5, 2026/)).toBeTruthy();
     });
 
-    it('only applies the picked date after confirming', async () => {
-      render(<RecurringSurface />);
+    it('applies the picked date at once, without a modal or confirmation', async () => {
+      await createRecurrence({ scope, content, rule: daily });
+      await renderSurface();
 
       const section = daySection();
+
       fireEvent.click(
         within(section).getByRole('button', {
           name: dictionary.recurring.chooseDate,
         }),
       );
 
-      const dialog = await screen.findByRole('dialog');
-      fireEvent.click(
-        within(dialog).getByRole('button', { name: 'November 20, 2026' }),
-      );
+      const picker = await screen.findByRole('dialog');
 
-      expect(within(section).queryByText(/November 20, 2026/)).toBeNull();
+      expect(picker.getAttribute('aria-modal')).toBeNull();
+      expect(
+        within(picker).queryByRole('button', { name: 'Confirm' }),
+      ).toBeNull();
 
       fireEvent.click(
-        within(dialog).getByRole('button', {
-          name: dictionary.recurring.confirmDate,
-        }),
+        within(picker).getByRole('button', { name: 'November 20, 2026' }),
       );
 
       await within(section).findByText(/November 20, 2026/);
       expect(screen.queryByRole('dialog')).toBeNull();
     });
 
-    it('discards the picked date when cancelling', async () => {
-      render(<RecurringSurface />);
+    it('closes the picker with Escape keeping the date', async () => {
+      await createRecurrence({ scope, content, rule: daily });
+      await renderSurface();
 
       const section = daySection();
+
       fireEvent.click(
         within(section).getByRole('button', {
           name: dictionary.recurring.chooseDate,
         }),
       );
-
-      const dialog = await screen.findByRole('dialog');
-      fireEvent.click(
-        within(dialog).getByRole('button', { name: 'November 20, 2026' }),
-      );
-      fireEvent.click(
-        within(dialog).getAllByRole('button', {
-          name: dictionary.actions.cancel,
-        })[0],
-      );
+      await screen.findByRole('dialog');
+      fireEvent.keyDown(document, { key: 'Escape' });
 
       await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
       expect(within(section).getByText(/November 6, 2026/)).toBeTruthy();
+    });
+
+    it('offers the date picker after the day, and no separate today button', async () => {
+      await createRecurrence({ scope, content, rule: daily });
+      await renderSurface();
+
+      const section = daySection();
+
+      expect(
+        within(section)
+          .getByRole('button', { name: 'Next day' })
+          .compareDocumentPosition(
+            within(section).getByRole('button', {
+              name: dictionary.recurring.chooseDate,
+            }),
+          ),
+      ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+      expect(
+        within(section).queryByRole('button', { name: 'Today' }),
+      ).toBeNull();
     });
   });
 
   describe('overview', () => {
     it('shows no data instead of zero without answers', async () => {
       await createRecurrence({ scope, content, rule: daily });
-      render(<RecurringSurface />);
+      await renderSurface();
 
       const overview = overviewSection();
 
@@ -440,37 +504,70 @@ describe('RecurringSurface', () => {
         });
       }
 
-      render(<RecurringSurface />);
+      await renderSurface();
 
       const overview = overviewSection();
 
-      await within(overview).findByText('50% completed');
+      await within(overview).findByText('50%');
       expect(within(overview).getByText('1 done')).toBeTruthy();
       expect(within(overview).getByText('1 not done')).toBeTruthy();
+      expect(
+        within(overview)
+          .getByRole('progressbar', { name: 'Completion rate: Stretch' })
+          .getAttribute('aria-valuenow'),
+      ).toBe('50');
     });
 
-    it('pauses and reactivates an activity', async () => {
+    it('has no progress value without answers', async () => {
       await createRecurrence({ scope, content, rule: daily });
-      render(<RecurringSurface />);
+      await renderSurface();
 
       const overview = overviewSection();
-      fireEvent.click(
-        await within(overview).findByRole('button', {
-          name: 'Pause: Stretch',
-        }),
-      );
 
-      await within(overview).findByText('Paused · Every day');
-      await waitFor(() =>
-        expect(
-          within(daySection()).queryByRole('group', { name: 'Stretch' }),
-        ).toBeNull(),
-      );
+      await within(overview).findByText('No data');
+      expect(within(overview).queryByRole('progressbar')).toBeNull();
+    });
 
-      fireEvent.click(
-        within(overview).getByRole('button', { name: 'Reactivate: Stretch' }),
-      );
-      await within(overview).findByText('Every day');
+    it('pauses and reactivates an activity from the menu', async () => {
+      await createRecurrence({ scope, content, rule: daily });
+      await renderSurface();
+
+      await chooseAction(dictionary.recurring.actionPause);
+      await within(overviewSection()).findByText('Paused · Every day');
+      expect(screen.queryByRole('menu')).toBeNull();
+
+      expect(
+        within(daySection()).queryByRole('group', { name: 'Stretch' }),
+      ).toBeNull();
+
+      await chooseAction(dictionary.recurring.actionResume);
+      await within(overviewSection()).findByText('Every day');
+    });
+
+    it('closes the menu with Escape and returns the focus', async () => {
+      await createRecurrence({ scope, content, rule: daily });
+      await renderSurface();
+
+      const trigger = await within(overviewSection()).findByRole('button', {
+        name: 'More actions: Stretch',
+      });
+
+      fireEvent.click(trigger);
+
+      const items = await screen.findAllByRole('menuitem');
+
+      await waitFor(() => expect(document.activeElement).toBe(items[0]));
+      fireEvent.keyDown(items[0], { key: 'ArrowDown' });
+      expect(document.activeElement).toBe(items[1]);
+      fireEvent.keyDown(items[1], { key: 'ArrowUp' });
+      expect(document.activeElement).toBe(items[0]);
+      fireEvent.keyDown(items[0], { key: 'ArrowUp' });
+      expect(document.activeElement).toBe(items[2]);
+
+      fireEvent.keyDown(document, { key: 'Escape' });
+
+      await waitFor(() => expect(screen.queryByRole('menu')).toBeNull());
+      expect(document.activeElement).toBe(trigger);
     });
 
     it('states what deleting removes and requires confirmation', async () => {
@@ -483,13 +580,9 @@ describe('RecurringSurface', () => {
         status: 'done',
         today,
       });
-      render(<RecurringSurface />);
+      await renderSurface();
 
-      fireEvent.click(
-        await within(overviewSection()).findByRole('button', {
-          name: 'Delete: Stretch',
-        }),
-      );
+      await chooseAction(dictionary.recurring.actionDelete);
 
       const dialog = await screen.findByRole('dialog');
 
@@ -510,11 +603,341 @@ describe('RecurringSurface', () => {
     });
   });
 
+  describe('actions on touch', () => {
+    async function openSheet() {
+      composition.touch = true;
+      await createRecurrence({ scope, content, rule: daily });
+      await renderSurface();
+      fireEvent.click(
+        await within(overviewSection()).findByRole('button', {
+          name: 'More actions: Stretch',
+        }),
+      );
+
+      return screen.findByRole('dialog');
+    }
+
+    it('offers the same actions in a sheet instead of a menu', async () => {
+      const sheet = await openSheet();
+
+      expect(screen.queryByRole('menu')).toBeNull();
+
+      for (const action of [
+        dictionary.recurring.actionEdit,
+        dictionary.recurring.actionPause,
+        dictionary.recurring.actionDelete,
+      ]) {
+        expect(
+          within(sheet).getByRole('button', { name: action }),
+        ).toBeTruthy();
+      }
+    });
+
+    it('closes the sheet and runs the chosen action', async () => {
+      const sheet = await openSheet();
+
+      fireEvent.click(
+        within(sheet).getByRole('button', {
+          name: dictionary.recurring.actionPause,
+        }),
+      );
+
+      await within(overviewSection()).findByText('Paused · Every day');
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+
+    it('closes the sheet without acting', async () => {
+      const sheet = await openSheet();
+
+      fireEvent.click(
+        within(sheet).getByRole('button', { name: dictionary.actions.cancel }),
+      );
+
+      await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+      expect(within(overviewSection()).getByText('Every day')).toBeTruthy();
+    });
+  });
+
+  it('keeps the activity when a menu action fails', async () => {
+    const failure = vi
+      .spyOn(db.recurrences, 'put')
+      .mockRejectedValueOnce(new Error('storage unavailable'));
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    await createRecurrence({ scope, content, rule: daily });
+    await renderSurface();
+    await chooseAction(dictionary.recurring.actionPause);
+
+    await waitFor(() => expect(logged).toHaveBeenCalled());
+    expect(within(overviewSection()).getByText('Every day')).toBeTruthy();
+
+    failure.mockRestore();
+    logged.mockRestore();
+  });
+
+  describe('views', () => {
+    it('starts on Execute and switches to Manage', async () => {
+      await createRecurrence({ scope, content, rule: daily });
+      await renderSurface();
+
+      const execute = screen.getByRole('button', {
+        name: dictionary.recurring.viewExecute,
+      });
+      const manage = screen.getByRole('button', {
+        name: dictionary.recurring.viewManage,
+      });
+
+      expect(screen.getByRole('region', { name: 'Day view' })).toBeTruthy();
+      expect(screen.queryByRole('region', { name: 'Activities' })).toBeNull();
+      expect(execute.getAttribute('aria-pressed')).toBe('true');
+      expect(
+        screen.queryByRole('button', {
+          name: dictionary.recurring.newActivity,
+        }),
+      ).toBeNull();
+
+      fireEvent.click(manage);
+
+      expect(screen.getByRole('region', { name: 'Activities' })).toBeTruthy();
+      expect(screen.queryByRole('region', { name: 'Day view' })).toBeNull();
+      expect(manage.getAttribute('aria-pressed')).toBe('true');
+      expect(
+        screen.getByRole('button', { name: dictionary.recurring.newActivity }),
+      ).toBeTruthy();
+      expect(
+        screen.getByRole('button', { name: dictionary.navigation.categories }),
+      ).toBeTruthy();
+    });
+
+    it('keeps the selected date when switching views', async () => {
+      await createRecurrence({ scope, content, rule: daily });
+      await renderSurface();
+
+      fireEvent.click(
+        within(daySection()).getByRole('button', { name: 'Previous day' }),
+      );
+      await within(daySection()).findByText(/November 5, 2026/);
+
+      overviewSection();
+
+      expect(within(daySection()).getByText(/November 5, 2026/)).toBeTruthy();
+    });
+
+    it('keeps the view when the date changes', async () => {
+      await createRecurrence({ scope, content, rule: daily });
+      await renderSurface();
+
+      fireEvent.click(
+        within(daySection()).getByRole('button', { name: 'Next day' }),
+      );
+
+      expect(
+        screen
+          .getByRole('button', { name: dictionary.recurring.viewExecute })
+          .getAttribute('aria-pressed'),
+      ).toBe('true');
+    });
+  });
+
+  describe('category tabs', () => {
+    async function createInCategory(text: string, name: string | null) {
+      const category = name
+        ? await createCategoryTag({
+            scope,
+            surface: 'recurrence',
+            name,
+            colorHex: '#2563eb',
+          })
+        : null;
+
+      await createRecurrence({
+        scope,
+        content: {
+          ...content,
+          text,
+          children: [],
+          categoryTagId: category?.id ?? null,
+        },
+        rule: daily,
+      });
+    }
+
+    it('filters the day by category with more than one category', async () => {
+      await createInCategory('Run', 'Health');
+      await createInCategory('Report', 'Work');
+      await renderSurface();
+
+      const section = daySection();
+      const tabs = await within(section).findByRole('tablist', {
+        name: dictionary.calendar.categoryTabs,
+      });
+
+      await within(tabs).findByRole('tab', { name: 'WORK' });
+      expect(within(section).getByRole('group', { name: 'Run' })).toBeTruthy();
+      expect(
+        within(section).getByRole('group', { name: 'Report' }),
+      ).toBeTruthy();
+
+      fireEvent.click(within(tabs).getByRole('tab', { name: 'WORK' }));
+
+      await waitFor(() =>
+        expect(
+          within(section).queryByRole('group', { name: 'Run' }),
+        ).toBeNull(),
+      );
+      expect(
+        within(section).getByRole('group', { name: 'Report' }),
+      ).toBeTruthy();
+
+      fireEvent.click(
+        within(tabs).getByRole('tab', {
+          name: dictionary.calendar.categoryTabAll,
+        }),
+      );
+
+      await within(section).findByRole('group', { name: 'Run' });
+    });
+
+    it('shows the tabs with one category and items outside it', async () => {
+      await createInCategory('Run', 'Health');
+      await createInCategory('Loose', null);
+      await renderSurface();
+
+      const section = daySection();
+      const tabs = await within(section).findByRole('tablist');
+
+      await within(tabs).findByRole('tab', { name: 'HEALTH' });
+      fireEvent.click(
+        within(tabs).getByRole('tab', {
+          name: dictionary.calendar.categoryTabUncategorized,
+        }),
+      );
+
+      await waitFor(() =>
+        expect(
+          within(section).queryByRole('group', { name: 'Run' }),
+        ).toBeNull(),
+      );
+      expect(
+        within(section).getByRole('group', { name: 'Loose' }),
+      ).toBeTruthy();
+    });
+
+    it('hides the tabs when every item shares the category', async () => {
+      await createInCategory('Run', 'Health');
+      await renderSurface();
+
+      const section = daySection();
+
+      await within(section).findByText('HEALTH');
+      expect(within(section).queryByRole('tablist')).toBeNull();
+    });
+
+    it('hides the tabs without categories', async () => {
+      await createInCategory('Loose', null);
+      await renderSurface();
+
+      const section = daySection();
+
+      await within(section).findByRole('group', { name: 'Loose' });
+      expect(within(section).queryByRole('tablist')).toBeNull();
+    });
+
+    it('does not offer view preferences', async () => {
+      await createInCategory('Run', 'Health');
+      await createInCategory('Report', 'Work');
+      await renderSurface();
+
+      await within(daySection()).findByRole('tablist');
+      expect(
+        screen.queryByRole('button', {
+          name: dictionary.dayEditor.configurePreferences,
+        }),
+      ).toBeNull();
+    });
+  });
+
+  describe('answer buttons', () => {
+    it('shows icons only, keeping accessible names', async () => {
+      await createRecurrence({ scope, content, rule: daily });
+      await renderSurface();
+
+      const activity = await findActivity();
+      const done = within(activity).getByRole('button', {
+        name: 'Done: Stretch',
+      });
+
+      expect(done.textContent).toBe('');
+      expect(done.querySelector('svg')).not.toBeNull();
+    });
+  });
+
+  describe('category presentation', () => {
+    async function createCategorized() {
+      const category = await createCategoryTag({
+        scope,
+        surface: 'recurrence',
+        name: 'Health',
+        colorHex: '#2563eb',
+      });
+
+      await createRecurrence({
+        scope,
+        content: { ...content, categoryTagId: category.id },
+        rule: daily,
+      });
+    }
+
+    it('keeps the badge outside the name, next to the actions', async () => {
+      await createCategorized();
+      await renderSurface();
+
+      const activity = await findActivity();
+      const chip = await within(activity).findByText('HEALTH');
+      const name = within(activity).getByText('Stretch');
+
+      expect(name.contains(chip)).toBe(false);
+      expect(name.compareDocumentPosition(chip)).toBe(
+        Node.DOCUMENT_POSITION_FOLLOWING,
+      );
+    });
+
+    it('tints the row of a categorized activity and not its subtasks', async () => {
+      await createCategorized();
+      await renderSurface();
+
+      const activity = await findActivity();
+
+      await within(activity).findByText('HEALTH');
+
+      const [main, child] = within(activity)
+        .getAllByRole('button', { name: /^Done: / })
+        .map((button) => button.closest<HTMLElement>('[data-tree-row]'));
+
+      expect(main?.style.backgroundColor).not.toBe('');
+      expect(child?.style.backgroundColor).toBe('');
+    });
+
+    it('keeps the neutral background without a category', async () => {
+      await createRecurrence({ scope, content, rule: daily });
+      await renderSurface();
+
+      const activity = await findActivity();
+      const row = within(activity)
+        .getByRole('button', { name: 'Done: Stretch' })
+        .closest<HTMLElement>('[data-tree-row]');
+
+      expect(row?.style.backgroundColor).toBe('');
+    });
+  });
+
   describe('editor', () => {
     function openCreate() {
       fireEvent.click(
         within(overviewSection()).getByRole('button', {
-          name: dictionary.recurring.newActivity,
+          name: new RegExp(
+            `^(${dictionary.recurring.newActivity}|${dictionary.recurring.emptyCreate})$`,
+          ),
         }),
       );
 
@@ -522,11 +945,7 @@ describe('RecurringSurface', () => {
     }
 
     async function openEdit() {
-      fireEvent.click(
-        await within(overviewSection()).findByRole('button', {
-          name: 'Edit: Stretch',
-        }),
-      );
+      await chooseAction(dictionary.recurring.actionEdit);
 
       return screen.findByRole('dialog');
     }
@@ -546,7 +965,7 @@ describe('RecurringSurface', () => {
         name: 'Health',
         colorHex: '#2563eb',
       });
-      render(<RecurringSurface />);
+      await renderSurface();
 
       const dialog = await openCreate();
       fireEvent.change(
@@ -572,7 +991,7 @@ describe('RecurringSurface', () => {
     });
 
     it('offers managing categories inside the editor', async () => {
-      render(<RecurringSurface />);
+      await renderSurface();
 
       const dialog = await openCreate();
 
@@ -585,7 +1004,7 @@ describe('RecurringSurface', () => {
 
     it('names the subtask action', async () => {
       await createRecurrence({ scope, content, rule: daily });
-      render(<RecurringSurface />);
+      await renderSurface();
 
       const dialog = await openEdit();
 
@@ -597,7 +1016,7 @@ describe('RecurringSurface', () => {
     });
 
     it('requires a name', async () => {
-      render(<RecurringSurface />);
+      await renderSurface();
 
       const dialog = await openCreate();
       save(dialog);
@@ -607,7 +1026,7 @@ describe('RecurringSurface', () => {
     });
 
     it('creates a weekly activity on the chosen weekdays', async () => {
-      render(<RecurringSurface />);
+      await renderSurface();
 
       const dialog = await openCreate();
       fireEvent.change(
@@ -646,7 +1065,7 @@ describe('RecurringSurface', () => {
 
     it('does not ask how to apply without answers', async () => {
       const { id } = await createRecurrence({ scope, content, rule: daily });
-      render(<RecurringSurface />);
+      await renderSurface();
 
       const dialog = await openEdit();
       fireEvent.change(
@@ -671,7 +1090,7 @@ describe('RecurringSurface', () => {
         status: 'done',
         today,
       });
-      render(<RecurringSurface />);
+      await renderSurface();
 
       const dialog = await openEdit();
       fireEvent.change(
@@ -701,7 +1120,7 @@ describe('RecurringSurface', () => {
           status: 'done',
           today,
         });
-        render(<RecurringSurface />);
+        await renderSurface();
 
         const dialog = await openEdit();
         fireEvent.change(
@@ -747,7 +1166,7 @@ describe('RecurringSurface', () => {
     ] as const)(
       'creates a monthly activity on %s',
       async (_label, mode, picks, rule) => {
-        render(<RecurringSurface />);
+        await renderSurface();
 
         const dialog = await openCreate();
         fireEvent.change(
@@ -784,7 +1203,7 @@ describe('RecurringSurface', () => {
     );
 
     it('rejects an out of range day and keeps only digits', async () => {
-      render(<RecurringSurface />);
+      await renderSurface();
 
       const dialog = await openCreate();
       fireEvent.change(
@@ -811,7 +1230,7 @@ describe('RecurringSurface', () => {
     });
 
     it('only asks for the reference week above one week', async () => {
-      render(<RecurringSurface />);
+      await renderSurface();
 
       const dialog = await openCreate();
       fireEvent.click(
@@ -861,7 +1280,7 @@ describe('RecurringSurface', () => {
     });
 
     it('applies the bold and priority formatting', async () => {
-      render(<RecurringSurface />);
+      await renderSurface();
 
       const dialog = await openCreate();
       fireEvent.change(
@@ -891,7 +1310,7 @@ describe('RecurringSurface', () => {
         .spyOn(db.recurrences, 'add')
         .mockRejectedValueOnce(new Error('storage unavailable'));
       const logged = vi.spyOn(console, 'error').mockImplementation(() => {});
-      render(<RecurringSurface />);
+      await renderSurface();
 
       const dialog = await openCreate();
       fireEvent.change(
@@ -919,7 +1338,7 @@ describe('RecurringSurface', () => {
     it('locks the frequency of a paused activity', async () => {
       const { id } = await createRecurrence({ scope, content, rule: daily });
       await pauseRecurrence({ scope, recurrenceId: id, today });
-      render(<RecurringSurface />);
+      await renderSurface();
 
       const dialog = await openEdit();
 

@@ -3,16 +3,17 @@ import { enterLocalMode, labels } from './helpers';
 
 const recurringLabels = {
   activities: /^(activities|atividades)$/i,
+  execute: /^(execute|executar)$/i,
+  manage: /^(manage|gerenciar)$/i,
   addFirstChild: /no subtasks|sem subtarefas/i,
   applyForward: /only from now on|somente daqui em diante/i,
-  chooseDate: /^(choose date|escolher data)$/i,
-  confirm: /^(confirm|confirmar)$/i,
+  chooseDate: /^(choose another date|escolher outra data)$/i,
   dayView: /^(day view|visão do dia)$/i,
   nextDay: /^(next day|próximo dia)$/i,
-  newActivity: /^(new activity|nova atividade)$/i,
+  newActivity:
+    /^(new activity|nova atividade|start by creating a recurring activity|comece criando uma atividade recorrente)$/i,
   nameLabel: /^(activity name|nome da atividade)$/i,
   noData: /^(no data|sem dados)$/i,
-  openDailyTasks: /^(open daily tasks|abrir tarefas do dia)$/i,
   previousDay: /^(previous day|dia anterior)$/i,
   save: /^(save|salvar)$/i,
   today: /^(today|hoje)$/i,
@@ -30,12 +31,21 @@ function answerButton(
   });
 }
 
-function actionButton(page: Page, action: RegExp, name: string) {
-  return page
-    .getByRole('region', { name: recurringLabels.activities })
+async function showView(page: Page, view: RegExp) {
+  await page.getByRole('button', { name: view }).click();
+}
+
+async function chooseAction(page: Page, action: RegExp, name: string) {
+  await showView(page, recurringLabels.manage);
+  await page
     .getByRole('button', {
-      name: new RegExp(`^${action.source}: ${name}$`, 'i'),
-    });
+      name: new RegExp(`^(more actions|mais ações): ${name}`, 'i'),
+    })
+    .click();
+  await page
+    .getByRole('menuitem', { name: action })
+    .or(page.getByRole('dialog').getByRole('button', { name: action }))
+    .click();
 }
 
 async function openRecurring(page: Page) {
@@ -65,12 +75,15 @@ test('answers a daily activity and keeps it after a reload', async ({
     name: recurringLabels.activities,
   });
 
+  await showView(page, recurringLabels.manage);
   await expect(overview.getByText(recurringLabels.noData)).toBeVisible();
+  await showView(page, recurringLabels.execute);
 
   const done = answerButton(day, 'done', 'Stretch');
 
   await done.click();
   await expect(done).toHaveAttribute('aria-pressed', 'true');
+  await showView(page, recurringLabels.manage);
   await expect(overview.getByText(/100%/)).toBeVisible();
 
   await page.reload();
@@ -80,12 +93,11 @@ test('answers a daily activity and keeps it after a reload', async ({
   );
 
   await answerButton(day, 'done', 'Stretch').click();
+  await showView(page, recurringLabels.manage);
   await expect(overview.getByText(recurringLabels.noData)).toBeVisible();
 });
 
-test('navigates by day and only applies a picked date after confirming', async ({
-  page,
-}) => {
+test('navigates by day and applies a picked date at once', async ({ page }) => {
   await openRecurring(page);
   await createDailyActivity(page, 'Stretch');
 
@@ -96,12 +108,20 @@ test('navigates by day and only applies a picked date after confirming', async (
   await day.getByRole('button', { name: recurringLabels.previousDay }).click();
   await expect(dateLabel).not.toHaveText(todayLabel);
 
-  await day.getByRole('button', { name: recurringLabels.today }).click();
+  await day.getByRole('button', { name: recurringLabels.chooseDate }).click();
+  await page
+    .getByRole('dialog')
+    .getByRole('button', { name: recurringLabels.today })
+    .click();
   await expect(dateLabel).toHaveText(todayLabel);
 
   await day.getByRole('button', { name: recurringLabels.nextDay }).click();
   await expect(answerButton(day, 'done', 'Stretch')).toBeDisabled();
-  await day.getByRole('button', { name: recurringLabels.today }).click();
+  await day.getByRole('button', { name: recurringLabels.chooseDate }).click();
+  await page
+    .getByRole('dialog')
+    .getByRole('button', { name: recurringLabels.today })
+    .click();
 
   await day.getByRole('button', { name: recurringLabels.chooseDate }).click();
 
@@ -111,33 +131,8 @@ test('navigates by day and only applies a picked date after confirming', async (
   });
 
   await nextMonthDay.first().click();
-  await expect(dateLabel).toHaveText(todayLabel);
-
-  await picker.getByRole('button', { name: recurringLabels.confirm }).click();
   await expect(picker).toBeHidden();
   await expect(dateLabel).toContainText('15');
-});
-
-test('opens the daily tasks of the selected date and returns to it', async ({
-  page,
-}) => {
-  await openRecurring(page);
-
-  const day = page.getByRole('region', { name: recurringLabels.dayView });
-  const dateLabel = day.locator('p[aria-live="polite"]');
-
-  await day.getByRole('button', { name: recurringLabels.previousDay }).click();
-
-  const selectedLabel = await dateLabel.innerText();
-
-  await page
-    .getByRole('link', { name: recurringLabels.openDailyTasks })
-    .click();
-  await page.waitForURL(/\/calendar\?day=\d{4}-\d{2}-\d{2}/);
-
-  await page.getByRole('button', { name: labels.backToCalendar }).click();
-  await page.waitForURL(/\/recurring\?date=\d{4}-\d{2}-\d{2}/);
-  await expect(dateLabel).toHaveText(selectedLabel);
 });
 
 test('asks how to apply a content change after answers exist', async ({
@@ -154,7 +149,7 @@ test('asks how to apply a content change after answers exist', async ({
     'true',
   );
 
-  await actionButton(page, /(Edit|Editar)/, 'Stretch').click();
+  await chooseAction(page, /^(edit activity|editar atividade)$/i, 'Stretch');
 
   const editor = page.getByRole('dialog');
 
@@ -165,6 +160,7 @@ test('asks how to apply a content change after answers exist', async ({
     .click();
   await expect(page.getByRole('dialog')).toBeHidden();
 
+  await showView(page, recurringLabels.execute);
   await expect(answerButton(day, 'done', 'Stretch')).toHaveAttribute(
     'aria-pressed',
     'true',
@@ -179,24 +175,26 @@ test('pauses, reactivates and deletes an activity', async ({ page }) => {
 
   const day = page.getByRole('region', { name: recurringLabels.dayView });
 
-  await actionButton(page, /(Pause|Pausar)/, 'Stretch').click();
+  await chooseAction(page, /^(pause|pausar)$/i, 'Stretch');
+  await showView(page, recurringLabels.execute);
   await expect(answerButton(day, 'done', 'Stretch')).toBeHidden();
 
-  await actionButton(page, /(Reactivate|Reativar)/, 'Stretch').click();
+  await chooseAction(page, /^(reactivate|reativar)$/i, 'Stretch');
+  await showView(page, recurringLabels.execute);
   await expect(answerButton(day, 'done', 'Stretch')).toBeVisible();
 
-  await actionButton(page, /(Delete|Excluir)/, 'Stretch').click();
+  await chooseAction(page, /^(delete activity|excluir atividade)$/i, 'Stretch');
   await page
     .getByRole('dialog')
     .getByRole('button', { name: /^(delete|excluir)$/i })
     .click();
 
-  await expect(answerButton(day, 'done', 'Stretch')).toBeHidden();
   await expect(
-    page
-      .getByRole('region', { name: recurringLabels.activities })
-      .getByText('Stretch'),
-  ).toBeHidden();
+    page.getByRole('button', {
+      name: /start by creating a recurring activity|comece criando uma atividade recorrente/i,
+    }),
+  ).toBeVisible();
+  await expect(page.getByText('Stretch')).toHaveCount(0);
 });
 
 test('adds a subtask that is answered on its own', async ({ page }) => {
@@ -222,6 +220,7 @@ test('adds a subtask that is answered on its own', async ({ page }) => {
     'aria-pressed',
     'false',
   );
+  await showView(page, recurringLabels.manage);
   await expect(
     page
       .getByRole('region', { name: recurringLabels.activities })
@@ -237,28 +236,46 @@ test('keeps the actions inside the card with a long activity name', async ({
   await openRecurring(page);
   await createDailyActivity(page, longName);
 
+  const hasOverflow = () =>
+    page.evaluate(
+      () =>
+        document.documentElement.scrollWidth >
+        document.documentElement.clientWidth,
+    );
+
+  const answer = answerButton(
+    page.getByRole('region', { name: recurringLabels.dayView }),
+    'not_done',
+    longName,
+  );
+  const row = answer.locator('xpath=ancestor::*[@data-tree-row][1]');
+  const answerBox = await answer.boundingBox();
+  const rowBox = await row.boundingBox();
+
+  expect(answerBox!.x + answerBox!.width).toBeLessThanOrEqual(
+    rowBox!.x + rowBox!.width,
+  );
+  expect(await hasOverflow()).toBe(false);
+
+  await showView(page, recurringLabels.manage);
+
   const overview = page.getByRole('region', {
     name: recurringLabels.activities,
   });
   const card = overview.getByRole('listitem');
-  const remove = card.getByRole('button', { name: /^(delete|excluir): /i });
+  const menu = card.getByRole('button', {
+    name: /^(more actions|mais ações): /i,
+  });
 
-  await expect(remove).toBeVisible();
+  await expect(menu).toBeVisible();
 
   const cardBox = await card.boundingBox();
-  const removeBox = await remove.boundingBox();
+  const menuBox = await menu.boundingBox();
 
-  expect(removeBox!.x + removeBox!.width).toBeLessThanOrEqual(
+  expect(menuBox!.x + menuBox!.width).toBeLessThanOrEqual(
     cardBox!.x + cardBox!.width,
   );
-
-  const hasOverflow = await page.evaluate(
-    () =>
-      document.documentElement.scrollWidth >
-      document.documentElement.clientWidth,
-  );
-
-  expect(hasOverflow).toBe(false);
+  expect(await hasOverflow()).toBe(false);
 });
 
 test('manages categories from the editor without losing the draft', async ({
@@ -282,4 +299,133 @@ test('manages categories from the editor without losing the draft', async ({
   await expect(editor.getByLabel(recurringLabels.nameLabel)).toHaveValue(
     'Draft name',
   );
+});
+
+test('shares the container and row look of the daily tasks', async ({
+  page,
+}) => {
+  const readStyles = () =>
+    page.evaluate(() => {
+      const pick = (element: Element | null) => {
+        const styles = getComputedStyle(element!);
+
+        return {
+          backgroundColor: styles.backgroundColor,
+          borderRadius: styles.borderRadius,
+          borderWidth: styles.borderWidth,
+          boxShadow: styles.boxShadow,
+          padding: styles.padding,
+        };
+      };
+
+      return {
+        container: pick(
+          document.querySelector('[data-testid="task-list-surface"]'),
+        ),
+        rowRadius: getComputedStyle(document.querySelector('[data-tree-row]')!)
+          .borderRadius,
+      };
+    });
+
+  await openRecurring(page);
+  await createDailyActivity(page, 'Stretch');
+  await expect(page.locator('[data-tree-row]').first()).toBeVisible();
+
+  const recurring = await readStyles();
+
+  await page.goto('/calendar?day=2026-05-23');
+  await page.getByRole('button', { name: labels.checklistEmpty }).click();
+  await expect(page.locator('[data-tree-row]').first()).toBeVisible();
+
+  expect(await readStyles()).toEqual(recurring);
+  expect(recurring.container.borderWidth).toBe('0px');
+  expect(recurring.container.boxShadow).not.toContain('inset');
+});
+
+test('keeps the day centered on the screen', async ({ page, isMobile }) => {
+  await openRecurring(page);
+  await createDailyActivity(page, 'Stretch');
+
+  const box = await page
+    .getByRole('region', { name: recurringLabels.dayView })
+    .locator('p[aria-live="polite"]')
+    .boundingBox();
+  const viewport = page.viewportSize();
+
+  expect(
+    Math.abs(box!.x + box!.width / 2 - viewport!.width / 2),
+  ).toBeLessThanOrEqual(isMobile ? 4 : 2);
+
+  const heightOf = async (control: Locator) => {
+    const measured = await control.boundingBox();
+
+    return measured!.height;
+  };
+  const button = (name: RegExp) => page.getByRole('button', { name });
+  const viewTabs = page.getByRole('group', {
+    name: /^(recurring view|visualização de recorrentes)$/i,
+  });
+
+  expect(
+    await Promise.all(
+      [
+        viewTabs,
+        button(recurringLabels.previousDay),
+        button(recurringLabels.nextDay),
+        button(recurringLabels.chooseDate),
+      ].map(heightOf),
+    ),
+  ).toEqual([36, 36, 36, 36]);
+
+  if (!isMobile) {
+    const tabs = await page
+      .getByRole('button', { name: recurringLabels.execute })
+      .boundingBox();
+    const picker = await page
+      .getByRole('button', { name: recurringLabels.chooseDate })
+      .boundingBox();
+    const middle = (item: typeof box) => item!.y + item!.height / 2;
+
+    expect(Math.abs(middle(tabs) - middle(box))).toBeLessThanOrEqual(4);
+    expect(Math.abs(middle(picker) - middle(box))).toBeLessThanOrEqual(4);
+    expect(picker!.x).toBeGreaterThan(box!.x + box!.width);
+    expect(tabs!.x + tabs!.width).toBeLessThan(box!.x);
+  }
+
+  await showView(page, recurringLabels.manage);
+
+  expect(
+    await Promise.all(
+      [
+        viewTabs,
+        button(labels.categories),
+        button(recurringLabels.newActivity),
+      ].map(heightOf),
+    ),
+  ).toEqual([36, 36, 36]);
+});
+
+test('starts the content at the same distance as the goals', async ({
+  page,
+}) => {
+  await enterLocalMode(page);
+  await page.getByRole('link', { name: labels.goalsLink }).click();
+  await page.waitForURL('**/goals');
+
+  const goalsTabs = await page
+    .getByRole('button', { name: /^(active|ativas)$/i })
+    .locator('..')
+    .boundingBox();
+
+  await page.getByRole('link', { name: labels.recurringLink }).click();
+  await page.waitForURL('**/recurring');
+  await createDailyActivity(page, 'Stretch');
+
+  const recurringTabs = await page
+    .getByRole('group', {
+      name: /^(recurring view|visualização de recorrentes)$/i,
+    })
+    .boundingBox();
+
+  expect(recurringTabs!.y).toBe(goalsTabs!.y);
 });

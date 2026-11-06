@@ -271,3 +271,51 @@ test('aligns the goal category submenu with its hovered action', async ({
     .hover();
   await expect(submenu).toHaveCount(0);
 });
+
+test('keeps the goal bars at the same control height', async ({
+  page,
+  isMobile,
+}) => {
+  const heightOf = async (control: Locator) => {
+    const measured = await control.boundingBox();
+
+    return measured!.height;
+  };
+
+  await enterLocalMode(page);
+  await page.getByRole('link', { name: labels.goalsLink }).click();
+  await page.waitForURL('**/goals');
+
+  expect(
+    await Promise.all(
+      [
+        page.getByRole('button', { name: /^(active|ativas)$/i }).locator('..'),
+        page.getByRole('button', { name: labels.categories }),
+      ].map(heightOf),
+    ),
+  ).toEqual([36, 36]);
+
+  await page.getByRole('button', { name: labels.createGoal }).click();
+  await page.waitForURL(/\/goals\?goal=.+/);
+
+  const backButton = page.getByRole('button', {
+    name: labels.backToCalendar,
+  });
+
+  await expect(backButton).toBeVisible();
+  expect(await heightOf(backButton)).toBe(36);
+
+  if (!isMobile) {
+    expect(
+      await Promise.all(
+        [
+          page.getByRole('button', { name: labels.categories }),
+          page.getByRole('button', { name: /^(delete goal|excluir meta)$/i }),
+          page
+            .getByRole('button', { name: /assign goal category|categoria/i })
+            .first(),
+        ].map(heightOf),
+      ),
+    ).toEqual([36, 36, 36]);
+  }
+});

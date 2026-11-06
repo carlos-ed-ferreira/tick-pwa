@@ -229,7 +229,9 @@ test.describe('mobile layout', () => {
 
         return {
           bottom: rect.bottom,
-          fits: element.scrollWidth <= element.clientWidth,
+          fits:
+            element.scrollWidth <= element.clientWidth &&
+            getComputedStyle(element).whiteSpace === 'nowrap',
           right: rect.right,
           top: rect.top,
         };

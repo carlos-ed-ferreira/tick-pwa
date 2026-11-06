@@ -128,7 +128,7 @@ export function CategoryColorButton({
 
   return (
     <Tooltip content={colorLabel}>
-      <span className="relative inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-white/8 shadow-sm shadow-[#253241]/10 transition hover:-translate-y-0.5 hover:bg-white/12 hover:shadow-md focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-[#f7d9b0]">
+      <span className="relative inline-flex size-9 shrink-0 items-center justify-center rounded-full bg-white/8 shadow-sm shadow-[#253241]/10 transition hover:-translate-y-0.5 hover:bg-white/12 hover:shadow-md focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-[#f7d9b0]">
         <input
           aria-label={colorLabel}
           className="absolute inset-0 h-full w-full cursor-pointer opacity-0"

@@ -17,7 +17,7 @@ import { useAppContext } from '@/providers';
 export type AppSection = 'calendar' | 'goals' | 'recurring';
 
 const navigationItemLayoutClassName =
-  'flex-1 sm:flex-none touch:min-w-0 touch:gap-1 touch:px-2 touch:text-xs';
+  'flex-1 sm:flex-none touch:flex-auto touch:gap-1 touch:px-2 touch:text-xs touch:whitespace-nowrap';
 const activeNavigationItemClassName = `${activePillTabClassName} ${navigationItemLayoutClassName}`;
 const navigationItemClassName = `${pillTabClassName} ${navigationItemLayoutClassName}`;
 
@@ -46,6 +46,18 @@ export function AppHeader({ activeSection }: { activeSection: AppSection }) {
           className={`app-bottom-nav ${pillTabListClassName} backdrop-blur-md touch:rounded-none touch:p-1.5`}
         >
           <Link
+            href="/recurring"
+            aria-current={activeSection === 'recurring' ? 'page' : undefined}
+            className={
+              activeSection === 'recurring'
+                ? activeNavigationItemClassName
+                : navigationItemClassName
+            }
+          >
+            <Repeat aria-hidden="true" className="size-4" />
+            {dictionary.navigation.recurring}
+          </Link>
+          <Link
             href="/calendar"
             aria-current={activeSection === 'calendar' ? 'page' : undefined}
             className={
@@ -68,18 +80,6 @@ export function AppHeader({ activeSection }: { activeSection: AppSection }) {
           >
             <TbTargetArrow aria-hidden="true" className="size-4" />
             {dictionary.navigation.goals}
-          </Link>
-          <Link
-            href="/recurring"
-            aria-current={activeSection === 'recurring' ? 'page' : undefined}
-            className={
-              activeSection === 'recurring'
-                ? activeNavigationItemClassName
-                : navigationItemClassName
-            }
-          >
-            <Repeat aria-hidden="true" className="size-4" />
-            {dictionary.navigation.recurring}
           </Link>
         </div>
       </nav>

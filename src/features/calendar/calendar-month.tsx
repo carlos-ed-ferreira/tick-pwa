@@ -11,12 +11,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  usePathname,
-  useRouter,
-  useSearchParams,
-  type ReadonlyURLSearchParams,
-} from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import {
   BottomSheet,
   BottomSheetAction,
@@ -95,23 +90,6 @@ function entriesByDate(
   return new Map(entries.map((entry) => [entry.date, entry]));
 }
 
-function getCloseDayHref(
-  pathname: string,
-  searchParams: ReadonlyURLSearchParams,
-): string {
-  const day = searchParams.get('day');
-
-  if (day && searchParams.get('from') === 'recurring') {
-    return `/recurring?date=${day}`;
-  }
-
-  const nextSearchParams = new URLSearchParams(searchParams.toString());
-  nextSearchParams.delete('day');
-  const queryString = nextSearchParams.toString();
-
-  return queryString ? `${pathname}?${queryString}` : pathname;
-}
-
 export function CalendarMonth() {
   const { dictionary, locale, scope, timezonePreference } = useAppContext();
   const pathname = usePathname();
@@ -183,8 +161,12 @@ export function CalendarMonth() {
     [locale, timezonePreference.timezone],
   );
   const closeDay = useCallback(() => {
+    const nextSearchParams = new URLSearchParams(searchParams.toString());
+    nextSearchParams.delete('day');
+    const queryString = nextSearchParams.toString();
+
     setOpenDayOverride(null);
-    router.push(getCloseDayHref(pathname, searchParams));
+    router.push(queryString ? `${pathname}?${queryString}` : pathname);
   }, [pathname, router, searchParams, setOpenDayOverride]);
   const openDay = useCallback(
     (date: LocalDateString) => {

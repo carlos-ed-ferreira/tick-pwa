@@ -248,7 +248,9 @@ sistema.
 ### Tarefas recorrentes
 
 A aba `/recurring` é independente das tarefas do dia e das metas: não altera o
-progresso delas e usa a surface de categorias própria `recurrence`. O motor puro
+progresso delas e usa a surface de categorias própria `recurrence`. Ela tem duas
+visualizações: Executar, para responder às atividades da data selecionada, e
+Gerenciar, com frequência, estatísticas e ações de cada atividade. O motor puro
 fica em `src/lib/domain/recurrence.ts` e os comandos em
 `src/lib/db/recurrence-commands.ts`.
 
@@ -278,9 +280,7 @@ Regras:
   o conteúdo em hoje, ou em amanhã se já houver resposta hoje.
 - Pausar e reativar valem a partir de hoje, e o intervalo pausado não tem
   ocorrências. Excluir faz cascata para as respostas.
-- O atalho para as Tarefas do dia abre `/calendar?day=<data>&from=recurring`, e o
-  Voltar retorna a `/recurring?date=<data>`. Sem data escolhida, a tela acompanha
-  a virada do dia.
+- Sem data escolhida, a visão do dia acompanha a virada do dia.
 - Guest recebe categorias padrão próprias, e o editor permite gerenciá-las sem
   perder o rascunho.
 

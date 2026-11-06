@@ -1,8 +1,9 @@
 'use client';
 
 import { Check, X } from 'lucide-react';
-import { useMemo, useState, type ReactNode } from 'react';
+import { useMemo, useState } from 'react';
 import {
+  IconButton,
   TaskTreeCategoryChip,
   TaskTreeCollapseButton,
   TaskTreeRowLayout,
@@ -15,16 +16,14 @@ import {
 } from '@/lib/domain';
 import { useAppContext } from '@/providers';
 
-const answerBaseClassName =
-  'touch-target inline-flex h-7 shrink-0 items-center gap-1 rounded-full px-2.5 text-xs font-medium transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e] disabled:cursor-not-allowed disabled:opacity-50';
-
 const answerToneClassNames: Record<RecurrenceResponseStatus, string> = {
-  done: 'bg-emerald-400/20 text-emerald-100',
-  not_done: 'bg-rose-400/20 text-rose-100',
+  done: 'bg-emerald-400/20 text-emerald-100 hover:bg-emerald-400/30 hover:text-emerald-50',
+  not_done:
+    'bg-rose-400/20 text-rose-100 hover:bg-rose-400/30 hover:text-rose-50',
 };
 
 const answerIdleClassName =
-  'bg-white/8 text-[#aebac8] enabled:hover:bg-white/12 enabled:hover:text-[#fff9f2]';
+  'text-[#aebac8] hover:bg-white/[0.08] hover:text-[#fff9f2]';
 
 export type RecurringAnswerHandler = (
   occurrence: RecurrenceOccurrence,
@@ -54,28 +53,28 @@ function AnswerButton({
   const isActive = status === value;
 
   return (
-    <button
-      type="button"
+    <IconButton
       aria-label={dictionary.recurring.answerLabel
         .replace('{status}', label)
         .replace('{name}', name)}
       aria-pressed={isActive}
-      className={`${answerBaseClassName} ${
+      size="compact"
+      tooltip={label}
+      className={`rounded-full focus-visible:outline-[#f0c38e] ${
         isActive ? answerToneClassNames[value] : answerIdleClassName
       }`}
       disabled={!canAnswer}
       onClick={() => onAnswer(isActive ? null : value)}
     >
-      <Icon aria-hidden="true" className="size-3.5" />
-      {label}
-    </button>
+      <Icon aria-hidden="true" className="size-4" />
+    </IconButton>
   );
 }
 
 function RecurringRow({
   bold,
   canAnswer,
-  chip,
+  category,
   depth,
   hasChildren,
   isCollapsed,
@@ -87,7 +86,7 @@ function RecurringRow({
 }: {
   bold: boolean;
   canAnswer: boolean;
-  chip?: ReactNode;
+  category?: { colorHex: string; name: string };
   depth: number;
   hasChildren: boolean;
   isCollapsed: boolean;
@@ -101,7 +100,11 @@ function RecurringRow({
   const answerProps = { canAnswer, name, status, onAnswer };
 
   return (
-    <TaskTreeRowLayout depth={depth} isPriority={isPriority}>
+    <TaskTreeRowLayout
+      categoryColorHex={category?.colorHex}
+      depth={depth}
+      isPriority={isPriority}
+    >
       <TaskTreeCollapseButton
         collapseLabel={dictionary.dayEditor.collapseItem}
         expandLabel={dictionary.dayEditor.expandItem}
@@ -110,14 +113,19 @@ function RecurringRow({
         onClick={onToggleCollapsed}
       />
       <span
-        className={`min-w-0 flex-1 px-2 py-1 text-sm whitespace-pre-wrap wrap-anywhere text-[#fff9f2] ${
+        className={`min-w-0 flex-1 px-2 py-1 text-sm whitespace-pre-wrap wrap-anywhere text-[#fff9f2] touch:order-last touch:basis-full ${
           bold ? 'font-bold' : ''
         }`}
       >
         {name}
       </span>
-      {chip}
-      <span className="flex shrink-0 items-center gap-1 touch:ml-auto">
+      {category ? (
+        <TaskTreeCategoryChip
+          colorHex={category.colorHex}
+          name={category.name}
+        />
+      ) : null}
+      <span className="ml-1 flex shrink-0 items-center gap-1 touch:ml-auto">
         <AnswerButton
           {...answerProps}
           label={dictionary.recurring.done}
@@ -203,22 +211,11 @@ export function RecurringOccurrence({
   const category = categoryTagMap.get(content.categoryTagId ?? '');
 
   return (
-    <div
-      role="group"
-      aria-label={content.text}
-      className="card-surface-soft flex flex-col gap-0.5 p-1.5"
-    >
+    <div role="group" aria-label={content.text} className="grid gap-1">
       <RecurringRow
         bold={content.bold}
         canAnswer={canAnswer}
-        chip={
-          category ? (
-            <TaskTreeCategoryChip
-              colorHex={category.colorHex}
-              name={category.name}
-            />
-          ) : null
-        }
+        category={category}
         depth={0}
         hasChildren={content.children.length > 0}
         isCollapsed={isCollapsed}

@@ -27,10 +27,6 @@ function moveMonth(
 const monthNavigationClassName =
   'rounded-full bg-white/8 text-[#aebac8] hover:bg-white/12 hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]';
 
-function getGridGapClassName(touchCells: boolean): string {
-  return touchCells ? 'gap-1 justify-items-center touch:gap-0' : 'gap-1';
-}
-
 function getDayToneClassName(isSelected: boolean, isToday: boolean): string {
   if (isSelected) {
     return 'bg-[#f0c38e] text-[#253241] shadow-sm shadow-[#f0c38e]/20';
@@ -87,14 +83,12 @@ export function CalendarMonthPanel({
   monthDate,
   selectedDate,
   today,
-  touchCells = false,
   onMonthChange,
   onSelectDate,
 }: {
   monthDate: LocalDateString;
   selectedDate: LocalDateString | null;
   today: LocalDateString;
-  touchCells?: boolean;
   onMonthChange: (monthDate: LocalDateString) => void;
   onSelectDate: (date: LocalDateString) => void;
 }) {
@@ -108,7 +102,6 @@ export function CalendarMonthPanel({
       }),
     [locale],
   );
-  const gridGapClassName = getGridGapClassName(touchCells);
 
   return (
     <>
@@ -119,7 +112,7 @@ export function CalendarMonthPanel({
 
       <div
         aria-hidden="true"
-        className={`mt-2 grid grid-cols-7 text-center text-[0.65rem] font-semibold uppercase tracking-[0.08em] text-[#7b8da0] ${gridGapClassName}`}
+        className={`mt-2 grid grid-cols-7 text-center text-[0.65rem] font-semibold uppercase tracking-[0.08em] text-[#7b8da0] gap-1`}
       >
         {dictionary.calendar.weekdays.map((weekday) => (
           <span key={weekday} className="leading-8">
@@ -128,7 +121,7 @@ export function CalendarMonthPanel({
         ))}
       </div>
 
-      <div className={`grid grid-cols-7 ${gridGapClassName}`}>
+      <div className="grid grid-cols-7 gap-1">
         {monthDays.map((day) => {
           const dayDate = parseLocalDateKey(day.date);
           const isSelected = day.date === selectedDate;
@@ -139,9 +132,7 @@ export function CalendarMonthPanel({
               type="button"
               aria-label={dateFormatter.format(dayDate)}
               aria-pressed={isSelected}
-              className={`inline-flex size-8 items-center justify-center rounded-full text-xs font-medium tabular-nums transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e] ${
-                touchCells ? 'touch:size-11' : ''
-              } ${getDayToneClassName(isSelected, day.date === today)} ${
+              className={`inline-flex size-8 items-center justify-center rounded-full text-xs font-medium tabular-nums transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e] ${getDayToneClassName(isSelected, day.date === today)} ${
                 dayDate.getMonth() === monthNumber ? '' : 'opacity-35'
               }`}
               onClick={() => onSelectDate(day.date)}

@@ -2,7 +2,10 @@
 
 import { ArrowLeft } from 'lucide-react';
 import { useCallback } from 'react';
-import { filledPillControlClassName } from '@/components/ui';
+import {
+  filledPillControlClassName,
+  taskListSurfaceClassName,
+} from '@/components/ui';
 import { ChecklistSurface } from '@/features/checklist';
 import {
   duplicateChecklistItemsToDate,
@@ -108,7 +111,8 @@ export function DayDetail({
 
       <section
         aria-label={title}
-        className="flex min-h-0 flex-col rounded-[0.75rem] bg-white/[0.035] p-3 shadow-[0_18px_44px_rgba(5,8,13,0.16)] sm:p-4"
+        data-testid="task-list-surface"
+        className={`flex min-h-0 flex-col ${taskListSurfaceClassName}`}
       >
         {entry ? (
           <ChecklistSurface dailyEntryId={entry.id} />

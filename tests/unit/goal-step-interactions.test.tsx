@@ -434,7 +434,7 @@ describe('GoalsSurface', () => {
       'inline-flex',
       'items-center',
       'justify-center',
-      'size-10',
+      'size-9',
       'rounded-full',
       'bg-white/8',
       'text-[#f8f3ea]',

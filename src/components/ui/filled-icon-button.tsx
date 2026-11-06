@@ -4,7 +4,7 @@ import {
   filledControlAccentClassName,
   filledControlDangerClassName,
   filledControlNeutralClassName,
-  filledRoundControlClassName,
+  filledMediumRoundControlClassName,
 } from './filled-control';
 
 const fillClassNames = {
@@ -37,7 +37,7 @@ export const FilledIconButton = forwardRef<
       <button
         ref={ref}
         aria-label={ariaLabel}
-        className={`${filledRoundControlClassName} ${fillClassNames[fill]}`}
+        className={`${filledMediumRoundControlClassName} ${fillClassNames[fill]}`}
         type={type}
         {...props}
       >

@@ -8,9 +8,11 @@ import { useAppContext } from '@/providers';
 import { CategoryManagerDialog } from './category-manager';
 
 export function CategoryManagerAction({
+  className = filledPillControlClassName,
   surface,
   title,
 }: {
+  className?: string;
   surface: CategoryTagSurface;
   title: string;
 }) {
@@ -20,7 +22,7 @@ export function CategoryManagerAction({
   return (
     <>
       <button
-        className={filledPillControlClassName}
+        className={className}
         type="button"
         onClick={() => setIsOpen(true)}
       >

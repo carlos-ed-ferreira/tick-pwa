@@ -31,6 +31,8 @@ test('reloads the functional app shell while offline', async ({
 
   await page.goto('/recurring');
   await expect(
-    page.getByRole('button', { name: /^(new activity|nova atividade)$/i }),
+    page.getByRole('button', {
+      name: /^(new activity|nova atividade|start by creating a recurring activity|comece criando uma atividade recorrente)$/i,
+    }),
   ).toBeVisible();
 });

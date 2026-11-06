@@ -136,7 +136,11 @@ test('converges the same recurring answer given offline by two sessions', async 
 
     await signIn(left, '2026-11-05');
     await left.goto('http://127.0.0.1:3102/recurring');
-    await left.getByRole('button', { name: 'New activity' }).click();
+    await left
+      .getByRole('button', {
+        name: /^(new activity|start by creating a recurring activity)$/i,
+      })
+      .click();
     await left.getByRole('dialog').getByLabel('Activity name').fill(activity);
     await left
       .getByRole('dialog')

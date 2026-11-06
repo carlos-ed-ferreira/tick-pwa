@@ -69,7 +69,9 @@ bloquear somente operações rejeitadas pelo servidor, com teste de integração
 Em outra execução, a convergência de duas sessões terminou com a edição do
 primeiro dispositivo em vez da do segundo após o push forçado.
 
-O ensaio passou no App CI do `59c372b`.
+O ensaio passou no App CI do `59c372b`. Em 2026-11-06, a convergência de duas
+sessões voltou a falhar com o mesmo sintoma em `make test-account-browser` local,
+com a máquina sob carga, e passou nas repetições.
 
 - [ ] Acompanhar as próximas execuções do App CI para confirmar estabilidade.
 - [ ] Se a convergência voltar a falhar, analisar o trace e distinguir
