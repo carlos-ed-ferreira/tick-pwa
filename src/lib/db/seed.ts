@@ -264,6 +264,23 @@ export async function clearGuestDefaultCategoryTagTracking(
   });
 }
 
+const guestCategorySurfaces: CategoryTagSurface[] = [
+  'checklist_item',
+  'goal_group',
+  'goal',
+  'goal_step',
+  'recurrence',
+];
+
+export async function seedGuestCategoryTags(
+  scope: AppScope,
+  locale: SupportedLocale,
+): Promise<void> {
+  for (const surface of guestCategorySurfaces) {
+    await seedDefaultCategoryTags(scope, locale, surface);
+  }
+}
+
 export async function seedDefaultCategoryTags(
   scope: AppScope,
   locale: SupportedLocale,

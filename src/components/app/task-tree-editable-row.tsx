@@ -155,6 +155,24 @@ async function createAndFocusNewItem(
   }
 }
 
+function resolveRowPreferences({
+  actionPreferences,
+  isTouchComposition,
+  structureOnly,
+}: {
+  actionPreferences: TaskTreeRowActionPreferences;
+  isTouchComposition: boolean;
+  structureOnly: boolean;
+}): TaskTreeRowActionPreferences {
+  const preferences = isTouchComposition
+    ? touchTaskTreeRowActionPreferences(actionPreferences)
+    : actionPreferences;
+
+  return structureOnly
+    ? { ...preferences, category: 'hidden', clearCategory: 'hidden' }
+    : preferences;
+}
+
 export function TaskTreeEditableRow({
   actionPreferences = defaultTaskTreeRowActionPreferences,
   bold,
@@ -202,6 +220,7 @@ export function TaskTreeEditableRow({
   scheduledTime = null,
   showScheduledDate = false,
   showScheduledTime = false,
+  structureOnly = false,
 }: {
   actionPreferences?: TaskTreeRowActionPreferences;
   bold: boolean;
@@ -220,7 +239,8 @@ export function TaskTreeEditableRow({
   inputDataAttribute:
     | 'data-bulk-checklist-input'
     | 'data-checklist-input'
-    | 'data-goal-step-input';
+    | 'data-goal-step-input'
+    | 'data-recurrence-child-input';
   inputSelector: string;
   isFirstSibling: boolean;
   isLastSibling: boolean;
@@ -259,6 +279,7 @@ export function TaskTreeEditableRow({
   scheduledTime?: string | null;
   showScheduledDate?: boolean;
   showScheduledTime?: boolean;
+  structureOnly?: boolean;
 }) {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [dropPosition, setDropPosition] = useState<TreeMovePlacement | null>(
@@ -267,9 +288,11 @@ export function TaskTreeEditableRow({
   const [isDragging, setIsDragging] = useState(false);
   const [isTextMultiline, setIsTextMultiline] = useState(false);
   const isTouchComposition = useTouchComposition();
-  const effectivePreferences = isTouchComposition
-    ? touchTaskTreeRowActionPreferences(actionPreferences)
-    : actionPreferences;
+  const effectivePreferences = resolveRowPreferences({
+    actionPreferences,
+    isTouchComposition,
+    structureOnly,
+  });
   const normalizedScheduledTime = scheduledTime ?? '';
   const isSelectionMode = selection?.isSelectionMode === true;
   const [timeState, setTimeState] = useState({
@@ -776,18 +799,20 @@ export function TaskTreeEditableRow({
           </IconButton>
         ) : null}
 
-        <TaskCompletionCheckbox
-          completionSettings={completionSettings}
-          disabled={availability.inlineDisabled.checkbox}
-          labels={labels}
-          values={displayedCompletion}
-          onSelect={
-            onSetCompletion || selection?.isSelectionMode
-              ? selectCompletion
-              : undefined
-          }
-          onToggle={toggleChecked}
-        />
+        {structureOnly ? null : (
+          <TaskCompletionCheckbox
+            completionSettings={completionSettings}
+            disabled={availability.inlineDisabled.checkbox}
+            labels={labels}
+            values={displayedCompletion}
+            onSelect={
+              onSetCompletion || selection?.isSelectionMode
+                ? selectCompletion
+                : undefined
+            }
+            onToggle={toggleChecked}
+          />
+        )}
 
         {showScheduledTime && effectivePreferences.scheduledTime
           ? scheduledTimeField
@@ -832,7 +857,7 @@ export function TaskTreeEditableRow({
         ) : null}
 
         <TaskTreeActionGroup>
-          {selection || isDraft ? (
+          {selection || (isDraft && !structureOnly) ? (
             <TaskTreeSelectionButton
               deselectLabel={labels.deselectItem}
               disabled={!selection}

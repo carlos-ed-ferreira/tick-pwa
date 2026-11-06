@@ -19,7 +19,7 @@ import {
   deleteLocalPreference,
   getLocalPreference,
   getOrCreateInstallationId,
-  seedDefaultCategoryTags,
+  seedGuestCategoryTags,
   setLocalPreference,
 } from '@/lib/db';
 import { resumeAccountPersistence } from '@/lib/db/account-persistence';
@@ -215,10 +215,7 @@ export function AppProvider({
       const guestScope = createGuestScope(installationId);
       const nextLocale = await applyScopedPreferences(guestScope);
 
-      await seedDefaultCategoryTags(guestScope, nextLocale, 'checklist_item');
-      await seedDefaultCategoryTags(guestScope, nextLocale, 'goal_group');
-      await seedDefaultCategoryTags(guestScope, nextLocale, 'goal');
-      await seedDefaultCategoryTags(guestScope, nextLocale, 'goal_step');
+      await seedGuestCategoryTags(guestScope, nextLocale);
 
       if (persistChoice) {
         await setLocalPreference<AccessModePreference>(
@@ -515,10 +512,7 @@ export function AppProvider({
           );
 
           if (scope.kind === 'guest') {
-            await seedDefaultCategoryTags(scope, nextLocale, 'checklist_item');
-            await seedDefaultCategoryTags(scope, nextLocale, 'goal_group');
-            await seedDefaultCategoryTags(scope, nextLocale, 'goal');
-            await seedDefaultCategoryTags(scope, nextLocale, 'goal_step');
+            await seedGuestCategoryTags(scope, nextLocale);
           }
         })();
       }

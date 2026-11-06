@@ -268,6 +268,94 @@ export async function reorderCategoryTag({
   });
 }
 
+async function clearRecurrenceCategory(
+  scope: AppScope,
+  categoryTagId: string,
+  now: string,
+): Promise<void> {
+  const recurrences = await db.recurrences
+    .where('scopeId')
+    .equals(scope.id)
+    .filter(
+      (recurrence) =>
+        recurrence.deletedAt === null &&
+        (recurrence.categoryTagId === categoryTagId ||
+          recurrence.contentHistory.some(
+            (snapshot) => snapshot.categoryTagId === categoryTagId,
+          )),
+    )
+    .toArray();
+
+  for (const recurrence of recurrences) {
+    const updated = {
+      ...recurrence,
+      categoryTagId:
+        recurrence.categoryTagId === categoryTagId
+          ? null
+          : recurrence.categoryTagId,
+      contentHistory: recurrence.contentHistory.map((snapshot) =>
+        snapshot.categoryTagId === categoryTagId
+          ? { ...snapshot, categoryTagId: null }
+          : snapshot,
+      ),
+      updatedAt: now,
+      syncStatus: getEntitySyncStatus(scope),
+      clientUpdatedAt: now,
+    };
+
+    await db.recurrences.put(updated);
+    await persistAccountEntityChange({
+      scope,
+      entityType: 'recurrence',
+      entityId: updated.id,
+      operation: 'upsert',
+      payload: updated as unknown as Record<string, unknown>,
+      changedFields: ['categoryTagId'],
+      baseRevision: updated.remoteRevision,
+    });
+  }
+}
+
+async function clearGoalStepCategory(
+  scope: AppScope,
+  categoryTagId: string,
+  now: string,
+): Promise<void> {
+  const affectedGoalSteps = await db.goalSteps
+    .where('scopeId')
+    .equals(scope.id)
+    .filter(
+      (goalStep) =>
+        goalStep.deletedAt === null && goalStep.categoryTagId === categoryTagId,
+    )
+    .toArray();
+
+  for (const goalStep of affectedGoalSteps) {
+    await db.goalSteps.put({
+      ...goalStep,
+      categoryTagId: null,
+      updatedAt: now,
+      syncStatus: getEntitySyncStatus(scope),
+      clientUpdatedAt: now,
+    } as GoalStep);
+    await persistAccountEntityChange({
+      scope,
+      entityType: 'goalStep',
+      entityId: goalStep.id,
+      operation: 'upsert',
+      payload: {
+        ...goalStep,
+        categoryTagId: null,
+        updatedAt: now,
+        syncStatus: getEntitySyncStatus(scope),
+        clientUpdatedAt: now,
+      } as unknown as Record<string, unknown>,
+      changedFields: ['categoryTagId'],
+      baseRevision: goalStep.remoteRevision,
+    });
+  }
+}
+
 export async function softDeleteCategoryTag({
   scope,
   categoryTagId,
@@ -285,6 +373,7 @@ export async function softDeleteCategoryTag({
       db.goalGroups,
       db.goals,
       db.goalSteps,
+      db.recurrences,
       db.localPreferences,
     ],
     async () => {
@@ -299,6 +388,7 @@ export async function softDeleteCategoryTag({
       }
 
       const now = createTimestamp();
+      await clearRecurrenceCategory(scope, categoryTag.id, now);
       const deletedCategoryTag = touchCategoryTag(scope, {
         ...categoryTag,
         deletedAt: now,
@@ -412,40 +502,7 @@ export async function softDeleteCategoryTag({
         });
       }
 
-      const affectedGoalSteps = await db.goalSteps
-        .where('scopeId')
-        .equals(scope.id)
-        .filter(
-          (goalStep) =>
-            goalStep.deletedAt === null &&
-            goalStep.categoryTagId === categoryTag.id,
-        )
-        .toArray();
-
-      for (const goalStep of affectedGoalSteps) {
-        await db.goalSteps.put({
-          ...goalStep,
-          categoryTagId: null,
-          updatedAt: now,
-          syncStatus: getEntitySyncStatus(scope),
-          clientUpdatedAt: now,
-        } as GoalStep);
-        await persistAccountEntityChange({
-          scope,
-          entityType: 'goalStep',
-          entityId: goalStep.id,
-          operation: 'upsert',
-          payload: {
-            ...goalStep,
-            categoryTagId: null,
-            updatedAt: now,
-            syncStatus: getEntitySyncStatus(scope),
-            clientUpdatedAt: now,
-          } as unknown as Record<string, unknown>,
-          changedFields: ['categoryTagId'],
-          baseRevision: goalStep.remoteRevision,
-        });
-      }
+      await clearGoalStepCategory(scope, categoryTag.id, now);
     },
   );
 }

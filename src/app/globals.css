@@ -3,27 +3,28 @@
 @custom-variant touch (@media (pointer: coarse) and (max-width: 899.98px));
 
 :root {
-  --background: #f6efe6;
-  --foreground: #253241;
-  --surface: #fff9f2;
-  --surface-2: #f3ece2;
-  --surface-3: #ebe1d1;
-  --muted: #5d6a79;
-  --border: rgba(37, 50, 65, 0.12);
-  --border-strong: rgba(37, 50, 65, 0.24);
-  --primary: #253241;
-  --primary-foreground: #fff9f2;
-  --secondary: #3a495a;
+  color-scheme: dark;
+  --background: #0c131a;
+  --foreground: #f8f3ea;
+  --surface: #16202c;
+  --surface-2: #1d2938;
+  --surface-3: #243345;
+  --muted: #aebac8;
+  --border: rgba(255, 248, 235, 0.1);
+  --border-strong: rgba(255, 248, 235, 0.28);
+  --primary: #f8f3ea;
+  --primary-foreground: #253241;
+  --secondary: #4a5d72;
   --accent: #f0c38e;
   --accent-foreground: #253241;
   --accent-2: #a5beda;
   --accent-2-foreground: #253241;
-  --text-muted: #5d6a79;
-  --text-subtle: #7c8997;
-  --accent-soft: rgba(240, 195, 142, 0.18);
+  --text-muted: #aebac8;
+  --text-subtle: #7b8da0;
+  --accent-soft: rgba(240, 195, 142, 0.16);
   --danger-soft: rgba(244, 132, 132, 0.14);
-  --scrollbar-thumb: rgba(37, 50, 65, 0.3);
-  --scrollbar-thumb-hover: rgba(37, 50, 65, 0.5);
+  --scrollbar-thumb: rgba(203, 213, 224, 0.3);
+  --scrollbar-thumb-hover: rgba(203, 213, 224, 0.5);
   --scrollbar-track: transparent;
   --hairline: 1.5px;
   --app-bottom-nav-height: 0px;
@@ -60,32 +61,6 @@
   --color-accent-2-foreground: var(--accent-2-foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0c131a;
-    --foreground: #f8f3ea;
-    --surface: #16202c;
-    --surface-2: #1d2938;
-    --surface-3: #243345;
-    --muted: #aebac8;
-    --border: rgba(255, 248, 235, 0.1);
-    --border-strong: rgba(255, 248, 235, 0.28);
-    --primary: #f8f3ea;
-    --primary-foreground: #253241;
-    --secondary: #4a5d72;
-    --accent: #f0c38e;
-    --accent-foreground: #253241;
-    --accent-2: #a5beda;
-    --accent-2-foreground: #253241;
-    --text-muted: #aebac8;
-    --text-subtle: #7b8da0;
-    --accent-soft: rgba(240, 195, 142, 0.16);
-    --danger-soft: rgba(244, 132, 132, 0.14);
-    --scrollbar-thumb: rgba(203, 213, 224, 0.3);
-    --scrollbar-thumb-hover: rgba(203, 213, 224, 0.5);
-  }
 }
 
 * {
@@ -131,12 +106,12 @@ body {
   background-image:
     radial-gradient(
       circle at top left,
-      rgba(58, 73, 90, 0.08),
+      rgba(62, 85, 110, 0.42),
       transparent 28%
     ),
     radial-gradient(
       circle at top right,
-      rgba(240, 195, 142, 0.14),
+      rgba(240, 195, 142, 0.16),
       transparent 24%
     ),
     radial-gradient(
@@ -144,32 +119,10 @@ body {
       rgba(165, 190, 218, 0.1),
       transparent 28%
     ),
-    linear-gradient(180deg, #fbf7f1 0%, #f5efe6 56%, #efe5d6 100%);
+    linear-gradient(180deg, #0c131a 0%, #121b25 58%, #0c121a 100%);
   background-attachment: fixed;
   color: var(--foreground);
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
-}
-
-@media (prefers-color-scheme: dark) {
-  body {
-    background-image:
-      radial-gradient(
-        circle at top left,
-        rgba(62, 85, 110, 0.42),
-        transparent 28%
-      ),
-      radial-gradient(
-        circle at top right,
-        rgba(240, 195, 142, 0.16),
-        transparent 24%
-      ),
-      radial-gradient(
-        circle at 18% 85%,
-        rgba(165, 190, 218, 0.1),
-        transparent 28%
-      ),
-      linear-gradient(180deg, #0c131a 0%, #121b25 58%, #0c121a 100%);
-  }
 }
 
 @layer components {

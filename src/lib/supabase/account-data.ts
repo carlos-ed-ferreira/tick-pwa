@@ -10,13 +10,9 @@ import {
   goalFromRemote,
   goalGroupFromRemote,
   goalStepFromRemote,
+  recurrenceFromRemote,
+  recurrenceResponseFromRemote,
   toRemotePayload,
-  type RemoteCategoryTag,
-  type RemoteChecklistItem,
-  type RemoteDailyEntry,
-  type RemoteGoal,
-  type RemoteGoalGroup,
-  type RemoteGoalStep,
 } from './entity-mappers';
 
 export async function persistAccountEntity({
@@ -54,6 +50,46 @@ export async function persistAccountEntity({
 
   return row?.revision ?? null;
 }
+
+interface RestorableEntity {
+  clientUpdatedAt: string;
+  id: string;
+}
+
+interface RestoreTarget {
+  table: () => Table<RestorableEntity, string>;
+  fromRemote: (scope: AppScope, row: never) => RestorableEntity;
+}
+
+function createRestoreTarget<TEntity extends RestorableEntity, TRow>(
+  table: () => Table<TEntity, string>,
+  fromRemote: (scope: AppScope, row: TRow) => TEntity,
+): RestoreTarget {
+  return {
+    table: table as unknown as RestoreTarget['table'],
+    fromRemote: fromRemote as RestoreTarget['fromRemote'],
+  };
+}
+
+const restoreTargets: Record<SyncEntityType, RestoreTarget> = {
+  categoryTag: createRestoreTarget(
+    () => db.categoryTags,
+    categoryTagFromRemote,
+  ),
+  dailyEntry: createRestoreTarget(() => db.dailyEntries, dailyEntryFromRemote),
+  checklistItem: createRestoreTarget(
+    () => db.checklistItems,
+    checklistItemFromRemote,
+  ),
+  goal: createRestoreTarget(() => db.goals, goalFromRemote),
+  goalGroup: createRestoreTarget(() => db.goalGroups, goalGroupFromRemote),
+  goalStep: createRestoreTarget(() => db.goalSteps, goalStepFromRemote),
+  recurrence: createRestoreTarget(() => db.recurrences, recurrenceFromRemote),
+  recurrenceResponse: createRestoreTarget(
+    () => db.recurrenceResponses,
+    recurrenceResponseFromRemote,
+  ),
+};
 
 export async function restoreAccountEntity({
   entityId,
@@ -107,79 +143,11 @@ export async function restoreAccountEntity({
     });
   }
 
-  if (!data) {
-    if (entityType === 'categoryTag') {
-      await replaceCurrentEntity(db.categoryTags, null);
-      return;
-    }
-
-    if (entityType === 'dailyEntry') {
-      await replaceCurrentEntity(db.dailyEntries, null);
-      return;
-    }
-
-    if (entityType === 'checklistItem') {
-      await replaceCurrentEntity(db.checklistItems, null);
-      return;
-    }
-
-    if (entityType === 'goal') {
-      await replaceCurrentEntity(db.goals, null);
-      return;
-    }
-
-    if (entityType === 'goalGroup') {
-      await replaceCurrentEntity(db.goalGroups, null);
-      return;
-    }
-
-    await replaceCurrentEntity(db.goalSteps, null);
-    return;
-  }
-
-  if (entityType === 'categoryTag') {
-    await replaceCurrentEntity(
-      db.categoryTags,
-      categoryTagFromRemote(scope, data as RemoteCategoryTag),
-    );
-    return;
-  }
-
-  if (entityType === 'dailyEntry') {
-    await replaceCurrentEntity(
-      db.dailyEntries,
-      dailyEntryFromRemote(scope, data as RemoteDailyEntry),
-    );
-    return;
-  }
-
-  if (entityType === 'checklistItem') {
-    await replaceCurrentEntity(
-      db.checklistItems,
-      checklistItemFromRemote(scope, data as RemoteChecklistItem),
-    );
-    return;
-  }
-
-  if (entityType === 'goal') {
-    await replaceCurrentEntity(
-      db.goals,
-      goalFromRemote(scope, data as RemoteGoal),
-    );
-    return;
-  }
-
-  if (entityType === 'goalGroup') {
-    await replaceCurrentEntity(
-      db.goalGroups,
-      goalGroupFromRemote(scope, data as RemoteGoalGroup),
-    );
-    return;
-  }
+  const target = restoreTargets[entityType];
 
   await replaceCurrentEntity(
-    db.goalSteps,
-    goalStepFromRemote(scope, data as RemoteGoalStep),
+    target.table(),
+    data ? target.fromRemote(scope, data as never) : null,
   );
 }
 

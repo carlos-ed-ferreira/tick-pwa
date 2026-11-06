@@ -48,7 +48,7 @@ select ok(
     select pg_get_constraintdef(oid)
     from pg_constraint
     where conname = 'category_tags_surface_check'
-  ) like '%checklist_item%goal_group%goal%goal_step%',
+  ) like '%checklist_item%goal_group%goal%goal_step%recurrence%',
   'category surfaces are constrained'
 );
 
@@ -79,10 +79,12 @@ select ok(
         'checklist_items',
         'goal_groups',
         'goals',
-        'goal_steps'
+        'goal_steps',
+        'recurrences',
+        'recurrence_responses'
       )
       and rowsecurity
-  ) = 7,
+  ) = 9,
   'all functional tables have RLS enabled'
 );
 

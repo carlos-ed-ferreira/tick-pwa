@@ -28,4 +28,9 @@ test('reloads the functional app shell while offline', async ({
   await expect(
     page.getByRole('button', { name: labels.backToCalendar }),
   ).toBeVisible();
+
+  await page.goto('/recurring');
+  await expect(
+    page.getByRole('button', { name: /^(new activity|nova atividade)$/i }),
+  ).toBeVisible();
 });

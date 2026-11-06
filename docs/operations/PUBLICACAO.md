@@ -14,7 +14,7 @@ repair conhecido, dry-run, push e conferência do histórico remoto executam em
 sequência, inclusive quando o último commit não altera arquivos de banco.
 
 O deploy confere SHA efetivo, projeto e Production, espera `READY` com polling
-limitado e timeout do job de 15 minutos, e testa `/`, `/calendar` e `/goals`.
+limitado e timeout do job de 15 minutos, e testa `/`, `/calendar`, `/goals` e `/recurring`.
 O smoke exige HTTP bem-sucedido, HTML e marcador `tick-release` do SHA aprovado.
 Ele roda na URL imutável do deployment, depois da promoção; não testa login,
 API de dados ou resolução do domínio canônico.

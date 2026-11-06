@@ -1,8 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { createGuestScope } from '@/lib/domain';
+import { createGuestScope, createUserScope } from '@/lib/domain';
 import {
   db,
   seedDefaultCategoryTags,
+  seedGuestCategoryTags,
   softDeleteCategoryTag,
   updateCategoryTag,
 } from '@/lib/db';
@@ -178,5 +179,46 @@ describe('guest default category lifecycle', () => {
       'CASA',
     ]);
     expect(categoryTags).toHaveLength(3);
+  });
+});
+
+describe('guest default categories of every surface', () => {
+  beforeEach(async () => {
+    await db.delete();
+    await db.open();
+  });
+
+  afterEach(async () => {
+    await db.delete();
+  });
+
+  it('seeds recurring categories apart from the other surfaces', async () => {
+    const scope = createGuestScope('guest-recurring-seed');
+
+    await seedGuestCategoryTags(scope, 'en');
+    await seedGuestCategoryTags(scope, 'en');
+
+    const recurring = await db.categoryTags
+      .where('[scopeId+surface]')
+      .equals([scope.id, 'recurrence'])
+      .toArray();
+    const daily = await db.categoryTags
+      .where('[scopeId+surface]')
+      .equals([scope.id, 'checklist_item'])
+      .toArray();
+
+    expect(recurring.length).toBeGreaterThan(0);
+    expect(recurring).toHaveLength(daily.length);
+    expect(
+      recurring.some((tag) => daily.some((other) => other.id === tag.id)),
+    ).toBe(false);
+  });
+
+  it('does not seed an account', async () => {
+    const scope = createUserScope('account-recurring-seed');
+
+    await seedGuestCategoryTags(scope, 'en');
+
+    await expect(db.categoryTags.count()).resolves.toBe(0);
   });
 });

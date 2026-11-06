@@ -601,6 +601,20 @@ describe('CalendarMonth', () => {
     expect(screen.getByRole('button', { name: 'Back' })).toBeInTheDocument();
   });
 
+  it('returns to the recurring date when the day was opened from there', () => {
+    window.history.replaceState(
+      {},
+      '',
+      '/calendar?day=2026-05-21&from=recurring',
+    );
+
+    render(<CalendarMonth />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+
+    expect(routerPushMock).toHaveBeenCalledWith('/recurring?date=2026-05-21');
+  });
+
   it('navigates back to the calendar from the day detail view', () => {
     window.history.replaceState({}, '', '/calendar?day=2026-05-21');
 

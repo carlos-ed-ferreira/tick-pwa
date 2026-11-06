@@ -271,6 +271,8 @@ async function markOperationSyncing(
       db.goalGroups,
       db.goals,
       db.goalSteps,
+      db.recurrences,
+      db.recurrenceResponses,
     ],
     async () => {
       const current = await db.syncOutbox.get(item.id);
@@ -348,6 +350,8 @@ async function markOperationFailed(
       db.goalGroups,
       db.goals,
       db.goalSteps,
+      db.recurrences,
+      db.recurrenceResponses,
     ],
     async () => {
       const current = await db.syncOutbox.get(item.id);
@@ -390,6 +394,8 @@ async function returnOperationToPending(
       db.goalGroups,
       db.goals,
       db.goalSteps,
+      db.recurrences,
+      db.recurrenceResponses,
     ],
     async () => {
       const current = await db.syncOutbox.get(item.id);
@@ -516,6 +522,8 @@ async function completeOperation(
       db.goalGroups,
       db.goals,
       db.goalSteps,
+      db.recurrences,
+      db.recurrenceResponses,
     ],
     async () => {
       const futureItems = (
@@ -666,6 +674,12 @@ async function processOperation(
   }
 }
 
+const staleFailureCodes = new Set(['PT409', '40001']);
+
+function isStaleFailure(item: AccountOperationOutboxItem): boolean {
+  return item.rebasedAt !== null && staleFailureCodes.has(item.lastError ?? '');
+}
+
 function hasExhaustedAutomaticAttempts(
   item: AccountOperationOutboxItem,
 ): boolean {
@@ -699,7 +713,7 @@ async function drainOperations(
   for (const item of items) {
     if (
       item.status === 'failed' &&
-      (!includeFailed || (!includeStaleFailures && item.lastError === '40001'))
+      (!includeFailed || (!includeStaleFailures && isStaleFailure(item)))
     ) {
       break;
     }

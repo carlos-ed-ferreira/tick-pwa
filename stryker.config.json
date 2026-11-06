@@ -5,6 +5,7 @@
   "vitest": { "configFile": "vitest.mutation.config.ts" },
   "mutate": [
     "src/lib/domain/task-completion.ts",
+    "src/lib/domain/recurrence.ts",
     "src/lib/db/entity-metadata.ts",
     "src/lib/supabase/account-cache-baseline.ts"
   ],

@@ -8,6 +8,8 @@ import type {
   Goal,
   GoalGroup,
   GoalStep,
+  Recurrence,
+  RecurrenceResponse,
   SyncEntityType,
 } from '@/lib/domain';
 import { normalizeTaskCompletionValues } from '@/lib/domain';
@@ -18,7 +20,9 @@ export type RemoteEntityTable =
   | 'checklist_items'
   | 'goal_groups'
   | 'goals'
-  | 'goal_steps';
+  | 'goal_steps'
+  | 'recurrences'
+  | 'recurrence_responses';
 
 interface RemoteBaseRow {
   id: string;
@@ -98,32 +102,42 @@ export type RemoteRow =
   | RemoteChecklistItem
   | RemoteGoalGroup
   | RemoteGoal
-  | RemoteGoalStep;
+  | RemoteGoalStep
+  | RemoteRecurrence
+  | RemoteRecurrenceResponse;
+
+export interface RemoteRecurrence extends RemoteBaseRow {
+  category_tag_id: string | null;
+  text: string;
+  bold: boolean;
+  priority: boolean;
+  children: unknown;
+  schedule: unknown;
+  content_history: unknown;
+}
+
+export interface RemoteRecurrenceResponse extends RemoteBaseRow {
+  recurrence_id: string;
+  date: string;
+  item_id: string | null;
+  status: string;
+}
+
+const remoteTableNames: Record<SyncEntityType, RemoteEntityTable> = {
+  categoryTag: 'category_tags',
+  dailyEntry: 'daily_entries',
+  checklistItem: 'checklist_items',
+  goalGroup: 'goal_groups',
+  goal: 'goals',
+  goalStep: 'goal_steps',
+  recurrence: 'recurrences',
+  recurrenceResponse: 'recurrence_responses',
+};
 
 export function getRemoteTableName(
   entityType: SyncEntityType,
 ): RemoteEntityTable {
-  if (entityType === 'categoryTag') {
-    return 'category_tags';
-  }
-
-  if (entityType === 'dailyEntry') {
-    return 'daily_entries';
-  }
-
-  if (entityType === 'checklistItem') {
-    return 'checklist_items';
-  }
-
-  if (entityType === 'goalGroup') {
-    return 'goal_groups';
-  }
-
-  if (entityType === 'goal') {
-    return 'goals';
-  }
-
-  return 'goal_steps';
+  return remoteTableNames[entityType];
 }
 
 function serializeBaseEntity(scope: AppScope, entity: RemoteLocalEntity) {
@@ -143,7 +157,9 @@ type RemoteLocalEntity =
   | ChecklistItem
   | GoalGroup
   | Goal
-  | GoalStep;
+  | GoalStep
+  | Recurrence
+  | RecurrenceResponse;
 
 function parseCategorySummaries(value: unknown): DailyEntryCategorySummary[] {
   if (!Array.isArray(value)) {
@@ -172,106 +188,136 @@ function parseCategorySummaries(value: unknown): DailyEntryCategorySummary[] {
   });
 }
 
+type RemoteSerializer<TEntity> = (
+  scope: AppScope,
+  entity: TEntity,
+) => Record<string, unknown>;
+
+const serializeCategoryTag: RemoteSerializer<CategoryTag> = (
+  scope,
+  categoryTag,
+) => {
+  const surface =
+    categoryTag.surface === 'calendar'
+      ? 'checklist_item'
+      : categoryTag.surface === 'goals'
+        ? 'goal'
+        : categoryTag.surface;
+
+  return {
+    ...serializeBaseEntity(scope, categoryTag),
+    name: categoryTag.name,
+    color_hex: categoryTag.colorHex,
+    position: categoryTag.position,
+    surface,
+    use_own_name: categoryTag.useOwnName,
+  };
+};
+
+const serializeDailyEntry: RemoteSerializer<DailyEntry> = (scope, entry) => ({
+  ...serializeBaseEntity(scope, entry),
+  date: entry.date,
+  timezone: entry.timezone,
+  item_count: entry.itemCount,
+  completed_count: entry.completedCount,
+  category_tag_ids: entry.categoryTagIds,
+  category_summaries: entry.categorySummaries ?? [],
+});
+
+const serializeChecklistItem: RemoteSerializer<ChecklistItem> = (
+  scope,
+  item,
+) => ({
+  ...serializeBaseEntity(scope, item),
+  daily_entry_id: item.dailyEntryId,
+  parent_id: item.parentId,
+  text: item.text,
+  scheduled_time: item.scheduledTime,
+  checked: item.checked,
+  ignored: item.ignored,
+  mark_level: item.markLevel,
+  bold: item.bold,
+  priority: item.priority,
+  collapsed: item.collapsed,
+  category_tag_id: item.categoryTagId,
+  sort_rank: item.sortRank,
+});
+
+const serializeGoalGroup: RemoteSerializer<GoalGroup> = (scope, goalGroup) => ({
+  ...serializeBaseEntity(scope, goalGroup),
+  title: goalGroup.title,
+  category_tag_id: goalGroup.categoryTagId,
+  sort_rank: goalGroup.sortRank,
+});
+
+const serializeGoal: RemoteSerializer<Goal> = (scope, goal) => ({
+  ...serializeBaseEntity(scope, goal),
+  group_id: goal.groupId,
+  title: goal.title,
+  due_date: goal.dueDate,
+  category_tag_id: goal.categoryTagId,
+  sort_rank: goal.sortRank,
+  completed_at: goal.completedAt,
+});
+
+const serializeGoalStep: RemoteSerializer<GoalStep> = (scope, goalStep) => ({
+  ...serializeBaseEntity(scope, goalStep),
+  goal_id: goalStep.goalId,
+  parent_id: goalStep.parentId,
+  text: goalStep.text,
+  completed: goalStep.completed,
+  ignored: goalStep.ignored,
+  mark_level: goalStep.markLevel,
+  bold: goalStep.bold,
+  priority: goalStep.priority,
+  collapsed: goalStep.collapsed,
+  category_tag_id: goalStep.categoryTagId,
+  scheduled_date: goalStep.scheduledDate,
+  sort_rank: goalStep.sortRank,
+});
+
+const serializeRecurrence: RemoteSerializer<Recurrence> = (
+  scope,
+  recurrence,
+) => ({
+  ...serializeBaseEntity(scope, recurrence),
+  category_tag_id: recurrence.categoryTagId,
+  text: recurrence.text,
+  bold: recurrence.bold,
+  priority: recurrence.priority,
+  children: recurrence.children,
+  schedule: recurrence.schedule,
+  content_history: recurrence.contentHistory,
+});
+
+const serializeRecurrenceResponse: RemoteSerializer<RecurrenceResponse> = (
+  scope,
+  response,
+) => ({
+  ...serializeBaseEntity(scope, response),
+  recurrence_id: response.recurrenceId,
+  date: response.date,
+  item_id: response.itemId,
+  status: response.status,
+});
+
+const remoteSerializers: Record<SyncEntityType, RemoteSerializer<never>> = {
+  categoryTag: serializeCategoryTag,
+  dailyEntry: serializeDailyEntry,
+  checklistItem: serializeChecklistItem,
+  goalGroup: serializeGoalGroup,
+  goal: serializeGoal,
+  goalStep: serializeGoalStep,
+  recurrence: serializeRecurrence,
+  recurrenceResponse: serializeRecurrenceResponse,
+};
+
 export function toRemotePayload(
   scope: AppScope,
   entityType: SyncEntityType,
   payload: Record<string, unknown>,
 ): Record<string, unknown> {
-  if (entityType === 'categoryTag') {
-    const categoryTag = payload as unknown as CategoryTag;
-    const surface =
-      categoryTag.surface === 'calendar'
-        ? 'checklist_item'
-        : categoryTag.surface === 'goals'
-          ? 'goal'
-          : categoryTag.surface;
-
-    return {
-      ...serializeBaseEntity(scope, categoryTag),
-      name: categoryTag.name,
-      color_hex: categoryTag.colorHex,
-      position: categoryTag.position,
-      surface,
-      use_own_name: categoryTag.useOwnName,
-    };
-  }
-
-  if (entityType === 'dailyEntry') {
-    const entry = payload as unknown as DailyEntry;
-
-    return {
-      ...serializeBaseEntity(scope, entry),
-      date: entry.date,
-      timezone: entry.timezone,
-      item_count: entry.itemCount,
-      completed_count: entry.completedCount,
-      category_tag_ids: entry.categoryTagIds,
-      category_summaries: entry.categorySummaries ?? [],
-    };
-  }
-
-  if (entityType === 'checklistItem') {
-    const item = payload as unknown as ChecklistItem;
-
-    return {
-      ...serializeBaseEntity(scope, item),
-      daily_entry_id: item.dailyEntryId,
-      parent_id: item.parentId,
-      text: item.text,
-      scheduled_time: item.scheduledTime,
-      checked: item.checked,
-      ignored: item.ignored,
-      mark_level: item.markLevel,
-      bold: item.bold,
-      priority: item.priority,
-      collapsed: item.collapsed,
-      category_tag_id: item.categoryTagId,
-      sort_rank: item.sortRank,
-    };
-  }
-
-  if (entityType === 'goalGroup') {
-    const goalGroup = payload as unknown as GoalGroup;
-
-    return {
-      ...serializeBaseEntity(scope, goalGroup),
-      title: goalGroup.title,
-      category_tag_id: goalGroup.categoryTagId,
-      sort_rank: goalGroup.sortRank,
-    };
-  }
-
-  if (entityType === 'goal') {
-    const goal = payload as unknown as Goal;
-
-    return {
-      ...serializeBaseEntity(scope, goal),
-      group_id: goal.groupId,
-      title: goal.title,
-      due_date: goal.dueDate,
-      category_tag_id: goal.categoryTagId,
-      sort_rank: goal.sortRank,
-      completed_at: goal.completedAt,
-    };
-  }
-
-  const goalStep = payload as unknown as GoalStep;
-
-  return {
-    ...serializeBaseEntity(scope, goalStep),
-    goal_id: goalStep.goalId,
-    parent_id: goalStep.parentId,
-    text: goalStep.text,
-    completed: goalStep.completed,
-    ignored: goalStep.ignored,
-    mark_level: goalStep.markLevel,
-    bold: goalStep.bold,
-    priority: goalStep.priority,
-    collapsed: goalStep.collapsed,
-    category_tag_id: goalStep.categoryTagId,
-    scheduled_date: goalStep.scheduledDate,
-    sort_rank: goalStep.sortRank,
-  };
+  return remoteSerializers[entityType](scope, payload as never);
 }
 
 function baseFromRemote(scope: AppScope, row: RemoteBaseRow) {
@@ -371,6 +417,39 @@ export function goalFromRemote(scope: AppScope, row: RemoteGoal): Goal {
     categoryTagId: row.category_tag_id,
     sortRank: row.sort_rank,
     archivedAt: row.completed_at,
+  };
+}
+
+function toArray<T>(value: unknown): T[] {
+  return Array.isArray(value) ? (value as T[]) : [];
+}
+
+export function recurrenceFromRemote(
+  scope: AppScope,
+  row: RemoteRecurrence,
+): Recurrence {
+  return {
+    ...baseFromRemote(scope, row),
+    categoryTagId: row.category_tag_id,
+    text: row.text,
+    bold: row.bold,
+    priority: row.priority,
+    children: toArray(row.children),
+    schedule: toArray(row.schedule),
+    contentHistory: toArray(row.content_history),
+  };
+}
+
+export function recurrenceResponseFromRemote(
+  scope: AppScope,
+  row: RemoteRecurrenceResponse,
+): RecurrenceResponse {
+  return {
+    ...baseFromRemote(scope, row),
+    recurrenceId: row.recurrence_id,
+    date: row.date as RecurrenceResponse['date'],
+    itemId: row.item_id,
+    status: row.status as RecurrenceResponse['status'],
   };
 }
 

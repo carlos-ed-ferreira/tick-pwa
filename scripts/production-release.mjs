@@ -178,7 +178,7 @@ function assertDeploymentIdentity(deployment, configuration) {
 export async function smokeDeployment(deployment, sha) {
   if (!/^[a-zA-Z0-9-]+\.vercel\.app$/u.test(deployment.url ?? ''))
     throw new Error('Unexpected deployment hostname.');
-  for (const path of ['/', '/calendar', '/goals']) {
+  for (const path of ['/', '/calendar', '/goals', '/recurring']) {
     const response = await fetch(`https://${deployment.url}${path}`, {
       redirect: 'error',
       signal: AbortSignal.timeout(30000),

@@ -25,7 +25,7 @@ coverage-check: require-npm
 coverage-baseline: require-npm
 	node scripts/check-coverage.mjs --write-baseline
 
-.PHONY: validate-database generate-database-migration
+.PHONY: validate-database generate-database-migration generate-database-types supabase-migrate-local test-e2e-browser-install
 
 validate-database: require-npm
 	TICK_DATABASE_ACTION=validate node scripts/benchmark-cohort.mjs
@@ -33,6 +33,9 @@ validate-database: require-npm
 generate-database-migration: require-npm
 	@test -n "$(name)" || { printf "Erro: informe name=<nome>.\n"; exit 2; }
 	TICK_DATABASE_ACTION=generate TICK_MIGRATION_NAME=$(name) node scripts/benchmark-cohort.mjs
+
+generate-database-types: require-npm
+	TICK_DATABASE_ACTION=types node scripts/benchmark-cohort.mjs
 
 .PHONY: check-secrets check-sast
 
@@ -205,6 +208,7 @@ help:
 	@printf "  %-26s %s\n" "make mutation-baseline" "Grava resultados de mutacao para revisao do baseline"
 	@printf "  %-26s %s\n" "make coverage-check" "Bloqueia queda da cobertura e valida o diff"
 	@printf "  %-26s %s\n" "make coverage-baseline" "Grava o resultado de cobertura para revisao do baseline"
+	@printf "  %-26s %s\n" "make generate-database-types" "Gera os tipos do Supabase a partir de banco isolado"
 	@printf "  %-26s %s\n" "make validate-database" "Valida migrations e pgTAP em banco temporario isolado"
 	@printf "  %-26s %s\n" "make generate-database-migration name=<nome>" "Gera diff em banco isolado e copia a migration para revisao"
 	@printf "  %-26s %s\n" "make check-secrets" "Procura secrets no historico Git com saida redigida"
@@ -285,6 +289,8 @@ help:
 	@printf "  %-26s %s\n" "make supabase-stop" "Para o Supabase local"
 	@printf "  %-26s %s\n" "make supabase-status" "Mostra URLs e chaves do Supabase local"
 	@printf "  %-26s %s\n" "make supabase-reset" "Reseta o banco Supabase local com migrations e seed"
+	@printf "  %-26s %s\n" "make supabase-migrate-local" "Aplica migrations pendentes no banco local sem reset"
+	@printf "  %-26s %s\n" "make test-e2e-browser-install" "Instala o Chromium da versao atual do Playwright"
 	@printf "  %-26s %s\n" "make supabase-diff" "Compara migrations com o schema declarativo"
 	@printf "  %-26s %s\n" "make supabase-diff-check" "Falha quando o schema declarativo diverge"
 	@printf "  %-26s %s\n" "make supabase-migration-diff name=<nome>" "Gera migration pelo diff declarativo"
@@ -317,6 +323,9 @@ require-npm:
 
 install: require-npm
 	$(NPM) install
+
+test-e2e-browser-install: require-npm
+	npx playwright install chromium
 
 install-ci: require-npm
 	$(NPM) ci
@@ -458,6 +467,9 @@ test-e2e-account-real-container:
 
 supabase-reset: require-npm
 	$(NPM) run supabase:db:reset
+
+supabase-migrate-local: require-npm
+	node scripts/supabase-cli.mjs migration:up:local
 
 supabase-diff: require-npm
 	$(NPM) run supabase:db:diff

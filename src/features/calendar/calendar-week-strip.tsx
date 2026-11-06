@@ -1,7 +1,7 @@
 'use client';
 
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { IconButton } from '@/components/ui';
 import type { DayItemPreview } from '@/features/calendar/use-month-day-previews';
 import type { DailyEntry, LocalDateString } from '@/lib/domain';
@@ -16,6 +16,27 @@ import {
   ignoredProgressFillStyle,
   isCategoryComplete,
 } from './calendar-progress-tone';
+
+function WeekArrowButton({
+  children,
+  label,
+  onClick,
+}: {
+  children: ReactNode;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <IconButton
+      aria-label={label}
+      size="compact"
+      className="shrink-0 rounded-full text-[#cbd5e0] hover:bg-white/8 hover:text-[#fff9f2] focus-visible:outline-[#f7d9b0]"
+      onClick={onClick}
+    >
+      {children}
+    </IconButton>
+  );
+}
 
 export function CalendarWeekStrip({
   activeDay,
@@ -69,14 +90,12 @@ export function CalendarWeekStrip({
 
   return (
     <div className="flex items-center gap-1 px-2 pt-2 pb-1">
-      <IconButton
-        aria-label={dictionary.calendar.previousWeek}
-        size="compact"
-        className="shrink-0 rounded-full text-[#cbd5e0] hover:bg-white/8 hover:text-[#fff9f2] focus-visible:outline-[#f7d9b0]"
+      <WeekArrowButton
+        label={dictionary.calendar.previousWeek}
         onClick={() => onShiftWeek(-1)}
       >
         <ChevronLeft aria-hidden="true" className="size-4" />
-      </IconButton>
+      </WeekArrowButton>
       <div
         ref={stripRef}
         role="tablist"
@@ -100,14 +119,12 @@ export function CalendarWeekStrip({
           />
         ))}
       </div>
-      <IconButton
-        aria-label={dictionary.calendar.nextWeek}
-        size="compact"
-        className="shrink-0 rounded-full text-[#cbd5e0] hover:bg-white/8 hover:text-[#fff9f2] focus-visible:outline-[#f7d9b0]"
+      <WeekArrowButton
+        label={dictionary.calendar.nextWeek}
         onClick={() => onShiftWeek(1)}
       >
         <ChevronRight aria-hidden="true" className="size-4" />
-      </IconButton>
+      </WeekArrowButton>
     </div>
   );
 }

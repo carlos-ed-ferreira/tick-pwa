@@ -15,6 +15,8 @@ import {
   goalFromRemote,
   goalGroupFromRemote,
   goalStepFromRemote,
+  recurrenceFromRemote,
+  recurrenceResponseFromRemote,
   type RemoteEntityTable,
   type RemoteCategoryTag,
   type RemoteChecklistItem,
@@ -22,6 +24,8 @@ import {
   type RemoteGoal,
   type RemoteGoalGroup,
   type RemoteGoalStep,
+  type RemoteRecurrence,
+  type RemoteRecurrenceResponse,
 } from './entity-mappers';
 
 interface CacheEntity {
@@ -216,6 +220,8 @@ async function readAccountSnapshotIntoCache(
     goalGroupsResponse,
     goalsResponse,
     goalStepsResponse,
+    recurrencesResponse,
+    recurrenceResponsesResponse,
   } = await fetchCompleteSnapshot(scope);
 
   await mergeCompleteSnapshot(scope, baseline, {
@@ -225,6 +231,8 @@ async function readAccountSnapshotIntoCache(
     goalGroupsResponse,
     goalsResponse,
     goalStepsResponse,
+    recurrencesResponse,
+    recurrenceResponsesResponse,
   });
 
   const tables = {
@@ -248,6 +256,14 @@ async function readAccountSnapshotIntoCache(
     goal_steps: {
       pages: goalStepsResponse.pages,
       rows: goalStepsResponse.rows,
+    },
+    recurrences: {
+      pages: recurrencesResponse.pages,
+      rows: recurrencesResponse.rows,
+    },
+    recurrence_responses: {
+      pages: recurrenceResponsesResponse.pages,
+      rows: recurrenceResponsesResponse.rows,
     },
   } satisfies Record<RemoteEntityTable, AccountCacheTableMetrics>;
   const tableMetrics = Object.values(tables);
@@ -294,6 +310,8 @@ async function fetchCompleteSnapshot(scope: AppScope) {
     goalGroupsResponse,
     goalsResponse,
     goalStepsResponse,
+    recurrencesResponse,
+    recurrenceResponsesResponse,
   ] = await Promise.all([
     refreshAccountPreferences(scope),
     selectRemoteRows<RemoteCategoryTag>('category_tags'),
@@ -304,6 +322,12 @@ async function fetchCompleteSnapshot(scope: AppScope) {
     }),
     selectRemoteRows<RemoteGoal>('goals'),
     selectRemoteRows<RemoteGoalStep>('goal_steps'),
+    selectRemoteRows<RemoteRecurrence>('recurrences', {
+      allowMissingTable: true,
+    }),
+    selectRemoteRows<RemoteRecurrenceResponse>('recurrence_responses', {
+      allowMissingTable: true,
+    }),
   ]);
 
   return {
@@ -313,6 +337,8 @@ async function fetchCompleteSnapshot(scope: AppScope) {
     goalGroupsResponse,
     goalsResponse,
     goalStepsResponse,
+    recurrencesResponse,
+    recurrenceResponsesResponse,
   };
 }
 
@@ -330,6 +356,8 @@ async function mergeCompleteSnapshot(
       db.goalGroups,
       db.goals,
       db.goalSteps,
+      db.recurrences,
+      db.recurrenceResponses,
     ],
     async () => {
       const protectedIds = await collectPendingEntityClosure(scope.id);
@@ -396,5 +424,17 @@ async function mergeSnapshotTables(
     db.goalSteps,
     snapshot.goalStepsResponse,
     (row) => goalStepFromRemote(scope, row),
+  );
+  await mergeTable(
+    'recurrence',
+    db.recurrences,
+    snapshot.recurrencesResponse,
+    (row) => recurrenceFromRemote(scope, row),
+  );
+  await mergeTable(
+    'recurrenceResponse',
+    db.recurrenceResponses,
+    snapshot.recurrenceResponsesResponse,
+    (row) => recurrenceResponseFromRemote(scope, row),
   );
 }

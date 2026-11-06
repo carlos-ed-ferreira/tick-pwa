@@ -18,6 +18,8 @@ export const accountEntityTypes: SyncEntityType[] = [
   'goalGroup',
   'goal',
   'goalStep',
+  'recurrence',
+  'recurrenceResponse',
 ];
 
 export function getAccountEntityTable(entityType: SyncEntityType) {
@@ -39,6 +41,14 @@ export function getAccountEntityTable(entityType: SyncEntityType) {
 
   if (entityType === 'goal') {
     return db.goals as Table<PersistedAccountEntity, string>;
+  }
+
+  if (entityType === 'recurrence') {
+    return db.recurrences as Table<PersistedAccountEntity, string>;
+  }
+
+  if (entityType === 'recurrenceResponse') {
+    return db.recurrenceResponses as Table<PersistedAccountEntity, string>;
   }
 
   return db.goalSteps as Table<PersistedAccountEntity, string>;
@@ -92,6 +102,14 @@ export function getReferencedAccountEntities(
       ...toReference(entity, 'parentId', 'goalStep'),
       ...toReference(entity, 'categoryTagId', 'categoryTag'),
     ];
+  }
+
+  if (entityType === 'recurrence') {
+    return toReference(entity, 'categoryTagId', 'categoryTag');
+  }
+
+  if (entityType === 'recurrenceResponse') {
+    return toReference(entity, 'recurrenceId', 'recurrence');
   }
 
   return [];
