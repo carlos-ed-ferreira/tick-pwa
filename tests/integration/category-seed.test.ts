@@ -64,7 +64,7 @@ describe('guest default category lifecycle', () => {
       .sortBy('position');
 
     expect(categoryTags.map((tag) => tag.name)).toEqual([
-      'TRABALHO',
+      'Trabalho',
       'SAÚDE',
       'CASA',
     ]);

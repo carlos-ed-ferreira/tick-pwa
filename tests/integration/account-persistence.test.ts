@@ -1251,7 +1251,7 @@ describe('account persistence boundaries', () => {
 
     await vi.waitFor(async () => {
       await expect(db.categoryTags.get(categoryTag.id)).resolves.toMatchObject({
-        name: 'FOCUS',
+        name: 'Focus',
         syncStatus: 'syncing',
       });
     });
@@ -1620,7 +1620,7 @@ describe('account persistence boundaries', () => {
     });
     await waitForAccountPersistence(scope.id);
     await expect(db.categoryTags.get(categoryTag.id)).resolves.toMatchObject({
-      name: 'FOCUS',
+      name: 'Focus',
       syncStatus: 'failed',
     });
   });
@@ -1679,7 +1679,7 @@ describe('account persistence boundaries', () => {
     await retry;
 
     await expect(db.categoryTags.get(categoryTag.id)).resolves.toMatchObject({
-      name: 'FOCUS',
+      name: 'Focus',
       remoteRevision: 7,
       syncStatus: 'synced',
     });

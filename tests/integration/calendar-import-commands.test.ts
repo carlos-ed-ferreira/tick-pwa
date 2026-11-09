@@ -139,7 +139,7 @@ describe('calendar import commands', () => {
 
     const categoryTag = await db.categoryTags.get(items[1].categoryTagId ?? '');
     expect(categoryTag).toMatchObject({
-      name: 'SAÚDE',
+      name: 'Saúde',
       colorHex: '#16a34a',
       surface: 'checklist_item',
       scopeId: scope.id,
@@ -214,7 +214,7 @@ describe('calendar import commands', () => {
       .where('scopeId')
       .equals(scope.id)
       .toArray();
-    expect(tags.map((tag) => tag.name).sort()).toEqual(['FOCO', 'SAÚDE']);
+    expect(tags.map((tag) => tag.name).sort()).toEqual(['Foco', 'Saúde']);
   });
 
   it('appends to the tasks that already exist on the day', async () => {

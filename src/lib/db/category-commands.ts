@@ -32,7 +32,11 @@ function normalizeColorHex(colorHex: string): string {
 }
 
 export function normalizeCategoryTagName(name: string): string {
-  return name.normalize('NFC').trim().toLocaleUpperCase();
+  return name.normalize('NFC').trim();
+}
+
+export function getCategoryTagNameKey(name: string): string {
+  return normalizeCategoryTagName(name).toLocaleUpperCase();
 }
 
 async function getActiveCategoryTags(

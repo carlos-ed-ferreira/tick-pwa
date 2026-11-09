@@ -577,7 +577,7 @@ export function ChecklistSurface({ dailyEntryId }: { dailyEntryId: string }) {
   }
 
   return (
-    <section className="flex min-h-0 flex-col gap-3">
+    <section className="flex min-h-0 flex-col gap-2">
       {isTabView ? (
         <TaskTreeCategoryTabs
           activeTabId={activeCategoryTab?.id ?? null}

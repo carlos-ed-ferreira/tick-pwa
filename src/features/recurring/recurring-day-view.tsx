@@ -198,7 +198,7 @@ function RecurringOccurrenceList({
   return (
     <div
       data-testid="task-list-surface"
-      className={`flex flex-col gap-3 ${taskListSurfaceClassName}`}
+      className={`flex flex-col gap-2 ${taskListSurfaceClassName}`}
     >
       {showsTabs ? (
         <TaskTreeCategoryTabs

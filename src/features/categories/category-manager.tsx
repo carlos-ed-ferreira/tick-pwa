@@ -15,7 +15,7 @@ import { useAppContext } from '@/providers';
 import { useCategoryTags } from './use-category-tags';
 
 function normalizeCategoryDraftName(name: string): string {
-  return name.normalize('NFC').toLocaleUpperCase();
+  return name.normalize('NFC');
 }
 
 export function canUseOwnName(surface: CategoryTagSurface): boolean {
@@ -70,7 +70,7 @@ export function CategoryManager({
       <div className="mt-3 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
         {categoryTags.map((tag, index) => (
           <CategoryManagerRow
-            key={`${tag.id}:${tag.name}`}
+            key={tag.id}
             isFirst={index === 0}
             isLast={index === categoryTags.length - 1}
             tag={tag}
@@ -219,7 +219,7 @@ function CategoryManagerRow({
 
       <Input
         aria-label={dictionary.dayEditor.categoryNamePlaceholder}
-        className="min-w-0 rounded-xl inset-ring-hairline inset-ring-transparent bg-transparent px-2 py-2 uppercase text-[#fff9f2] outline-none transition placeholder:text-[#7b8da0] focus:inset-ring-[#f0c38e]/30 focus:bg-white/[0.055] focus:shadow-sm"
+        className="min-w-0 rounded-xl inset-ring-hairline inset-ring-transparent bg-transparent px-2 py-2 text-[#fff9f2] outline-none transition placeholder:text-[#7b8da0] focus:inset-ring-[#f0c38e]/30 focus:bg-white/[0.055] focus:shadow-sm"
         placeholder={dictionary.dayEditor.categoryNamePlaceholder}
         value={draftName}
         onBlur={commitName}

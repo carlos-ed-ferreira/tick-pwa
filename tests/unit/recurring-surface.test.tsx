@@ -727,13 +727,13 @@ describe('RecurringSurface', () => {
         name: dictionary.calendar.categoryTabs,
       });
 
-      await within(tabs).findByRole('tab', { name: 'WORK' });
+      await within(tabs).findByRole('tab', { name: 'Work' });
       expect(within(section).getByRole('group', { name: 'Run' })).toBeTruthy();
       expect(
         within(section).getByRole('group', { name: 'Report' }),
       ).toBeTruthy();
 
-      fireEvent.click(within(tabs).getByRole('tab', { name: 'WORK' }));
+      fireEvent.click(within(tabs).getByRole('tab', { name: 'Work' }));
 
       await waitFor(() =>
         expect(
@@ -761,7 +761,7 @@ describe('RecurringSurface', () => {
       const section = daySection();
       const tabs = await within(section).findByRole('tablist');
 
-      await within(tabs).findByRole('tab', { name: 'HEALTH' });
+      await within(tabs).findByRole('tab', { name: 'Health' });
       fireEvent.click(
         within(tabs).getByRole('tab', {
           name: dictionary.calendar.categoryTabUncategorized,
@@ -784,7 +784,7 @@ describe('RecurringSurface', () => {
 
       const section = daySection();
 
-      await within(section).findByText('HEALTH');
+      await within(section).findByText('Health');
       expect(within(section).queryByRole('tablist')).toBeNull();
     });
 
@@ -848,7 +848,7 @@ describe('RecurringSurface', () => {
       await renderSurface();
 
       const activity = await findActivity();
-      const chip = await within(activity).findByText('HEALTH');
+      const chip = await within(activity).findByText('Health');
       const name = within(activity).getByText('Stretch');
 
       expect(name.contains(chip)).toBe(false);
@@ -863,7 +863,7 @@ describe('RecurringSurface', () => {
 
       const activity = await findActivity();
 
-      await within(activity).findByText('HEALTH');
+      await within(activity).findByText('Health');
 
       const [main, child] = within(activity)
         .getAllByRole('button', { name: /^Done: / })

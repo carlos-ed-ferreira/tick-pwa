@@ -76,7 +76,7 @@ describe('CategoryManager', () => {
     cleanup();
   });
 
-  it('preserves accent composition and commits uppercase text on blur', async () => {
+  it('preserves accent composition and commits the typed capitalization on blur', async () => {
     render(<CategoryManager surface="calendar" />);
 
     const input = screen.getByLabelText('Category name');
@@ -89,7 +89,7 @@ describe('CategoryManager', () => {
 
     fireEvent.compositionEnd(input);
 
-    expect(input).toHaveValue('MATEMÁTICA');
+    expect(input).toHaveValue('matemática');
 
     fireEvent.blur(input);
 
@@ -101,7 +101,7 @@ describe('CategoryManager', () => {
           ownerId: 'test',
         },
         categoryTagId: 'category-1',
-        name: 'MATEMÁTICA',
+        name: 'matemática',
       });
     });
   });
@@ -124,14 +124,69 @@ describe('CategoryManager', () => {
     expect(updateCategoryTagMock).not.toHaveBeenCalled();
   });
 
-  it('forces uppercase while typing outside composition', () => {
+  it('keeps the field focused after the pause saves the name', async () => {
+    const view = render(<CategoryManager surface="calendar" />);
+    const input = screen.getByRole('textbox', { name: 'Category name' });
+
+    input.focus();
+    fireEvent.change(input, { target: { value: 'HOMES' } });
+
+    await waitFor(() =>
+      expect(updateCategoryTagMock).toHaveBeenCalledWith(
+        expect.objectContaining({ name: 'HOMES' }),
+      ),
+    );
+
+    useCategoryTagsMock.mockReturnValue([
+      {
+        id: 'category-1',
+        name: 'HOMES',
+        colorHex: '#71717a',
+        surface: 'checklist_item',
+        useOwnName: false,
+      },
+    ]);
+    view.rerender(<CategoryManager surface="calendar" />);
+
+    const current = screen.getByRole('textbox', { name: 'Category name' });
+
+    expect(current).toBe(input);
+    expect(document.activeElement).toBe(input);
+    expect((current as HTMLInputElement).value).toBe('HOMES');
+  });
+
+  it('shows a name changed elsewhere while not editing', () => {
+    const view = render(<CategoryManager surface="calendar" />);
+
+    useCategoryTagsMock.mockReturnValue([
+      {
+        id: 'category-1',
+        name: 'OFFICE',
+        colorHex: '#71717a',
+        surface: 'checklist_item',
+        useOwnName: false,
+      },
+    ]);
+    view.rerender(<CategoryManager surface="calendar" />);
+
+    expect(
+      (
+        screen.getByRole('textbox', {
+          name: 'Category name',
+        }) as HTMLInputElement
+      ).value,
+    ).toBe('OFFICE');
+  });
+
+  it('keeps the capitalization typed outside composition', () => {
     render(<CategoryManager surface="calendar" />);
 
     const input = screen.getByLabelText('Category name');
 
-    fireEvent.change(input, { target: { value: 'saude' } });
+    fireEvent.change(input, { target: { value: 'Saúde e Bem-estar' } });
 
-    expect(input).toHaveValue('SAUDE');
+    expect(input).toHaveValue('Saúde e Bem-estar');
+    expect(input.className).not.toContain('uppercase');
   });
 
   it('saves the current category name when the modal closes immediately', async () => {
@@ -150,7 +205,7 @@ describe('CategoryManager', () => {
           ownerId: 'test',
         },
         categoryTagId: 'category-1',
-        name: 'TRABALHO',
+        name: 'trabalho',
       });
     });
   });
