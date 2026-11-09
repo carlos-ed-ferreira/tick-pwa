@@ -88,7 +88,31 @@ function daySection() {
 }
 
 function overviewSection() {
-  return showView('Activities', dictionary.recurring.viewManage);
+  return showView('Activities', dictionary.recurring.viewActivities);
+}
+
+function performanceSection() {
+  return showView('Performance', dictionary.recurring.viewPerformance);
+}
+
+async function backdate(id: string, date: string) {
+  await db.recurrences.update(id, { createdAt: `${date}T15:00:00.000Z` });
+}
+
+async function answer(
+  recurrenceId: string,
+  entries: readonly (readonly [string, 'done' | 'not_done', string | null])[],
+) {
+  for (const [date, status, itemId] of entries) {
+    await setRecurrenceResponse({
+      scope,
+      recurrenceId,
+      date: date as typeof today,
+      itemId,
+      status,
+      today,
+    });
+  }
 }
 
 async function findActivity(name = 'Stretch') {
@@ -106,6 +130,7 @@ async function chooseAction(action: string, name = 'Stretch') {
 describe('RecurringSurface', () => {
   beforeEach(async () => {
     clock.today = '2026-11-06';
+    window.history.replaceState(null, '', '/recurring');
     await db.delete();
     await db.open();
   });
@@ -467,66 +492,76 @@ describe('RecurringSurface', () => {
   });
 
   describe('overview', () => {
-    it('shows no data instead of zero without answers', async () => {
+    it('lists the activity without any metric', async () => {
+      const { id } = await createRecurrence({ scope, content, rule: daily });
+      await answer(id, [['2026-11-01', 'done', null]]);
+      await renderSurface();
+
+      const overview = overviewSection();
+
+      await within(overview).findByText('Stretch');
+      expect(within(overview).getByText('Every day')).toBeTruthy();
+      expect(within(overview).queryByText(/%/)).toBeNull();
+      expect(within(overview).queryByRole('progressbar')).toBeNull();
+    });
+
+    it('filters by status and name and clears the filters', async () => {
+      await createRecurrence({ scope, content, rule: daily });
+      const { id } = await createRecurrence({
+        scope,
+        content: { ...content, text: 'Read', children: [] },
+        rule: daily,
+      });
+      await pauseRecurrence({ scope, recurrenceId: id, today });
+      await renderSurface();
+
+      const overview = overviewSection();
+      const status = within(overview).getByRole('group', {
+        name: dictionary.recurring.statusFilterLabel,
+      });
+
+      await within(overview).findByText('Read');
+      fireEvent.click(within(status).getByRole('button', { name: 'Paused' }));
+      expect(within(overview).queryByText('Stretch')).toBeNull();
+      expect(within(overview).getByText('Read')).toBeTruthy();
+
+      fireEvent.click(within(status).getByRole('button', { name: 'Active' }));
+      expect(within(overview).getByText('Stretch')).toBeTruthy();
+      expect(within(overview).queryByText('Read')).toBeNull();
+
+      fireEvent.change(
+        within(overview).getByRole('searchbox', {
+          name: dictionary.recurring.searchLabel,
+        }),
+        { target: { value: 'zzz' } },
+      );
+      expect(
+        within(overview).getByText(dictionary.recurring.noMatches),
+      ).toBeTruthy();
+
+      fireEvent.click(
+        within(overview).getByRole('button', {
+          name: dictionary.recurring.clearFilters,
+        }),
+      );
+      expect(within(overview).getByText('Stretch')).toBeTruthy();
+      expect(within(overview).getByText('Read')).toBeTruthy();
+    });
+
+    it('searches ignoring case', async () => {
       await createRecurrence({ scope, content, rule: daily });
       await renderSurface();
 
       const overview = overviewSection();
 
       await within(overview).findByText('Stretch');
-      await within(overview).findByText('-%');
-      expect(within(overview).getByText('-%')).toBeTruthy();
-      expect(within(overview).getByText('Every day')).toBeTruthy();
-    });
-
-    it('counts the main answers and ignores the children', async () => {
-      const { id } = await createRecurrence({ scope, content, rule: daily });
-
-      for (const [date, status, itemId] of [
-        ['2026-11-01', 'done', null],
-        ['2026-11-02', 'not_done', null],
-        ['2026-11-03', 'done', 'child-1'],
-      ] as const) {
-        await setRecurrenceResponse({
-          scope,
-          recurrenceId: id,
-          date,
-          itemId,
-          status,
-          today,
-        });
-      }
-
-      await renderSurface();
-
-      const overview = overviewSection();
-
-      await within(overview).findByText('50%');
-      expect(within(overview).getByText('1/1')).toBeTruthy();
-      expect(
-        within(overview).getByRole('img', { name: '1 done, 1 not done' }),
-      ).toBeTruthy();
-      expect(within(overview).queryByText('1 done')).toBeNull();
-      expect(
-        within(overview)
-          .getByRole('progressbar', { name: 'Completion rate: Stretch' })
-          .getAttribute('aria-valuenow'),
-      ).toBe('50');
-    });
-
-    it('has no progress value without answers', async () => {
-      await createRecurrence({ scope, content, rule: daily });
-      await renderSurface();
-
-      const overview = overviewSection();
-
-      await within(overview).findByText('-%');
-      expect(within(overview).getByText('0/0')).toBeTruthy();
-      expect(within(overview).queryByText('No data')).toBeNull();
-      expect(
-        within(overview).getByRole('img', { name: 'No data' }),
-      ).toBeTruthy();
-      expect(within(overview).queryByRole('progressbar')).toBeNull();
+      fireEvent.change(
+        within(overview).getByRole('searchbox', {
+          name: dictionary.recurring.searchLabel,
+        }),
+        { target: { value: 'STRE' } },
+      );
+      expect(within(overview).getByText('Stretch')).toBeTruthy();
     });
 
     it('pauses and reactivates an activity', async () => {
@@ -613,6 +648,217 @@ describe('RecurringSurface', () => {
     });
   });
 
+  describe('performance', () => {
+    it('shows no data instead of zero without answers', async () => {
+      const { id } = await createRecurrence({ scope, content, rule: daily });
+      await backdate(id, '2026-11-04');
+      await renderSurface();
+
+      const performance = performanceSection();
+
+      await within(performance).findByText('Stretch');
+      expect(
+        within(performance).getAllByRole('img', { name: 'No data' }),
+      ).toHaveLength(2);
+      expect(within(performance).getByText('0 done, 0 not done')).toBeTruthy();
+      expect(within(performance).queryByRole('progressbar')).toBeNull();
+      expect(
+        within(performance).getByText('Recording coverage: 0%'),
+      ).toBeTruthy();
+    });
+
+    it('counts the main answers and ignores the children', async () => {
+      const { id } = await createRecurrence({ scope, content, rule: daily });
+      await answer(id, [
+        ['2026-11-01', 'done', null],
+        ['2026-11-02', 'not_done', null],
+        ['2026-11-03', 'done', 'child-1'],
+      ]);
+      await renderSurface();
+
+      const performance = performanceSection();
+      const metric = (label: string) =>
+        within(performance).getByText(label).nextElementSibling?.textContent;
+
+      await within(performance).findAllByText('50%');
+      expect(within(performance).getByText('1 done, 1 not done')).toBeTruthy();
+      expect(metric('Not recorded')).toBe('3');
+      expect(metric('Pending today')).toBe('1');
+      expect(
+        within(performance)
+          .getByRole('progressbar', { name: 'Completion rate: Stretch' })
+          .getAttribute('aria-valuenow'),
+      ).toBe('50');
+    });
+
+    it('sorts by rate leaving activities without data last', async () => {
+      const stretch = await createRecurrence({ scope, content, rule: daily });
+      const read = await createRecurrence({
+        scope,
+        content: { ...content, text: 'Read', children: [] },
+        rule: daily,
+      });
+      const walk = await createRecurrence({
+        scope,
+        content: { ...content, text: 'Walk', children: [] },
+        rule: daily,
+      });
+      await backdate(walk.id, '2026-11-01');
+      await answer(stretch.id, [['2026-11-01', 'not_done', null]]);
+      await answer(read.id, [['2026-11-01', 'done', null]]);
+      await renderSurface();
+
+      const performance = performanceSection();
+      const order = () =>
+        within(performance)
+          .getAllByRole('button', { name: /^View history: / })
+          .map((button) => button.getAttribute('aria-label'));
+
+      await within(performance).findByText('Walk');
+      expect(order()).toEqual([
+        'View history: Read',
+        'View history: Stretch',
+        'View history: Walk',
+      ]);
+
+      fireEvent.click(
+        within(performance).getByRole('button', { name: 'Lowest rate' }),
+      );
+      expect(order()).toEqual([
+        'View history: Stretch',
+        'View history: Read',
+        'View history: Walk',
+      ]);
+
+      fireEvent.click(
+        within(performance).getByRole('button', { name: 'Highest rate' }),
+      );
+      expect(order()[2]).toBe('View history: Walk');
+    });
+
+    it('validates a custom period and recalculates it', async () => {
+      const { id } = await createRecurrence({ scope, content, rule: daily });
+      await answer(id, [
+        ['2026-10-01', 'done', null],
+        ['2026-10-20', 'done', null],
+        ['2026-11-01', 'not_done', null],
+      ]);
+      await renderSurface();
+
+      const performance = performanceSection();
+
+      await within(performance).findAllByText('50%');
+      fireEvent.click(
+        within(performance).getByRole('button', { name: 'Last 7 days' }),
+      );
+      expect(within(performance).getAllByText('0%')).toHaveLength(2);
+
+      fireEvent.click(
+        within(performance).getByRole('button', { name: 'Custom' }),
+      );
+
+      const start = within(performance).getByRole('textbox', {
+        name: 'Start date',
+      }) as HTMLInputElement;
+      const end = within(performance).getByRole('textbox', {
+        name: 'End date',
+      });
+
+      expect(start.value).toBe('31-10-2026');
+      fireEvent.change(start, { target: { value: '07-11-2026' } });
+      expect(within(performance).getByRole('alert').textContent).toBe(
+        dictionary.recurring.rangeOrder,
+      );
+
+      fireEvent.change(start, { target: { value: '30-09-2026' } });
+      fireEvent.change(end, { target: { value: '01-10-2026' } });
+      expect(within(performance).queryByRole('alert')).toBeNull();
+      expect(within(performance).getAllByText('100%')).toHaveLength(2);
+    });
+
+    it('opens the history with the same period and returns', async () => {
+      const { id } = await createRecurrence({ scope, content, rule: daily });
+      await answer(id, [
+        ['2026-11-04', 'done', null],
+        ['2026-11-05', 'not_done', null],
+      ]);
+      await renderSurface();
+
+      fireEvent.click(
+        await within(performanceSection()).findByRole('button', {
+          name: 'Last 7 days',
+        }),
+      );
+      fireEvent.click(
+        within(performanceSection()).getByRole('button', {
+          name: 'View history: Stretch',
+        }),
+      );
+
+      const detail = performanceSection();
+      const history = within(detail).getAllByRole('listitem');
+
+      expect(window.location.search).toBe(
+        `?view=performance&activity=${encodeURIComponent(id)}`,
+      );
+      expect(
+        within(detail)
+          .getByRole('button', { name: 'Last 7 days' })
+          .getAttribute('aria-pressed'),
+      ).toBe('true');
+      expect(history.map((item) => item.textContent)).toEqual([
+        'Friday, November 6, 2026Pending',
+        'Thursday, November 5, 2026Not done',
+        'Wednesday, November 4, 2026Done',
+      ]);
+
+      expect(
+        within(detail).getByRole('heading', { level: 2, name: 'Stretch' }),
+      ).toBeTruthy();
+      expect(within(detail).getByText('Every day')).toBeTruthy();
+      expect(
+        within(detail).getByRole('button', { name: 'Back' }).textContent,
+      ).toBe('Back');
+
+      fireEvent.click(within(detail).getByRole('button', { name: 'Back' }));
+
+      expect(
+        await within(performanceSection()).findByRole('button', {
+          name: 'View history: Stretch',
+        }),
+      ).toBeTruthy();
+      expect(window.location.search).toBe('?view=performance');
+    });
+
+    it('restores the view and activity from the address', async () => {
+      const { id } = await createRecurrence({ scope, content, rule: daily });
+      window.history.replaceState(
+        null,
+        '',
+        `/recurring?view=performance&activity=${id}`,
+      );
+      render(<RecurringSurface />);
+
+      const detail = await screen.findByRole('region', { name: 'Performance' });
+
+      expect(
+        await within(detail).findByText(dictionary.recurring.historyTitle),
+      ).toBeTruthy();
+
+      fireEvent.click(
+        screen.getByRole('button', { name: dictionary.recurring.viewExecute }),
+      );
+      expect(window.location.search).toBe('');
+
+      window.history.replaceState(null, '', '/recurring?view=activities');
+      fireEvent.popState(window);
+
+      expect(
+        await screen.findByRole('region', { name: 'Activities' }),
+      ).toBeTruthy();
+    });
+  });
+
   it('keeps the activity when an action fails', async () => {
     const failure = vi
       .spyOn(db.recurrences, 'put')
@@ -631,7 +877,7 @@ describe('RecurringSurface', () => {
   });
 
   describe('views', () => {
-    it('starts on Execute and switches to Manage', async () => {
+    it('starts on Execute and switches to Activities', async () => {
       await createRecurrence({ scope, content, rule: daily });
       await renderSurface();
 
@@ -639,7 +885,7 @@ describe('RecurringSurface', () => {
         name: dictionary.recurring.viewExecute,
       });
       const manage = screen.getByRole('button', {
-        name: dictionary.recurring.viewManage,
+        name: dictionary.recurring.viewActivities,
       });
 
       expect(screen.getByRole('region', { name: 'Day view' })).toBeTruthy();
