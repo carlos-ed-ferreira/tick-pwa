@@ -8,6 +8,8 @@ import type {
   GoalGroup,
   GoalStep,
   LocalPreference,
+  Recurrence,
+  RecurrenceResponse,
   SyncCursor,
   SyncOutboxItem,
 } from '@/lib/domain';
@@ -526,6 +528,27 @@ async function reconcileAuthenticatedDailyEntries(transaction: Transaction) {
   }
 }
 
+async function migrateTaskItems(transaction: Transaction): Promise<void> {
+  const checklistItemsTable = transaction.table('checklistItems') as Table<
+    LegacyChecklistItem,
+    string
+  >;
+  const goalStepsTable = transaction.table('goalSteps') as Table<
+    LegacyGoalStep,
+    string
+  >;
+
+  for (const item of await checklistItemsTable.toArray()) {
+    await checklistItemsTable.put(
+      migrateChecklistItem(item) as LegacyChecklistItem,
+    );
+  }
+
+  for (const goalStep of await goalStepsTable.toArray()) {
+    await goalStepsTable.put(migrateGoalStep(goalStep) as LegacyGoalStep);
+  }
+}
+
 export class TickDatabase extends Dexie {
   dailyEntries!: Table<DailyEntry, string>;
   checklistItems!: Table<ChecklistItem, string>;
@@ -533,6 +556,8 @@ export class TickDatabase extends Dexie {
   goals!: Table<Goal, string>;
   goalSteps!: Table<GoalStep, string>;
   goalGroups!: Table<GoalGroup, string>;
+  recurrences!: Table<Recurrence, string>;
+  recurrenceResponses!: Table<RecurrenceResponse, string>;
   localPreferences!: Table<LocalPreference, string>;
   syncOutbox!: Table<AccountOperationOutboxItem, string>;
 
@@ -1013,47 +1038,9 @@ export class TickDatabase extends Dexie {
       }
     });
 
-    this.version(13).upgrade(async (transaction) => {
-      const checklistItemsTable = transaction.table('checklistItems') as Table<
-        LegacyChecklistItem,
-        string
-      >;
-      const goalStepsTable = transaction.table('goalSteps') as Table<
-        LegacyGoalStep,
-        string
-      >;
+    this.version(13).upgrade(migrateTaskItems);
 
-      for (const item of await checklistItemsTable.toArray()) {
-        await checklistItemsTable.put(
-          migrateChecklistItem(item) as LegacyChecklistItem,
-        );
-      }
-
-      for (const goalStep of await goalStepsTable.toArray()) {
-        await goalStepsTable.put(migrateGoalStep(goalStep) as LegacyGoalStep);
-      }
-    });
-
-    this.version(14).upgrade(async (transaction) => {
-      const checklistItemsTable = transaction.table('checklistItems') as Table<
-        LegacyChecklistItem,
-        string
-      >;
-      const goalStepsTable = transaction.table('goalSteps') as Table<
-        LegacyGoalStep,
-        string
-      >;
-
-      for (const item of await checklistItemsTable.toArray()) {
-        await checklistItemsTable.put(
-          migrateChecklistItem(item) as LegacyChecklistItem,
-        );
-      }
-
-      for (const goalStep of await goalStepsTable.toArray()) {
-        await goalStepsTable.put(migrateGoalStep(goalStep) as LegacyGoalStep);
-      }
-    });
+    this.version(14).upgrade(migrateTaskItems);
 
     this.version(15).upgrade(async (transaction) => {
       const goalsTable = transaction.table('goals') as Table<
@@ -1094,25 +1081,12 @@ export class TickDatabase extends Dexie {
       }
     });
 
-    this.version(18).upgrade(async (transaction) => {
-      const checklistItemsTable = transaction.table('checklistItems') as Table<
-        LegacyChecklistItem,
-        string
-      >;
-      const goalStepsTable = transaction.table('goalSteps') as Table<
-        LegacyGoalStep,
-        string
-      >;
+    this.version(18).upgrade(migrateTaskItems);
 
-      for (const item of await checklistItemsTable.toArray()) {
-        await checklistItemsTable.put(
-          migrateChecklistItem(item) as LegacyChecklistItem,
-        );
-      }
-
-      for (const goalStep of await goalStepsTable.toArray()) {
-        await goalStepsTable.put(migrateGoalStep(goalStep) as LegacyGoalStep);
-      }
+    this.version(19).stores({
+      recurrences: 'id, scopeId, updatedAt, deletedAt, [scopeId+updatedAt]',
+      recurrenceResponses:
+        'id, scopeId, recurrenceId, date, updatedAt, deletedAt, [scopeId+recurrenceId], [scopeId+date], [scopeId+updatedAt]',
     });
 
     this.categoryTags = this.table('colorTags');

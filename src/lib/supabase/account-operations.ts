@@ -9,6 +9,8 @@ const accountOperationEntityTypes = new Set<SyncEntityType>([
   'goalGroup',
   'goal',
   'goalStep',
+  'recurrence',
+  'recurrenceResponse',
 ]);
 
 export interface AccountOperationMutation {

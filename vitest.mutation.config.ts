@@ -8,6 +8,7 @@ export default mergeConfig(
       include: [
         'tests/unit/account-cache-baseline.test.ts',
         'tests/unit/task-completion.test.ts',
+        'tests/unit/recurrence.test.ts',
         'tests/unit/entity-metadata.test.ts',
         'tests/integration/account-cache-concurrency.test.ts',
       ],

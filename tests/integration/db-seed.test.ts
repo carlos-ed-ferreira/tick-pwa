@@ -122,7 +122,7 @@ describe('local database bootstrap', () => {
       'FOCO',
       'SAÚDE',
       'CASA',
-      'CUSTOM',
+      'Custom',
     ]);
     expect(categoryTags).toHaveLength(4);
   });

@@ -249,6 +249,23 @@ function createRemoteEntityRows(
       scheduled_date: null,
       sort_rank: `rank-${index.toString().padStart(4, '0')}`,
     })),
+    recurrences: Array.from({ length: count }, (_, index) => ({
+      ...createRemoteBaseRow(scope, 'remote-recurrence', index),
+      category_tag_id: null,
+      text: `Remote recurrence ${index}`,
+      bold: false,
+      priority: false,
+      children: [],
+      schedule: [],
+      content_history: [],
+    })),
+    recurrence_responses: Array.from({ length: count }, (_, index) => ({
+      ...createRemoteBaseRow(scope, 'remote-recurrence-response', index),
+      recurrence_id: 'remote-recurrence',
+      date: '2026-05-21',
+      item_id: `item-${index}`,
+      status: 'done',
+    })),
   };
 }
 
@@ -1234,7 +1251,7 @@ describe('account persistence boundaries', () => {
 
     await vi.waitFor(async () => {
       await expect(db.categoryTags.get(categoryTag.id)).resolves.toMatchObject({
-        name: 'FOCUS',
+        name: 'Focus',
         syncStatus: 'syncing',
       });
     });
@@ -1518,11 +1535,13 @@ describe('account persistence boundaries', () => {
         goal_groups: { pages: 2, rows: 1001 },
         goals: { pages: 2, rows: 1001 },
         goal_steps: { pages: 2, rows: 1001 },
+        recurrences: { pages: 2, rows: 1001 },
+        recurrence_responses: { pages: 2, rows: 1001 },
       },
-      totalPages: 12,
-      totalRows: 6006,
+      totalPages: 16,
+      totalRows: 8008,
     });
-  });
+  }, 15000);
 
   it('collapses concurrent refreshes into a single remote snapshot', async () => {
     const scope = createUserScope('concurrent-refresh-user');
@@ -1601,7 +1620,7 @@ describe('account persistence boundaries', () => {
     });
     await waitForAccountPersistence(scope.id);
     await expect(db.categoryTags.get(categoryTag.id)).resolves.toMatchObject({
-      name: 'FOCUS',
+      name: 'Focus',
       syncStatus: 'failed',
     });
   });
@@ -1660,7 +1679,7 @@ describe('account persistence boundaries', () => {
     await retry;
 
     await expect(db.categoryTags.get(categoryTag.id)).resolves.toMatchObject({
-      name: 'FOCUS',
+      name: 'Focus',
       remoteRevision: 7,
       syncStatus: 'synced',
     });
@@ -1930,7 +1949,7 @@ describe('account persistence boundaries', () => {
     const scope = createUserScope('force-push-user');
     const failingRpc = vi.fn(async () => ({
       data: null,
-      error: { code: '40001', message: 'stale_revision' },
+      error: { code: 'PT409', message: 'stale_revision' },
     }));
     supabaseMocks.getSupabaseBrowserClient.mockReturnValue({ rpc: failingRpc });
 
@@ -1981,7 +2000,7 @@ describe('account persistence boundaries', () => {
     const scope = createUserScope('sync-order-user');
     const failingRpc = vi.fn(async () => ({
       data: null,
-      error: { code: '40001', message: 'stale_revision' },
+      error: { code: 'PT409', message: 'stale_revision' },
     }));
     supabaseMocks.getSupabaseBrowserClient.mockReturnValue({ rpc: failingRpc });
 
@@ -2098,7 +2117,7 @@ describe('account persistence boundaries', () => {
     const scope = createUserScope('exhausted-attempts-user');
     const rpc = vi.fn(async () => ({
       data: null,
-      error: { code: '40001', message: 'stale_revision' },
+      error: { code: 'PT409', message: 'stale_revision' },
     }));
     supabaseMocks.getSupabaseBrowserClient.mockReturnValue({ rpc });
 
@@ -2271,7 +2290,7 @@ describe('account persistence boundaries', () => {
             }
           : {
               data: null,
-              error: { code: '40001', message: 'stale_revision' },
+              error: { code: 'PT409', message: 'stale_revision' },
             },
     );
     const from = vi.fn(() => ({
@@ -2307,53 +2326,111 @@ describe('account persistence boundaries', () => {
     });
   });
 
-  it('keeps a repeatedly stale operation recoverable without rebasing twice', async () => {
+  it.each(['PT409', '40001'])(
+    'keeps a repeatedly stale %s operation recoverable without rebasing twice',
+    async (code) => {
+      environmentMocks.shouldUseAccountOperationBatchesForUser.mockReturnValue(
+        true,
+      );
+      const scope = createUserScope('stale-blocked-user');
+      const rpc = vi.fn(async () => ({
+        data: null,
+        error: { code, message: 'stale_revision' },
+      }));
+      const from = vi.fn(() => ({
+        select: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            in: vi.fn(async (_column: string, ids: string[]) => ({
+              data: ids.map((id) => ({ id, revision: 20 })),
+              error: null,
+            })),
+          })),
+        })),
+      }));
+      supabaseMocks.getSupabaseBrowserClient.mockReturnValue({ from, rpc });
+
+      await createCategoryTag({
+        scope,
+        surface: 'calendar',
+        name: 'BLOCKED',
+        colorHex: '#2563eb',
+      });
+      await waitForAccountPersistence(scope.id);
+
+      expect(rpc).toHaveBeenCalledTimes(2);
+      const operation = await db.syncOutbox.toCollection().first();
+      expect(operation).toMatchObject({
+        lastError: code,
+        status: 'failed',
+      });
+      expect(operation?.rebasedAt).not.toBeNull();
+
+      await resumeAccountPersistence(scope);
+      await waitForAccountPersistence(scope.id);
+
+      expect(rpc).toHaveBeenCalledTimes(2);
+
+      await retryFailedAccountPersistence(scope);
+      await waitForAccountPersistence(scope.id);
+
+      expect(rpc).toHaveBeenCalledTimes(3);
+      await expect(db.syncOutbox.count()).resolves.toBe(1);
+    },
+  );
+
+  it('resumes an operation interrupted by another request still in progress', async () => {
     environmentMocks.shouldUseAccountOperationBatchesForUser.mockReturnValue(
       true,
     );
-    const scope = createUserScope('stale-blocked-user');
-    const rpc = vi.fn(async () => ({
-      data: null,
-      error: { code: '40001', message: 'stale_revision' },
-    }));
-    const from = vi.fn(() => ({
-      select: vi.fn(() => ({
-        eq: vi.fn(() => ({
-          in: vi.fn(async (_column: string, ids: string[]) => ({
-            data: ids.map((id) => ({ id, revision: 20 })),
-            error: null,
-          })),
-        })),
-      })),
-    }));
-    supabaseMocks.getSupabaseBrowserClient.mockReturnValue({ from, rpc });
+    const scope = createUserScope('in-progress-user');
+    const rpc = vi.fn(
+      async (
+        _functionName: string,
+        args: {
+          p_mutations: Array<{
+            entity_type: string;
+            payload: { id: string };
+          }>;
+          p_operation_id: string;
+        },
+      ) =>
+        rpc.mock.calls.length === 1
+          ? {
+              data: null,
+              error: { code: 'PT409', message: 'operation_in_progress' },
+            }
+          : {
+              data: {
+                operationId: args.p_operation_id,
+                mutations: args.p_mutations.map((mutation) => ({
+                  entityType: mutation.entity_type,
+                  id: mutation.payload.id,
+                  revision: 2,
+                })),
+              },
+              error: null,
+            },
+    );
+    supabaseMocks.getSupabaseBrowserClient.mockReturnValue({ rpc });
 
     await createCategoryTag({
       scope,
       surface: 'calendar',
-      name: 'BLOCKED',
+      name: 'IN PROGRESS',
       colorHex: '#2563eb',
     });
     await waitForAccountPersistence(scope.id);
 
-    expect(rpc).toHaveBeenCalledTimes(2);
     const operation = await db.syncOutbox.toCollection().first();
-    expect(operation).toMatchObject({
-      lastError: '40001',
-      status: 'failed',
-    });
-    expect(operation?.rebasedAt).not.toBeNull();
+
+    expect(operation).toMatchObject({ lastError: 'PT409', status: 'failed' });
+    expect(operation?.rebasedAt).toBeNull();
 
     await resumeAccountPersistence(scope);
     await waitForAccountPersistence(scope.id);
 
     expect(rpc).toHaveBeenCalledTimes(2);
-
-    await retryFailedAccountPersistence(scope);
-    await waitForAccountPersistence(scope.id);
-
-    expect(rpc).toHaveBeenCalledTimes(3);
-    await expect(db.syncOutbox.count()).resolves.toBe(1);
+    await expect(db.syncOutbox.count()).resolves.toBe(0);
   });
 
   it('reports sync metrics without exposing user content', async () => {
@@ -2566,7 +2643,7 @@ describe('account persistence boundaries', () => {
     const scope = createUserScope('sync-tiebreak-user');
     const failingRpc = vi.fn(async () => ({
       data: null,
-      error: { code: '40001', message: 'stale_revision' },
+      error: { code: 'PT409', message: 'stale_revision' },
     }));
     supabaseMocks.getSupabaseBrowserClient.mockReturnValue({ rpc: failingRpc });
 
@@ -2612,7 +2689,7 @@ describe('account persistence boundaries', () => {
     const scope = createUserScope('sync-convergence-user');
     const failingRpc = vi.fn(async () => ({
       data: null,
-      error: { code: '40001', message: 'stale_revision' },
+      error: { code: 'PT409', message: 'stale_revision' },
     }));
     supabaseMocks.getSupabaseBrowserClient.mockReturnValue({ rpc: failingRpc });
 

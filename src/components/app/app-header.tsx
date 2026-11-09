@@ -1,6 +1,6 @@
 'use client';
 
-import { CalendarDays } from 'lucide-react';
+import { CalendarDays, Repeat } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { TbTargetArrow } from 'react-icons/tb';
@@ -14,10 +14,12 @@ import { AccountStatus } from '@/features/auth/account-status';
 import { AccountSyncIndicator } from '@/features/auth/account-sync-indicator';
 import { useAppContext } from '@/providers';
 
-export type AppSection = 'calendar' | 'goals';
+export type AppSection = 'calendar' | 'goals' | 'recurring';
 
-const activeNavigationItemClassName = `${activePillTabClassName} flex-1 sm:flex-none`;
-const navigationItemClassName = `${pillTabClassName} flex-1 sm:flex-none`;
+const navigationItemLayoutClassName =
+  'flex-1 sm:flex-none touch:flex-auto touch:gap-1 touch:px-2 touch:text-xs touch:whitespace-nowrap';
+const activeNavigationItemClassName = `${activePillTabClassName} ${navigationItemLayoutClassName}`;
+const navigationItemClassName = `${pillTabClassName} ${navigationItemLayoutClassName}`;
 
 export function AppHeader({ activeSection }: { activeSection: AppSection }) {
   const { authMode, dictionary, scope } = useAppContext();
@@ -43,6 +45,18 @@ export function AppHeader({ activeSection }: { activeSection: AppSection }) {
         <div
           className={`app-bottom-nav ${pillTabListClassName} backdrop-blur-md touch:rounded-none touch:p-1.5`}
         >
+          <Link
+            href="/recurring"
+            aria-current={activeSection === 'recurring' ? 'page' : undefined}
+            className={
+              activeSection === 'recurring'
+                ? activeNavigationItemClassName
+                : navigationItemClassName
+            }
+          >
+            <Repeat aria-hidden="true" className="size-4" />
+            {dictionary.navigation.recurring}
+          </Link>
           <Link
             href="/calendar"
             aria-current={activeSection === 'calendar' ? 'page' : undefined}

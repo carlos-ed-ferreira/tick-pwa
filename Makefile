@@ -25,7 +25,7 @@ coverage-check: require-npm
 coverage-baseline: require-npm
 	node scripts/check-coverage.mjs --write-baseline
 
-.PHONY: validate-database generate-database-migration
+.PHONY: validate-database generate-database-migration generate-database-types supabase-migrate-local test-e2e-browser-install
 
 validate-database: require-npm
 	TICK_DATABASE_ACTION=validate node scripts/benchmark-cohort.mjs
@@ -33,6 +33,9 @@ validate-database: require-npm
 generate-database-migration: require-npm
 	@test -n "$(name)" || { printf "Erro: informe name=<nome>.\n"; exit 2; }
 	TICK_DATABASE_ACTION=generate TICK_MIGRATION_NAME=$(name) node scripts/benchmark-cohort.mjs
+
+generate-database-types: require-npm
+	TICK_DATABASE_ACTION=types node scripts/benchmark-cohort.mjs
 
 .PHONY: check-secrets check-sast
 
@@ -124,7 +127,12 @@ actions-status:
 
 actions-run:
 	@test -n "$(run)" || { printf "Erro: informe run=<run-id>.\n"; exit 2; }
-	gh run view "$(run)" --repo carlos-ed-ferreira/tick-pwa --json databaseId,name,headSha,conclusion,url,jobs
+	gh run view "$(run)" --repo carlos-ed-ferreira/tick-pwa --json databaseId,name,headSha,conclusion,url,jobs,event,createdAt
+
+.PHONY: actions-job-log
+actions-job-log:
+	@test -n "$(job)" || { printf "Erro: informe job=<job-id>.\n"; exit 2; }
+	gh api "repos/carlos-ed-ferreira/tick-pwa/actions/jobs/$(job)/logs"
 
 operations-issues:
 	gh issue list --repo carlos-ed-ferreira/tick-pwa --state open --json number,title,url,labels
@@ -157,7 +165,7 @@ audit-all: require-npm
 .PHONY: test-release-workflow
 
 test-release-workflow: require-npm
-	$(NPM) run test -- tests/unit/release-workflow.test.mjs tests/unit/production-release.test.mjs
+	$(NPM) run test -- tests/unit/release-workflow.test.mjs tests/unit/production-release.test.mjs tests/unit/publish-branch.test.mjs tests/unit/publish-release.test.mjs
 
 .PHONY: production-release-status production-secrets-status main-ruleset-status
 
@@ -205,6 +213,7 @@ help:
 	@printf "  %-26s %s\n" "make mutation-baseline" "Grava resultados de mutacao para revisao do baseline"
 	@printf "  %-26s %s\n" "make coverage-check" "Bloqueia queda da cobertura e valida o diff"
 	@printf "  %-26s %s\n" "make coverage-baseline" "Grava o resultado de cobertura para revisao do baseline"
+	@printf "  %-26s %s\n" "make generate-database-types" "Gera os tipos do Supabase a partir de banco isolado"
 	@printf "  %-26s %s\n" "make validate-database" "Valida migrations e pgTAP em banco temporario isolado"
 	@printf "  %-26s %s\n" "make generate-database-migration name=<nome>" "Gera diff em banco isolado e copia a migration para revisao"
 	@printf "  %-26s %s\n" "make check-secrets" "Procura secrets no historico Git com saida redigida"
@@ -229,6 +238,7 @@ help:
 	@printf "  %-26s %s\n" "make test-access-policy" "Valida isolamento guest e autorizacao de convidados"
 	@printf "  %-26s %s\n" "make actions-status" "Consulta as execucoes recentes do GitHub Actions"
 	@printf "  %-26s %s\n" "make actions-run run=<run-id>" "Confere jobs e etapas de uma execucao"
+	@printf "  %-26s %s\n" "make actions-job-log job=<job-id>" "Consulta o log de um job diretamente pela API"
 	@printf "  %-26s %s\n" "make operations-issues" "Lista issues operacionais abertas"
 	@printf "  %-26s %s\n" "make backup-command-check" "Mostra o comando de dump local usando o mirror GHCR"
 	@printf "  %-26s %s\n" "make backup-image-check" "Valida pg_dump da imagem oficial GHCR usada pelo backup"
@@ -248,7 +258,7 @@ help:
 	@printf "  %-26s %s\n" "make backup-artifacts run=<run-id>" "Confere os artefatos e a validade do backup no GitHub"
 	@printf "\n"
 	@printf "  %-26s %s\n" "make install" "Instala dependencias do projeto"
-	@printf "  %-26s %s\n" "make install-ci" "Instala dependencias exatamente como no lockfile"
+	@printf "  %-26s %s\n" "make install-ci" "Instala pelo lockfile com retry de download transitorio da CLI"
 	@printf "  %-26s %s\n" "make add-dependency package=<pacote>" "Adiciona uma dependencia de producao"
 	@printf "  %-26s %s\n" "make update-dependency package=<pacote>" "Atualiza uma dependencia dentro do intervalo declarado"
 	@printf "  %-26s %s\n" "make dev" "Instala dependencias, inicia o Supabase local e o Next.js"
@@ -276,7 +286,7 @@ help:
 	@printf "  %-26s %s\n" "make check" "Roda typecheck, lint, testes, format-check e build"
 	@printf "  %-26s %s\n" "make audit-prod" "Audita vulnerabilidades de producao"
 	@printf "  %-26s %s\n" "make deps-tree" "Mostra dependencias diretas instaladas"
-	@printf "  %-26s %s\n" "make publish" "Publica dev em main pelo fluxo protegido"
+	@printf "  %-26s %s\n" "make publish" "Publica dev pelo fluxo protegido e aguarda producao e smoke"
 	@printf "  %-26s %s\n" "make benchmark-account-rpc" "Mede lotes e concorrencia no Supabase local"
 	@printf "  %-26s %s\n" "make backup-encrypt input=<dir> output=<file>" "Criptografa um backup logico"
 	@printf "  %-26s %s\n" "make backup-restore archive=<file>" "Restaura e valida backup em Postgres isolado"
@@ -285,6 +295,8 @@ help:
 	@printf "  %-26s %s\n" "make supabase-stop" "Para o Supabase local"
 	@printf "  %-26s %s\n" "make supabase-status" "Mostra URLs e chaves do Supabase local"
 	@printf "  %-26s %s\n" "make supabase-reset" "Reseta o banco Supabase local com migrations e seed"
+	@printf "  %-26s %s\n" "make supabase-migrate-local" "Aplica migrations pendentes no banco local sem reset"
+	@printf "  %-26s %s\n" "make test-e2e-browser-install" "Instala o Chromium da versao atual do Playwright"
 	@printf "  %-26s %s\n" "make supabase-diff" "Compara migrations com o schema declarativo"
 	@printf "  %-26s %s\n" "make supabase-diff-check" "Falha quando o schema declarativo diverge"
 	@printf "  %-26s %s\n" "make supabase-migration-diff name=<nome>" "Gera migration pelo diff declarativo"
@@ -318,8 +330,11 @@ require-npm:
 install: require-npm
 	$(NPM) install
 
+test-e2e-browser-install: require-npm
+	npx playwright install chromium
+
 install-ci: require-npm
-	$(NPM) ci
+	node scripts/install-ci.mjs "$(NPM)"
 
 add-dependency: require-npm
 	@test -n "$(package)" || { printf "Erro: informe package=<pacote>@<versao>.\n"; exit 2; }
@@ -458,6 +473,9 @@ test-e2e-account-real-container:
 
 supabase-reset: require-npm
 	$(NPM) run supabase:db:reset
+
+supabase-migrate-local: require-npm
+	node scripts/supabase-cli.mjs migration:up:local
 
 supabase-diff: require-npm
 	$(NPM) run supabase:db:diff

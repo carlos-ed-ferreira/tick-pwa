@@ -17,7 +17,11 @@ import { readBenchmarkOptions } from './benchmark-statistics.mjs';
 
 const source = process.cwd();
 const databaseAction = process.env.TICK_DATABASE_ACTION ?? 'benchmark';
-if (!['benchmark', 'validate', 'generate', 'browser'].includes(databaseAction))
+if (
+  !['benchmark', 'validate', 'generate', 'types', 'browser'].includes(
+    databaseAction,
+  )
+)
   throw new Error('Invalid database action.');
 const migrationName = process.env.TICK_MIGRATION_NAME ?? '';
 if (databaseAction === 'generate' && !/^[a-z][a-z0-9_]+$/u.test(migrationName))
@@ -207,6 +211,13 @@ try {
       path.join(source, 'supabase/migrations', generated[0]),
     );
     console.log(`Migration generated for review: ${generated[0]}`);
+  } else if (databaseAction === 'types') {
+    await make('supabase-types-local');
+    cpSync(
+      path.join(directory, 'src/lib/supabase/database.types.ts'),
+      path.join(source, 'src/lib/supabase/database.types.ts'),
+    );
+    console.log('Database types generated from the isolated schema.');
   } else {
     await make('supabase-lint');
     await make('supabase-diff-check');

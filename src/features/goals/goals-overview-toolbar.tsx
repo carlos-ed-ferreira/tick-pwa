@@ -2,9 +2,10 @@
 
 import { Archive, Target } from 'lucide-react';
 import {
-  activePillTabClassName,
-  pillTabClassName,
-  pillTabListClassName,
+  compactActivePillTabClassName,
+  compactPillTabClassName,
+  compactPillTabListClassName,
+  filledMediumPillControlClassName,
 } from '@/components/ui';
 import { CategoryManagerAction } from '@/features/categories';
 import { useAppContext } from '@/providers';
@@ -30,13 +31,15 @@ export function GoalsOverviewToolbar({
       className="flex flex-wrap items-center gap-2 px-1 sm:px-0"
       role="toolbar"
     >
-      <div className={pillTabListClassName}>
+      <div className={compactPillTabListClassName}>
         {options.map(({ icon: Icon, label, value }) => (
           <button
             key={value}
             aria-pressed={view === value}
             className={
-              view === value ? activePillTabClassName : pillTabClassName
+              view === value
+                ? compactActivePillTabClassName
+                : compactPillTabClassName
             }
             type="button"
             onClick={() => onViewChange(value)}
@@ -47,6 +50,7 @@ export function GoalsOverviewToolbar({
         ))}
       </div>
       <CategoryManagerAction
+        className={filledMediumPillControlClassName}
         surface="goal"
         title={dictionary.goals.editCategories}
       />

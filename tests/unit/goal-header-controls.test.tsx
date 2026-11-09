@@ -11,7 +11,7 @@ import { GoalsSurface } from '@/features/goals';
 import { stubPointerCapability } from '../support/pointer';
 
 function expectFilledRoundControl(element: HTMLElement) {
-  expect(element).toHaveClass('rounded-full', 'size-10');
+  expect(element).toHaveClass('rounded-full', 'size-9');
   expect(element).not.toHaveClass('rounded-md');
   expect(element.className).not.toContain('inset-ring');
 }

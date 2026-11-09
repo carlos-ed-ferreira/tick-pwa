@@ -229,7 +229,7 @@ conteúdo funcional, tokens e payloads antes do fornecedor.
 
 O backend contém `apply_account_operation_batch` e recibos por conta e
 `operation_id`. O contrato aceita até 100 mutações de categoria, dia, tarefa,
-grupo de metas, meta e etapa, deriva ownership do JWT, aplica compare-and-set
+grupo de metas, meta, etapa, recorrência e resposta, deriva ownership do JWT, aplica compare-and-set
 por revisão e confirma o lote inteiro em uma transação. Cada chamada também
 descarta os recibos da própria conta com mais de sete dias.
 
@@ -239,11 +239,62 @@ Supabase usam `cache: no-store`; autorização e dados não dependem do cache HT
 do navegador. Quando o navegador informa ausência de rede, a verificação de
 acesso usa o contrato de grant local e a atualização do perfil remoto é adiada.
 
+### Tema
+
+O Tick tem um único tema, o escuro. Os tokens de `src/app/globals.css` não dependem
+de `prefers-color-scheme`, e a aparência é a mesma em qualquer configuração do
+sistema.
+
+### Tarefas recorrentes
+
+A aba `/recurring` é independente das tarefas do dia e das metas: não altera o
+progresso delas e usa a surface de categorias própria `recurrence`. Ela tem duas
+visualizações: Executar, para responder às atividades da data selecionada, e
+Gerenciar, com frequência, estatísticas e ações de cada atividade. O motor puro
+fica em `src/lib/domain/recurrence.ts` e os comandos em
+`src/lib/db/recurrence-commands.ts`.
+
+Ocorrências são calculadas na consulta; somente respostas são persistidas.
+
+- `recurrences` guarda uma linha por atividade, com o conteúdo atual, as
+  subtarefas em JSON e dois históricos. `schedule` lista segmentos
+  `{from, rule}`: o primeiro tem `from: null` e vale para todo o passado, e
+  `rule: null` representa pausa. `content_history` guarda o conteúdo anterior,
+  válido até a data `until`, exclusiva.
+- `recurrence_responses` guarda uma linha por data e item, com `item_id` nulo
+  para a atividade principal. O id é determinístico por escopo, atividade, data e
+  item, e o Postgres exige que ele contenha o próprio `user_id`.
+- Voltar a pendente grava `deleted_at`; responder de novo restaura a mesma linha.
+
+Regras:
+
+- A taxa usa somente as respostas da atividade principal, contando cada data uma
+  vez. Sem respostas, a tela mostra "Sem dados". Subtarefas têm respostas próprias
+  que não entram na taxa nem alteram a principal.
+- Hoje e o passado aceitam resposta; datas futuras são somente consulta.
+- Uma resposta dada continua visível na data mesmo que a regra deixe de prevê-la.
+- Mudar a frequência cria um segmento a partir de hoje, sem recalcular o passado.
+  Atividade pausada precisa ser reativada para mudar de frequência.
+- Mudar o conteúdo depois de haver respostas pergunta como aplicar: atualizar os
+  registros anteriores limpa `content_history`; aplicar daqui em diante corta
+  o conteúdo em hoje, ou em amanhã se já houver resposta hoje.
+- Pausar e reativar valem a partir de hoje, e o intervalo pausado não tem
+  ocorrências. Excluir faz cascata para as respostas.
+- Sem data escolhida, a visão do dia acompanha a virada do dia.
+- Guest recebe categorias padrão próprias, e o editor permite gerenciá-las sem
+  perder o rascunho.
+
+Na conta, as duas entidades seguem a outbox de lotes e o caminho legado. Dois
+dispositivos que criam offline a mesma resposta convergem: o ramo da RPC usa
+`on conflict (id) do nothing`, a linha existente resulta em `stale_revision`, e o
+rebase reaplica a resposta como update. Vence o último dispositivo a reenviar.
+O conteúdo da atividade segue a mesma regra, para a linha inteira.
+
 ### PWA e offline
 
 Serwist gera `public/sw.js` durante o build. Assets usam estratégias de cache e
 navegações usam `NetworkFirst` com fallback em `/~offline`. O shell de `/`,
-`/calendar` e `/goals` é precacheado para permitir reload direto offline mesmo
+`/calendar`, `/goals` e `/recurring` é precacheado para permitir reload direto offline mesmo
 quando a rota foi aberta originalmente por navegação client-side. Parâmetros
 locais, como o dia ou a meta selecionada, reutilizam o mesmo shell precacheado e
 são reconstruídos do IndexedDB. O modo local continua funcional sem Supabase. A
@@ -304,6 +355,7 @@ containers; o projeto não possui Dockerfile nem Compose próprios.
 | Categoria         | marcador visual pertencente a uma superfície específica |
 | Grupo de metas    | agrupador opcional de metas                             |
 | Meta              | resultado acompanhado em `/goals`                       |
+| Recorrência       | atividade repetida acompanhada em `/recurring`          |
 | Etapa             | item hierárquico dentro de uma meta                     |
 | Subetapa          | descendente de uma etapa                                |
 | Nível de marcação | grau de conclusão da tarefa ou etapa, de 1 até o máximo |
@@ -459,6 +511,13 @@ VERCEL_AUTOMATION_BYPASS_SECRET=
 Esses valores são configurados fora do repositório. Nunca os adicione a um
 arquivo versionado.
 
+A instalação reproduzível por `make install-ci` mantém o lockfile e os scripts
+normais do npm. Em falhas transitórias identificadas no download da CLI
+Supabase pelo GitHub Releases, repete a instalação até três vezes no total,
+com esperas de 5 e 10 segundos. Outros erros interrompem imediatamente. Essa
+recuperação vale para os jobs de CI, publicação e backup que usam o target;
+não repete migrations, deploys ou o workflow inteiro.
+
 ## Banco, migrations e conexões
 
 `supabase/schemas/tick.sql` define tabelas, constraints, índices, triggers, RLS
@@ -594,23 +653,24 @@ representam capacidade aprovada de produção.
 
 Backup, publicação e operação:
 
-| Objetivo                    | Comando                                                                   |
-| --------------------------- | ------------------------------------------------------------------------- |
-| publicar em `main`          | `make publish`                                                            |
-| execuções recentes          | `make actions-status`                                                     |
-| jobs de uma execução        | `make actions-run run=<run-id>`                                           |
-| artefato do Actions         | `make actions-artifact-download run=<run-id> name=<artefato> dir=<pasta>` |
-| issues operacionais abertas | `make operations-issues`                                                  |
-| configuração da API Vercel  | `make production-release-status`                                          |
-| execuções do backup         | `make backup-status`                                                      |
-| log de backup falho         | `make backup-log run=<run-id>`                                            |
-| artefatos de backup         | `make backup-artifacts run=<run-id>`                                      |
-| datas da chave de backup    | `make backup-key-status`                                                  |
-| pg_dump da imagem GHCR      | `make backup-image-check`                                                 |
-| comando de dump, sem rodar  | `make backup-command-check`                                               |
-| cifrar backup lógico        | `make backup-encrypt input=<dir> output=<file>`                           |
-| baixar imagens do restore   | `make backup-restore-prepare`                                             |
-| restaurar backup            | `make backup-restore archive=<file>`                                      |
+| Objetivo                            | Comando                                                                   |
+| ----------------------------------- | ------------------------------------------------------------------------- |
+| publicar em `main`                  | `make publish`                                                            |
+| execuções recentes                  | `make actions-status`                                                     |
+| evento, data e jobs de uma execução | `make actions-run run=<run-id>`                                           |
+| log de um job pela API              | `make actions-job-log job=<job-id>`                                       |
+| artefato do Actions                 | `make actions-artifact-download run=<run-id> name=<artefato> dir=<pasta>` |
+| issues operacionais abertas         | `make operations-issues`                                                  |
+| configuração da API Vercel          | `make production-release-status`                                          |
+| execuções do backup                 | `make backup-status`                                                      |
+| log de backup falho                 | `make backup-log run=<run-id>`                                            |
+| artefatos de backup                 | `make backup-artifacts run=<run-id>`                                      |
+| datas da chave de backup            | `make backup-key-status`                                                  |
+| pg_dump da imagem GHCR              | `make backup-image-check`                                                 |
+| comando de dump, sem rodar          | `make backup-command-check`                                               |
+| cifrar backup lógico                | `make backup-encrypt input=<dir> output=<file>`                           |
+| baixar imagens do restore           | `make backup-restore-prepare`                                             |
+| restaurar backup                    | `make backup-restore archive=<file>`                                      |
 
 Supabase:
 
@@ -626,6 +686,9 @@ Supabase:
 | gerar migration                            | `make supabase-migration-diff name=<nome>`     |
 | validar sem resetar o ambiente de trabalho | `make validate-database`                       |
 | gerar diff em banco temporário             | `make generate-database-migration name=<nome>` |
+| gerar tipos em banco temporário            | `make generate-database-types`                 |
+| aplicar migrations pendentes sem reset     | `make supabase-migrate-local`                  |
+| instalar o Chromium do Playwright          | `make test-e2e-browser-install`                |
 | lint                                       | `make supabase-lint`                           |
 | pgTAP                                      | `make supabase-test-db`                        |
 | tipos                                      | `make supabase-types-local`                    |
@@ -658,29 +721,38 @@ issue `ci-failure` atribuída ao proprietário.
 
 O `vercel.json` desabilita auto-deploy Git somente da `main`. O workflow
 `supabase-migrations.yml` exige App CI completo aprovado para o SHA da ponta
-atual da `main`, tanto na execução automática quanto na manual. O preflight
+atual da `main`. Ele aceita somente `workflow_dispatch` com `expected_sha` e
+`request_id`; merge e conclusão do CI não disparam publicação. O preflight
 confere credenciais e vínculo do projeto Vercel antes de tocar o banco.
 Toda publicação consulta e aplica migrations pendentes, independentemente dos
 arquivos alterados no último commit, e confirma o histórico remoto antes do deploy.
 
 O deploy usa a API Vercel com o SHA explícito, sem Deploy Hook. O job confere
 SHA, projeto e ambiente Production, espera `READY` e verifica HTML e marcador
-`tick-release` em `/`, `/calendar` e `/goals`. Retomadas procuram deployment do
+`tick-release` em `/`, `/calendar`, `/goals` e `/recurring`. Retomadas procuram deployment do
 mesmo SHA; resposta perdida não gera repetição cega do POST. O timeout exige
 inspeção na Vercel antes de nova tentativa. O smoke ocorre após a promoção e
 não substitui validação funcional do domínio canônico. Configuração e retomada
 estão no [runbook](docs/operations/PUBLICACAO.md).
 
 Execuções de produção são serializadas. Falhas abrem ou comentam issue
-`pipeline-failure`. A auditoria horária compara migrations, sem publicar nem
-verificar a aplicação servida; avisos no GitHub dependem de sua disponibilidade.
+`pipeline-failure`. Não há auditoria horária de migrations; o histórico remoto
+é conferido em toda publicação. Avisos no GitHub dependem de sua disponibilidade.
 
 `make publish` exige branch `dev` e worktree limpo, sincroniza a branch, cria
 ou reutiliza PR, silencia notificações desse PR e aguarda os checks obrigatórios
 antes de armar squash automático. Depois confirma o merge e reconcilia `dev`.
-A conclusão significa `main` atualizada, não deployment concluído. Interromper
-antes de armar auto-merge deixa o PR aberto; depois de armado, o merge pode
-acontecer sem o processo local continuar executando.
+O comando captura o SHA do merge, espera o App CI de push desse SHA e solicita
+explicitamente o workflow de produção com um identificador único. Ele acompanha
+somente o run dessa solicitação e confirma publicação depois de `READY` e smoke
+aprovados. Se a `main` avançar, o SHA anterior é recusado.
+
+Interromper antes de armar auto-merge deixa o PR aberto; depois de armado, o
+merge pode acontecer sem o processo local continuar executando. Antes do
+disparo explícito, nenhuma publicação é iniciada. Depois do disparo, fechar o
+terminal não cancela o run remoto. Resposta perdida não provoca novo disparo
+automático; inspecione o Actions antes de retomar pelo procedimento manual do
+[runbook](docs/operations/PUBLICACAO.md).
 
 Commits, PRs, merges e publicação são controlados pelo desenvolvedor. Agentes
 não os executam sem pedido explícito da operação no turno atual. Mudanças de

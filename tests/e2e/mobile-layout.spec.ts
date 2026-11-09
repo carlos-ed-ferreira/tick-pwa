@@ -12,7 +12,7 @@ test.describe('mobile layout', () => {
   test('never scrolls the page horizontally', async ({ page }) => {
     await enterLocalMode(page);
 
-    for (const path of ['/calendar', '/goals']) {
+    for (const path of ['/calendar', '/goals', '/recurring']) {
       await page.goto(path);
       await expect(page.locator('main')).toBeVisible();
 
@@ -209,6 +209,44 @@ test.describe('mobile layout', () => {
     const box = await goalsLink.boundingBox();
 
     expect(box?.height).toBeGreaterThanOrEqual(36);
+  });
+
+  test('keeps the three navigation items on one line on a narrow phone', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 360, height: 640 });
+    await enterLocalMode(page);
+    await page.goto('/recurring');
+
+    const navigation = page.locator('.app-bottom-nav');
+    const links = navigation.getByRole('link');
+    await expect(links).toHaveCount(3);
+
+    const navigationBox = await navigation.boundingBox();
+    const boxes = await links.evaluateAll((elements) =>
+      elements.map((element) => {
+        const rect = element.getBoundingClientRect();
+
+        return {
+          bottom: rect.bottom,
+          fits:
+            element.scrollWidth <= element.clientWidth &&
+            getComputedStyle(element).whiteSpace === 'nowrap',
+          right: rect.right,
+          top: rect.top,
+        };
+      }),
+    );
+
+    for (const box of boxes) {
+      expect(box.fits).toBe(true);
+      expect(box.right).toBeLessThanOrEqual(360);
+      expect(box.top).toBeGreaterThanOrEqual(navigationBox?.y ?? 0);
+      expect(box.bottom).toBeLessThanOrEqual(
+        (navigationBox?.y ?? 0) + (navigationBox?.height ?? 0),
+      );
+    }
+    expect(new Set(boxes.map((box) => Math.round(box.top))).size).toBe(1);
   });
 
   test('never hides the page content behind the navigation bar', async ({

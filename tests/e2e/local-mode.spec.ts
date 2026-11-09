@@ -42,4 +42,7 @@ test('enters local mode and shows the main app navigation', async ({
   await expect(
     page.getByRole('link', { name: labels.goalsLink }),
   ).toBeVisible();
+  await expect(
+    page.getByRole('link', { name: labels.recurringLink }),
+  ).toBeVisible();
 });

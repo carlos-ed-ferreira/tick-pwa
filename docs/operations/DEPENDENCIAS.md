@@ -19,6 +19,33 @@ não guarda contagens históricas de vulnerabilidades nem resultados de releases
 O gate de produção rejeita severidade alta ou crítica. Advisory de ferramentas
 é classificado pelo alcance e compatibilidade sem aplicar downgrade automático.
 
+## Falha transitória na instalação da CLI
+
+`make install-ci` executa `scripts/install-ci.mjs`, que mantém `npm ci`, o
+lockfile e os scripts de instalação originais. O script preserva a saída do
+processo e examina somente o trecho final para classificar a falha.
+Quando o erro identifica o postinstall de `node_modules/supabase`, a origem
+GitHub Releases da CLI e um sinal transitório, repete a instalação: no máximo
+três tentativas, com esperas de 5 e 10 segundos.
+A origem é validada com o parser de URL: HTTPS, hostname exatamente
+`github.com`, sem credenciais ou porta alternativa, e caminho de release da
+CLI. Uma URL do GitHub embutida em caminho ou query de outro domínio não
+autoriza retry.
+
+Os sinais recuperáveis incluem HTTP 500/502/503/504, falhas transitórias de rede
+e arquivo gzip inválido ou incompleto. Erros explícitos de checksum ou
+integridade, permissão, autenticação, recurso ausente, plataforma não suportada,
+lockfile inválido, outro pacote ou erro desconhecido não recebem retry.
+Interrupção por sinal também encerra o processo. Ao esgotar as tentativas, o
+comando continua falhando com o status da última instalação.
+
+Cada retry executa um `npm ci` novo, que remove a instalação parcial e reinstala
+pelo lockfile. Não desabilita scripts nem verificações do instalador, não
+atualiza versões e não repete comandos de banco ou publicação. Uma
+indisponibilidade persistente do GitHub ainda exige aguardar a recuperação e
+retomar explicitamente o fluxo afetado. Todos os jobs que usam `make install-ci`
+recebem essa recuperação, incluindo CI, publicação e backup.
+
 ## Overrides atuais
 
 | Consumidor/resolução     | Override |

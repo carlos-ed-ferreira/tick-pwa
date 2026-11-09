@@ -29,7 +29,8 @@ export type PersistedCategoryTagSurface =
   | 'checklist_item'
   | 'goal_group'
   | 'goal'
-  | 'goal_step';
+  | 'goal_step'
+  | 'recurrence';
 export type CategoryTagSurface =
   | PersistedCategoryTagSurface
   | 'calendar'
@@ -41,7 +42,9 @@ export type SyncEntityType =
   | 'categoryTag'
   | 'goalGroup'
   | 'goal'
-  | 'goalStep';
+  | 'goalStep'
+  | 'recurrence'
+  | 'recurrenceResponse';
 
 export type SyncOperation = 'upsert' | 'delete';
 
@@ -114,6 +117,80 @@ export interface CategoryTag extends BaseEntity {
   position: string;
   surface: CategoryTagSurface;
   useOwnName: boolean;
+}
+
+export type RecurrenceWeekday = 0 | 1 | 2 | 3 | 4 | 5 | 6;
+
+export type RecurrenceWeekOrdinal = 1 | 2 | 3 | 4 | 'last';
+
+export type RecurrenceRule =
+  | { kind: 'interval'; everyDays: number; anchorDate: LocalDateString }
+  | {
+      kind: 'weekly';
+      everyWeeks: number;
+      weekdays: RecurrenceWeekday[];
+      anchorDate: LocalDateString | null;
+    }
+  | { kind: 'monthly_day'; day: number }
+  | { kind: 'monthly_last_day' }
+  | {
+      kind: 'monthly_weekday';
+      ordinal: RecurrenceWeekOrdinal;
+      weekday: RecurrenceWeekday;
+    };
+
+export interface RecurrenceScheduleSegment {
+  from: LocalDateString | null;
+  rule: RecurrenceRule | null;
+}
+
+export interface RecurrenceChild {
+  id: string;
+  parentId: string | null;
+  text: string;
+  bold: boolean;
+  priority: boolean;
+  sortRank: string;
+}
+
+export interface RecurrenceContent {
+  text: string;
+  bold: boolean;
+  priority: boolean;
+  categoryTagId: string | null;
+  children: RecurrenceChild[];
+}
+
+export interface RecurrenceContentSnapshot extends RecurrenceContent {
+  until: LocalDateString;
+}
+
+export interface Recurrence extends BaseEntity, RecurrenceContent {
+  schedule: RecurrenceScheduleSegment[];
+  contentHistory: RecurrenceContentSnapshot[];
+}
+
+export type RecurrenceResponseStatus = 'done' | 'not_done';
+
+export interface RecurrenceResponse extends BaseEntity {
+  recurrenceId: string;
+  date: LocalDateString;
+  itemId: string | null;
+  status: RecurrenceResponseStatus;
+}
+
+export interface RecurrenceStats {
+  done: number;
+  notDone: number;
+  rate: number | null;
+}
+
+export interface RecurrenceOccurrence {
+  recurrence: Recurrence;
+  content: RecurrenceContent;
+  date: LocalDateString;
+  status: RecurrenceResponseStatus | null;
+  childStatuses: Record<string, RecurrenceResponseStatus>;
 }
 
 export interface Goal extends BaseEntity {

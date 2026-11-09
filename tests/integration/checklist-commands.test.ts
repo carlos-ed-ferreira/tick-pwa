@@ -793,7 +793,7 @@ describe('checklist commands', () => {
     expect(clearedEntry?.categorySummaries).toEqual([]);
   });
 
-  it('normalizes category names to uppercase and ignores empty updates', async () => {
+  it('keeps category names as typed and ignores empty updates', async () => {
     const scope = createGuestScope('local-test');
     const categoryTag = await createCategoryTag({
       scope,
@@ -803,7 +803,7 @@ describe('checklist commands', () => {
     });
 
     expect((await db.categoryTags.get(categoryTag.id))?.name).toBe(
-      'MATEMÁTICA',
+      'Matemática',
     );
 
     await updateCategoryTag({
@@ -812,7 +812,7 @@ describe('checklist commands', () => {
       name: 'saúde',
     });
 
-    expect((await db.categoryTags.get(categoryTag.id))?.name).toBe('SAÚDE');
+    expect((await db.categoryTags.get(categoryTag.id))?.name).toBe('saúde');
 
     await updateCategoryTag({
       scope,
@@ -820,7 +820,7 @@ describe('checklist commands', () => {
       name: '   ',
     });
 
-    expect((await db.categoryTags.get(categoryTag.id))?.name).toBe('SAÚDE');
+    expect((await db.categoryTags.get(categoryTag.id))?.name).toBe('saúde');
   });
 
   it('toggles checklist item priority locally', async () => {

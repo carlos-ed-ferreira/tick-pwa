@@ -21,6 +21,7 @@ vi.mock('lucide-react', () => ({
   CalendarDays: iconMock('CalendarDays'),
   Languages: iconMock('Languages'),
   MoreHorizontal: iconMock('MoreHorizontal'),
+  Repeat: iconMock('Repeat'),
   Tags: iconMock('Tags'),
   Trophy: iconMock('Trophy'),
   X: iconMock('X'),
@@ -147,7 +148,11 @@ describe('navigation labels and icons', () => {
       const navigation = container.querySelector('nav');
       const actions = container.querySelector('[data-header-actions]');
 
-      expect(navigation?.querySelectorAll('a')).toHaveLength(2);
+      expect(
+        [...(navigation?.querySelectorAll('a') ?? [])].map((link) =>
+          link.getAttribute('href'),
+        ),
+      ).toEqual(['/recurring', '/calendar', '/goals']);
       expect(
         navigation?.querySelector('[data-testid="sync-control"]'),
       ).toBeNull();

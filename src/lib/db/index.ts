@@ -6,5 +6,6 @@ export * from './daily-entry-commands';
 export * from './daily-entry-id';
 export * from './goal-commands';
 export * from './local-preferences';
+export * from './recurrence-commands';
 export * from './scoped-preferences';
 export * from './seed';

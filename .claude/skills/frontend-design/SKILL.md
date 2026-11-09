@@ -46,8 +46,8 @@ linguagem visual paralela.
 
 ## Usar a paleta
 
-Os tokens de `src/app/globals.css` são a fonte da paleta, nos dois esquemas de
-cor. Restrições permanentes:
+O Tick tem um único tema, o escuro, independente da configuração do sistema. Os
+tokens de `src/app/globals.css` são a fonte da paleta. Restrições permanentes:
 
 - o âmbar `#f0c38e` e sua escala quente são fixos;
 - escuros e neutros saem do hue 212°, complementar do âmbar;
@@ -57,7 +57,7 @@ cor. Restrições permanentes:
 
 Ao derivar um tom novo, casar a luminância relativa WCAG do tom substituído, e
 não a lightness HSL, amortecendo a saturação nos extremos. Conferir contraste de
-texto, ícone e estado de foco nos temas claro e escuro.
+texto, ícone e estado de foco.
 
 O `<main>` pinta `bg-background` sobre o gradiente do `body`; em `/calendar` e
 `/goals` o que aparece é o overlay radial da própria página. Ajustar o fundo
@@ -84,6 +84,8 @@ dessas telas ali, não apenas no `body`.
 - Ícone-botão denso, como ações de linha e barra compacta, usa `IconButton`
   com `rounded-full`, para o hover também ser redondo. O `IconButton` só aplica
   `rounded-md` quando o `className` não define raio.
+  O tamanho vem da prop `size`, nunca de `size-*` no `className`; o lint rejeita
+  esse uso.
 - Voltar é pill com o texto curto do dicionário `actions.back`.
 - Campos de formulário usam `FormField` ou `FormTextareaField`, com o rótulo
   recortado na borda, que funciona sobre qualquer superfície. Controle dentro

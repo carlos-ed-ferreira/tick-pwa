@@ -284,7 +284,9 @@ avaliar o efeito e obter autorização para a manutenção correspondente.
 
 A RPC usa `PT409` para `stale_revision` e `operation_in_progress`. O cliente
 reconhece revisão desatualizada pela mensagem, faz um rebase automático e mantém
-falha recuperável se não convergir. Não usar SQLSTATE `40001` para conflito de
+falha recuperável se não convergir. Na retomada após abrir ou reconectar, uma
+falha com código de conflito e rebase já tentado aguarda o reenvio manual, enquanto
+`operation_in_progress`, que não passou por rebase, é retomada. Não usar SQLSTATE `40001` para conflito de
 negócio: o PostgREST pode repetir a transação sem resolver a revisão enviada.
 O benchmark HTTP local exercita esse contrato além dos testes pgTAP.
 

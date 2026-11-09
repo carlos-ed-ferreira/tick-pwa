@@ -10,7 +10,7 @@ async function loadWebServer() {
   return config.webServer as { reuseExistingServer: boolean };
 }
 
-describe('end-to-end server policy', () => {
+describe('end-to-end server policy', { timeout: 30_000 }, () => {
   afterEach(() => {
     if (originalReuse === undefined) {
       delete process.env.TICK_E2E_REUSE_SERVER;

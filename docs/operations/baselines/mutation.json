@@ -1,12 +1,13 @@
 {
-  "total": 89.72,
+  "total": 94.59,
   "files": {
     "src/lib/domain/task-completion.ts": 86.91,
     "src/lib/db/entity-metadata.ts": 91.66,
+    "src/lib/domain/recurrence.ts": 96.33,
     "src/lib/supabase/account-cache-baseline.ts": 100
   },
   "metadata": {
-    "measuredAt": "2026-11-03",
+    "measuredAt": "2026-11-06T17:37:47.023Z",
     "tool": "Stryker",
     "version": "9.6.1",
     "scope": "stryker.config.json mutate list"

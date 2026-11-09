@@ -352,7 +352,7 @@ describe('GoalsSurface', () => {
       name: 'Assign group category',
     });
 
-    expect(backButton).toHaveClass('h-10', 'rounded-full', 'bg-white/8');
+    expect(backButton).toHaveClass('h-9', 'rounded-full', 'bg-white/8');
     expect(titleInput).toHaveValue('Life');
     expect(titleInput).not.toHaveAttribute('placeholder');
     expect(titleInput).toHaveClass(
@@ -377,7 +377,7 @@ describe('GoalsSurface', () => {
       'inline-flex',
       'items-center',
       'justify-center',
-      'size-10',
+      'size-9',
       'rounded-full',
       'bg-white/8',
       'text-[#f8f3ea]',

@@ -1,10 +1,7 @@
 import type { AppScope, LocalDateString } from '@/lib/domain';
 import { compareSortRanks } from '@/lib/domain';
 import type { WeekdayIndex } from '@/lib/time';
-import {
-  createCategoryTag,
-  normalizeCategoryTagName,
-} from './category-commands';
+import { createCategoryTag, getCategoryTagNameKey } from './category-commands';
 import { db } from './database';
 import {
   applyChecklistTemplateToDateRange,
@@ -60,7 +57,7 @@ async function resolveCategoryTagIds({
         continue;
       }
 
-      const normalizedName = normalizeCategoryTagName(item.category.name);
+      const normalizedName = getCategoryTagNameKey(item.category.name);
 
       if (!normalizedName || requestedCategories.has(normalizedName)) {
         continue;
@@ -87,8 +84,10 @@ async function resolveCategoryTagIds({
   for (const tag of existingTags.sort((firstTag, secondTag) =>
     compareSortRanks(firstTag.position, secondTag.position),
   )) {
-    if (!categoryTagIds.has(tag.name)) {
-      categoryTagIds.set(tag.name, tag.id);
+    const nameKey = getCategoryTagNameKey(tag.name);
+
+    if (!categoryTagIds.has(nameKey)) {
+      categoryTagIds.set(nameKey, tag.id);
     }
   }
 
@@ -129,8 +128,7 @@ function toTemplateItems(
     priority: item.priority,
     collapsed: item.collapsed,
     categoryTagId: item.category
-      ? (categoryTagIds.get(normalizeCategoryTagName(item.category.name)) ??
-        null)
+      ? (categoryTagIds.get(getCategoryTagNameKey(item.category.name)) ?? null)
       : null,
     sortRank: item.sortRank,
   }));

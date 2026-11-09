@@ -93,7 +93,7 @@ create table public.category_tags (
   revision bigint not null default 1,
   constraint category_tags_id_user_id_key unique (id, user_id),
   constraint category_tags_surface_check
-    check (surface in ('checklist_item', 'goal_group', 'goal', 'goal_step'))
+    check (surface in ('checklist_item', 'goal_group', 'goal', 'goal_step', 'recurrence'))
 );
 
 create table public.daily_entries (
@@ -213,6 +213,48 @@ create table public.goal_steps (
     references public.goal_steps (id, user_id) on delete cascade,
   constraint goal_steps_category_tag_fkey foreign key (category_tag_id, user_id)
     references public.category_tags (id, user_id) on delete set null (category_tag_id)
+);
+
+create table public.recurrences (
+  id text primary key,
+  user_id uuid not null references auth.users (id) on delete cascade,
+  category_tag_id text,
+  text text not null default '',
+  bold boolean not null default false,
+  priority boolean not null default false,
+  children jsonb not null default '[]'::jsonb,
+  schedule jsonb not null default '[]'::jsonb,
+  content_history jsonb not null default '[]'::jsonb,
+  created_at timestamptz not null default timezone('utc', now()),
+  updated_at timestamptz not null default timezone('utc', now()),
+  deleted_at timestamptz,
+  client_updated_at timestamptz not null default timezone('utc', now()),
+  revision bigint not null default 1,
+  constraint recurrences_id_user_id_key unique (id, user_id),
+  constraint recurrences_children_check check (jsonb_typeof(children) = 'array'),
+  constraint recurrences_schedule_check check (jsonb_typeof(schedule) = 'array'),
+  constraint recurrences_content_history_check check (jsonb_typeof(content_history) = 'array'),
+  constraint recurrences_category_tag_fkey foreign key (category_tag_id, user_id)
+    references public.category_tags (id, user_id) on delete set null (category_tag_id)
+);
+
+create table public.recurrence_responses (
+  id text primary key,
+  user_id uuid not null references auth.users (id) on delete cascade,
+  recurrence_id text not null,
+  date date not null,
+  item_id text,
+  status text not null,
+  created_at timestamptz not null default timezone('utc', now()),
+  updated_at timestamptz not null default timezone('utc', now()),
+  deleted_at timestamptz,
+  client_updated_at timestamptz not null default timezone('utc', now()),
+  revision bigint not null default 1,
+  constraint recurrence_responses_status_check check (status in ('done', 'not_done')),
+  constraint recurrence_responses_id_owner_check check (id like 'rr:user:' || user_id::text || ':%'),
+  constraint recurrence_responses_occurrence_key unique nulls not distinct (user_id, recurrence_id, date, item_id),
+  constraint recurrence_responses_recurrence_fkey foreign key (recurrence_id, user_id)
+    references public.recurrences (id, user_id) on delete cascade
 );
 
 create or replace function public.validate_category_tag_surface()
@@ -691,6 +733,99 @@ begin
           and revision = base_revision
         returning revision into written_revision;
       end if;
+    elsif entity_type = 'recurrence' then
+      if base_revision is null then
+        insert into public.recurrences (
+          id,
+          user_id,
+          category_tag_id,
+          text,
+          bold,
+          priority,
+          children,
+          schedule,
+          content_history,
+          deleted_at,
+          client_updated_at
+        )
+        values (
+          entity_id,
+          authenticated_user_id,
+          mutation_payload ->> 'category_tag_id',
+          coalesce(mutation_payload ->> 'text', ''),
+          coalesce((mutation_payload ->> 'bold')::boolean, false),
+          coalesce((mutation_payload ->> 'priority')::boolean, false),
+          coalesce(mutation_payload -> 'children', '[]'::jsonb),
+          coalesce(mutation_payload -> 'schedule', '[]'::jsonb),
+          coalesce(mutation_payload -> 'content_history', '[]'::jsonb),
+          (mutation_payload ->> 'deleted_at')::timestamptz,
+          coalesce(
+            (mutation_payload ->> 'client_updated_at')::timestamptz,
+            timezone('utc', now())
+          )
+        )
+        returning revision into written_revision;
+      else
+        update public.recurrences
+        set
+          category_tag_id = mutation_payload ->> 'category_tag_id',
+          text = coalesce(mutation_payload ->> 'text', ''),
+          bold = coalesce((mutation_payload ->> 'bold')::boolean, false),
+          priority = coalesce((mutation_payload ->> 'priority')::boolean, false),
+          children = coalesce(mutation_payload -> 'children', '[]'::jsonb),
+          schedule = coalesce(mutation_payload -> 'schedule', '[]'::jsonb),
+          content_history = coalesce(mutation_payload -> 'content_history', '[]'::jsonb),
+          deleted_at = (mutation_payload ->> 'deleted_at')::timestamptz,
+          client_updated_at = coalesce(
+            (mutation_payload ->> 'client_updated_at')::timestamptz,
+            timezone('utc', now())
+          )
+        where id = entity_id
+          and user_id = authenticated_user_id
+          and revision = base_revision
+        returning revision into written_revision;
+      end if;
+    elsif entity_type = 'recurrenceResponse' then
+      if base_revision is null then
+        insert into public.recurrence_responses (
+          id,
+          user_id,
+          recurrence_id,
+          date,
+          item_id,
+          status,
+          deleted_at,
+          client_updated_at
+        )
+        values (
+          entity_id,
+          authenticated_user_id,
+          mutation_payload ->> 'recurrence_id',
+          (mutation_payload ->> 'date')::date,
+          mutation_payload ->> 'item_id',
+          mutation_payload ->> 'status',
+          (mutation_payload ->> 'deleted_at')::timestamptz,
+          coalesce(
+            (mutation_payload ->> 'client_updated_at')::timestamptz,
+            timezone('utc', now())
+          )
+        )
+        on conflict (id) do nothing
+        returning revision into written_revision;
+      else
+        update public.recurrence_responses
+        set
+          status = mutation_payload ->> 'status',
+          deleted_at = (mutation_payload ->> 'deleted_at')::timestamptz,
+          client_updated_at = coalesce(
+            (mutation_payload ->> 'client_updated_at')::timestamptz,
+            timezone('utc', now())
+          )
+        where id = entity_id
+          and user_id = authenticated_user_id
+          and revision = base_revision
+        returning revision into written_revision;
+      end if;
     else
       raise exception using errcode = '22023', message = 'unsupported_entity_type';
     end if;
@@ -752,6 +887,10 @@ create trigger goals_bump_revision before insert or update on public.goals
 for each row execute function public.bump_entity_revision();
 create trigger goal_steps_bump_revision before insert or update on public.goal_steps
 for each row execute function public.bump_entity_revision();
+create trigger recurrences_bump_revision before insert or update on public.recurrences
+for each row execute function public.bump_entity_revision();
+create trigger recurrence_responses_bump_revision before insert or update on public.recurrence_responses
+for each row execute function public.bump_entity_revision();
 
 create trigger checklist_items_validate_category before insert or update of category_tag_id, user_id
 on public.checklist_items for each row execute function public.validate_category_tag_surface('checklist_item');
@@ -761,6 +900,8 @@ create trigger goals_validate_category before insert or update of category_tag_i
 on public.goals for each row execute function public.validate_category_tag_surface('goal');
 create trigger goal_steps_validate_category before insert or update of category_tag_id, user_id
 on public.goal_steps for each row execute function public.validate_category_tag_surface('goal_step');
+create trigger recurrences_validate_category before insert or update of category_tag_id, user_id
+on public.recurrences for each row execute function public.validate_category_tag_surface('recurrence');
 
 alter table public.account_access enable row level security;
 alter table public.account_operation_receipts enable row level security;
@@ -772,6 +913,8 @@ alter table public.checklist_items enable row level security;
 alter table public.goal_groups enable row level security;
 alter table public.goals enable row level security;
 alter table public.goal_steps enable row level security;
+alter table public.recurrences enable row level security;
+alter table public.recurrence_responses enable row level security;
 
 create policy "Users can read own access row"
 on public.account_access for select to authenticated
@@ -802,7 +945,9 @@ begin
     'checklist_items',
     'goal_groups',
     'goals',
-    'goal_steps'
+    'goal_steps',
+    'recurrences',
+    'recurrence_responses'
   ]
   loop
     execute format(
@@ -838,3 +983,5 @@ create index goal_groups_category_idx on public.goal_groups (user_id, category_t
 create index goals_category_idx on public.goals (user_id, category_tag_id);
 
 create index goal_steps_category_idx on public.goal_steps (user_id, category_tag_id);
+
+create index recurrences_category_idx on public.recurrences (user_id, category_tag_id);

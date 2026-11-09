@@ -2,7 +2,8 @@ import { describe, expect, it, vi } from 'vitest';
 import { publishDevelopmentBranch } from '../../scripts/publish-branch.mjs';
 
 function createExecutor(responses) {
-  return vi.fn(async () => {
+  return vi.fn(async (command, args) => {
+    if (args.includes('.mergeCommit.oid')) return 'a'.repeat(40);
     const response = responses.shift() ?? '';
 
     if (response instanceof Error) {
@@ -41,7 +42,7 @@ describe('publishDevelopmentBranch', () => {
     ]);
     const write = vi.fn();
 
-    await publishDevelopmentBranch({ execute, write });
+    await publishDevelopmentBranch({ execute, write, release: vi.fn() });
 
     expect(execute.mock.calls).toEqual([
       ['git', ['branch', '--show-current']],
@@ -128,6 +129,18 @@ describe('publishDevelopmentBranch', () => {
       [
         'gh',
         [
+          'pr',
+          'view',
+          'https://github.com/example/tick/pull/1',
+          '--json',
+          'mergeCommit',
+          '--jq',
+          '.mergeCommit.oid',
+        ],
+      ],
+      [
+        'gh',
+        [
           'api',
           '--method',
           'GET',
@@ -167,7 +180,11 @@ describe('publishDevelopmentBranch', () => {
       '',
     ]);
 
-    await publishDevelopmentBranch({ execute, write: vi.fn() });
+    await publishDevelopmentBranch({
+      execute,
+      write: vi.fn(),
+      release: vi.fn(),
+    });
 
     expect(execute).not.toHaveBeenCalledWith(
       'gh',
@@ -204,7 +221,12 @@ describe('publishDevelopmentBranch', () => {
     ]);
     const wait = vi.fn();
 
-    await publishDevelopmentBranch({ execute, wait, write: vi.fn() });
+    await publishDevelopmentBranch({
+      execute,
+      wait,
+      write: vi.fn(),
+      release: vi.fn(),
+    });
 
     expect(wait).toHaveBeenCalledWith(2_000);
     expect(execute).toHaveBeenLastCalledWith('git', ['push', 'origin', 'dev']);
@@ -229,7 +251,11 @@ describe('publishDevelopmentBranch', () => {
       '',
     ]);
 
-    await publishDevelopmentBranch({ execute, write: vi.fn() });
+    await publishDevelopmentBranch({
+      execute,
+      write: vi.fn(),
+      release: vi.fn(),
+    });
 
     const checksCall = execute.mock.calls.findIndex(
       ([command, args]) => command === 'gh' && args[1] === 'checks',
@@ -263,7 +289,12 @@ describe('publishDevelopmentBranch', () => {
     ]);
     const wait = vi.fn();
 
-    await publishDevelopmentBranch({ execute, wait, write: vi.fn() });
+    await publishDevelopmentBranch({
+      execute,
+      wait,
+      write: vi.fn(),
+      release: vi.fn(),
+    });
 
     expect(wait).toHaveBeenCalledWith(2_000);
     expect(execute).toHaveBeenLastCalledWith('git', ['push', 'origin', 'dev']);
@@ -290,7 +321,11 @@ describe('publishDevelopmentBranch', () => {
       '',
     ]);
 
-    await publishDevelopmentBranch({ execute, write: vi.fn() });
+    await publishDevelopmentBranch({
+      execute,
+      write: vi.fn(),
+      release: vi.fn(),
+    });
 
     expect(execute).toHaveBeenCalledWith('gh', [
       'pr',
@@ -345,7 +380,12 @@ describe('publishDevelopmentBranch', () => {
     ]);
     const write = vi.fn();
 
-    await publishDevelopmentBranch({ execute, wait: vi.fn(), write });
+    await publishDevelopmentBranch({
+      execute,
+      wait: vi.fn(),
+      write,
+      release: vi.fn(),
+    });
 
     expect(write).toHaveBeenCalledWith(
       'Não foi possível silenciar as notificações do pull request.',
@@ -376,7 +416,7 @@ describe('publishDevelopmentBranch', () => {
     ]);
     const write = vi.fn();
 
-    await publishDevelopmentBranch({ execute, write });
+    await publishDevelopmentBranch({ execute, write, release: vi.fn() });
 
     expect(execute).toHaveBeenCalledWith('gh', [
       'api',
@@ -414,10 +454,44 @@ describe('publishDevelopmentBranch', () => {
     ]);
     const wait = vi.fn();
 
-    await publishDevelopmentBranch({ execute, wait, write: vi.fn() });
+    await publishDevelopmentBranch({
+      execute,
+      wait,
+      write: vi.fn(),
+      release: vi.fn(),
+    });
 
     expect(wait).toHaveBeenCalledTimes(30);
     expect(execute).toHaveBeenLastCalledWith('git', ['push', 'origin', 'dev']);
+  });
+
+  it('starts production only for the merged PR SHA and waits before reporting success', async () => {
+    const sha = 'a'.repeat(40);
+    const execute = vi.fn(async (command, args) => {
+      if (args[0] === 'branch') return 'dev';
+      if (args[0] === 'status') return '';
+      if (args[1] === 'list') return 'https://github.com/example/tick/pull/1';
+      if (args.includes('.state')) return 'MERGED';
+      if (args.includes('.mergeCommit.oid')) return sha;
+      return '';
+    });
+    const write = vi.fn();
+    const release = vi.fn(async (approvedSha) => {
+      expect(approvedSha).toBe(sha);
+      expect(write).not.toHaveBeenCalledWith(
+        expect.stringContaining('Publicação concluída'),
+      );
+    });
+
+    await publishDevelopmentBranch({ execute, write, release });
+
+    expect(release).toHaveBeenCalledWith(
+      sha,
+      expect.objectContaining({ execute, write }),
+    );
+    expect(write).toHaveBeenCalledWith(
+      expect.stringContaining('Publicação concluída'),
+    );
   });
 
   it('rejects branches other than dev', async () => {

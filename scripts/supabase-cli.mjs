@@ -42,6 +42,11 @@ try {
     process.exit(0);
   }
 
+  if (command === 'migration:up:local') {
+    await executeSupabase(['migration', 'up', '--local', ...extraArgs]);
+    process.exit(0);
+  }
+
   if (command === 'db:diff') {
     await executeSupabase(['db', 'diff', ...extraArgs]);
     process.exit(0);
@@ -251,6 +256,7 @@ Commands:
   stop             Stop the local Supabase stack
   status           Show local Supabase services and keys
   db:reset         Reset the local Supabase database
+  migration:up:local  Apply pending migrations to the local database without resetting it
   db:diff          Diff migrations against supabase/schemas
   db:diff:check    Fail when supabase/schemas diverges from the migrations
   db:lint          Lint the local public schema

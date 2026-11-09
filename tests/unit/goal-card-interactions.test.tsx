@@ -339,7 +339,6 @@ describe('GoalsSurface', () => {
       'py-1',
       'text-[0.68rem]',
       'font-semibold',
-      'uppercase',
       'tracking-[0.24em]',
       'text-[#f7e8ce]',
       'shadow-sm',

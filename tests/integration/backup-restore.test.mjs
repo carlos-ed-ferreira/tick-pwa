@@ -71,7 +71,7 @@ END $$;
         0,
       );
       const result = JSON.parse(restored.stdout);
-      expect(result.publicTables).toBe(10);
+      expect(result.publicTables).toBe(12);
       expect(result.backupCreatedAt).toBe(createdAt);
       expect(result.rtoMs).toBeLessThan(120000);
     } finally {

@@ -21,8 +21,8 @@ import {
   ConfirmationDialog,
   FilledIconButton,
   filledControlNeutralClassName,
-  filledPillControlClassName,
-  filledRoundControlClassName,
+  filledMediumPillControlClassName,
+  filledMediumRoundControlClassName,
   Input,
 } from '@/components/ui';
 import {
@@ -51,7 +51,7 @@ import { GoalDetailActionsSheet } from './goal-detail-actions-sheet';
 import { useAppContext } from '@/providers';
 import { CategoryColorButton } from './goal-category-controls';
 
-const neutralRoundControlClassName = `${filledRoundControlClassName} ${filledControlNeutralClassName}`;
+const neutralRoundControlClassName = `${filledMediumRoundControlClassName} ${filledControlNeutralClassName}`;
 
 function GoalGroupTitleEditor({
   autoFocus,
@@ -148,7 +148,7 @@ export function GoalGroupDetailHeader({
           <GoalGroupTitleEditor autoFocus={false} group={group} />
           {groupCategory && !groupCategory.useOwnName ? (
             <span
-              className="inline-flex min-h-10 max-w-full shrink-0 items-center rounded-full inset-ring-hairline inset-ring-(--chip-edge) px-3 py-1 text-sm font-medium text-[#f7e8ce] shadow-sm shadow-[#253241]/10"
+              className="inline-flex min-h-9 max-w-full shrink-0 items-center rounded-full inset-ring-hairline inset-ring-(--chip-edge) px-3 py-1 text-sm font-medium text-[#f7e8ce] shadow-sm shadow-[#253241]/10"
               style={
                 {
                   '--chip-edge': toAlphaColor(groupCategory.colorHex, 0.6),
@@ -188,13 +188,14 @@ export function GoalGroupDetailHeader({
             <Trash2 aria-hidden="true" className="size-4" />
           </FilledIconButton>
           <CategoryManagerAction
+            className={filledMediumPillControlClassName}
             surface="goal"
             title={dictionary.goals.editCategories}
           />
         </div>
         <button
           type="button"
-          className={`${filledPillControlClassName} w-fit`}
+          className={`${filledMediumPillControlClassName} w-fit`}
           onClick={onBack}
         >
           <ArrowLeft aria-hidden="true" className="size-4" />
@@ -366,6 +367,7 @@ export function GoalDetailHeader({
         <Trash2 aria-hidden="true" className="size-4" />
       </FilledIconButton>
       <CategoryManagerAction
+        className={filledMediumPillControlClassName}
         surface="goal"
         title={dictionary.goals.editCategories}
       />
@@ -379,7 +381,7 @@ export function GoalDetailHeader({
           <GoalTitleEditor goal={goal} />
           {goalCategory && !goalCategory.useOwnName ? (
             <span
-              className="inline-flex min-h-10 max-w-full shrink-0 items-center rounded-full inset-ring-hairline inset-ring-(--chip-edge) px-3 py-1 text-sm font-medium text-[#f7e8ce] shadow-sm shadow-[#253241]/10"
+              className="inline-flex min-h-9 max-w-full shrink-0 items-center rounded-full inset-ring-hairline inset-ring-(--chip-edge) px-3 py-1 text-sm font-medium text-[#f7e8ce] shadow-sm shadow-[#253241]/10"
               style={
                 {
                   '--chip-edge': toAlphaColor(goalCategory.colorHex, 0.6),
@@ -391,7 +393,7 @@ export function GoalDetailHeader({
             </span>
           ) : null}
           {goal.dueDate ? (
-            <span className="inline-flex min-h-10 max-w-full shrink-0 items-center gap-1.5 rounded-full inset-ring-hairline inset-ring-white/15 bg-white/5 px-3 py-1 text-sm font-medium text-[#f8f3ea] shadow-sm shadow-[#253241]/10">
+            <span className="inline-flex min-h-9 max-w-full shrink-0 items-center gap-1.5 rounded-full inset-ring-hairline inset-ring-white/15 bg-white/5 px-3 py-1 text-sm font-medium text-[#f8f3ea] shadow-sm shadow-[#253241]/10">
               <CalendarDays
                 aria-hidden="true"
                 className="size-3.5 opacity-70"
@@ -409,7 +411,7 @@ export function GoalDetailHeader({
         </div>
         <button
           type="button"
-          className={`${filledPillControlClassName} w-fit`}
+          className={`${filledMediumPillControlClassName} w-fit`}
           onClick={onBack}
         >
           <ArrowLeft aria-hidden="true" className="size-4" />

@@ -7,10 +7,10 @@ explicitamente autorizados. O modo guest permite usar todas as funcionalidades
 de organização gratuitamente, sem cadastro, limite de tempo ou quantidade
 imposto pelo produto. Essa política preserva os dois modos existentes.
 
-| Modo            | Acesso e funcionalidades                                               | Persistência                                             |
-| --------------- | ---------------------------------------------------------------------- | -------------------------------------------------------- |
-| Guest           | Calendário, tarefas, categorias, metas e etapas completos, sem prazo   | IndexedDB deste navegador, no escopo guest da instalação |
-| Conta convidada | Funcionalidades de organização e sincronização para a conta autorizada | Cache local e Supabase no escopo do usuário autenticado  |
+| Modo            | Acesso e funcionalidades                                                | Persistência                                             |
+| --------------- | ----------------------------------------------------------------------- | -------------------------------------------------------- |
+| Guest           | Calendário, tarefas, categorias, metas, etapas e recorrentes, sem prazo | IndexedDB deste navegador, no escopo guest da instalação |
+| Conta convidada | Funcionalidades de organização e sincronização para a conta autorizada  | Cache local e Supabase no escopo do usuário autenticado  |
 
 O uso guest é permanente, sem ativação, exigência de cartão ou contagem de dias.
 Dados reais não são substituídos por demonstrações. Fechar ou reabrir o app não
@@ -49,7 +49,8 @@ hospedagem, visibilidade ou escopo dos secrets nesta etapa.
 
 Cobrir os cenários pelos gates do REVIEW sempre que o fluxo for alterado:
 
-1. Guest cria e altera dados nas superfícies de calendário e metas sem conta.
+1. Guest cria e altera dados nas superfícies de calendário, metas e recorrentes
+   sem conta.
 2. Reload e reabertura preservam os dados; passar tempo não bloqueia edição.
 3. Guest funciona offline e não envia entidades aos endpoints remotos.
 4. Entrar/sair de uma conta convidada mantém o conjunto guest independente.
@@ -67,7 +68,7 @@ A reabertura autenticada usa sessão disponível e grant positivo da mesma
 conta/e-mail com até 24 horas quando o Supabase não responde. Não há acesso
 remoto autorizado por esse grant depois de uma negativa explícita do servidor.
 
-A outbox das seis entidades funcionais depende de flag e UUID habilitados no
+A outbox das oito entidades funcionais depende de flag e UUID habilitados no
 build. Preferências usam fila durável para qualquer conta convidada. O indicador
 resume os dois caminhos. O refresh compara a versão anterior à rede com a
 versão local atual, preservando alterações e confirmações durante a leitura.

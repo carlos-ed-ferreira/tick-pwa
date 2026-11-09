@@ -368,7 +368,7 @@ export function GoalGroupCard({
                 whenTruncated
               >
                 <span
-                  className="inline-flex min-h-7 min-w-0 max-w-full items-center gap-2 rounded-full inset-ring-hairline inset-ring-(--chip-edge) px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.24em] text-[#f7e8ce] shadow-sm shadow-[#253241]/10"
+                  className="inline-flex min-h-7 min-w-0 max-w-full items-center gap-2 rounded-full inset-ring-hairline inset-ring-(--chip-edge) px-3 py-1 text-[0.68rem] font-semibold tracking-[0.24em] text-[#f7e8ce] shadow-sm shadow-[#253241]/10"
                   style={
                     {
                       '--chip-edge': toAlphaColor(category.colorHex, 0.6),

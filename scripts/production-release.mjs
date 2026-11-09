@@ -26,6 +26,19 @@ export function assertApprovedChecks(checks, sha) {
   }
 }
 
+export function assertExplicitRelease(environment) {
+  if (
+    environment.GITHUB_ACTIONS !== 'true' ||
+    environment.GITHUB_EVENT_NAME !== 'workflow_dispatch' ||
+    environment.GITHUB_REF !== 'refs/heads/main' ||
+    environment.APPROVED_SHA !== environment.GITHUB_SHA
+  ) {
+    throw new Error(
+      'Production release requires an explicit dispatch on main for the requested SHA.',
+    );
+  }
+}
+
 function configurationFromEnvironment() {
   const values = {
     token: process.env.VERCEL_TOKEN,
@@ -178,7 +191,7 @@ function assertDeploymentIdentity(deployment, configuration) {
 export async function smokeDeployment(deployment, sha) {
   if (!/^[a-zA-Z0-9-]+\.vercel\.app$/u.test(deployment.url ?? ''))
     throw new Error('Unexpected deployment hostname.');
-  for (const path of ['/', '/calendar', '/goals']) {
+  for (const path of ['/', '/calendar', '/goals', '/recurring']) {
     const response = await fetch(`https://${deployment.url}${path}`, {
       redirect: 'error',
       signal: AbortSignal.timeout(30000),
@@ -229,14 +242,7 @@ export async function deployApprovedRelease(
 }
 
 async function main(command) {
-  if (
-    process.env.GITHUB_ACTIONS !== 'true' ||
-    process.env.GITHUB_REF !== 'refs/heads/main'
-  ) {
-    throw new Error(
-      'Production release commands require GitHub Actions on main.',
-    );
-  }
+  assertExplicitRelease(process.env);
   const configuration = configurationFromEnvironment();
   await confirmCurrentCommit(configuration);
   await confirmAppCi(configuration);

@@ -463,6 +463,115 @@ export type Database = {
         };
         Relationships: [];
       };
+      recurrence_responses: {
+        Row: {
+          client_updated_at: string;
+          created_at: string;
+          date: string;
+          deleted_at: string | null;
+          id: string;
+          item_id: string | null;
+          recurrence_id: string;
+          revision: number;
+          status: string;
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          client_updated_at?: string;
+          created_at?: string;
+          date: string;
+          deleted_at?: string | null;
+          id: string;
+          item_id?: string | null;
+          recurrence_id: string;
+          revision?: number;
+          status: string;
+          updated_at?: string;
+          user_id: string;
+        };
+        Update: {
+          client_updated_at?: string;
+          created_at?: string;
+          date?: string;
+          deleted_at?: string | null;
+          id?: string;
+          item_id?: string | null;
+          recurrence_id?: string;
+          revision?: number;
+          status?: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'recurrence_responses_recurrence_fkey';
+            columns: ['recurrence_id', 'user_id'];
+            isOneToOne: false;
+            referencedRelation: 'recurrences';
+            referencedColumns: ['id', 'user_id'];
+          },
+        ];
+      };
+      recurrences: {
+        Row: {
+          bold: boolean;
+          category_tag_id: string | null;
+          children: Json;
+          client_updated_at: string;
+          content_history: Json;
+          created_at: string;
+          deleted_at: string | null;
+          id: string;
+          priority: boolean;
+          revision: number;
+          schedule: Json;
+          text: string;
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          bold?: boolean;
+          category_tag_id?: string | null;
+          children?: Json;
+          client_updated_at?: string;
+          content_history?: Json;
+          created_at?: string;
+          deleted_at?: string | null;
+          id: string;
+          priority?: boolean;
+          revision?: number;
+          schedule?: Json;
+          text?: string;
+          updated_at?: string;
+          user_id: string;
+        };
+        Update: {
+          bold?: boolean;
+          category_tag_id?: string | null;
+          children?: Json;
+          client_updated_at?: string;
+          content_history?: Json;
+          created_at?: string;
+          deleted_at?: string | null;
+          id?: string;
+          priority?: boolean;
+          revision?: number;
+          schedule?: Json;
+          text?: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'recurrences_category_tag_fkey';
+            columns: ['category_tag_id', 'user_id'];
+            isOneToOne: false;
+            referencedRelation: 'category_tags';
+            referencedColumns: ['id', 'user_id'];
+          },
+        ];
+      };
       user_preferences: {
         Row: {
           created_at: string;

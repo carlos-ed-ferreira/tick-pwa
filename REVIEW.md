@@ -155,8 +155,9 @@ RLS, grants e comportamento de cascade. Rollout deve ser compatível com a
 versão anterior e a nova da aplicação. Nenhuma migration de produção deve rodar
 enquanto os gates obrigatórios do mesmo SHA estiverem pendentes ou falhando.
 
-O pipeline automático e o manual exigem o App CI completo aprovado para o mesmo
-SHA da ponta de `main`, incluindo segurança. O preflight verifica Vercel antes
+A publicação exige solicitação explícita por `workflow_dispatch` e App CI
+completo aprovado para o SHA solicitado, igual ao SHA do run e à ponta de
+`main`, incluindo segurança. Merge e conclusão do CI não autorizam deploy. O preflight verifica Vercel antes
 das migrations; histórico remoto é conferido em toda publicação. A API publica
 SHA explícito e só aprova o job depois de conferir identidade, `READY` e smoke.
 O domínio canônico e os fluxos de conta continuam com verificação funcional

@@ -6,6 +6,12 @@ import { ptBRDictionary } from '@/lib/i18n/dictionaries/pt-BR';
 describe('product terminology', () => {
   it('uses tasks and subtasks throughout the daily task UI', () => {
     expect(ptBRDictionary.navigation.calendar).toBe('Tarefas do dia');
+    expect(ptBRDictionary.navigation.recurring).toBe('Recorrentes');
+    expect(ptBRDictionary.recurring.childrenTitle).toBe('Subtarefas');
+    expect(ptBRDictionary.recurring.doneCountOne).toBe('1 feita');
+    expect(ptBRDictionary.recurring.notDoneCountOne).toBe('1 não feita');
+    expect(enDictionary.navigation.recurring).toBe('Recurring');
+    expect(enDictionary.recurring.childrenTitle).toBe('Subtasks');
     expect(ptBRDictionary.calendar.editCategories).toBe(
       'Editar categorias de tarefas',
     );

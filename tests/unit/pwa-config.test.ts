@@ -29,6 +29,12 @@ describe('PWA app shell', () => {
       (entry: { url: string }) => entry.url,
     );
 
-    expect(urls).toEqual(['/', '/calendar', '/goals', '/~offline']);
+    expect(urls).toEqual([
+      '/',
+      '/calendar',
+      '/goals',
+      '/recurring',
+      '/~offline',
+    ]);
   });
 });

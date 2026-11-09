@@ -120,3 +120,63 @@ test('converges two independent account sessions after concurrent offline edits'
     await second.close();
   }
 });
+
+test('converges the same recurring answer given offline by two sessions', async ({
+  browser,
+}) => {
+  const first = await browser.newContext({ locale: 'en-US' });
+  const second = await browser.newContext({ locale: 'en-US' });
+  const activity = `Shared recurring ${Date.now()}`;
+  const doneName = `Done: ${activity}`;
+  const notDoneName = `Not done: ${activity}`;
+
+  try {
+    const left = await first.newPage();
+    const right = await second.newPage();
+
+    await signIn(left, '2026-11-05');
+    await left.goto('http://127.0.0.1:3102/recurring');
+    await left
+      .getByRole('button', {
+        name: /^(new activity|start by creating a recurring activity)$/i,
+      })
+      .click();
+    await left.getByRole('dialog').getByLabel('Activity name').fill(activity);
+    await left
+      .getByRole('dialog')
+      .getByRole('button', { name: 'Save' })
+      .click();
+    await expect(
+      left.getByRole('button', { name: doneName, exact: true }),
+    ).toBeVisible();
+    await expect(left.getByRole('status')).toHaveText('Synced');
+
+    await signIn(right, '2026-11-05');
+    await right.goto('http://127.0.0.1:3102/recurring');
+    await expect(
+      right.getByRole('button', { name: doneName, exact: true }),
+    ).toBeVisible();
+
+    await Promise.all([first.setOffline(true), second.setOffline(true)]);
+    await left.getByRole('button', { name: doneName, exact: true }).click();
+    await right.getByRole('button', { name: notDoneName, exact: true }).click();
+
+    await first.setOffline(false);
+    await expect(left.getByRole('status')).toHaveText('Synced');
+    await second.setOffline(false);
+    await expect(right.getByRole('status')).toHaveText('Synced');
+    await left.getByRole('button', { name: /synced/i }).click();
+
+    for (const page of [left, right]) {
+      await expect(
+        page.getByRole('button', { name: notDoneName, exact: true }),
+      ).toHaveAttribute('aria-pressed', 'true');
+      await expect(
+        page.getByRole('button', { name: doneName, exact: true }),
+      ).toHaveAttribute('aria-pressed', 'false');
+    }
+  } finally {
+    await first.close();
+    await second.close();
+  }
+});

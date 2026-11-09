@@ -1,6 +1,7 @@
 export * from './app-header';
 export * from '@/components/ui';
 export * from './language-switcher';
+export * from './calendar-month-panel';
 export * from './date-picker';
 export * from './dropdown-join-shape';
 export * from './move-tree-item-to-target';

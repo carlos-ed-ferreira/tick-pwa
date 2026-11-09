@@ -1,13 +1,12 @@
 'use client';
 
-import { CalendarDays, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { CalendarDays, X } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import {
   useCallback,
   useEffect,
   useId,
   useLayoutEffect,
-  useMemo,
   useRef,
   useState,
   type ReactNode,
@@ -15,32 +14,17 @@ import {
 import { FormField, IconButton, ModalActionButton } from '@/components/ui';
 import type { LocalDateString } from '@/lib/domain';
 import {
-  createLocalDateKey,
-  createMonthGrid,
   formatDateInputValue,
   getTodayKey,
   maskDateInput,
   parseDateInputValue,
-  parseLocalDateKey,
 } from '@/lib/time';
 import { useAppContext } from '@/providers';
+import { CalendarMonthPanel } from './calendar-month-panel';
 
 const popoverWidth = 288;
 const viewportPadding = 12;
 const popoverGap = 8;
-
-function moveMonth(
-  monthDate: LocalDateString,
-  monthOffset: number,
-): LocalDateString {
-  const date = parseLocalDateKey(monthDate);
-
-  return createLocalDateKey(
-    date.getFullYear(),
-    date.getMonth() + monthOffset,
-    1,
-  );
-}
 
 export function DatePicker({
   autoFocus = false,
@@ -67,7 +51,7 @@ export function DatePicker({
   onChange: (value: string) => void;
   onClear?: () => void;
 }) {
-  const { dictionary, locale, timezonePreference } = useAppContext();
+  const { dictionary, timezonePreference } = useAppContext();
   const fieldRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const popoverRef = useRef<HTMLDivElement | null>(null);
@@ -82,23 +66,6 @@ export function DatePicker({
     left: viewportPadding,
     top: viewportPadding,
   });
-  const monthDays = useMemo(() => createMonthGrid(monthDate), [monthDate]);
-  const monthNumber = parseLocalDateKey(monthDate).getMonth();
-  const monthFormatter = useMemo(
-    () =>
-      new Intl.DateTimeFormat(locale, {
-        month: 'long',
-        year: 'numeric',
-      }),
-    [locale],
-  );
-  const dateFormatter = useMemo(
-    () =>
-      new Intl.DateTimeFormat(locale, {
-        dateStyle: 'long',
-      }),
-    [locale],
-  );
 
   useEffect(() => {
     if (!autoFocus) {
@@ -228,65 +195,13 @@ export function DatePicker({
       className="tick-datepicker fixed z-[90] w-72 rounded-2xl bg-[#16202c]/98 p-3 text-[#fff9f2] shadow-[0_24px_70px_rgba(5,8,13,0.56)] backdrop-blur-xl"
       style={popoverPosition}
     >
-      <div className="flex items-center justify-between gap-2">
-        <IconButton
-          aria-label={dictionary.calendar.previousMonth}
-          size="compact"
-          className="rounded-full bg-white/8 text-[#aebac8] hover:bg-white/12 hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
-          onClick={() => setMonthDate((current) => moveMonth(current, -1))}
-        >
-          <ChevronLeft aria-hidden="true" className="size-4" />
-        </IconButton>
-        <span className="text-sm font-semibold capitalize text-[#fff9f2]">
-          {monthFormatter.format(parseLocalDateKey(monthDate))}
-        </span>
-        <IconButton
-          aria-label={dictionary.calendar.nextMonth}
-          size="compact"
-          className="rounded-full bg-white/8 text-[#aebac8] hover:bg-white/12 hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]"
-          onClick={() => setMonthDate((current) => moveMonth(current, 1))}
-        >
-          <ChevronRight aria-hidden="true" className="size-4" />
-        </IconButton>
-      </div>
-
-      <div
-        aria-hidden="true"
-        className="mt-2 grid grid-cols-7 gap-1 text-center text-[0.65rem] font-semibold uppercase tracking-[0.08em] text-[#7b8da0]"
-      >
-        {dictionary.calendar.weekdays.map((weekday) => (
-          <span key={weekday} className="leading-8">
-            {weekday}
-          </span>
-        ))}
-      </div>
-
-      <div className="grid grid-cols-7 gap-1">
-        {monthDays.map((day) => {
-          const isSelected = day.date === selectedDate;
-          const isToday = day.date === today;
-          const dayDate = parseLocalDateKey(day.date);
-
-          return (
-            <button
-              key={day.date}
-              type="button"
-              aria-label={dateFormatter.format(dayDate)}
-              aria-pressed={isSelected}
-              className={`inline-flex size-8 items-center justify-center rounded-full text-xs font-medium tabular-nums transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e] ${
-                isSelected
-                  ? 'bg-[#f0c38e] text-[#253241] shadow-sm shadow-[#f0c38e]/20'
-                  : isToday
-                    ? 'bg-[#f0c38e]/12 text-[#f7d7ad] inset-ring-hairline inset-ring-[#f0c38e]/35 hover:bg-[#f0c38e]/20'
-                    : 'text-[#cbd5e0] hover:bg-white/[0.08] hover:text-[#fff9f2]'
-              } ${dayDate.getMonth() === monthNumber ? '' : 'opacity-35'}`}
-              onClick={() => selectDate(day.date)}
-            >
-              {dayDate.getDate()}
-            </button>
-          );
-        })}
-      </div>
+      <CalendarMonthPanel
+        monthDate={monthDate}
+        selectedDate={selectedDate}
+        today={today}
+        onMonthChange={setMonthDate}
+        onSelectDate={selectDate}
+      />
 
       <div className="mt-3 flex items-center justify-between gap-2">
         {onClear && value ? (
