@@ -46,6 +46,29 @@ describe('production release safety', () => {
     ).toThrow();
     expect(() => assertApprovedChecks(checks, 'b'.repeat(40))).toThrow();
   });
+  it('requires an explicit dispatch on main for the exact requested SHA', async () => {
+    const { assertExplicitRelease } = await releaseModule();
+    const environment = {
+      GITHUB_ACTIONS: 'true',
+      GITHUB_EVENT_NAME: 'workflow_dispatch',
+      GITHUB_REF: 'refs/heads/main',
+      GITHUB_SHA: configuration.sha,
+      APPROVED_SHA: configuration.sha,
+    };
+    expect(() => assertExplicitRelease(environment)).not.toThrow();
+    for (const change of [
+      { GITHUB_ACTIONS: 'false' },
+      { GITHUB_EVENT_NAME: 'workflow_run' },
+      { GITHUB_EVENT_NAME: 'schedule' },
+      { GITHUB_REF: 'refs/heads/dev' },
+      { APPROVED_SHA: 'b'.repeat(40) },
+    ]) {
+      expect(() =>
+        assertExplicitRelease({ ...environment, ...change }),
+      ).toThrow('explicit dispatch');
+    }
+  });
+
   it('checks pending migration history independently of the last commit', () => {
     const workflow = readFileSync(
       '.github/workflows/supabase-migrations.yml',

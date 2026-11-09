@@ -37,37 +37,36 @@ describe('production release workflow', () => {
   it('deploys only after migrations and refuses to deploy a superseded SHA', () => {
     const deploymentJob = workflow.slice(
       workflow.indexOf('  deploy-production:'),
-      workflow.indexOf('  audit-production-migrations:'),
+      workflow.indexOf('  report-failure:'),
     );
 
     expect(deploymentJob).toContain('needs: migrate-production');
-    expect(deploymentJob).toContain("if: github.event_name != 'schedule'");
+    expect(deploymentJob).not.toContain('schedule');
     expect(deploymentJob).toContain('VERCEL_TOKEN');
-    expect(deploymentJob).toContain(
-      'github.event.workflow_run.head_sha || github.sha',
-    );
+    expect(deploymentJob).toContain('inputs.expected_sha');
     expect(deploymentJob).toContain('run: make production-release');
     expect(deploymentJob).toContain('timeout-minutes: 15');
   });
 
-  it('audits production migration drift on a schedule', () => {
-    expect(workflow).toContain('schedule:');
-    expect(workflow).toMatch(/cron:\s*['"]23 \* \* \* \*['"]/u);
-
-    const auditJob = workflow.slice(
-      workflow.indexOf('  audit-production-migrations:'),
-      workflow.indexOf('  report-failure:'),
+  it('requires an explicit SHA and never publishes from a CI completion or schedule', () => {
+    expect(workflow).toContain('workflow_dispatch:');
+    expect(workflow).toMatch(
+      /expected_sha:\s*\n\s*description:[^\n]*\n\s*required: true/u,
     );
-
-    expect(auditJob).toContain("if: github.event_name == 'schedule'");
-    expect(auditJob).toContain('make supabase-prod-migrations-check');
+    expect(workflow).toContain('request_id:');
+    expect(workflow).toContain('run-name:');
+    expect(workflow).not.toContain('workflow_run');
+    expect(workflow).not.toContain('schedule:');
+    expect(workflow).not.toContain('audit-production-migrations');
+    expect(workflow).toContain("github.ref == 'refs/heads/main'");
+    expect(backupWorkflow).toContain("cron: '17 3 * * *'");
   });
 
-  it('reports deployment and scheduled audit failures', () => {
+  it('reports production release failures', () => {
     const failureJob = workflow.slice(workflow.indexOf('  report-failure:'));
 
     expect(failureJob).toContain('- deploy-production');
-    expect(failureJob).toContain('- audit-production-migrations');
+    expect(failureJob).toContain('- migrate-production');
     expect(failureJob).toContain(
       "if: always() && contains(needs.*.result, 'failure')",
     );

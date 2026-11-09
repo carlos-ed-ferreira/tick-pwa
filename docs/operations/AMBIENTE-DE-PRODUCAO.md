@@ -215,6 +215,25 @@ investigar, não timeout para descartar trabalho. Preservar fila e dados locais
 mesmo durante uma indisponibilidade prolongada.
 
 Falhas dos jobs geram issues pelos workflows; execução que não acontece não
-produz o mesmo alerta. A auditoria horária e os avisos dependem do GitHub.
+produz o mesmo alerta. Os avisos dependem do GitHub.
+O workflow `Supabase migrations` aceita somente solicitação explícita por
+`workflow_dispatch`, com `expected_sha` e `request_id`; `make publish` envia
+os inputs depois do merge e da aprovação do App CI daquele SHA. O histórico
+remoto é conferido em cada publicação; não existe auditoria horária agendada.
+A instalação de dependências baixa a CLI do Supabase pelo GitHub Releases e
+pode falhar antes de consultar o banco. `make install-ci` repete somente falhas
+transitórias identificadas desse download, com até três tentativas e esperas de
+5 e 10 segundos. Erros permanentes e esgotamento continuam reprovando o job;
+migrations e deploy não são reenviados por essa recuperação. Consulte evento,
+data e etapas com
+`make actions-run run=<run-id>` e o log bruto com
+`make actions-job-log job=<job-id>` quando `make backup-log` não retornar texto.
+Falhas de publicação recebem o título `Pipeline de produção falhou` e o rótulo
+`pipeline-failure`. A automação comenta na issue aberta do mesmo rótulo e não a
+encerra quando uma execução posterior passa. O backup diário mantém seu
+agendamento e o rótulo separado `backup-failure`.
+Os novos inputs não são secrets e não exigem credenciais adicionais no
+GitHub, Supabase ou Vercel. A conta local que executa `make publish` precisa
+ter permissão de disparo de Actions, além das permissões de PR e conteúdo.
 Durante instabilidade conhecida, avaliar adiamento de publicações com migration.
 Não limpar IndexedDB nem enfraquecer acesso para contornar falha de infraestrutura.

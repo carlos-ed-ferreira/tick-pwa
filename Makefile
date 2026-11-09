@@ -127,7 +127,12 @@ actions-status:
 
 actions-run:
 	@test -n "$(run)" || { printf "Erro: informe run=<run-id>.\n"; exit 2; }
-	gh run view "$(run)" --repo carlos-ed-ferreira/tick-pwa --json databaseId,name,headSha,conclusion,url,jobs
+	gh run view "$(run)" --repo carlos-ed-ferreira/tick-pwa --json databaseId,name,headSha,conclusion,url,jobs,event,createdAt
+
+.PHONY: actions-job-log
+actions-job-log:
+	@test -n "$(job)" || { printf "Erro: informe job=<job-id>.\n"; exit 2; }
+	gh api "repos/carlos-ed-ferreira/tick-pwa/actions/jobs/$(job)/logs"
 
 operations-issues:
 	gh issue list --repo carlos-ed-ferreira/tick-pwa --state open --json number,title,url,labels
@@ -160,7 +165,7 @@ audit-all: require-npm
 .PHONY: test-release-workflow
 
 test-release-workflow: require-npm
-	$(NPM) run test -- tests/unit/release-workflow.test.mjs tests/unit/production-release.test.mjs
+	$(NPM) run test -- tests/unit/release-workflow.test.mjs tests/unit/production-release.test.mjs tests/unit/publish-branch.test.mjs tests/unit/publish-release.test.mjs
 
 .PHONY: production-release-status production-secrets-status main-ruleset-status
 
@@ -233,6 +238,7 @@ help:
 	@printf "  %-26s %s\n" "make test-access-policy" "Valida isolamento guest e autorizacao de convidados"
 	@printf "  %-26s %s\n" "make actions-status" "Consulta as execucoes recentes do GitHub Actions"
 	@printf "  %-26s %s\n" "make actions-run run=<run-id>" "Confere jobs e etapas de uma execucao"
+	@printf "  %-26s %s\n" "make actions-job-log job=<job-id>" "Consulta o log de um job diretamente pela API"
 	@printf "  %-26s %s\n" "make operations-issues" "Lista issues operacionais abertas"
 	@printf "  %-26s %s\n" "make backup-command-check" "Mostra o comando de dump local usando o mirror GHCR"
 	@printf "  %-26s %s\n" "make backup-image-check" "Valida pg_dump da imagem oficial GHCR usada pelo backup"
@@ -252,7 +258,7 @@ help:
 	@printf "  %-26s %s\n" "make backup-artifacts run=<run-id>" "Confere os artefatos e a validade do backup no GitHub"
 	@printf "\n"
 	@printf "  %-26s %s\n" "make install" "Instala dependencias do projeto"
-	@printf "  %-26s %s\n" "make install-ci" "Instala dependencias exatamente como no lockfile"
+	@printf "  %-26s %s\n" "make install-ci" "Instala pelo lockfile com retry de download transitorio da CLI"
 	@printf "  %-26s %s\n" "make add-dependency package=<pacote>" "Adiciona uma dependencia de producao"
 	@printf "  %-26s %s\n" "make update-dependency package=<pacote>" "Atualiza uma dependencia dentro do intervalo declarado"
 	@printf "  %-26s %s\n" "make dev" "Instala dependencias, inicia o Supabase local e o Next.js"
@@ -280,7 +286,7 @@ help:
 	@printf "  %-26s %s\n" "make check" "Roda typecheck, lint, testes, format-check e build"
 	@printf "  %-26s %s\n" "make audit-prod" "Audita vulnerabilidades de producao"
 	@printf "  %-26s %s\n" "make deps-tree" "Mostra dependencias diretas instaladas"
-	@printf "  %-26s %s\n" "make publish" "Publica dev em main pelo fluxo protegido"
+	@printf "  %-26s %s\n" "make publish" "Publica dev pelo fluxo protegido e aguarda producao e smoke"
 	@printf "  %-26s %s\n" "make benchmark-account-rpc" "Mede lotes e concorrencia no Supabase local"
 	@printf "  %-26s %s\n" "make backup-encrypt input=<dir> output=<file>" "Criptografa um backup logico"
 	@printf "  %-26s %s\n" "make backup-restore archive=<file>" "Restaura e valida backup em Postgres isolado"
@@ -328,7 +334,7 @@ test-e2e-browser-install: require-npm
 	npx playwright install chromium
 
 install-ci: require-npm
-	$(NPM) ci
+	node scripts/install-ci.mjs "$(NPM)"
 
 add-dependency: require-npm
 	@test -n "$(package)" || { printf "Erro: informe package=<pacote>@<versao>.\n"; exit 2; }

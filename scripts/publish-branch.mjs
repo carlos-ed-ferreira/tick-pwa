@@ -1,4 +1,5 @@
 import { execFile } from 'node:child_process';
+import { publishApprovedCommit } from './publish-release.mjs';
 import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
@@ -10,6 +11,7 @@ export async function publishDevelopmentBranch({
   execute = executeCommand,
   wait = delay,
   write = console.log,
+  release = publishApprovedCommit,
 } = {}) {
   const branch = (await execute('git', ['branch', '--show-current'])).trim();
 
@@ -69,6 +71,17 @@ export async function publishDevelopmentBranch({
   await waitForRequiredChecks(pullRequest, execute, wait);
   await execute('gh', ['pr', 'merge', pullRequest, '--auto', '--squash']);
   await waitForMergedPullRequest(pullRequest, execute, wait);
+  const mergedSha = (
+    await execute('gh', [
+      'pr',
+      'view',
+      pullRequest,
+      '--json',
+      'mergeCommit',
+      '--jq',
+      '.mergeCommit.oid',
+    ])
+  ).trim();
   await finalizePullRequestNotifications(
     pullRequest,
     notificationsIgnored,
@@ -79,6 +92,8 @@ export async function publishDevelopmentBranch({
   await execute('git', ['merge', '--no-edit', 'origin/main']);
   await execute('git', ['push', 'origin', 'dev']);
   write(`Main atualizada: ${pullRequest}`);
+  await release(mergedSha, { execute, wait, write });
+  write(`Publicação concluída: ${mergedSha}`);
 }
 
 async function ignorePullRequestNotifications(pullRequest, execute) {

@@ -106,7 +106,16 @@ aplicou a migration `20261103180224` e publicou o `59c372b`: quality gate,
 migrations e deploy com smoke aprovados, e o domínio canônico serve o mesmo
 SHA. O Deploy Hook antigo foi removido do GitHub e revogado na Vercel.
 
-- [ ] Conferir execução manual com evidência completa do App CI do mesmo SHA.
+- [ ] Validar a primeira publicação pelo novo `make publish`, depois de o
+      workflow explícito chegar à `main`: confirmar CI do SHA do merge, um
+      único dispatch com `expected_sha` e `request_id`, migrations, deploy e
+      smoke antes da mensagem final. Origem: decisão do proprietário de
+      publicar somente mediante solicitação deliberada.
+- [ ] Conferir e encerrar ou cancelar, conforme o caso, execuções antigas
+      ainda pendentes na transição; alteração do workflow não cancela runs
+      já criados. Confirmar ausência de novos runs de auditoria horária.
+- [ ] Conferir a retomada pela interface com `main`, SHA completo atual e um
+      identificador único, sem repetir solicitação ainda em execução.
 
 ### DEP-05 — Ensaiar interrupções, retomada e rollback
 
@@ -119,7 +128,7 @@ SHA. O Deploy Hook antigo foi removido do GitHub e revogado na Vercel.
 - [ ] Validar retomada do mesmo pipeline sem republicações desnecessárias.
 - [ ] Exercitar interrupção de `make publish` antes/depois de armar auto-merge;
       preservar distinção entre merge confirmado e aplicação publicada.
-- [ ] Verificar avisos de falha e auditoria após recuperação do GitHub. Automação
+- [ ] Verificar avisos de falha de publicação e backup após recuperação do GitHub. Automação
       hospedada nele não alerta durante indisponibilidade total da plataforma.
 
 ## Operação e compatibilidade

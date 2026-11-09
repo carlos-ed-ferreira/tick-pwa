@@ -511,6 +511,13 @@ VERCEL_AUTOMATION_BYPASS_SECRET=
 Esses valores são configurados fora do repositório. Nunca os adicione a um
 arquivo versionado.
 
+A instalação reproduzível por `make install-ci` mantém o lockfile e os scripts
+normais do npm. Em falhas transitórias identificadas no download da CLI
+Supabase pelo GitHub Releases, repete a instalação até três vezes no total,
+com esperas de 5 e 10 segundos. Outros erros interrompem imediatamente. Essa
+recuperação vale para os jobs de CI, publicação e backup que usam o target;
+não repete migrations, deploys ou o workflow inteiro.
+
 ## Banco, migrations e conexões
 
 `supabase/schemas/tick.sql` define tabelas, constraints, índices, triggers, RLS
@@ -646,23 +653,24 @@ representam capacidade aprovada de produção.
 
 Backup, publicação e operação:
 
-| Objetivo                    | Comando                                                                   |
-| --------------------------- | ------------------------------------------------------------------------- |
-| publicar em `main`          | `make publish`                                                            |
-| execuções recentes          | `make actions-status`                                                     |
-| jobs de uma execução        | `make actions-run run=<run-id>`                                           |
-| artefato do Actions         | `make actions-artifact-download run=<run-id> name=<artefato> dir=<pasta>` |
-| issues operacionais abertas | `make operations-issues`                                                  |
-| configuração da API Vercel  | `make production-release-status`                                          |
-| execuções do backup         | `make backup-status`                                                      |
-| log de backup falho         | `make backup-log run=<run-id>`                                            |
-| artefatos de backup         | `make backup-artifacts run=<run-id>`                                      |
-| datas da chave de backup    | `make backup-key-status`                                                  |
-| pg_dump da imagem GHCR      | `make backup-image-check`                                                 |
-| comando de dump, sem rodar  | `make backup-command-check`                                               |
-| cifrar backup lógico        | `make backup-encrypt input=<dir> output=<file>`                           |
-| baixar imagens do restore   | `make backup-restore-prepare`                                             |
-| restaurar backup            | `make backup-restore archive=<file>`                                      |
+| Objetivo                            | Comando                                                                   |
+| ----------------------------------- | ------------------------------------------------------------------------- |
+| publicar em `main`                  | `make publish`                                                            |
+| execuções recentes                  | `make actions-status`                                                     |
+| evento, data e jobs de uma execução | `make actions-run run=<run-id>`                                           |
+| log de um job pela API              | `make actions-job-log job=<job-id>`                                       |
+| artefato do Actions                 | `make actions-artifact-download run=<run-id> name=<artefato> dir=<pasta>` |
+| issues operacionais abertas         | `make operations-issues`                                                  |
+| configuração da API Vercel          | `make production-release-status`                                          |
+| execuções do backup                 | `make backup-status`                                                      |
+| log de backup falho                 | `make backup-log run=<run-id>`                                            |
+| artefatos de backup                 | `make backup-artifacts run=<run-id>`                                      |
+| datas da chave de backup            | `make backup-key-status`                                                  |
+| pg_dump da imagem GHCR              | `make backup-image-check`                                                 |
+| comando de dump, sem rodar          | `make backup-command-check`                                               |
+| cifrar backup lógico                | `make backup-encrypt input=<dir> output=<file>`                           |
+| baixar imagens do restore           | `make backup-restore-prepare`                                             |
+| restaurar backup                    | `make backup-restore archive=<file>`                                      |
 
 Supabase:
 
@@ -713,7 +721,8 @@ issue `ci-failure` atribuída ao proprietário.
 
 O `vercel.json` desabilita auto-deploy Git somente da `main`. O workflow
 `supabase-migrations.yml` exige App CI completo aprovado para o SHA da ponta
-atual da `main`, tanto na execução automática quanto na manual. O preflight
+atual da `main`. Ele aceita somente `workflow_dispatch` com `expected_sha` e
+`request_id`; merge e conclusão do CI não disparam publicação. O preflight
 confere credenciais e vínculo do projeto Vercel antes de tocar o banco.
 Toda publicação consulta e aplica migrations pendentes, independentemente dos
 arquivos alterados no último commit, e confirma o histórico remoto antes do deploy.
@@ -727,15 +736,23 @@ não substitui validação funcional do domínio canônico. Configuração e ret
 estão no [runbook](docs/operations/PUBLICACAO.md).
 
 Execuções de produção são serializadas. Falhas abrem ou comentam issue
-`pipeline-failure`. A auditoria horária compara migrations, sem publicar nem
-verificar a aplicação servida; avisos no GitHub dependem de sua disponibilidade.
+`pipeline-failure`. Não há auditoria horária de migrations; o histórico remoto
+é conferido em toda publicação. Avisos no GitHub dependem de sua disponibilidade.
 
 `make publish` exige branch `dev` e worktree limpo, sincroniza a branch, cria
 ou reutiliza PR, silencia notificações desse PR e aguarda os checks obrigatórios
 antes de armar squash automático. Depois confirma o merge e reconcilia `dev`.
-A conclusão significa `main` atualizada, não deployment concluído. Interromper
-antes de armar auto-merge deixa o PR aberto; depois de armado, o merge pode
-acontecer sem o processo local continuar executando.
+O comando captura o SHA do merge, espera o App CI de push desse SHA e solicita
+explicitamente o workflow de produção com um identificador único. Ele acompanha
+somente o run dessa solicitação e confirma publicação depois de `READY` e smoke
+aprovados. Se a `main` avançar, o SHA anterior é recusado.
+
+Interromper antes de armar auto-merge deixa o PR aberto; depois de armado, o
+merge pode acontecer sem o processo local continuar executando. Antes do
+disparo explícito, nenhuma publicação é iniciada. Depois do disparo, fechar o
+terminal não cancela o run remoto. Resposta perdida não provoca novo disparo
+automático; inspecione o Actions antes de retomar pelo procedimento manual do
+[runbook](docs/operations/PUBLICACAO.md).
 
 Commits, PRs, merges e publicação são controlados pelo desenvolvedor. Agentes
 não os executam sem pedido explícito da operação no turno atual. Mudanças de
