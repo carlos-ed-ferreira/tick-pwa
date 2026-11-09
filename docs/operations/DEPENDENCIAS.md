@@ -27,6 +27,10 @@ processo e examina somente o trecho final para classificar a falha.
 Quando o erro identifica o postinstall de `node_modules/supabase`, a origem
 GitHub Releases da CLI e um sinal transitório, repete a instalação: no máximo
 três tentativas, com esperas de 5 e 10 segundos.
+A origem é validada com o parser de URL: HTTPS, hostname exatamente
+`github.com`, sem credenciais ou porta alternativa, e caminho de release da
+CLI. Uma URL do GitHub embutida em caminho ou query de outro domínio não
+autoriza retry.
 
 Os sinais recuperáveis incluem HTTP 500/502/503/504, falhas transitórias de rede
 e arquivo gzip inválido ou incompleto. Erros explícitos de checksum ou

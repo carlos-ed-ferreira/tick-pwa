@@ -2,13 +2,28 @@ import { spawn } from 'node:child_process';
 import process from 'node:process';
 import { pathToFileURL } from 'node:url';
 
+function hasSupabaseReleaseDownload(output) {
+  return (output.match(/https?:\/\/\S+/gu) ?? []).some((candidate) => {
+    if (!URL.canParse(candidate)) return false;
+    const url = new URL(candidate);
+    return (
+      url.protocol === 'https:' &&
+      url.hostname === 'github.com' &&
+      url.port === '' &&
+      url.username === '' &&
+      url.password === '' &&
+      url.pathname.startsWith('/supabase/cli/releases/download/')
+    );
+  });
+}
+
 function isTransientDownloadFailure(error) {
   const output = error.installOutput ?? '';
   return (
     !error.signal &&
     /[/\\]node_modules[/\\]supabase(?:\r?\n|$)/u.test(output) &&
     output.includes('scripts/postinstall.js') &&
-    output.includes('https://github.com/supabase/cli/releases/download/') &&
+    hasSupabaseReleaseDownload(output) &&
     !/checksum mismatch|EINTEGRITY|EACCES|EPERM|\b40[134]\b|not supported/iu.test(
       output,
     ) &&

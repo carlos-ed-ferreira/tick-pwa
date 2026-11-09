@@ -20,6 +20,30 @@ function downloadFailure(detail) {
 }
 
 describe('CI installation recovery', () => {
+  it.each([
+    'https://github.com.evil.example/supabase/cli/releases/download/v2.98.2/cli.tar.gz',
+    'https://evil.example/https://github.com/supabase/cli/releases/download/v2.98.2/cli.tar.gz',
+    'https://evil.example/?next=https://github.com/supabase/cli/releases/download/v2.98.2/cli.tar.gz',
+    'https://github.com/supabase/cli/releases/download@evil.example/cli.tar.gz',
+    'http://github.com/supabase/cli/releases/download/v2.98.2/cli.tar.gz',
+    'https://user:password@github.com/supabase/cli/releases/download/v2.98.2/cli.tar.gz',
+    'https://github.com:8443/supabase/cli/releases/download/v2.98.2/cli.tar.gz',
+    'https://github.com:invalid/supabase/cli/releases/download/v2.98.2/cli.tar.gz',
+  ])('refuses an untrusted or invalid download URL: %s', async (url) => {
+    const error = downloadFailure('504 Gateway Time-out');
+    error.installOutput = error.installOutput.replace(
+      'https://github.com/supabase/cli/releases/download/v2.98.2/supabase_linux_amd64.tar.gz',
+      url,
+    );
+    const execute = vi.fn().mockRejectedValue(error);
+    const wait = vi.fn();
+    await expect(installCi({ execute, wait, write: vi.fn() })).rejects.toBe(
+      error,
+    );
+    expect(execute).toHaveBeenCalledTimes(1);
+    expect(wait).not.toHaveBeenCalled();
+  });
+
   it('applies recovery through the shared Makefile target used by all workflows', () => {
     const makefile = readFileSync('Makefile', 'utf8');
     const installation = makefile.slice(

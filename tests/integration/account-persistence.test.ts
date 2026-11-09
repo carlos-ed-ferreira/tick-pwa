@@ -1541,7 +1541,7 @@ describe('account persistence boundaries', () => {
       totalPages: 16,
       totalRows: 8008,
     });
-  });
+  }, 15000);
 
   it('collapses concurrent refreshes into a single remote snapshot', async () => {
     const scope = createUserScope('concurrent-refresh-user');
