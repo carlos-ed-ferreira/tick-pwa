@@ -179,12 +179,6 @@ export interface RecurrenceResponse extends BaseEntity {
   status: RecurrenceResponseStatus;
 }
 
-export interface RecurrenceStats {
-  done: number;
-  notDone: number;
-  rate: number | null;
-}
-
 export interface RecurrenceOccurrence {
   recurrence: Recurrence;
   content: RecurrenceContent;

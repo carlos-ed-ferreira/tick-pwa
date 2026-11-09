@@ -1,6 +1,6 @@
 'use client';
 
-import { ListChecks, SlidersHorizontal } from 'lucide-react';
+import { ChartNoAxesColumn, ListChecks, ListTodo } from 'lucide-react';
 import {
   compactActivePillTabClassName,
   compactPillTabClassName,
@@ -8,7 +8,7 @@ import {
 } from '@/components/ui';
 import { useAppContext } from '@/providers';
 
-export type RecurringView = 'execute' | 'manage';
+export type RecurringView = 'execute' | 'activities' | 'performance';
 
 export function RecurringViewTabs({
   view,
@@ -20,7 +20,12 @@ export function RecurringViewTabs({
   const labels = useAppContext().dictionary.recurring;
   const options = [
     { icon: ListChecks, label: labels.viewExecute, value: 'execute' },
-    { icon: SlidersHorizontal, label: labels.viewManage, value: 'manage' },
+    { icon: ListTodo, label: labels.viewActivities, value: 'activities' },
+    {
+      icon: ChartNoAxesColumn,
+      label: labels.viewPerformance,
+      value: 'performance',
+    },
   ] as const;
 
   return (

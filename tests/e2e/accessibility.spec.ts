@@ -54,9 +54,18 @@ test('has no serious or critical accessibility violations in the recurring dialo
     .getByRole('button', { name: /^(save|salvar)$/i })
     .click();
   await expect(page.getByRole('dialog')).toBeHidden();
-  await page.getByRole('button', { name: /^(manage|gerenciar)$/i }).click();
+  await page
+    .getByRole('button', { name: /^(activities|atividades)$/i })
+    .click();
   await expect(
     page.getByRole('region', { name: /^(activities|atividades)$/i }),
+  ).toBeVisible();
+  await expectNoSeriousViolations(page);
+  await page
+    .getByRole('button', { name: /^(performance|desempenho)$/i })
+    .click();
+  await expect(
+    page.getByRole('region', { name: /^(performance|desempenho)$/i }),
   ).toBeVisible();
   await expectNoSeriousViolations(page);
   await page.getByRole('button', { name: /^(execute|executar)$/i }).click();

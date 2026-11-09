@@ -248,10 +248,19 @@ sistema.
 ### Tarefas recorrentes
 
 A aba `/recurring` é independente das tarefas do dia e das metas: não altera o
-progresso delas e usa a surface de categorias própria `recurrence`. Ela tem duas
-visualizações: Executar, para responder às atividades da data selecionada, e
-Gerenciar, com frequência, estatísticas e ações de cada atividade. O motor puro
-fica em `src/lib/domain/recurrence.ts` e os comandos em
+progresso delas e usa a surface de categorias própria `recurrence`. Ela tem três
+visualizações:
+
+- **Executar** responde às atividades da data selecionada.
+- **Atividades** administra as atividades, sem métricas: frequência, pausa e
+  ações. Filtra por situação, categoria e nome.
+- **Desempenho** analisa um período e abre o histórico de cada atividade, com
+  calendário mensal dos resultados e lista cronológica.
+
+A visualização e a atividade aberta ficam na URL (`?view=activities`,
+`?view=performance&activity=<id>`), e voltar no navegador restaura o contexto.
+O motor puro fica em `src/lib/domain/recurrence.ts`, os indicadores em
+`src/lib/domain/recurrence-performance.ts` e os comandos em
 `src/lib/db/recurrence-commands.ts`.
 
 Ocorrências são calculadas na consulta; somente respostas são persistidas.
@@ -269,8 +278,20 @@ Ocorrências são calculadas na consulta; somente respostas são persistidas.
 Regras:
 
 - A taxa usa somente as respostas da atividade principal, contando cada data uma
-  vez. Sem respostas, a tela mostra "Sem dados". Subtarefas têm respostas próprias
-  que não entram na taxa nem alteram a principal.
+  vez. Subtarefas têm respostas próprias que não entram nos indicadores nem
+  alteram a principal.
+- O Desempenho usa os últimos 7, 30 ou 90 dias até hoje, ou um intervalo
+  personalizado, sempre inclusivo e no fuso do usuário. O padrão é 30 dias.
+  Período e categoria valem para todos os indicadores e para o histórico.
+- Cada data prevista no período é Feita, Não feita, Sem registro (passado sem
+  resposta) ou Pendente (hoje sem resposta). Datas futuras ficam de fora.
+- O acompanhamento começa na criação da atividade ou na primeira resposta, o
+  que vier antes; não há ocorrências retroativas antes disso.
+- A taxa é feitas ÷ (feitas + não feitas). Sem nenhuma das duas, mostra "—".
+  A cobertura é respondidas ÷ (respondidas + sem registro) e é secundária.
+- A ordenação por taxa deixa as atividades sem dados no fim.
+- O calendário do histórico distingue dias sem ocorrência, futuros e fora do
+  período dos dias previstos; nenhum deles conta como falha.
 - Hoje e o passado aceitam resposta; datas futuras são somente consulta.
 - Uma resposta dada continua visível na data mesmo que a regra deixe de prevê-la.
 - Mudar a frequência cria um segmento a partir de hoje, sem recalcular o passado.

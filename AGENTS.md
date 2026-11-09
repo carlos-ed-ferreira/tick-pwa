@@ -72,6 +72,11 @@ que ele apareça somente enquanto o conteúdo estiver cortado. Tooltip que
 acrescenta informação, como rótulo de controle apenas com ícone, continua
 sempre visível.
 
+Tooltip de ação descreve somente a ação, como "Mais ações" ou "Atribuir
+categoria", sem identificar o item afetado no formato "ação: nome". A
+identificação do item, quando necessária para distinguir controles repetidos,
+fica no nome acessível. Só inclua o item no tooltip quando o usuário pedir.
+
 ## Arquitetura e simplicidade
 
 Respeite as fronteiras documentadas no README e a direção das dependências.

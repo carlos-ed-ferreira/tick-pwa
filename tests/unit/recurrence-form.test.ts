@@ -193,7 +193,7 @@ describe('recurrence labels', () => {
     expect(formatRecurrenceRule(rule, ptBR)).toBe(portuguese);
   });
 
-  it('shows the pause instead of the frequency of a paused activity', () => {
+  it('keeps the latest frequency of a paused activity', () => {
     const rule: RecurrenceRule = { kind: 'monthly_last_day' };
     const paused = {
       schedule: [
@@ -202,8 +202,6 @@ describe('recurrence labels', () => {
       ],
     } as Recurrence;
 
-    expect(formatRecurrenceFrequency(paused, en)).toBe(
-      'Paused · Last day of the month',
-    );
+    expect(formatRecurrenceFrequency(paused, en)).toBe('Last day of the month');
   });
 });

@@ -7,14 +7,21 @@ import type {
   RecurrenceResponse,
 } from '@/lib/domain';
 import { useAppContext } from '@/providers';
-import { RecurringDayBody, RecurringDayToolbar } from './recurring-day-view';
+import { RecurringDayBody } from './recurring-day-view';
 import { RecurringEditorDialog } from './recurring-editor-dialog';
 import { RecurringEmptyState } from './recurring-empty-state';
-import {
-  RecurringManageActions,
-  RecurringOverviewList,
-} from './recurring-overview';
+import { RecurringActivitiesList } from './recurring-activities';
+import { RecurringPerformanceView } from './recurring-performance';
+import { RecurringPerformanceDetail } from './recurring-performance-detail';
 import { RecurringViewTabs, type RecurringView } from './recurring-view-tabs';
+import {
+  usePerformanceFilters,
+  type PerformanceFilters,
+} from './use-performance-filters';
+import {
+  useRecurringLocation,
+  type RecurringLocation,
+} from './use-recurring-location';
 import { useRecurrenceResponses, useRecurrences } from './use-recurring-data';
 import { useTodayKey } from './use-today-key';
 
@@ -38,6 +45,78 @@ function groupResponses(
   return grouped;
 }
 
+function RecurringWorkspaceBody({
+  date,
+  filters,
+  location,
+  navigate,
+  onDateChange,
+  recurrences,
+  responses,
+  responsesByRecurrence,
+  today,
+  onCreate,
+  onEdit,
+}: {
+  date: LocalDateString;
+  filters: PerformanceFilters;
+  location: RecurringLocation;
+  navigate: (location: RecurringLocation) => void;
+  onDateChange: (date: LocalDateString) => void;
+  recurrences: Recurrence[];
+  responses: RecurrenceResponse[];
+  responsesByRecurrence: Map<string, RecurrenceResponse[]>;
+  today: LocalDateString;
+  onCreate: () => void;
+  onEdit: (recurrence: Recurrence) => void;
+}) {
+  if (location.view === 'execute') {
+    return (
+      <RecurringDayBody
+        date={date}
+        recurrences={recurrences}
+        responses={responses}
+        today={today}
+        onDateChange={onDateChange}
+      />
+    );
+  }
+
+  if (location.view === 'activities') {
+    return (
+      <RecurringActivitiesList
+        recurrences={recurrences}
+        responsesByRecurrence={responsesByRecurrence}
+        today={today}
+        onCreate={onCreate}
+        onEdit={onEdit}
+      />
+    );
+  }
+
+  const selected = recurrences.find(
+    (recurrence) => recurrence.id === location.activityId,
+  );
+
+  return selected ? (
+    <RecurringPerformanceDetail
+      filters={filters}
+      recurrence={selected}
+      responses={responsesByRecurrence.get(selected.id) ?? []}
+      today={today}
+      onBack={() => navigate({ activityId: null, view: 'performance' })}
+    />
+  ) : (
+    <RecurringPerformanceView
+      filters={filters}
+      recurrences={recurrences}
+      responsesByRecurrence={responsesByRecurrence}
+      today={today}
+      onOpen={(activityId) => navigate({ activityId, view: 'performance' })}
+    />
+  );
+}
+
 function RecurringWorkspace({
   recurrences,
   responses,
@@ -55,47 +134,40 @@ function RecurringWorkspace({
 }) {
   const labels = useAppContext().dictionary.recurring;
   const [pickedDate, setPickedDate] = useState<LocalDateString | null>(null);
-  const [view, setView] = useState<RecurringView>('execute');
-  const isExecuting = view === 'execute';
+  const { location, navigate } = useRecurringLocation();
+  const filters = usePerformanceFilters(today);
+  const { view } = location;
   const date = pickedDate ?? today;
+  const regionLabels: Record<RecurringView, string> = {
+    activities: labels.overviewTitle,
+    execute: labels.dayTitle,
+    performance: labels.performanceTitle,
+  };
 
   return (
     <section
-      aria-label={isExecuting ? labels.dayTitle : labels.overviewTitle}
+      aria-label={regionLabels[view]}
       className="flex min-w-0 flex-col gap-3 pt-4 sm:pt-5 lg:pt-6"
     >
-      <div
-        className={
-          isExecuting
-            ? 'flex flex-col gap-3 lg:grid lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] lg:items-center'
-            : 'flex flex-wrap items-center justify-between gap-2'
-        }
-      >
-        <RecurringViewTabs view={view} onChange={setView} />
-        {isExecuting ? (
-          <RecurringDayToolbar
-            date={date}
-            onDateChange={(next) => setPickedDate(next === today ? null : next)}
-          />
-        ) : (
-          <RecurringManageActions onCreate={onCreate} />
-        )}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <RecurringViewTabs
+          view={view}
+          onChange={(next) => navigate({ activityId: null, view: next })}
+        />
       </div>
-      {isExecuting ? (
-        <RecurringDayBody
-          date={date}
-          recurrences={recurrences}
-          responses={responses}
-          today={today}
-        />
-      ) : (
-        <RecurringOverviewList
-          recurrences={recurrences}
-          responsesByRecurrence={responsesByRecurrence}
-          today={today}
-          onEdit={onEdit}
-        />
-      )}
+      <RecurringWorkspaceBody
+        date={date}
+        filters={filters}
+        location={location}
+        navigate={navigate}
+        recurrences={recurrences}
+        onDateChange={(next) => setPickedDate(next === today ? null : next)}
+        responses={responses}
+        responsesByRecurrence={responsesByRecurrence}
+        today={today}
+        onCreate={onCreate}
+        onEdit={onEdit}
+      />
     </section>
   );
 }

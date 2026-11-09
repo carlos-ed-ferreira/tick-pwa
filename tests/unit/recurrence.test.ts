@@ -3,7 +3,6 @@ import {
   appendScheduleSegment,
   buildRecurrenceResponseId,
   canRespondOnDate,
-  computeRecurrenceStats,
   getContentAt,
   getLatestRule,
   getOccurrencesForDate,
@@ -92,6 +91,12 @@ describe('isCalendarDate', () => {
     expect(isCalendarDate('2026-02-29')).toBe(false);
     expect(isCalendarDate('2026-99-99')).toBe(false);
     expect(isCalendarDate('06-11-2026')).toBe(false);
+  });
+
+  it('rejects trailing content and values that are not text', () => {
+    expect(isCalendarDate('2026-11-06T12:00')).toBe(false);
+    expect(isCalendarDate(20261106)).toBe(false);
+    expect(isCalendarDate(null)).toBe(false);
   });
 });
 
@@ -262,7 +267,27 @@ describe('matchesRule', () => {
   });
 });
 
+describe('weekly rule without anchor', () => {
+  it('matches every chosen weekday when the weekly rule has no anchor', () => {
+    const everyMonday: RecurrenceRule = {
+      kind: 'weekly',
+      everyWeeks: 1,
+      weekdays: [1],
+      anchorDate: null,
+    };
+
+    expect(matchesRule(everyMonday, '2026-11-09')).toBe(true);
+    expect(matchesRule(everyMonday, '2026-11-16')).toBe(true);
+    expect(matchesRule(everyMonday, '2026-11-10')).toBe(false);
+  });
+});
+
 describe('validateRecurrenceRule', () => {
+  it('rejects a missing rule as an unknown kind', () => {
+    expect(validateRecurrenceRule(null)).toBe('kind');
+    expect(validateRecurrenceRule('weekly')).toBe('kind');
+  });
+
   it.each([
     [daily],
     [biweekly],
@@ -346,6 +371,29 @@ describe('schedule history', () => {
     expect(twice).toEqual([
       { from: null, rule: daily },
       { from: '2026-11-06', rule: biweekly },
+    ]);
+  });
+
+  it('adds a segment when only the weekdays change', () => {
+    const schedule = [{ from: null, rule: biweekly }];
+    const otherWeekdays: RecurrenceRule = {
+      kind: 'weekly',
+      everyWeeks: 2,
+      weekdays: [2, 4],
+      anchorDate: '2026-11-02',
+    };
+
+    expect(
+      appendScheduleSegment(schedule, '2026-11-06', otherWeekdays),
+    ).toEqual([
+      { from: null, rule: biweekly },
+      { from: '2026-11-06', rule: otherWeekdays },
+    ]);
+  });
+
+  it('starts a schedule from an empty history', () => {
+    expect(appendScheduleSegment([], '2026-11-06', daily)).toEqual([
+      { from: '2026-11-06', rule: daily },
     ]);
   });
 
@@ -445,67 +493,6 @@ describe('content history', () => {
     expect(getContentAt(second, '2026-01-01').text).toBe('Current');
     expect(getContentAt(second, '2026-04-01').text).toBe('Second');
     expect(getContentAt(second, '2026-07-01').text).toBe('Third');
-  });
-});
-
-describe('computeRecurrenceStats', () => {
-  it('counts only the answers of the main activity', () => {
-    expect(
-      computeRecurrenceStats([
-        createResponse({ id: 'a', date: '2026-11-01', status: 'done' }),
-        createResponse({ id: 'b', date: '2026-11-02', status: 'done' }),
-        createResponse({ id: 'c', date: '2026-11-03', status: 'not_done' }),
-        createResponse({
-          id: 'd',
-          date: '2026-11-04',
-          status: 'not_done',
-          itemId: 'child',
-        }),
-        createResponse({
-          id: 'e',
-          date: '2026-11-05',
-          status: 'done',
-          itemId: 'child',
-        }),
-      ]),
-    ).toEqual({ done: 2, notDone: 1, rate: (2 / 3) * 100 });
-  });
-
-  it('ignores the answers returned to pending', () => {
-    expect(
-      computeRecurrenceStats([
-        createResponse({ id: 'a', date: '2026-11-05', status: 'done' }),
-        createResponse({
-          id: 'b',
-          date: '2026-11-06',
-          status: 'not_done',
-          deletedAt: '2026-11-06T00:00:00.000Z',
-        }),
-      ]),
-    ).toEqual({ done: 1, notDone: 0, rate: 100 });
-  });
-
-  it('counts each date once even if the same answer is repeated', () => {
-    expect(
-      computeRecurrenceStats([
-        createResponse({ id: 'a', date: '2026-11-06', status: 'done' }),
-        createResponse({ id: 'b', date: '2026-11-06', status: 'done' }),
-      ]),
-    ).toEqual({ done: 1, notDone: 0, rate: 100 });
-  });
-
-  it('has no rate instead of zero without answers', () => {
-    expect(computeRecurrenceStats([])).toEqual({
-      done: 0,
-      notDone: 0,
-      rate: null,
-    });
-  });
-
-  it('reports zero when every answer was not done', () => {
-    expect(
-      computeRecurrenceStats([createResponse({ status: 'not_done' })]).rate,
-    ).toBe(0);
   });
 });
 

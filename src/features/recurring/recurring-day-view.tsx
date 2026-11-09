@@ -1,7 +1,7 @@
 'use client';
 
 import { CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import {
   IconButton,
   filledMediumPillControlClassName,
@@ -39,7 +39,7 @@ const dayArrowClassName =
   'rounded-full bg-white/8 text-[#cbd5e0] hover:bg-white/12 hover:text-[#fff9f2] focus-visible:outline-[#f0c38e]';
 const dayMessageClassName = 'py-6 text-center text-sm text-[#aebac8]';
 
-export function RecurringDayToolbar({
+function RecurringDayToolbar({
   date,
   onDateChange,
 }: {
@@ -49,12 +49,8 @@ export function RecurringDayToolbar({
   const { dictionary, locale } = useAppContext();
 
   return (
-    <div className="flex flex-wrap items-center justify-center gap-2 lg:contents">
-      <div
-        aria-hidden="true"
-        className="flex-1 basis-36 touch:hidden lg:hidden"
-      />
-      <div className="flex min-w-0 items-center gap-2 touch:w-full">
+    <div className="flex flex-wrap items-center justify-between gap-2">
+      <div className="flex min-w-0 items-center gap-1.5 touch:w-full">
         <IconButton
           aria-label={dictionary.recurring.previousDay}
           className={dayArrowClassName}
@@ -64,7 +60,7 @@ export function RecurringDayToolbar({
         </IconButton>
         <p
           aria-live="polite"
-          className="min-w-88 px-1 text-center text-xl font-semibold first-letter:uppercase text-[#fff9f2] text-balance touch:min-w-0 touch:flex-1 touch:text-lg"
+          className="min-w-0 px-1 text-xl font-semibold first-letter:uppercase text-[#fff9f2] text-balance touch:flex-1 touch:text-center touch:text-lg"
         >
           {formatRecurringDate(date, locale)}
         </p>
@@ -76,7 +72,7 @@ export function RecurringDayToolbar({
           <ChevronRight aria-hidden="true" className="size-4" />
         </IconButton>
       </div>
-      <div className="flex flex-1 basis-36 justify-start touch:flex-none touch:basis-auto">
+      <div className="flex shrink-0 touch:w-full touch:justify-center">
         <DatePicker
           label={dictionary.recurring.chooseDate}
           value={formatDateInputValue(date)}
@@ -174,10 +170,12 @@ function useOccurrenceCategoryTabs(occurrences: RecurrenceOccurrence[]) {
 
 function RecurringOccurrenceList({
   canAnswer,
+  header,
   occurrences,
   onAnswer,
 }: {
   canAnswer: boolean;
+  header: ReactNode;
   occurrences: RecurrenceOccurrence[];
   onAnswer: RecurringAnswerHandler;
 }) {
@@ -200,6 +198,7 @@ function RecurringOccurrenceList({
       data-testid="task-list-surface"
       className={`flex flex-col gap-2 ${taskListSurfaceClassName}`}
     >
+      {header}
       {showsTabs ? (
         <TaskTreeCategoryTabs
           activeTabId={activeTabId}
@@ -232,11 +231,13 @@ export function RecurringDayBody({
   recurrences,
   responses,
   today,
+  onDateChange,
 }: {
   date: LocalDateString;
   recurrences: Recurrence[];
   responses: RecurrenceResponse[];
   today: LocalDateString;
+  onDateChange: (date: LocalDateString) => void;
 }) {
   const { dictionary } = useAppContext();
   const handleAnswer = useRecurringAnswer(today);
@@ -247,17 +248,20 @@ export function RecurringDayBody({
   const canAnswer = canRespondOnDate(date, today);
 
   return (
-    <>
-      {canAnswer ? null : (
-        <p className="text-center text-xs text-[#aebac8]">
-          {dictionary.recurring.futureHint}
-        </p>
-      )}
-      <RecurringOccurrenceList
-        canAnswer={canAnswer}
-        occurrences={occurrences}
-        onAnswer={handleAnswer}
-      />
-    </>
+    <RecurringOccurrenceList
+      canAnswer={canAnswer}
+      header={
+        <div className="flex flex-col gap-1">
+          <RecurringDayToolbar date={date} onDateChange={onDateChange} />
+          {canAnswer ? null : (
+            <p className="text-center text-xs text-[#aebac8]">
+              {dictionary.recurring.futureHint}
+            </p>
+          )}
+        </div>
+      }
+      occurrences={occurrences}
+      onAnswer={handleAnswer}
+    />
   );
 }

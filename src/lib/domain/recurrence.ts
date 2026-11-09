@@ -8,7 +8,6 @@ import type {
   RecurrenceResponseStatus,
   RecurrenceRule,
   RecurrenceScheduleSegment,
-  RecurrenceStats,
 } from './types';
 
 export type RecurrenceRuleError =
@@ -355,28 +354,6 @@ export function replaceContentForward(
       ];
 
   return { ...recurrence, ...content, contentHistory };
-}
-
-export function computeRecurrenceStats(
-  responses: readonly RecurrenceResponse[],
-): RecurrenceStats {
-  const statusByDate = new Map<string, RecurrenceResponseStatus>();
-
-  for (const response of responses) {
-    if (response.itemId === null && response.deletedAt === null) {
-      statusByDate.set(response.date, response.status);
-    }
-  }
-
-  const statuses = [...statusByDate.values()];
-  const done = statuses.filter((status) => status === 'done').length;
-  const notDone = statuses.length - done;
-
-  return {
-    done,
-    notDone,
-    rate: statuses.length === 0 ? null : (done / statuses.length) * 100,
-  };
 }
 
 function compareByCreation(left: Recurrence, right: Recurrence): number {

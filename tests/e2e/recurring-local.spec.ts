@@ -4,7 +4,8 @@ import { enterLocalMode, labels } from './helpers';
 const recurringLabels = {
   activities: /^(activities|atividades)$/i,
   execute: /^(execute|executar)$/i,
-  manage: /^(manage|gerenciar)$/i,
+  performance: /^(performance|desempenho)$/i,
+  history: /^(view history|ver histórico): /i,
   addFirstChild: /no subtasks|sem subtarefas/i,
   applyForward: /only from now on|somente daqui em diante/i,
   chooseDate: /^(choose another date|escolher outra data)$/i,
@@ -13,7 +14,7 @@ const recurringLabels = {
   newActivity:
     /^(new activity|nova atividade|start by creating a recurring activity|comece criando uma atividade recorrente)$/i,
   nameLabel: /^(activity name|nome da atividade)$/i,
-  noData: /^-%$/,
+  noData: /^(no data|sem dados)$/i,
   previousDay: /^(previous day|dia anterior)$/i,
   save: /^(save|salvar)$/i,
   today: /^(today|hoje)$/i,
@@ -36,11 +37,17 @@ async function showView(page: Page, view: RegExp) {
 }
 
 async function chooseAction(page: Page, action: RegExp, name: string) {
-  await showView(page, recurringLabels.manage);
+  const option = new RegExp(`^${action.source}$`, 'i');
+
+  await showView(page, recurringLabels.activities);
   await page
     .getByRole('button', {
-      name: new RegExp(`^${action.source}: ${name}$`, 'i'),
+      name: new RegExp(`^(more actions|mais ações): ${name}$`, 'i'),
     })
+    .click();
+  await page
+    .getByRole('menuitem', { name: option })
+    .or(page.getByRole('dialog').getByRole('button', { name: option }))
     .click();
 }
 
@@ -67,30 +74,78 @@ test('answers a daily activity and keeps it after a reload', async ({
   await createDailyActivity(page, 'Stretch');
 
   const day = page.getByRole('region', { name: recurringLabels.dayView });
-  const overview = page.getByRole('region', {
-    name: recurringLabels.activities,
+  const performance = page.getByRole('region', {
+    name: recurringLabels.performance,
   });
+  const noData = performance
+    .getByRole('img', { name: recurringLabels.noData })
+    .first();
 
-  await showView(page, recurringLabels.manage);
-  await expect(overview.getByText(recurringLabels.noData)).toBeVisible();
+  await showView(page, recurringLabels.performance);
+  await expect(noData).toBeVisible();
   await showView(page, recurringLabels.execute);
 
   const done = answerButton(day, 'done', 'Stretch');
 
   await done.click();
   await expect(done).toHaveAttribute('aria-pressed', 'true');
-  await showView(page, recurringLabels.manage);
-  await expect(overview.getByText(/100%/)).toBeVisible();
+  await showView(page, recurringLabels.performance);
+  await expect(performance.getByText('100%').first()).toBeVisible();
 
   await page.reload();
+  await expect(performance.getByText('100%').first()).toBeVisible();
+  await showView(page, recurringLabels.execute);
   await expect(answerButton(day, 'done', 'Stretch')).toHaveAttribute(
     'aria-pressed',
     'true',
   );
 
   await answerButton(day, 'done', 'Stretch').click();
-  await showView(page, recurringLabels.manage);
-  await expect(overview.getByText(recurringLabels.noData)).toBeVisible();
+  await showView(page, recurringLabels.performance);
+  await expect(noData).toBeVisible();
+});
+
+test('keeps the performance history in the address', async ({ page }) => {
+  await openRecurring(page);
+  await createDailyActivity(page, 'Stretch');
+  await showView(page, recurringLabels.performance);
+
+  const performance = page.getByRole('region', {
+    name: recurringLabels.performance,
+  });
+
+  await performance
+    .getByRole('button', { name: /^(last 7 days|últimos 7 dias)$/i })
+    .click();
+  await performance
+    .getByRole('button', { name: recurringLabels.history })
+    .click();
+  await expect(page).toHaveURL(/view=performance&activity=/);
+  await expect(
+    performance.getByRole('heading', { name: /^(history|histórico)$/i }),
+  ).toBeVisible();
+  await expect(
+    performance.getByRole('heading', { name: 'Stretch' }),
+  ).toBeVisible();
+
+  await page.reload();
+  await expect(
+    performance.getByRole('heading', { name: /^(history|histórico)$/i }),
+  ).toBeVisible();
+
+  await page.goBack();
+  await expect(
+    performance.getByRole('button', { name: recurringLabels.history }),
+  ).toBeVisible();
+  await expect(page).toHaveURL(/view=performance$/);
+
+  await performance
+    .getByRole('button', { name: recurringLabels.history })
+    .click();
+  await performance.getByRole('button', { name: /^(back|voltar)$/i }).click();
+  await expect(
+    performance.getByRole('button', { name: recurringLabels.history }),
+  ).toBeVisible();
 });
 
 test('navigates by day and applies a picked date at once', async ({ page }) => {
@@ -216,11 +271,12 @@ test('adds a subtask that is answered on its own', async ({ page }) => {
     'aria-pressed',
     'false',
   );
-  await showView(page, recurringLabels.manage);
+  await showView(page, recurringLabels.performance);
   await expect(
     page
-      .getByRole('region', { name: recurringLabels.activities })
-      .getByText(recurringLabels.noData),
+      .getByRole('region', { name: recurringLabels.performance })
+      .getByRole('img', { name: recurringLabels.noData })
+      .first(),
   ).toBeVisible();
 });
 
@@ -253,14 +309,14 @@ test('keeps the actions inside the card with a long activity name', async ({
   );
   expect(await hasOverflow()).toBe(false);
 
-  await showView(page, recurringLabels.manage);
+  await showView(page, recurringLabels.activities);
 
   const overview = page.getByRole('region', {
     name: recurringLabels.activities,
   });
   const card = overview.getByRole('listitem');
   const menu = card.getByRole('button', {
-    name: /^(delete activity|excluir atividade): /i,
+    name: /^(more actions|mais ações): /i,
   });
 
   await expect(menu).toBeVisible();
@@ -341,19 +397,25 @@ test('shares the container and row look of the daily tasks', async ({
   expect(recurring.container.boxShadow).not.toContain('inset');
 });
 
-test('keeps the day centered on the screen', async ({ page, isMobile }) => {
+test('keeps the day header inside the list container', async ({
+  page,
+  isMobile,
+}) => {
   await openRecurring(page);
   await createDailyActivity(page, 'Stretch');
 
-  const box = await page
-    .getByRole('region', { name: recurringLabels.dayView })
-    .locator('p[aria-live="polite"]')
-    .boundingBox();
+  const day = page.getByRole('region', { name: recurringLabels.dayView });
+  const box = await day.locator('p[aria-live="polite"]').boundingBox();
+  const surface = await day.getByTestId('task-list-surface').boundingBox();
   const viewport = page.viewportSize();
 
-  expect(
-    Math.abs(box!.x + box!.width / 2 - viewport!.width / 2),
-  ).toBeLessThanOrEqual(isMobile ? 4 : 2);
+  expect(box!.y).toBeGreaterThan(surface!.y);
+
+  if (isMobile) {
+    expect(
+      Math.abs(box!.x + box!.width / 2 - viewport!.width / 2),
+    ).toBeLessThanOrEqual(4);
+  }
 
   const heightOf = async (control: Locator) => {
     const measured = await control.boundingBox();
@@ -385,13 +447,19 @@ test('keeps the day centered on the screen', async ({ page, isMobile }) => {
       .boundingBox();
     const middle = (item: typeof box) => item!.y + item!.height / 2;
 
-    expect(Math.abs(middle(tabs) - middle(box))).toBeLessThanOrEqual(4);
+    const previous = await page
+      .getByRole('button', { name: recurringLabels.previousDay })
+      .boundingBox();
+
+    expect(tabs!.y + tabs!.height).toBeLessThan(surface!.y);
+    expect(previous!.x - surface!.x).toBeLessThanOrEqual(24);
     expect(Math.abs(middle(picker) - middle(box))).toBeLessThanOrEqual(4);
-    expect(picker!.x).toBeGreaterThan(box!.x + box!.width);
-    expect(tabs!.x + tabs!.width).toBeLessThan(box!.x);
+    expect(
+      surface!.x + surface!.width - (picker!.x + picker!.width),
+    ).toBeLessThanOrEqual(24);
   }
 
-  await showView(page, recurringLabels.manage);
+  await showView(page, recurringLabels.activities);
 
   expect(
     await Promise.all(

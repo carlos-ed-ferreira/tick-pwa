@@ -7,8 +7,7 @@ import {
   Dialog,
   FormField,
   ModalActionButton,
-  filledControlNeutralClassName,
-  filledRoundControlClassName,
+  filledMediumPillControlClassName,
   toast,
 } from '@/components/ui';
 import {
@@ -30,6 +29,7 @@ import {
 import {
   CategoryAssignmentMenu,
   CategoryManagerAction,
+  useCategoryTags,
 } from '@/features/categories';
 import { useAppContext } from '@/providers';
 import {
@@ -42,8 +42,6 @@ import {
 } from './recurrence-form';
 import { RecurringChildrenEditor } from './recurring-children-editor';
 import { RecurringFrequencyFields } from './recurring-frequency-fields';
-
-const categoryControlClassName = `${filledRoundControlClassName} ${filledControlNeutralClassName}`;
 
 interface EditorFormat {
   bold: boolean;
@@ -71,7 +69,7 @@ function FormatToggle({
     <button
       type="button"
       aria-pressed={active}
-      className={`touch-target inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-sm font-medium shadow-sm transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e] ${
+      className={`touch-target inline-flex h-9 items-center gap-1.5 rounded-full px-3.5 text-sm font-medium shadow-sm transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e] ${
         active
           ? 'bg-[#f0c38e] text-[#253241]'
           : 'bg-white/8 text-[#aebac8] hover:bg-white/12 hover:text-[#fff9f2]'
@@ -91,7 +89,10 @@ function EditorFormatRow({
   format: EditorFormat;
   onChange: (change: Partial<EditorFormat>) => void;
 }) {
-  const { dictionary } = useAppContext();
+  const { dictionary, scope } = useAppContext();
+  const selectedCategory = useCategoryTags(scope, 'recurrence').find(
+    (tag) => tag.id === format.categoryTagId,
+  );
 
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -110,29 +111,48 @@ function EditorFormatRow({
         <Star aria-hidden="true" className="size-3.5" />
       </FormatToggle>
       <CategoryAssignmentMenu
-        assignLabel={dictionary.dayEditor.assignCategory}
-        clearClassName={categoryControlClassName}
+        assignLabel={
+          selectedCategory
+            ? `${dictionary.dayEditor.assignCategory}: ${selectedCategory.name}`
+            : dictionary.dayEditor.assignCategory
+        }
         clearLabel={dictionary.dayEditor.clearCategory}
-        renderClearContent={() => (
-          <TaskTreeClearCategoryIcon className="size-4" />
-        )}
-        renderTriggerContent={({ selectedCategory }) =>
-          selectedCategory ? (
-            <span
-              aria-hidden="true"
-              className="size-3 rounded-full"
-              style={{ backgroundColor: selectedCategory.colorHex }}
-            />
+        renderTriggerContent={({ selectedCategory: current }) =>
+          current ? (
+            <>
+              <span
+                aria-hidden="true"
+                className="size-2.5 shrink-0 rounded-full"
+                style={{ backgroundColor: current.colorHex }}
+              />
+              <span className="max-w-40 truncate">{current.name}</span>
+            </>
           ) : (
-            <Tag aria-hidden="true" className="size-4" />
+            <>
+              <Tag aria-hidden="true" className="size-4" />
+              {dictionary.recurring.categoryField}
+            </>
           )
         }
         selectedCategoryTagId={format.categoryTagId}
         surface="recurrence"
-        triggerClassName={categoryControlClassName}
+        showClearButton={false}
+        tooltip={dictionary.dayEditor.assignCategory}
+        triggerClassName={filledMediumPillControlClassName}
         onAssign={(categoryTagId) => onChange({ categoryTagId })}
       />
+      {selectedCategory ? (
+        <button
+          type="button"
+          className={filledMediumPillControlClassName}
+          onClick={() => onChange({ categoryTagId: null })}
+        >
+          <TaskTreeClearCategoryIcon className="size-4" />
+          {dictionary.dayEditor.clearCategory}
+        </button>
+      ) : null}
       <CategoryManagerAction
+        className={filledMediumPillControlClassName}
         surface="recurrence"
         title={dictionary.recurring.categoriesTitle}
       />
