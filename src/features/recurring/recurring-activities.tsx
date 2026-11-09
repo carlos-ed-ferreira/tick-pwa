@@ -1,37 +1,37 @@
 'use client';
 
-import { Plus, Search, Star } from 'lucide-react';
+import { Plus, Search } from 'lucide-react';
 import { useState } from 'react';
-import { TaskTreeCategoryChip, TaskTreeCategoryTabs } from '@/components/app';
+import { TaskTreeCategoryTabs } from '@/components/app';
 import {
   Input,
-  Tooltip,
   filledAccentPillControlClassName,
   filledMediumPillControlClassName,
   taskListSurfaceClassName,
 } from '@/components/ui';
-import { CategoryManagerAction, useCategoryTags } from '@/features/categories';
+import { CategoryManagerAction } from '@/features/categories';
 import {
   ALL_CATEGORY_TAB_ID,
-  buildCategoryTabs,
-  filterRowsByCategoryTab,
   isRecurrencePaused,
-  resolveActiveCategoryTab,
-  type CategoryTag,
   type LocalDateString,
   type Recurrence,
   type RecurrenceResponse,
 } from '@/lib/domain';
 import { useAppContext } from '@/providers';
-import { RecurrenceActions } from './recurrence-actions';
-import { formatRecurrenceFrequency } from './recurrence-format';
+import { RecurrenceActionsMenu } from './recurrence-actions-menu';
 import { RecurringPillGroup } from './recurring-pill-group';
+import {
+  RecurrenceIdentity,
+  RecurringRowSurface,
+  type RecurrenceCategory,
+} from './recurring-row';
+import { useRecurrenceCategoryFilter } from './use-recurrence-category-filter';
 
 type StatusFilter = 'all' | 'active' | 'paused';
 
 const messageClassName = 'py-6 text-center text-sm text-[#aebac8]';
 
-export function RecurringManageActions({ onCreate }: { onCreate: () => void }) {
+function RecurringManageActions({ onCreate }: { onCreate: () => void }) {
   const labels = useAppContext().dictionary.recurring;
 
   return (
@@ -53,43 +53,6 @@ export function RecurringManageActions({ onCreate }: { onCreate: () => void }) {
   );
 }
 
-export function RecurrenceNameLine({
-  category,
-  recurrence,
-}: {
-  category?: { colorHex: string; name: string };
-  recurrence: Recurrence;
-}) {
-  const { dictionary } = useAppContext();
-
-  return (
-    <div className="flex min-w-0 items-center gap-2">
-      {recurrence.priority ? (
-        <Star
-          aria-label={dictionary.recurring.priority}
-          className="size-3.5 shrink-0 fill-[#f0c38e] text-[#f0c38e]"
-          role="img"
-        />
-      ) : null}
-      <Tooltip className="min-w-0" content={recurrence.text} whenTruncated>
-        <span
-          className={`min-w-0 truncate text-sm text-[#fff9f2] ${
-            recurrence.bold ? 'font-bold' : 'font-medium'
-          }`}
-        >
-          {recurrence.text}
-        </span>
-      </Tooltip>
-      {category ? (
-        <TaskTreeCategoryChip
-          colorHex={category.colorHex}
-          name={category.name}
-        />
-      ) : null}
-    </div>
-  );
-}
-
 function ActivityRow({
   category,
   recurrence,
@@ -97,71 +60,26 @@ function ActivityRow({
   today,
   onEdit,
 }: {
-  category?: { colorHex: string; name: string };
+  category?: RecurrenceCategory;
   recurrence: Recurrence;
   responses: RecurrenceResponse[];
   today: LocalDateString;
   onEdit: (recurrence: Recurrence) => void;
 }) {
-  const { dictionary } = useAppContext();
-
   return (
-    <li
-      className={`relative rounded-lg py-2 pr-30 pl-3 transition hover:bg-white/[0.055] ${
-        isRecurrencePaused(recurrence.schedule) ? 'opacity-70' : ''
-      }`}
+    <RecurringRowSurface
+      className="py-2 pr-1.5 pl-3"
+      isPriority={recurrence.priority}
     >
-      <RecurrenceNameLine category={category} recurrence={recurrence} />
-      <p className="mt-0.5 truncate text-xs text-[#cbd5e0]">
-        {formatRecurrenceFrequency(recurrence, dictionary)}
-      </p>
-      <span className="absolute top-1/2 right-2 -translate-y-1/2">
-        <RecurrenceActions
-          answerCount={responses.length}
-          recurrence={recurrence}
-          today={today}
-          onEdit={onEdit}
-        />
-      </span>
-    </li>
+      <RecurrenceIdentity category={category} recurrence={recurrence} />
+      <RecurrenceActionsMenu
+        answerCount={responses.length}
+        recurrence={recurrence}
+        today={today}
+        onEdit={onEdit}
+      />
+    </RecurringRowSurface>
   );
-}
-
-export function useRecurrenceCategoryFilter(
-  recurrences: readonly Recurrence[],
-  requestedTabId: string,
-) {
-  const { dictionary, scope } = useAppContext();
-  const categoryTags = useCategoryTags(scope, 'recurrence');
-  const rows = recurrences.map((recurrence) => ({ depth: 0, recurrence }));
-  const getCategoryTagId = (row: (typeof rows)[number]) =>
-    row.recurrence.categoryTagId;
-  const tabs = buildCategoryTabs({
-    allLabel: dictionary.calendar.categoryTabAll,
-    categoryTags,
-    getCategoryTagId,
-    rows,
-    uncategorizedLabel: dictionary.calendar.categoryTabUncategorized,
-  });
-  const activeTab =
-    tabs.length > 2 ? resolveActiveCategoryTab(tabs, requestedTabId) : null;
-  const visible = activeTab
-    ? filterRowsByCategoryTab({
-        activeTabId: activeTab.id,
-        getCategoryTagId,
-        rows,
-        tabs,
-      }).map((row) => row.recurrence)
-    : [...recurrences];
-
-  return {
-    activeTabId: activeTab?.id ?? null,
-    categoryTagMap: new Map<string, CategoryTag>(
-      categoryTags.map((tag) => [tag.id, tag]),
-    ),
-    tabs: activeTab ? tabs : [],
-    visible,
-  };
 }
 
 function compareActivities(left: Recurrence, right: Recurrence): number {
@@ -213,7 +131,7 @@ function SearchField({
   const labels = useAppContext().dictionary.recurring;
 
   return (
-    <label className="flex h-9 min-w-0 flex-1 basis-48 items-center gap-2 rounded-full bg-white/8 px-3 text-sm text-[#cbd5e0] focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-[#f0c38e] sm:max-w-xs">
+    <label className="flex h-9 w-64 min-w-0 items-center gap-2 rounded-full bg-white/6 px-3 text-sm text-[#cbd5e0] focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-[#f0c38e] touch:w-full">
       <Search aria-hidden="true" className="size-4 shrink-0" />
       <Input
         aria-label={labels.searchLabel}
@@ -227,15 +145,59 @@ function SearchField({
   );
 }
 
+function ActivitiesToolbar({
+  activeTabId,
+  query,
+  status,
+  tabs,
+  onCategoryChange,
+  onCreate,
+  onQueryChange,
+  onStatusChange,
+}: {
+  activeTabId: string | null;
+  query: string;
+  status: StatusFilter;
+  tabs: ReturnType<typeof useRecurrenceCategoryFilter>['tabs'];
+  onCategoryChange: (tabId: string) => void;
+  onCreate: () => void;
+  onQueryChange: (query: string) => void;
+  onStatusChange: (status: StatusFilter) => void;
+}) {
+  const { dictionary } = useAppContext();
+
+  return (
+    <div className="flex flex-col gap-2 pb-1">
+      <div className="flex flex-wrap items-center gap-2">
+        <StatusFilterTabs status={status} onChange={onStatusChange} />
+        <SearchField value={query} onChange={onQueryChange} />
+        <div className="ml-auto touch:ml-0">
+          <RecurringManageActions onCreate={onCreate} />
+        </div>
+      </div>
+      {tabs.length > 0 ? (
+        <TaskTreeCategoryTabs
+          activeTabId={activeTabId}
+          label={dictionary.calendar.categoryTabs}
+          tabs={tabs}
+          onSelect={onCategoryChange}
+        />
+      ) : null}
+    </div>
+  );
+}
+
 export function RecurringActivitiesList({
   recurrences,
   responsesByRecurrence,
   today,
+  onCreate,
   onEdit,
 }: {
   recurrences: Recurrence[];
   responsesByRecurrence: Map<string, RecurrenceResponse[]>;
   today: LocalDateString;
+  onCreate: () => void;
   onEdit: (recurrence: Recurrence) => void;
 }) {
   const { dictionary } = useAppContext();
@@ -263,18 +225,16 @@ export function RecurringActivitiesList({
       data-testid="task-list-surface"
       className={`flex flex-col gap-2 ${taskListSurfaceClassName}`}
     >
-      <div className="flex flex-wrap items-center gap-2">
-        <StatusFilterTabs status={status} onChange={setStatus} />
-        <SearchField value={query} onChange={setQuery} />
-      </div>
-      {categories.tabs.length > 0 ? (
-        <TaskTreeCategoryTabs
-          activeTabId={categories.activeTabId}
-          label={dictionary.calendar.categoryTabs}
-          tabs={categories.tabs}
-          onSelect={setCategoryTabId}
-        />
-      ) : null}
+      <ActivitiesToolbar
+        activeTabId={categories.activeTabId}
+        query={query}
+        status={status}
+        tabs={categories.tabs}
+        onCategoryChange={setCategoryTabId}
+        onCreate={onCreate}
+        onQueryChange={setQuery}
+        onStatusChange={setStatus}
+      />
       {visible.length === 0 ? (
         <div className="flex flex-col items-center gap-2 py-4">
           <p className={messageClassName}>{labels.noMatches}</p>
@@ -287,7 +247,7 @@ export function RecurringActivitiesList({
           </button>
         </div>
       ) : (
-        <ul className="grid grid-cols-1 gap-1">
+        <ul className="grid grid-cols-1 gap-1.5">
           {visible.map((recurrence) => (
             <ActivityRow
               key={recurrence.id}

@@ -297,6 +297,22 @@ export interface Dictionary {
   recurring: {
     viewActivities: string;
     viewPerformance: string;
+    moreActions: string;
+    moreActionsTooltip: string;
+    performanceByActivity: string;
+    coverageTitle: string;
+    rateSampleOne: string;
+    rateSampleMany: string;
+    coverageSampleOne: string;
+    coverageSampleMany: string;
+    noResults: string;
+    calendarLabel: string;
+    statusNone: string;
+    statusFuture: string;
+    statusOutside: string;
+    dayStatusLabel: string;
+    legendLabel: string;
+    showMore: string;
     performanceTitle: string;
     filterAll: string;
     filterActive: string;
@@ -319,7 +335,6 @@ export interface Dictionary {
     notDoneTitle: string;
     unregisteredTitle: string;
     pendingTitle: string;
-    coverageLabel: string;
     rateHint: string;
     sortLabel: string;
     sortName: string;
@@ -367,6 +382,7 @@ export interface Dictionary {
     nameRequired: string;
     bold: string;
     priority: string;
+    categoryField: string;
     categoriesTitle: string;
     frequency: string;
     kindInterval: string;

@@ -37,11 +37,17 @@ async function showView(page: Page, view: RegExp) {
 }
 
 async function chooseAction(page: Page, action: RegExp, name: string) {
+  const option = new RegExp(`^${action.source}$`, 'i');
+
   await showView(page, recurringLabels.activities);
   await page
     .getByRole('button', {
-      name: new RegExp(`^${action.source}: ${name}$`, 'i'),
+      name: new RegExp(`^(more actions|mais ações): ${name}$`, 'i'),
     })
+    .click();
+  await page
+    .getByRole('menuitem', { name: option })
+    .or(page.getByRole('dialog').getByRole('button', { name: option }))
     .click();
 }
 
@@ -310,7 +316,7 @@ test('keeps the actions inside the card with a long activity name', async ({
   });
   const card = overview.getByRole('listitem');
   const menu = card.getByRole('button', {
-    name: /^(delete activity|excluir atividade): /i,
+    name: /^(more actions|mais ações): /i,
   });
 
   await expect(menu).toBeVisible();
@@ -391,19 +397,25 @@ test('shares the container and row look of the daily tasks', async ({
   expect(recurring.container.boxShadow).not.toContain('inset');
 });
 
-test('keeps the day centered on the screen', async ({ page, isMobile }) => {
+test('keeps the day header inside the list container', async ({
+  page,
+  isMobile,
+}) => {
   await openRecurring(page);
   await createDailyActivity(page, 'Stretch');
 
-  const box = await page
-    .getByRole('region', { name: recurringLabels.dayView })
-    .locator('p[aria-live="polite"]')
-    .boundingBox();
+  const day = page.getByRole('region', { name: recurringLabels.dayView });
+  const box = await day.locator('p[aria-live="polite"]').boundingBox();
+  const surface = await day.getByTestId('task-list-surface').boundingBox();
   const viewport = page.viewportSize();
 
-  expect(
-    Math.abs(box!.x + box!.width / 2 - viewport!.width / 2),
-  ).toBeLessThanOrEqual(isMobile ? 4 : 2);
+  expect(box!.y).toBeGreaterThan(surface!.y);
+
+  if (isMobile) {
+    expect(
+      Math.abs(box!.x + box!.width / 2 - viewport!.width / 2),
+    ).toBeLessThanOrEqual(4);
+  }
 
   const heightOf = async (control: Locator) => {
     const measured = await control.boundingBox();
@@ -435,9 +447,16 @@ test('keeps the day centered on the screen', async ({ page, isMobile }) => {
       .boundingBox();
     const middle = (item: typeof box) => item!.y + item!.height / 2;
 
-    expect(tabs!.y + tabs!.height).toBeLessThan(box!.y);
+    const previous = await page
+      .getByRole('button', { name: recurringLabels.previousDay })
+      .boundingBox();
+
+    expect(tabs!.y + tabs!.height).toBeLessThan(surface!.y);
+    expect(previous!.x - surface!.x).toBeLessThanOrEqual(24);
     expect(Math.abs(middle(picker) - middle(box))).toBeLessThanOrEqual(4);
-    expect(picker!.x).toBeGreaterThan(box!.x + box!.width);
+    expect(
+      surface!.x + surface!.width - (picker!.x + picker!.width),
+    ).toBeLessThanOrEqual(24);
   }
 
   await showView(page, recurringLabels.activities);

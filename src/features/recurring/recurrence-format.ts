@@ -1,6 +1,5 @@
 import {
   getLatestRule,
-  isRecurrencePaused,
   type LocalDateString,
   type Recurrence,
   type RecurrenceRule,
@@ -56,11 +55,8 @@ export function formatRecurrenceFrequency(
   dictionary: Dictionary,
 ): string {
   const rule = getLatestRule(recurrence.schedule);
-  const frequency = rule ? formatRecurrenceRule(rule, dictionary) : '';
 
-  return isRecurrencePaused(recurrence.schedule)
-    ? [dictionary.recurring.paused, frequency].filter(Boolean).join(' · ')
-    : frequency;
+  return rule ? formatRecurrenceRule(rule, dictionary) : '';
 }
 
 export function formatRecurringDate(

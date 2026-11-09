@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useId, useMemo } from 'react';
 import { TaskTreeCategoryTabs } from '@/components/app';
 import { taskListSurfaceClassName } from '@/components/ui';
 import {
@@ -14,11 +14,12 @@ import {
 } from '@/lib/domain';
 import { toLocalDateKey } from '@/lib/time';
 import { useAppContext } from '@/providers';
-import { formatRecurrenceFrequency } from './recurrence-format';
 import {
-  RecurrenceNameLine,
-  useRecurrenceCategoryFilter,
-} from './recurring-activities';
+  RecurrenceIdentity,
+  RecurringRowSurface,
+  type RecurrenceCategory,
+} from './recurring-row';
+import { useRecurrenceCategoryFilter } from './use-recurrence-category-filter';
 import {
   PerformanceBar,
   PerformancePeriodFilter,
@@ -77,7 +78,7 @@ function PerformanceRow({
   entry,
   onOpen,
 }: {
-  category?: { colorHex: string; name: string };
+  category?: RecurrenceCategory;
   entry: PerformanceEntry;
   onOpen: (recurrenceId: string) => void;
 }) {
@@ -86,25 +87,22 @@ function PerformanceRow({
   const { performance, recurrence } = entry;
 
   return (
-    <li>
+    <RecurringRowSurface isPriority={recurrence.priority}>
       <button
         type="button"
         aria-label={dictionary.recurring.openHistory.replace(
           '{name}',
           recurrence.text,
         )}
-        className="flex w-full flex-wrap items-center gap-x-6 gap-y-2 rounded-lg px-3 py-2 text-left transition hover:bg-white/[0.055] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e]"
+        className="flex min-h-11 w-full min-w-0 flex-wrap items-center gap-x-6 gap-y-2 rounded-lg px-3 py-2 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e]"
         onClick={() => onOpen(recurrence.id)}
       >
-        <span className="flex min-w-0 flex-1 basis-56 flex-col">
-          <RecurrenceNameLine category={category} recurrence={recurrence} />
-          <span className="mt-0.5 truncate text-xs text-[#cbd5e0]">
-            {formatRecurrenceFrequency(recurrence, dictionary)}
-          </span>
+        <span className="flex min-w-0 flex-1 basis-56 touch:basis-full">
+          <RecurrenceIdentity category={category} recurrence={recurrence} />
         </span>
-        <span className="flex w-80 max-w-full shrink-0 items-center gap-3 touch:w-full">
+        <span className="flex w-80 shrink-0 items-center gap-3 touch:w-full">
           <RateValue
-            className="w-12 shrink-0 text-right text-base"
+            className="w-12 shrink-0 text-right text-base touch:text-left"
             rate={performance.rate}
           />
           <span className="w-32 shrink-0 text-xs whitespace-nowrap text-[#aebac8] tabular-nums">
@@ -113,7 +111,46 @@ function PerformanceRow({
           <PerformanceBar name={recurrence.text} rate={performance.rate} />
         </span>
       </button>
-    </li>
+    </RecurringRowSurface>
+  );
+}
+
+function PerformanceList({
+  categoryTagMap,
+  entries,
+  filters,
+  onOpen,
+}: {
+  categoryTagMap: Map<string, RecurrenceCategory>;
+  entries: PerformanceEntry[];
+  filters: PerformanceFilters;
+  onOpen: (recurrenceId: string) => void;
+}) {
+  const labels = useAppContext().dictionary.recurring;
+  const headingId = useId();
+
+  return (
+    <section aria-labelledby={headingId} className="flex flex-col gap-2 pt-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2
+          id={headingId}
+          className="px-1 text-sm font-semibold text-[#fff9f2]"
+        >
+          {labels.performanceByActivity}
+        </h2>
+        <PerformanceSortFilter sort={filters.sort} onChange={filters.setSort} />
+      </div>
+      <ul className="grid grid-cols-1 gap-1.5">
+        {sortRecurrencePerformance(entries, filters.sort).map((entry) => (
+          <PerformanceRow
+            key={entry.recurrence.id}
+            category={categoryTagMap.get(entry.recurrence.categoryTagId ?? '')}
+            entry={entry}
+            onOpen={onOpen}
+          />
+        ))}
+      </ul>
+    </section>
   );
 }
 
@@ -142,7 +179,6 @@ export function RecurringPerformanceView({
     responsesByRecurrence,
     today,
   });
-  const sorted = sortRecurrencePerformance(entries, filters.sort);
   const hasOccurrences = entries.some(
     (entry) => entry.performance.days.length > 0,
   );
@@ -152,15 +188,17 @@ export function RecurringPerformanceView({
       data-testid="task-list-surface"
       className={`flex flex-col gap-3 ${taskListSurfaceClassName}`}
     >
-      <PerformancePeriodFilter filters={filters} />
-      {categories.tabs.length > 0 ? (
-        <TaskTreeCategoryTabs
-          activeTabId={categories.activeTabId}
-          label={dictionary.calendar.categoryTabs}
-          tabs={categories.tabs}
-          onSelect={filters.setCategoryTabId}
-        />
-      ) : null}
+      <div className="flex flex-col gap-2 pb-1">
+        <PerformancePeriodFilter filters={filters} />
+        {categories.tabs.length > 0 ? (
+          <TaskTreeCategoryTabs
+            activeTabId={categories.activeTabId}
+            label={dictionary.calendar.categoryTabs}
+            tabs={categories.tabs}
+            onSelect={filters.setCategoryTabId}
+          />
+        ) : null}
+      </div>
       {filters.range && hasOccurrences ? (
         <>
           <PerformanceSummary
@@ -169,22 +207,12 @@ export function RecurringPerformanceView({
               entries.map((entry) => entry.performance),
             )}
           />
-          <PerformanceSortFilter
-            sort={filters.sort}
-            onChange={filters.setSort}
+          <PerformanceList
+            categoryTagMap={categories.categoryTagMap}
+            entries={entries}
+            filters={filters}
+            onOpen={onOpen}
           />
-          <ul className="grid grid-cols-1 gap-1">
-            {sorted.map((entry) => (
-              <PerformanceRow
-                key={entry.recurrence.id}
-                category={categories.categoryTagMap.get(
-                  entry.recurrence.categoryTagId ?? '',
-                )}
-                entry={entry}
-                onOpen={onOpen}
-              />
-            ))}
-          </ul>
         </>
       ) : filters.range ? (
         <p className={performanceMessageClassName}>{labels.performanceEmpty}</p>

@@ -37,6 +37,11 @@ vi.mock('@/providers', () => ({
 }));
 
 const clock = vi.hoisted(() => ({ today: '2026-11-06' }));
+const touch = vi.hoisted(() => ({ value: false }));
+
+vi.mock('@/hooks/use-touch-composition', () => ({
+  useTouchComposition: () => touch.value,
+}));
 
 vi.mock('@/lib/time', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/time')>()),
@@ -122,14 +127,22 @@ async function findActivity(name = 'Stretch') {
 async function chooseAction(action: string, name = 'Stretch') {
   fireEvent.click(
     await within(overviewSection()).findByRole('button', {
-      name: `${action}: ${name}`,
+      name: `More actions: ${name}`,
     }),
   );
+  fireEvent.click(await screen.findByRole('menuitem', { name: action }));
+}
+
+function historySection(detail: HTMLElement) {
+  return within(detail)
+    .getByRole('heading', { name: dictionary.recurring.historyTitle })
+    .closest('section') as HTMLElement;
 }
 
 describe('RecurringSurface', () => {
   beforeEach(async () => {
     clock.today = '2026-11-06';
+    touch.value = false;
     window.history.replaceState(null, '', '/recurring');
     await db.delete();
     await db.open();
@@ -568,14 +581,19 @@ describe('RecurringSurface', () => {
       await createRecurrence({ scope, content, rule: daily });
       await renderSurface();
 
+      const list = () => within(overviewSection()).getByRole('list');
+
       await chooseAction(dictionary.recurring.actionPause);
-      await within(overviewSection()).findByText('Paused · Every day');
+      await within(list()).findByText('Paused');
+      expect(within(overviewSection()).getByText('Every day')).toBeTruthy();
       expect(
         within(daySection()).queryByRole('group', { name: 'Stretch' }),
       ).toBeNull();
 
       await chooseAction(dictionary.recurring.actionResume);
-      await within(overviewSection()).findByText('Every day');
+      await waitFor(() =>
+        expect(within(list()).queryByText('Paused')).toBeNull(),
+      );
     });
 
     it('keeps every activity in one container', async () => {
@@ -594,25 +612,36 @@ describe('RecurringSurface', () => {
       expect(panel.querySelector('.card-surface-soft')).toBeNull();
     });
 
-    it('keeps the three actions on the row with icons only', async () => {
+    it('groups the actions of each row in a menu', async () => {
       await createRecurrence({ scope, content, rule: daily });
       await renderSurface();
 
       const overview = overviewSection();
+      const trigger = await within(overview).findByRole('button', {
+        name: 'More actions: Stretch',
+      });
 
-      for (const action of [
+      expect(
+        within(overview).queryByRole('button', {
+          name: `${dictionary.recurring.actionEdit}: Stretch`,
+        }),
+      ).toBeNull();
+
+      fireEvent.click(trigger);
+
+      const menu = await screen.findByRole('menu', {
+        name: 'More actions: Stretch',
+      });
+
+      expect(
+        within(menu)
+          .getAllByRole('menuitem')
+          .map((item) => item.textContent),
+      ).toEqual([
         dictionary.recurring.actionEdit,
         dictionary.recurring.actionPause,
         dictionary.recurring.actionDelete,
-      ]) {
-        const button = await within(overview).findByRole('button', {
-          name: `${action}: Stretch`,
-        });
-
-        expect(button.textContent).toBe('');
-      }
-
-      expect(screen.queryByRole('menu')).toBeNull();
+      ]);
     });
 
     it('states what deleting removes and requires confirmation', async () => {
@@ -663,7 +692,11 @@ describe('RecurringSurface', () => {
       expect(within(performance).getByText('0 done, 0 not done')).toBeTruthy();
       expect(within(performance).queryByRole('progressbar')).toBeNull();
       expect(
-        within(performance).getByText('Recording coverage: 0%'),
+        within(performance).getByText(dictionary.recurring.rateHint),
+      ).toBeTruthy();
+      expect(within(performance).getByText('0%')).toBeTruthy();
+      expect(
+        within(performance).getByText('0 of 2 occurrences recorded'),
       ).toBeTruthy();
     });
 
@@ -682,6 +715,14 @@ describe('RecurringSurface', () => {
 
       await within(performance).findAllByText('50%');
       expect(within(performance).getByText('1 done, 1 not done')).toBeTruthy();
+      expect(
+        within(performance).getByText('1 of 2 recorded runs completed'),
+      ).toBeTruthy();
+      expect(
+        within(performance).getByRole('heading', {
+          name: dictionary.recurring.performanceByActivity,
+        }),
+      ).toBeTruthy();
       expect(metric('Not recorded')).toBe('3');
       expect(metric('Pending today')).toBe('1');
       expect(
@@ -773,7 +814,7 @@ describe('RecurringSurface', () => {
       fireEvent.change(start, { target: { value: '30-09-2026' } });
       fireEvent.change(end, { target: { value: '01-10-2026' } });
       expect(within(performance).queryByRole('alert')).toBeNull();
-      expect(within(performance).getAllByText('100%')).toHaveLength(2);
+      expect(within(performance).getAllByText('100%')).toHaveLength(3);
     });
 
     it('opens the history with the same period and returns', async () => {
@@ -796,7 +837,7 @@ describe('RecurringSurface', () => {
       );
 
       const detail = performanceSection();
-      const history = within(detail).getAllByRole('listitem');
+      const history = within(historySection(detail)).getAllByRole('listitem');
 
       expect(window.location.search).toBe(
         `?view=performance&activity=${encodeURIComponent(id)}`,
@@ -830,6 +871,79 @@ describe('RecurringSurface', () => {
       expect(window.location.search).toBe('?view=performance');
     });
 
+    it('shows the month with scheduled results and selects a day', async () => {
+      const weekly: RecurrenceRule = {
+        kind: 'weekly',
+        everyWeeks: 1,
+        weekdays: [1, 3, 5],
+        anchorDate: null,
+      };
+      const { id } = await createRecurrence({ scope, content, rule: weekly });
+      await backdate(id, '2026-11-01');
+      await answer(id, [
+        ['2026-11-02', 'done', null],
+        ['2026-11-04', 'not_done', null],
+      ]);
+      window.history.replaceState(
+        null,
+        '',
+        `/recurring?view=performance&activity=${id}`,
+      );
+      render(<RecurringSurface />);
+
+      const calendar = await screen.findByRole('region', {
+        name: dictionary.recurring.calendarLabel,
+      });
+      const day = (label: string) =>
+        within(calendar).getByRole('button', { name: label });
+
+      expect(within(calendar).getByText('November 2026')).toBeTruthy();
+      expect(day('Monday, November 2, 2026: Done')).toBeTruthy();
+      expect(day('Tuesday, November 3, 2026: Not scheduled')).toBeTruthy();
+      expect(day('Wednesday, November 4, 2026: Not done')).toBeTruthy();
+      expect(day('Friday, November 6, 2026: Pending')).toBeTruthy();
+      expect(
+        (
+          day(
+            'Monday, November 9, 2026: Outside the period',
+          ) as HTMLButtonElement
+        ).disabled,
+      ).toBe(true);
+      expect(
+        (
+          within(calendar).getByRole('button', {
+            name: 'Next month',
+          }) as HTMLButtonElement
+        ).disabled,
+      ).toBe(true);
+
+      fireEvent.click(
+        within(calendar).getByRole('button', { name: 'Previous month' }),
+      );
+      expect(within(calendar).getByText('October 2026')).toBeTruthy();
+      fireEvent.click(
+        within(calendar).getByRole('button', { name: 'Next month' }),
+      );
+      fireEvent.click(day('Wednesday, November 4, 2026: Not done'));
+
+      expect(
+        day('Wednesday, November 4, 2026: Not done').getAttribute(
+          'aria-pressed',
+        ),
+      ).toBe('true');
+      expect(
+        within(calendar).getByText('Wednesday, November 4, 2026: Not done'),
+      ).toBeTruthy();
+
+      const selected = within(
+        historySection(screen.getByRole('region', { name: 'Performance' })),
+      )
+        .getAllByRole('listitem')
+        .find((item) => item.getAttribute('aria-current') === 'date');
+
+      expect(selected?.textContent).toBe('Wednesday, November 4, 2026Not done');
+    });
+
     it('restores the view and activity from the address', async () => {
       const { id } = await createRecurrence({ scope, content, rule: daily });
       window.history.replaceState(
@@ -855,6 +969,204 @@ describe('RecurringSurface', () => {
 
       expect(
         await screen.findByRole('region', { name: 'Activities' }),
+      ).toBeTruthy();
+    });
+  });
+
+  describe('activity history details', () => {
+    function openDetail(id: string) {
+      window.history.replaceState(
+        null,
+        '',
+        `/recurring?view=performance&activity=${id}`,
+      );
+      render(<RecurringSurface />);
+
+      return screen.findByRole('region', { name: 'Performance' });
+    }
+
+    it('identifies the activity with priority, category and pause', async () => {
+      const category = await createCategoryTag({
+        scope,
+        surface: 'recurrence',
+        name: 'Health',
+        colorHex: '#16a34a',
+      });
+      const { id } = await createRecurrence({
+        scope,
+        content: {
+          ...content,
+          bold: true,
+          categoryTagId: category.id,
+          priority: true,
+        },
+        rule: daily,
+      });
+      await pauseRecurrence({ scope, recurrenceId: id, today });
+
+      const detail = await openDetail(id);
+      const heading = await within(detail).findByRole('heading', {
+        level: 2,
+        name: 'Stretch',
+      });
+
+      expect(heading.className).toContain('font-bold');
+      expect(
+        within(detail).getByRole('img', {
+          name: dictionary.recurring.priority,
+        }),
+      ).toBeTruthy();
+      expect(await within(detail).findByText('Health')).toBeTruthy();
+      expect(within(detail).getByText('Paused')).toBeTruthy();
+      expect(within(detail).getByText('Every day')).toBeTruthy();
+    });
+
+    it('pages a long history', async () => {
+      const { id } = await createRecurrence({ scope, content, rule: daily });
+      await backdate(id, '2026-01-01');
+
+      const detail = await openDetail(id);
+
+      fireEvent.click(
+        await within(detail).findByRole('button', { name: 'Last 90 days' }),
+      );
+
+      const items = () =>
+        within(historySection(detail)).getAllByRole('listitem');
+
+      expect(items()).toHaveLength(30);
+      fireEvent.click(
+        within(detail).getByRole('button', {
+          name: dictionary.recurring.showMore,
+        }),
+      );
+      expect(items()).toHaveLength(60);
+    });
+
+    it('shows upcoming days and hides the calendar on an invalid period', async () => {
+      const { id } = await createRecurrence({ scope, content, rule: daily });
+      const detail = await openDetail(id);
+
+      fireEvent.click(
+        await within(detail).findByRole('button', { name: 'Custom' }),
+      );
+      fireEvent.change(
+        within(detail).getByRole('textbox', { name: 'End date' }),
+        { target: { value: '15-12-2026' } },
+      );
+
+      const calendar = within(detail).getByRole('region', {
+        name: dictionary.recurring.calendarLabel,
+      });
+
+      expect(within(calendar).getByText('November 2026')).toBeTruthy();
+      fireEvent.click(
+        within(calendar).getByRole('button', { name: 'Next month' }),
+      );
+      expect(
+        within(calendar).getByRole('button', {
+          name: 'Tuesday, December 15, 2026: Upcoming',
+        }),
+      ).toBeTruthy();
+
+      fireEvent.change(
+        within(detail).getByRole('textbox', { name: 'End date' }),
+        { target: { value: '99' } },
+      );
+
+      expect(within(detail).getByRole('alert')).toBeTruthy();
+      expect(
+        within(detail).queryByRole('region', {
+          name: dictionary.recurring.calendarLabel,
+        }),
+      ).toBeNull();
+    });
+
+    it('filters the performance by category', async () => {
+      for (const [text, name] of [
+        ['Run', 'Health'],
+        ['Report', 'Work'],
+      ]) {
+        const category = await createCategoryTag({
+          scope,
+          surface: 'recurrence',
+          name,
+          colorHex: '#2563eb',
+        });
+
+        const created = await createRecurrence({
+          scope,
+          content: {
+            ...content,
+            text,
+            children: [],
+            categoryTagId: category.id,
+          },
+          rule: daily,
+        });
+
+        await backdate(created.id, '2026-11-01');
+      }
+      await renderSurface();
+
+      const performance = performanceSection();
+
+      fireEvent.click(
+        await within(performance).findByRole('tab', { name: /Work/ }),
+      );
+
+      expect(within(performance).queryByText('Run')).toBeNull();
+      expect(within(performance).getByText('Report')).toBeTruthy();
+    });
+  });
+
+  describe('actions menu', () => {
+    it('moves between the options with the arrow keys', async () => {
+      await createRecurrence({ scope, content, rule: daily });
+      await renderSurface();
+
+      fireEvent.click(
+        await within(overviewSection()).findByRole('button', {
+          name: 'More actions: Stretch',
+        }),
+      );
+
+      const menu = await screen.findByRole('menu');
+      const items = within(menu).getAllByRole('menuitem');
+
+      await waitFor(() => expect(document.activeElement).toBe(items[0]));
+      fireEvent.keyDown(menu, { key: 'ArrowDown' });
+      expect(document.activeElement).toBe(items[1]);
+      fireEvent.keyDown(menu, { key: 'ArrowUp' });
+      fireEvent.keyDown(menu, { key: 'ArrowUp' });
+      expect(document.activeElement).toBe(items[2]);
+      fireEvent.keyDown(menu, { key: 'Tab' });
+      expect(document.activeElement).toBe(items[2]);
+    });
+
+    it('opens the actions in a sheet on touch', async () => {
+      touch.value = true;
+      await createRecurrence({ scope, content, rule: daily });
+      await renderSurface();
+
+      fireEvent.click(
+        await within(overviewSection()).findByRole('button', {
+          name: 'More actions: Stretch',
+        }),
+      );
+
+      const sheet = await screen.findByRole('dialog', { name: 'Stretch' });
+
+      fireEvent.click(
+        within(sheet).getByRole('button', {
+          name: dictionary.recurring.actionPause,
+        }),
+      );
+
+      expect(
+        await within(within(overviewSection()).getByRole('list')).findByText(
+          'Paused',
+        ),
       ).toBeTruthy();
     });
   });
@@ -1188,6 +1500,103 @@ describe('RecurringSurface', () => {
       await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
       await expect(db.recurrences.toArray()).resolves.toMatchObject([
         { categoryTagId: category.id },
+      ]);
+    });
+
+    it('switches the category straight from the selector', async () => {
+      const work = await createCategoryTag({
+        scope,
+        surface: 'recurrence',
+        name: 'Work',
+        colorHex: '#2563eb',
+      });
+      await createCategoryTag({
+        scope,
+        surface: 'recurrence',
+        name: 'Health',
+        colorHex: '#16a34a',
+      });
+      await renderSurface();
+
+      const dialog = await openCreate();
+      fireEvent.change(
+        within(dialog).getByLabelText(dictionary.recurring.nameLabel),
+        { target: { value: 'Categorized' } },
+      );
+
+      const trigger = await within(dialog).findByRole('button', {
+        name: dictionary.dayEditor.assignCategory,
+      });
+
+      expect(trigger.textContent).toBe(dictionary.recurring.categoryField);
+      expect(
+        within(dialog).queryByRole('button', {
+          name: dictionary.dayEditor.clearCategory,
+        }),
+      ).toBeNull();
+
+      await waitFor(() =>
+        expect((trigger as HTMLButtonElement).disabled).toBe(false),
+      );
+      fireEvent.click(trigger);
+      fireEvent.click(await screen.findByRole('button', { name: 'Health' }));
+
+      const selected = await within(dialog).findByRole('button', {
+        name: `${dictionary.dayEditor.assignCategory}: Health`,
+      });
+
+      expect(selected.textContent).toBe('Health');
+      fireEvent.focus(selected);
+      expect((await screen.findByRole('tooltip')).textContent).toBe(
+        dictionary.dayEditor.assignCategory,
+      );
+      fireEvent.blur(selected);
+      expect(
+        within(dialog).getByRole('button', {
+          name: dictionary.dayEditor.clearCategory,
+        }).textContent,
+      ).toBe(dictionary.dayEditor.clearCategory);
+
+      fireEvent.click(
+        within(dialog).getByRole('button', {
+          name: dictionary.dayEditor.clearCategory,
+        }),
+      );
+      expect(
+        await within(dialog).findByRole('button', {
+          name: dictionary.dayEditor.assignCategory,
+        }),
+      ).toBeTruthy();
+      expect(
+        within(dialog).queryByRole('button', {
+          name: dictionary.dayEditor.clearCategory,
+        }),
+      ).toBeNull();
+
+      fireEvent.click(
+        within(dialog).getByRole('button', {
+          name: dictionary.dayEditor.assignCategory,
+        }),
+      );
+      fireEvent.click(await screen.findByRole('button', { name: 'Health' }));
+      await within(dialog).findByRole('button', {
+        name: `${dictionary.dayEditor.assignCategory}: Health`,
+      });
+
+      fireEvent.click(
+        within(dialog).getByRole('button', {
+          name: `${dictionary.dayEditor.assignCategory}: Health`,
+        }),
+      );
+      fireEvent.click(await screen.findByRole('button', { name: 'Work' }));
+      await within(dialog).findByRole('button', {
+        name: `${dictionary.dayEditor.assignCategory}: Work`,
+      });
+      save(dialog);
+
+      await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+      await expect(db.recurrences.toArray()).resolves.toMatchObject([
+        { categoryTagId: work.id },
       ]);
     });
 

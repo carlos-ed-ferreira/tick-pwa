@@ -10,10 +10,7 @@ import { useAppContext } from '@/providers';
 import { RecurringDayBody } from './recurring-day-view';
 import { RecurringEditorDialog } from './recurring-editor-dialog';
 import { RecurringEmptyState } from './recurring-empty-state';
-import {
-  RecurringActivitiesList,
-  RecurringManageActions,
-} from './recurring-activities';
+import { RecurringActivitiesList } from './recurring-activities';
 import { RecurringPerformanceView } from './recurring-performance';
 import { RecurringPerformanceDetail } from './recurring-performance-detail';
 import { RecurringViewTabs, type RecurringView } from './recurring-view-tabs';
@@ -58,6 +55,7 @@ function RecurringWorkspaceBody({
   responses,
   responsesByRecurrence,
   today,
+  onCreate,
   onEdit,
 }: {
   date: LocalDateString;
@@ -69,6 +67,7 @@ function RecurringWorkspaceBody({
   responses: RecurrenceResponse[];
   responsesByRecurrence: Map<string, RecurrenceResponse[]>;
   today: LocalDateString;
+  onCreate: () => void;
   onEdit: (recurrence: Recurrence) => void;
 }) {
   if (location.view === 'execute') {
@@ -89,6 +88,7 @@ function RecurringWorkspaceBody({
         recurrences={recurrences}
         responsesByRecurrence={responsesByRecurrence}
         today={today}
+        onCreate={onCreate}
         onEdit={onEdit}
       />
     );
@@ -154,9 +154,6 @@ function RecurringWorkspace({
           view={view}
           onChange={(next) => navigate({ activityId: null, view: next })}
         />
-        {view === 'activities' ? (
-          <RecurringManageActions onCreate={onCreate} />
-        ) : null}
       </div>
       <RecurringWorkspaceBody
         date={date}
@@ -168,6 +165,7 @@ function RecurringWorkspace({
         responses={responses}
         responsesByRecurrence={responsesByRecurrence}
         today={today}
+        onCreate={onCreate}
         onEdit={onEdit}
       />
     </section>

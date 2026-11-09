@@ -213,3 +213,85 @@ export function validatePerformanceRange(
 
   return startDate > endDate ? 'order' : null;
 }
+
+export type RecurrenceCalendarStatus =
+  | RecurrencePerformanceStatus
+  | 'future'
+  | 'none'
+  | 'outside';
+
+function isScheduledOn(recurrence: Recurrence, date: LocalDateString) {
+  const rule = getRuleAt(recurrence.schedule, date);
+
+  return Boolean(rule && matchesRule(rule, date));
+}
+
+function getCalendarStatus({
+  date,
+  range,
+  recurrence,
+  statusByDate,
+  today,
+}: {
+  date: LocalDateString;
+  range: { endDate: LocalDateString; startDate: LocalDateString };
+  recurrence: Recurrence;
+  statusByDate: Map<LocalDateString, RecurrencePerformanceStatus>;
+  today: LocalDateString;
+}): RecurrenceCalendarStatus {
+  if (date < range.startDate || date > range.endDate) {
+    return 'outside';
+  }
+
+  const status = statusByDate.get(date);
+
+  if (status) {
+    return status;
+  }
+
+  return date > today && isScheduledOn(recurrence, date) ? 'future' : 'none';
+}
+
+export function getRecurrenceCalendarStatuses({
+  dates,
+  performance,
+  range,
+  recurrence,
+  today,
+}: {
+  dates: readonly LocalDateString[];
+  performance: Pick<RecurrencePerformance, 'days'>;
+  range: { endDate: LocalDateString; startDate: LocalDateString };
+  recurrence: Recurrence;
+  today: LocalDateString;
+}): Map<LocalDateString, RecurrenceCalendarStatus> {
+  const statusByDate = new Map(
+    performance.days.map((day) => [day.date, day.status]),
+  );
+
+  return new Map(
+    dates.map((date) => [
+      date,
+      getCalendarStatus({ date, range, recurrence, statusByDate, today }),
+    ]),
+  );
+}
+
+export function getPerformanceMonths(
+  startDate: LocalDateString,
+  endDate: LocalDateString,
+): LocalDateString[] {
+  const months: LocalDateString[] = [];
+  let [year, month] = startDate.split('-').map(Number);
+  const last = endDate.slice(0, 7);
+
+  while (`${year}-${String(month).padStart(2, '0')}` <= last) {
+    months.push(
+      `${year}-${String(month).padStart(2, '0')}-01` as LocalDateString,
+    );
+    year += Math.floor(month / 12);
+    month = (month % 12) + 1;
+  }
+
+  return months;
+}

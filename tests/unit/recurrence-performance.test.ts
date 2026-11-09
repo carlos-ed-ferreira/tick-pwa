@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   computeRecurrencePerformance,
+  getPerformanceMonths,
   getPerformanceRange,
+  getRecurrenceCalendarStatuses,
   sortRecurrencePerformance,
   summarizeRecurrencePerformance,
   validatePerformanceRange,
@@ -369,5 +371,127 @@ describe('performance ranges', () => {
     ['2026-11-01', '', 'invalid'],
   ])('validates %s to %s', (start, end, error) => {
     expect(validatePerformanceRange(start, end)).toBe(error);
+  });
+});
+
+describe('getRecurrenceCalendarStatuses', () => {
+  const weekly: RecurrenceRule = {
+    kind: 'weekly',
+    everyWeeks: 1,
+    weekdays: [1, 3],
+    anchorDate: null,
+  };
+
+  it('tells scheduled results from days without an occurrence', () => {
+    const subject = recurrence({ schedule: [{ from: null, rule: weekly }] });
+    const range = {
+      startDate: '2026-11-02' as const,
+      endDate: '2026-11-11' as const,
+    };
+    const performance = computeRecurrencePerformance({
+      createdDate: '2026-11-01',
+      ...range,
+      recurrence: subject,
+      responses: [answer('2026-11-02', 'done')],
+      today: '2026-11-09',
+    });
+
+    const statuses = getRecurrenceCalendarStatuses({
+      dates: [
+        '2026-11-01',
+        '2026-11-02',
+        '2026-11-03',
+        '2026-11-04',
+        '2026-11-09',
+        '2026-11-11',
+        '2026-11-12',
+      ],
+      performance,
+      range,
+      recurrence: subject,
+      today: '2026-11-09',
+    });
+
+    expect(Object.fromEntries(statuses)).toEqual({
+      '2026-11-01': 'outside',
+      '2026-11-02': 'done',
+      '2026-11-03': 'none',
+      '2026-11-04': 'unregistered',
+      '2026-11-09': 'pending',
+      '2026-11-11': 'future',
+      '2026-11-12': 'outside',
+    });
+  });
+
+  it('does not flag scheduled days before the tracking start', () => {
+    const subject = recurrence();
+    const range = {
+      startDate: '2026-11-01' as const,
+      endDate: '2026-11-09' as const,
+    };
+    const performance = computeRecurrencePerformance({
+      createdDate: '2026-11-05',
+      ...range,
+      recurrence: subject,
+      responses: [],
+      today: '2026-11-09',
+    });
+
+    const statuses = getRecurrenceCalendarStatuses({
+      dates: ['2026-11-04', '2026-11-05'],
+      performance,
+      range,
+      recurrence: subject,
+      today: '2026-11-09',
+    });
+
+    expect(statuses.get('2026-11-04')).toBe('none');
+    expect(statuses.get('2026-11-05')).toBe('unregistered');
+  });
+
+  it('ignores paused days in the future', () => {
+    const subject = recurrence({
+      schedule: [
+        { from: null, rule: daily },
+        { from: '2026-11-10', rule: null },
+      ],
+    });
+    const range = {
+      startDate: '2026-11-09' as const,
+      endDate: '2026-11-11' as const,
+    };
+    const performance = computeRecurrencePerformance({
+      createdDate: '2026-11-01',
+      ...range,
+      recurrence: subject,
+      responses: [],
+      today: '2026-11-09',
+    });
+
+    expect(
+      getRecurrenceCalendarStatuses({
+        dates: ['2026-11-10'],
+        performance,
+        range,
+        recurrence: subject,
+        today: '2026-11-09',
+      }).get('2026-11-10'),
+    ).toBe('none');
+  });
+});
+
+describe('getPerformanceMonths', () => {
+  it('lists every month the range touches, across years', () => {
+    expect(getPerformanceMonths('2025-11-20', '2026-01-03')).toEqual([
+      '2025-11-01',
+      '2025-12-01',
+      '2026-01-01',
+    ]);
+  });
+
+  it('returns one month for a range inside it', () => {
+    expect(getPerformanceMonths('2026-11-02', '2026-11-09')).toEqual([
+      '2026-11-01',
+    ]);
   });
 });

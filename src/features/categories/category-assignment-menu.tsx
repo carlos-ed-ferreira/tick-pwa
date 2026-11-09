@@ -21,6 +21,7 @@ export function CategoryAssignmentMenu({
   renderTriggerContent,
   selectedCategoryTagId,
   showClearButton = true,
+  tooltip,
   showClearInMenu = false,
   surface,
   triggerClassName,
@@ -43,6 +44,7 @@ export function CategoryAssignmentMenu({
   }) => ReactNode;
   selectedCategoryTagId: string | null;
   showClearButton?: boolean;
+  tooltip?: string;
   showClearInMenu?: boolean;
   surface: CategoryTagSurface;
   triggerClassName?: string;
@@ -120,7 +122,7 @@ export function CategoryAssignmentMenu({
 
   return (
     <div ref={containerRef} className="relative flex items-center gap-1">
-      <Tooltip content={assignLabel}>
+      <Tooltip content={tooltip ?? assignLabel}>
         <button
           aria-expanded={isOpen}
           aria-label={assignLabel}

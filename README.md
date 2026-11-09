@@ -254,7 +254,8 @@ visualizações:
 - **Executar** responde às atividades da data selecionada.
 - **Atividades** administra as atividades, sem métricas: frequência, pausa e
   ações. Filtra por situação, categoria e nome.
-- **Desempenho** analisa um período e abre o histórico de cada atividade.
+- **Desempenho** analisa um período e abre o histórico de cada atividade, com
+  calendário mensal dos resultados e lista cronológica.
 
 A visualização e a atividade aberta ficam na URL (`?view=activities`,
 `?view=performance&activity=<id>`), e voltar no navegador restaura o contexto.
@@ -289,6 +290,8 @@ Regras:
 - A taxa é feitas ÷ (feitas + não feitas). Sem nenhuma das duas, mostra "—".
   A cobertura é respondidas ÷ (respondidas + sem registro) e é secundária.
 - A ordenação por taxa deixa as atividades sem dados no fim.
+- O calendário do histórico distingue dias sem ocorrência, futuros e fora do
+  período dos dias previstos; nenhum deles conta como falha.
 - Hoje e o passado aceitam resposta; datas futuras são somente consulta.
 - Uma resposta dada continua visível na data mesmo que a regra deixe de prevê-la.
 - Mudar a frequência cria um segmento a partir de hoje, sem recalcular o passado.
