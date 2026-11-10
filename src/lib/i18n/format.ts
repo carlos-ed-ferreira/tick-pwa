@@ -68,3 +68,10 @@ export function formatLocalDateLabel(
     timeZone: timezone,
   }).format(date);
 }
+
+export function formatQuantity(value: number, locale: string): string {
+  return new Intl.NumberFormat(locale, {
+    maximumFractionDigits: 3,
+    useGrouping: false,
+  }).format(value);
+}

@@ -279,7 +279,7 @@ describe('publishDevelopmentBranch', () => {
       'https://github.com/example/tick/pull/4\n',
       'PR_example\n',
       '',
-      createMissingChecksError(),
+      ...Array.from({ length: 31 }, createMissingChecksError),
       '',
       '',
       'MERGED\n',
@@ -296,8 +296,70 @@ describe('publishDevelopmentBranch', () => {
       release: vi.fn(),
     });
 
-    expect(wait).toHaveBeenCalledWith(2_000);
+    expect(wait).toHaveBeenCalledTimes(31);
+    expect(wait).toHaveBeenCalledWith(10_000);
     expect(execute).toHaveBeenLastCalledWith('git', ['push', 'origin', 'dev']);
+  });
+
+  it('stops without merging when required checks never appear', async () => {
+    const execute = createExecutor([
+      'dev\n',
+      '',
+      '',
+      '',
+      '',
+      '',
+      'https://github.com/example/tick/pull/4\n',
+      'PR_example\n',
+      '',
+      ...Array.from({ length: 360 }, createMissingChecksError),
+    ]);
+    const release = vi.fn();
+
+    await expect(
+      publishDevelopmentBranch({
+        execute,
+        wait: vi.fn(),
+        write: vi.fn(),
+        release,
+      }),
+    ).rejects.toThrow('https://github.com/example/tick/pull/4');
+    expect(execute).not.toHaveBeenCalledWith(
+      'gh',
+      expect.arrayContaining(['merge']),
+    );
+    expect(release).not.toHaveBeenCalled();
+  });
+
+  it('stops without merging when a required check fails', async () => {
+    const failure = new Error('Check app failed');
+    const execute = createExecutor([
+      'dev\n',
+      '',
+      '',
+      '',
+      '',
+      '',
+      'https://github.com/example/tick/pull/4\n',
+      'PR_example\n',
+      '',
+      failure,
+    ]);
+    const release = vi.fn();
+
+    await expect(
+      publishDevelopmentBranch({
+        execute,
+        wait: vi.fn(),
+        write: vi.fn(),
+        release,
+      }),
+    ).rejects.toThrow(failure);
+    expect(execute).not.toHaveBeenCalledWith(
+      'gh',
+      expect.arrayContaining(['merge']),
+    );
+    expect(release).not.toHaveBeenCalled();
   });
 
   it('ignores future pull request notifications and marks the existing thread as done', async () => {

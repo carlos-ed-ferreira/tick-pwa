@@ -305,6 +305,33 @@ Regras:
 - Guest recebe categorias padrão próprias, e o editor permite gerenciá-las sem
   perder o rascunho.
 
+Atividades quantitativas:
+
+- Uma atividade sem subtarefas, ou uma subtarefa final, pode ter uma medida
+  com meta mínima e unidade em texto livre (`measure`). Itens com subtarefas
+  não são medidos.
+- A meta e o registro aceitam até 3 casas decimais, entre 0 e 1.000.000,
+  e as comparações são feitas em milésimos.
+- O registro define o total do dia, sem somar valores. Zero é "Não feita";
+  limpar volta a "Sem registro". Igual ou acima da meta é "Feita"; entre zero e
+  a meta é "Parcial", que conta como não atingida na taxa.
+- Cada resposta guarda `quantity`, `target` e `unit` da época, e o `status`
+  é derivado deles. Respostas binárias antigas nunca recebem valores.
+- Mudar a medida de uma atividade com respostas vale a partir do dia seguinte,
+  pelo `content_history`.
+- O progresso quantitativo é Σ min(valor, meta) ÷ Σ meta dos registros, por
+  unidade; o total realizado usa o valor real. Unidades diferentes não são
+  somadas.
+
+Compatibilidade com versões antigas da PWA: clientes novos sempre enviam a
+chave `measure` em cada subtarefa e as colunas quantitativas da resposta. O
+trigger `recurrences_preserve_measures` recupera, por id, a medida de subtarefas
+e de snapshots de histórico que chegam sem a chave, nos dois caminhos de
+sincronização; `null` explícito remove a medida. A RPC só altera `measure` e
+as colunas quantitativas quando a chave está no payload, e a constraint
+`recurrence_responses_quantity_check` rejeita uma escrita antiga que mudaria o
+status sem a quantidade, mantendo a operação retida com aviso.
+
 Na conta, as duas entidades seguem a outbox de lotes e o caminho legado. Dois
 dispositivos que criam offline a mesma resposta convergem: o ramo da RPC usa
 `on conflict (id) do nothing`, a linha existente resulta em `stale_revision`, e o
@@ -762,7 +789,9 @@ Execuções de produção são serializadas. Falhas abrem ou comentam issue
 
 `make publish` exige branch `dev` e worktree limpo, sincroniza a branch, cria
 ou reutiliza PR, silencia notificações desse PR e aguarda os checks obrigatórios
-antes de armar squash automático. Depois confirma o merge e reconcilia `dev`.
+antes de armar squash automático. Se os checks ainda não estiverem registrados,
+consulta novamente a cada 10 segundos por até cerca de uma hora, informando o
+link do PR. Depois confirma o merge e reconcilia `dev`.
 O comando captura o SHA do merge, espera o App CI de push desse SHA e solicita
 explicitamente o workflow de produção com um identificador único. Ele acompanha
 somente o run dessa solicitação e confirma publicação depois de `READY` e smoke

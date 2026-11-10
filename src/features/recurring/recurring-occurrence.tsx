@@ -10,11 +10,18 @@ import {
 } from '@/components/app';
 import {
   buildVisibleTreeRows,
-  type RecurrenceChild,
+  getItemMeasure,
+  type RecurrenceContent,
+  type RecurrenceMeasure,
   type RecurrenceOccurrence,
+  type RecurrenceQuantity,
   type RecurrenceResponseStatus,
 } from '@/lib/domain';
 import { useAppContext } from '@/providers';
+import {
+  QuantityAnswer,
+  type RecordQuantityHandler,
+} from './recurring-quantity-answer';
 
 const answerToneClassNames: Record<RecurrenceResponseStatus, string> = {
   done: 'bg-emerald-400/20 text-emerald-100 hover:bg-emerald-400/30 hover:text-emerald-50',
@@ -29,6 +36,12 @@ export type RecurringAnswerHandler = (
   occurrence: RecurrenceOccurrence,
   itemId: string | null,
   status: RecurrenceResponseStatus | null,
+) => void;
+
+export type RecurringQuantityHandler = (
+  occurrence: RecurrenceOccurrence,
+  itemId: string | null,
+  value: number | null,
 ) => void;
 
 type RowAnswerHandler = (status: RecurrenceResponseStatus | null) => void;
@@ -71,6 +84,54 @@ function AnswerButton({
   );
 }
 
+function RowAnswerControls({
+  canAnswer,
+  measure,
+  name,
+  quantity,
+  status,
+  onAnswer,
+  onRecordQuantity,
+}: {
+  canAnswer: boolean;
+  measure: RecurrenceMeasure | null;
+  name: string;
+  quantity: RecurrenceQuantity | null;
+  status: RecurrenceResponseStatus | null;
+  onAnswer: RowAnswerHandler;
+  onRecordQuantity: RecordQuantityHandler;
+}) {
+  const { dictionary } = useAppContext();
+  const answerProps = { canAnswer, name, status, onAnswer };
+
+  return (
+    <span className="ml-1 flex shrink-0 items-center gap-1 touch:ml-auto">
+      {measure ? (
+        <QuantityAnswer
+          canAnswer={canAnswer}
+          measure={measure}
+          name={name}
+          quantity={quantity}
+          onRecord={onRecordQuantity}
+        />
+      ) : (
+        <>
+          <AnswerButton
+            {...answerProps}
+            label={dictionary.recurring.done}
+            value="done"
+          />
+          <AnswerButton
+            {...answerProps}
+            label={dictionary.recurring.notDone}
+            value="not_done"
+          />
+        </>
+      )}
+    </span>
+  );
+}
+
 function RecurringRow({
   bold,
   canAnswer,
@@ -79,9 +140,12 @@ function RecurringRow({
   hasChildren,
   isCollapsed,
   isPriority,
+  measure,
   name,
+  quantity,
   status,
   onAnswer,
+  onRecordQuantity,
   onToggleCollapsed,
 }: {
   bold: boolean;
@@ -91,13 +155,15 @@ function RecurringRow({
   hasChildren: boolean;
   isCollapsed: boolean;
   isPriority: boolean;
+  measure: RecurrenceMeasure | null;
   name: string;
+  quantity: RecurrenceQuantity | null;
   status: RecurrenceResponseStatus | null;
   onAnswer: RowAnswerHandler;
+  onRecordQuantity: RecordQuantityHandler;
   onToggleCollapsed: () => void;
 }) {
   const { dictionary } = useAppContext();
-  const answerProps = { canAnswer, name, status, onAnswer };
 
   return (
     <TaskTreeRowLayout
@@ -125,33 +191,35 @@ function RecurringRow({
           name={category.name}
         />
       ) : null}
-      <span className="ml-1 flex shrink-0 items-center gap-1 touch:ml-auto">
-        <AnswerButton
-          {...answerProps}
-          label={dictionary.recurring.done}
-          value="done"
-        />
-        <AnswerButton
-          {...answerProps}
-          label={dictionary.recurring.notDone}
-          value="not_done"
-        />
-      </span>
+      <RowAnswerControls
+        canAnswer={canAnswer}
+        measure={measure}
+        name={name}
+        quantity={quantity}
+        status={status}
+        onAnswer={onAnswer}
+        onRecordQuantity={onRecordQuantity}
+      />
     </TaskTreeRowLayout>
   );
 }
 
 function RecurringChildRows({
   canAnswer,
-  childItems,
+  content,
+  quantities,
   statuses,
   onAnswer,
+  onRecordQuantity,
 }: {
   canAnswer: boolean;
-  childItems: RecurrenceChild[];
+  content: RecurrenceContent;
+  quantities: Record<string, RecurrenceQuantity>;
   statuses: Record<string, RecurrenceResponseStatus>;
   onAnswer: (itemId: string, status: RecurrenceResponseStatus | null) => void;
+  onRecordQuantity: (itemId: string, value: number | null) => void;
 }) {
+  const childItems = content.children;
   const [collapsedIds, setCollapsedIds] = useState<ReadonlySet<string>>(
     new Set(),
   );
@@ -187,9 +255,12 @@ function RecurringChildRows({
       hasChildren={hasChildren}
       isCollapsed={item.collapsed}
       isPriority={item.priority}
+      measure={getItemMeasure(content, item.id)}
       name={item.text}
+      quantity={quantities[item.id] ?? null}
       status={statuses[item.id] ?? null}
       onAnswer={(status) => onAnswer(item.id, status)}
+      onRecordQuantity={(value) => onRecordQuantity(item.id, value)}
       onToggleCollapsed={() => toggleCollapsed(item.id)}
     />
   ));
@@ -200,11 +271,13 @@ export function RecurringOccurrence({
   categoryTagMap,
   occurrence,
   onAnswer,
+  onRecordQuantity,
 }: {
   canAnswer: boolean;
   categoryTagMap: Map<string, { colorHex: string; name: string }>;
   occurrence: RecurrenceOccurrence;
   onAnswer: RecurringAnswerHandler;
+  onRecordQuantity: RecurringQuantityHandler;
 }) {
   const { content } = occurrence;
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -220,17 +293,24 @@ export function RecurringOccurrence({
         hasChildren={content.children.length > 0}
         isCollapsed={isCollapsed}
         isPriority={content.priority}
+        measure={getItemMeasure(content, null)}
         name={content.text}
+        quantity={occurrence.quantity}
         status={occurrence.status}
         onAnswer={(status) => onAnswer(occurrence, null, status)}
+        onRecordQuantity={(value) => onRecordQuantity(occurrence, null, value)}
         onToggleCollapsed={() => setIsCollapsed((current) => !current)}
       />
       {isCollapsed ? null : (
         <RecurringChildRows
           canAnswer={canAnswer}
-          childItems={content.children}
+          content={content}
+          quantities={occurrence.childQuantities}
           statuses={occurrence.childStatuses}
           onAnswer={(itemId, status) => onAnswer(occurrence, itemId, status)}
+          onRecordQuantity={(itemId, value) =>
+            onRecordQuantity(occurrence, itemId, value)
+          }
         />
       )}
     </div>

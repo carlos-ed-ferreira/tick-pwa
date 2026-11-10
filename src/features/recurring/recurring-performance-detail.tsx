@@ -12,6 +12,7 @@ import {
   isRecurrencePaused,
   type LocalDateString,
   type Recurrence,
+  type RecurrencePerformance,
   type RecurrencePerformanceDay,
   type RecurrenceResponse,
 } from '@/lib/domain';
@@ -22,10 +23,13 @@ import { useRecurrencePerformance } from './recurring-performance';
 import {
   PerformancePeriodFilter,
   PerformanceSummary,
+  QuantitySummaryPanels,
   performanceMessageClassName,
   performanceStatusAppearance,
+  useDayQuantityText,
   useStatusLabel,
 } from './recurring-performance-parts';
+import { RecurringMeasuredSubtasks } from './recurring-measured-subtasks';
 import { PausedBadge, useRecurrenceFrequency } from './recurring-row';
 import type { PerformanceFilters } from './use-performance-filters';
 
@@ -113,6 +117,7 @@ function HistoryItem({
 }) {
   const { locale } = useAppContext();
   const getStatusLabel = useStatusLabel();
+  const quantityText = useDayQuantityText()(day.quantity);
   const { Icon, className } = performanceStatusAppearance[day.status];
 
   return (
@@ -126,6 +131,11 @@ function HistoryItem({
       <span className="min-w-0 text-sm text-[#e5ebf3] first-letter:uppercase">
         {formatRecurringDate(day.date, locale)}
       </span>
+      {quantityText ? (
+        <span className="ml-auto text-xs whitespace-nowrap text-[#cbd5e0] tabular-nums">
+          {quantityText}
+        </span>
+      ) : null}
       <span
         className={`flex shrink-0 items-center gap-1.5 text-sm ${className}`}
       >
@@ -187,6 +197,64 @@ function scrollToHistoryDate(date: LocalDateString) {
   });
 }
 
+function DetailResults({
+  days,
+  performance,
+  range,
+  recurrence,
+  responses,
+  selectedDate,
+  today,
+  onSelect,
+}: {
+  days: RecurrencePerformanceDay[];
+  performance: RecurrencePerformance;
+  range: { endDate: LocalDateString; startDate: LocalDateString };
+  recurrence: Recurrence;
+  responses: RecurrenceResponse[];
+  selectedDate: LocalDateString | null;
+  today: LocalDateString;
+  onSelect: (date: LocalDateString) => void;
+}) {
+  const rangeKey = `${range.startDate}:${range.endDate}`;
+
+  return (
+    <>
+      <PerformanceSummary name={recurrence.text} totals={performance} />
+      {performance.quantities.length > 0 ? (
+        <div className="grid grid-cols-2 gap-2 touch:grid-cols-1">
+          <QuantitySummaryPanels
+            name={recurrence.text}
+            summaries={performance.quantities}
+          />
+        </div>
+      ) : null}
+      <RecurringMeasuredSubtasks
+        range={range}
+        recurrence={recurrence}
+        responses={responses}
+        today={today}
+      />
+      <div className="grid grid-cols-[minmax(0,22rem)_minmax(0,1fr)] items-start gap-3 touch:grid-cols-1">
+        <RecurringHistoryCalendar
+          key={`calendar:${rangeKey}`}
+          performance={performance}
+          range={range}
+          recurrence={recurrence}
+          selectedDate={selectedDate}
+          today={today}
+          onSelect={onSelect}
+        />
+        <HistoryList
+          key={`history:${rangeKey}`}
+          days={days}
+          selectedDate={selectedDate}
+        />
+      </div>
+    </>
+  );
+}
+
 export function RecurringPerformanceDetail({
   filters,
   recurrence,
@@ -230,28 +298,16 @@ export function RecurringPerformanceDetail({
       >
         <PerformancePeriodFilter filters={filters} />
         {entry && filters.range ? (
-          <>
-            <PerformanceSummary
-              name={recurrence.text}
-              totals={entry.performance}
-            />
-            <div className="grid grid-cols-[minmax(0,22rem)_minmax(0,1fr)] items-start gap-3 touch:grid-cols-1">
-              <RecurringHistoryCalendar
-                key={`calendar:${filters.range.startDate}:${filters.range.endDate}`}
-                performance={entry.performance}
-                range={filters.range}
-                recurrence={recurrence}
-                selectedDate={selectedDate}
-                today={today}
-                onSelect={selectDate}
-              />
-              <HistoryList
-                key={`history:${filters.range.startDate}:${filters.range.endDate}`}
-                days={days}
-                selectedDate={selectedDate}
-              />
-            </div>
-          </>
+          <DetailResults
+            days={days}
+            performance={entry.performance}
+            range={filters.range}
+            recurrence={recurrence}
+            responses={responses}
+            selectedDate={selectedDate}
+            today={today}
+            onSelect={selectDate}
+          />
         ) : null}
       </div>
     </div>

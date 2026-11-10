@@ -105,6 +105,44 @@ test('answers a daily activity and keeps it after a reload', async ({
   await expect(noData).toBeVisible();
 });
 
+test('records a partial amount and keeps it after a reload', async ({
+  page,
+}) => {
+  await openRecurring(page);
+  await page.getByRole('button', { name: recurringLabels.newActivity }).click();
+
+  const editor = page.getByRole('dialog');
+
+  await editor.getByLabel(recurringLabels.nameLabel).fill('Read');
+  await editor
+    .getByRole('button', { name: /^(measure an amount|medir quantidade)$/i })
+    .first()
+    .click();
+  await editor.getByLabel(/^(minimum target|meta mínima)$/i).fill('20');
+  await editor.getByLabel(/^(unit|unidade)$/i).fill('pages');
+  await editor.getByRole('button', { name: recurringLabels.save }).click();
+  await expect(editor).toBeHidden();
+
+  const day = page.getByRole('region', { name: recurringLabels.dayView });
+  const record = day.getByRole('button', {
+    name: /^(record amount|registrar quantidade):/i,
+  });
+
+  await record.click();
+
+  const amount = page.getByRole('dialog');
+
+  await amount.getByLabel(/^(amount done|quantidade realizada)$/i).fill('10');
+  await amount.getByRole('button', { name: recurringLabels.save }).click();
+  await expect(day.getByText('10 / 20 pages')).toBeVisible();
+
+  await page.reload();
+  await expect(day.getByText('10 / 20 pages')).toBeVisible();
+  await expect(
+    day.getByRole('progressbar', { name: /^(progress|progresso): Read$/i }),
+  ).toHaveAttribute('aria-valuenow', '50');
+});
+
 test('keeps the performance history in the address', async ({ page }) => {
   await openRecurring(page);
   await createDailyActivity(page, 'Stretch');

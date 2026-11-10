@@ -34,6 +34,8 @@ provedores nem impõe budgets estatísticos de capacidade.
 
 O ruleset da `main` exige `Check app`, `Check database`, `Check end-to-end` e
 `Check security`, conferido por `make main-ruleset-status`.
+`make pr-checks-status args=--required` consulta o estado desses checks no PR
+aberto da `dev`, incluindo checks pendentes.
 O environment `production` guarda os secrets abaixo. O pipeline publica o SHA aprovado pela API Vercel; auto-deploy Git de `main`
 está desligado no `vercel.json`. O preflight exige os secrets da API antes de
 qualquer migration, sem fallback para hook.

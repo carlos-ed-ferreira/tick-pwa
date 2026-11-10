@@ -3,6 +3,8 @@ import type {
   LocalDateString,
   Recurrence,
   RecurrenceContent,
+  RecurrenceMeasure,
+  RecurrenceQuantity,
   RecurrenceResponse,
   RecurrenceResponseStatus,
   RecurrenceRule,
@@ -12,13 +14,19 @@ import {
   buildRecurrenceResponseId,
   canRespondOnDate,
   createId,
+  getItemMeasure,
   getOccurrencesForDate,
+  getQuantityStatus,
+  isMeasurableItem,
   isRecurrencePaused,
   isSameRecurrenceContent,
+  normalizeMeasureUnit,
   pauseSchedule,
   pickRecurrenceContent,
   replaceContentForward,
   resumeSchedule,
+  validateQuantityValue,
+  validateRecurrenceMeasure,
   validateRecurrenceRule,
 } from '@/lib/domain';
 import { addLocalDays } from '@/lib/time';
@@ -56,6 +64,26 @@ async function resolveCategoryTagId(
     : null;
 }
 
+function normalizeMeasure(
+  measure: RecurrenceMeasure | null | undefined,
+  measurable: boolean,
+): RecurrenceMeasure | null {
+  if (!measure) {
+    return null;
+  }
+
+  const normalized = {
+    target: measure.target,
+    unit: normalizeMeasureUnit(measure.unit),
+  };
+
+  if (!measurable || validateRecurrenceMeasure(normalized) !== null) {
+    throw new Error('invalid_recurrence_measure');
+  }
+
+  return normalized;
+}
+
 async function normalizeContent(
   scope: AppScope,
   content: RecurrenceContent,
@@ -66,11 +94,30 @@ async function normalizeContent(
     throw new Error('invalid_recurrence_text');
   }
 
+  const picked = pickRecurrenceContent(content);
+
   return {
-    ...pickRecurrenceContent(content),
+    ...picked,
     text,
     categoryTagId: await resolveCategoryTagId(scope, content.categoryTagId),
+    children: picked.children.map((child) => ({
+      ...child,
+      measure: normalizeMeasure(
+        child.measure,
+        isMeasurableItem(picked, child.id),
+      ),
+    })),
+    measure: normalizeMeasure(picked.measure, isMeasurableItem(picked, null)),
   };
+}
+
+function getMeasureKey(content: RecurrenceContent): string {
+  const picked = pickRecurrenceContent(content);
+
+  return JSON.stringify([
+    picked.measure,
+    picked.children.map((child) => [child.id, child.measure]),
+  ]);
 }
 
 async function getScopedRecurrence(
@@ -220,6 +267,17 @@ async function applyContentChange({
 
   if (isSameRecurrenceContent(recurrence, nextContent)) {
     return recurrence;
+  }
+
+  if (
+    getMeasureKey(recurrence) !== getMeasureKey(nextContent) &&
+    (await getRecurrenceResponses(scope, recurrence.id)).length > 0
+  ) {
+    return replaceContentForward(
+      recurrence,
+      nextContent,
+      addLocalDays(today, 1),
+    );
   }
 
   return contentMode === 'forward'
@@ -387,7 +445,7 @@ export async function softDeleteRecurrence({
   );
 }
 
-async function isResponseAllowed({
+async function getAnswerableContent({
   date,
   itemId,
   recurrence,
@@ -397,69 +455,123 @@ async function isResponseAllowed({
   itemId: string | null;
   recurrence: Recurrence;
   scope: AppScope;
-}): Promise<boolean> {
+}): Promise<RecurrenceContent | null> {
   const [occurrence] = getOccurrencesForDate({
     date,
     recurrences: [recurrence],
     responses: await getRecurrenceResponses(scope, recurrence.id),
   });
 
+  if (
+    !occurrence ||
+    (itemId !== null &&
+      !occurrence.content.children.some((child) => child.id === itemId))
+  ) {
+    return null;
+  }
+
+  return occurrence.content;
+}
+
+interface ResponseAnswer {
+  quantity: RecurrenceQuantity | null;
+  status: RecurrenceResponseStatus;
+}
+
+function isSameAnswer(
+  existing: RecurrenceResponse | undefined,
+  answer: ResponseAnswer | null,
+): boolean {
+  if (!existing || existing.deletedAt) {
+    return answer === null;
+  }
+
   return (
-    occurrence !== undefined &&
-    (itemId === null ||
-      occurrence.content.children.some((child) => child.id === itemId))
+    answer !== null &&
+    existing.status === answer.status &&
+    JSON.stringify(existing.quantity ?? null) ===
+      JSON.stringify(answer.quantity)
   );
 }
 
-async function createResponse({
+async function writeResponse({
+  answer,
   date,
-  id,
   itemId,
   recurrenceId,
   scope,
-  status,
 }: {
+  answer: ResponseAnswer | null;
   date: LocalDateString;
-  id: string;
   itemId: string | null;
   recurrenceId: string;
   scope: AppScope;
-  status: RecurrenceResponseStatus;
 }): Promise<void> {
-  const now = createTimestamp();
-  const response: RecurrenceResponse = {
-    id,
-    scopeId: scope.id,
-    recurrenceId,
+  const id = buildRecurrenceResponseId({
     date,
     itemId,
-    status,
-    createdAt: now,
-    updatedAt: now,
-    deletedAt: null,
-    ...createSyncMetadata(scope, now),
-  };
+    recurrenceId,
+    scopeId: scope.id,
+  });
+  const existing = await db.recurrenceResponses.get(id);
 
-  await persistResponse(scope, response, ['created']);
+  if (isSameAnswer(existing, answer)) {
+    return;
+  }
+
+  if (!existing) {
+    const now = createTimestamp();
+
+    await persistResponse(
+      scope,
+      {
+        id,
+        scopeId: scope.id,
+        recurrenceId,
+        date,
+        itemId,
+        ...(answer as ResponseAnswer),
+        createdAt: now,
+        updatedAt: now,
+        deletedAt: null,
+        ...createSyncMetadata(scope, now),
+      },
+      ['created'],
+    );
+    return;
+  }
+
+  const next = touchEntity(scope, existing);
+
+  await persistResponse(
+    scope,
+    answer
+      ? { ...next, ...answer, deletedAt: null }
+      : { ...next, deletedAt: next.updatedAt },
+    ['status', 'quantity', 'deletedAt'],
+  );
 }
 
-export async function setRecurrenceResponse({
-  date,
-  itemId,
-  recurrenceId,
-  scope,
-  status,
-  today,
-}: {
-  date: LocalDateString;
-  itemId: string | null;
-  recurrenceId: string;
-  scope: AppScope;
-  status: RecurrenceResponseStatus | null;
-  today: LocalDateString;
-}): Promise<boolean> {
+function respond(
+  {
+    date,
+    itemId,
+    recurrenceId,
+    scope,
+    today,
+  }: {
+    date: LocalDateString;
+    itemId: string | null;
+    recurrenceId: string;
+    scope: AppScope;
+    today: LocalDateString;
+  },
+  resolveAnswer: (
+    measure: RecurrenceMeasure | null,
+  ) => ResponseAnswer | null | false,
+): Promise<boolean> {
   if (!canRespondOnDate(date, today)) {
-    return false;
+    return Promise.resolve(false);
   }
 
   return db.transaction(
@@ -469,52 +581,69 @@ export async function setRecurrenceResponse({
     db.recurrenceResponses,
     async () => {
       const recurrence = await getScopedRecurrence(scope, recurrenceId);
+      const content = recurrence
+        ? await getAnswerableContent({ date, itemId, recurrence, scope })
+        : null;
 
-      if (
-        !recurrence ||
-        !(await isResponseAllowed({ date, itemId, recurrence, scope }))
-      ) {
+      if (!content) {
         return false;
       }
 
-      const id = buildRecurrenceResponseId({
-        date,
-        itemId,
-        recurrenceId,
-        scopeId: scope.id,
-      });
-      const existing = await db.recurrenceResponses.get(id);
-      const currentStatus = existing?.deletedAt
-        ? null
-        : (existing?.status ?? null);
+      const answer = resolveAnswer(getItemMeasure(content, itemId));
 
-      if (currentStatus === status) {
-        return true;
+      if (answer === false) {
+        return false;
       }
 
-      if (!existing) {
-        await createResponse({
-          date,
-          id,
-          itemId,
-          recurrenceId,
-          scope,
-          status: status as RecurrenceResponseStatus,
-        });
-        return true;
-      }
-
-      const next = touchEntity(scope, existing);
-
-      await persistResponse(
-        scope,
-        status
-          ? { ...next, status, deletedAt: null }
-          : { ...next, deletedAt: next.updatedAt },
-        ['status', 'deletedAt'],
-      );
+      await writeResponse({ answer, date, itemId, recurrenceId, scope });
 
       return true;
     },
   );
+}
+
+export function setRecurrenceResponse({
+  status,
+  ...target
+}: {
+  date: LocalDateString;
+  itemId: string | null;
+  recurrenceId: string;
+  scope: AppScope;
+  status: RecurrenceResponseStatus | null;
+  today: LocalDateString;
+}): Promise<boolean> {
+  return respond(target, (measure) => {
+    if (measure && status !== null) {
+      return false;
+    }
+
+    return status === null ? null : { quantity: null, status };
+  });
+}
+
+export function setRecurrenceQuantity({
+  value,
+  ...target
+}: {
+  date: LocalDateString;
+  itemId: string | null;
+  recurrenceId: string;
+  scope: AppScope;
+  today: LocalDateString;
+  value: number | null;
+}): Promise<boolean> {
+  return respond(target, (measure) => {
+    if (value === null) {
+      return null;
+    }
+
+    if (!measure || !validateQuantityValue(value)) {
+      return false;
+    }
+
+    const quantity = { ...measure, value };
+
+    return { quantity, status: getQuantityStatus(quantity) };
+  });
 }

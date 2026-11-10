@@ -1,7 +1,7 @@
 'use client';
 
 import { Bold, Check, Star, Tag, X } from 'lucide-react';
-import { useState, type ReactNode } from 'react';
+import { useState } from 'react';
 import { TaskTreeClearCategoryIcon } from '@/components/app';
 import {
   Dialog,
@@ -35,13 +35,22 @@ import { useAppContext } from '@/providers';
 import {
   buildRuleFromForm,
   childrenToDraftItems,
+  collectEditorMeasures,
+  createMeasureDraft,
   createDefaultRecurrenceForm,
   createFormFromRule,
   draftItemsToChildren,
+  type EditorMeasureErrors,
+  type MeasureDraft,
   type RecurrenceForm,
 } from './recurrence-form';
 import { RecurringChildrenEditor } from './recurring-children-editor';
+import {
+  ChildMeasureFields,
+  RootMeasureFields,
+} from './recurring-measure-fields';
 import { RecurringFrequencyFields } from './recurring-frequency-fields';
+import { RecurringTogglePill } from './recurring-toggle-pill';
 
 interface EditorFormat {
   bold: boolean;
@@ -49,37 +58,29 @@ interface EditorFormat {
   priority: boolean;
 }
 
+function getDraftSignature(
+  measureDraft: MeasureDraft,
+  childDrafts: Readonly<Record<string, MeasureDraft>>,
+): string {
+  return JSON.stringify([
+    measureDraft.enabled ? measureDraft : null,
+    Object.entries(childDrafts)
+      .filter(([, draft]) => draft.enabled)
+      .sort(([left], [right]) => left.localeCompare(right)),
+  ]);
+}
+
+function withoutMeasures(content: RecurrenceContent): RecurrenceContent {
+  return {
+    ...content,
+    children: content.children.map((child) => ({ ...child, measure: null })),
+    measure: null,
+  };
+}
+
 interface PendingUpdate {
   content: RecurrenceContent;
   rule: RecurrenceRule | undefined;
-}
-
-function FormatToggle({
-  active,
-  children,
-  label,
-  onToggle,
-}: {
-  active: boolean;
-  children: ReactNode;
-  label: string;
-  onToggle: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      aria-pressed={active}
-      className={`touch-target inline-flex h-9 items-center gap-1.5 rounded-full px-3.5 text-sm font-medium shadow-sm transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e] ${
-        active
-          ? 'bg-[#f0c38e] text-[#253241]'
-          : 'bg-white/8 text-[#aebac8] hover:bg-white/12 hover:text-[#fff9f2]'
-      }`}
-      onClick={onToggle}
-    >
-      {children}
-      {label}
-    </button>
-  );
 }
 
 function EditorFormatRow({
@@ -96,20 +97,20 @@ function EditorFormatRow({
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <FormatToggle
+      <RecurringTogglePill
         active={format.bold}
         label={dictionary.recurring.bold}
         onToggle={() => onChange({ bold: !format.bold })}
       >
         <Bold aria-hidden="true" className="size-3.5" />
-      </FormatToggle>
-      <FormatToggle
+      </RecurringTogglePill>
+      <RecurringTogglePill
         active={format.priority}
         label={dictionary.recurring.priority}
         onToggle={() => onChange({ priority: !format.priority })}
       >
         <Star aria-hidden="true" className="size-3.5" />
-      </FormatToggle>
+      </RecurringTogglePill>
       <CategoryAssignmentMenu
         assignLabel={
           selectedCategory
@@ -253,8 +254,77 @@ async function saveRecurrence({
   }
 }
 
+function createChildMeasureDrafts(
+  recurrence: Recurrence | null,
+  locale: string,
+): Record<string, MeasureDraft> {
+  return Object.fromEntries(
+    (recurrence?.children ?? []).flatMap((child) =>
+      child.measure
+        ? [[child.id, createMeasureDraft(child.measure, locale)]]
+        : [],
+    ),
+  );
+}
+
+function readEditorSubmission(
+  draft: Pick<
+    ReturnType<typeof useEditorDraft>,
+    | 'childDrafts'
+    | 'form'
+    | 'format'
+    | 'isPaused'
+    | 'items'
+    | 'measureDraft'
+    | 'text'
+  >,
+  today: LocalDateString,
+) {
+  const name = draft.text.trim();
+  const { error, rule } = readRuleResult(draft.form, draft.isPaused, today);
+  const { errors, measures } = collectEditorMeasures(draft);
+  const update: PendingUpdate | null =
+    name && !error && !errors
+      ? {
+          content: {
+            ...draft.format,
+            text: name,
+            children: draftItemsToChildren(draft.items, measures.childMeasures),
+            measure: measures.measure,
+          },
+          rule,
+        }
+      : null;
+
+  return { measureErrors: errors, name, ruleError: error, update };
+}
+
+function useMeasureDrafts(recurrence: Recurrence | null) {
+  const { locale } = useAppContext();
+  const [measureDraft, setMeasureDraft] = useState(() =>
+    createMeasureDraft(recurrence?.measure, locale),
+  );
+  const [childDrafts, setChildDrafts] = useState(() =>
+    createChildMeasureDrafts(recurrence, locale),
+  );
+  const [initialSignature] = useState(() =>
+    getDraftSignature(measureDraft, childDrafts),
+  );
+
+  return {
+    childDrafts,
+    measureChanged:
+      recurrence !== null &&
+      getDraftSignature(measureDraft, childDrafts) !== initialSignature,
+    measureDraft,
+    setChildDrafts,
+    setMeasureDraft,
+  };
+}
+
 function useEditorDraft(recurrence: Recurrence | null, today: LocalDateString) {
   const [text, setText] = useState(recurrence?.text ?? '');
+  const measures = useMeasureDrafts(recurrence);
   const [format, setFormat] = useState<EditorFormat>({
     bold: recurrence?.bold ?? false,
     categoryTagId: recurrence?.categoryTagId ?? null,
@@ -266,6 +336,7 @@ function useEditorDraft(recurrence: Recurrence | null, today: LocalDateString) {
   const [form, setForm] = useState(() => createInitialForm(recurrence, today));
 
   return {
+    ...measures,
     form,
     format,
     isPaused: recurrence ? isRecurrencePaused(recurrence.schedule) : false,
@@ -292,8 +363,9 @@ function useRecurringEditor({
   const { dictionary, scope } = useAppContext();
   const labels = dictionary.recurring;
   const draft = useEditorDraft(recurrence, today);
-  const { format, form, isPaused, items, text } = draft;
   const [nameError, setNameError] = useState<string | null>(null);
+  const [measureErrors, setMeasureErrors] =
+    useState<EditorMeasureErrors | null>(null);
   const [ruleError, setRuleError] = useState<RecurrenceRuleError | null>(null);
   const [pending, setPending] = useState<PendingUpdate | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -320,35 +392,37 @@ function useRecurringEditor({
   }
 
   function submit() {
-    const name = text.trim();
-    const { error, rule } = readRuleResult(form, isPaused, today);
+    const submission = readEditorSubmission(draft, today);
 
-    setNameError(name ? null : labels.nameRequired);
-    setRuleError(error);
+    setNameError(submission.name ? null : labels.nameRequired);
+    setRuleError(submission.ruleError);
+    setMeasureErrors(submission.measureErrors);
 
-    if (!name || error) {
+    if (!submission.update) {
       return;
     }
 
-    const content = {
-      ...format,
-      text: name,
-      children: draftItemsToChildren(items),
-    };
+    const { update } = submission;
     const contentChanged =
-      recurrence !== null && !isSameRecurrenceContent(recurrence, content);
+      recurrence !== null &&
+      !isSameRecurrenceContent(
+        withoutMeasures(recurrence),
+        withoutMeasures(update.content),
+      );
 
     if (hasAnswers && contentChanged) {
-      setPending({ content, rule });
+      setPending(update);
       return;
     }
 
-    void persist({ content, rule }, 'all');
+    void persist(update, 'all');
   }
 
   return {
     ...draft,
+    hasAnswers,
     isSaving,
+    measureErrors,
     nameError,
     pending,
     persist,
@@ -388,9 +462,27 @@ function RecurringEditorFields({ editor }: { editor: RecurringEditorState }) {
           editor.setRuleError(null);
         }}
       />
+      <RootMeasureFields
+        draft={editor.measureDraft}
+        error={editor.measureErrors?.root}
+        hasChildren={editor.items.some((item) => item.text.trim())}
+        showForwardNote={editor.hasAnswers && editor.measureChanged}
+        onChange={editor.setMeasureDraft}
+      />
       <RecurringChildrenEditor
         items={editor.items}
         setItems={editor.setItems}
+      />
+      <ChildMeasureFields
+        drafts={editor.childDrafts}
+        errors={editor.measureErrors?.children ?? {}}
+        items={editor.items}
+        onChange={(itemId, measure) =>
+          editor.setChildDrafts((current) => ({
+            ...current,
+            [itemId]: measure,
+          }))
+        }
       />
     </div>
   );

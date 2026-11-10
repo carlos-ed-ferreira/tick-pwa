@@ -496,6 +496,104 @@ describe('content history', () => {
   });
 });
 
+describe('content measures', () => {
+  const pages = { target: 20, unit: 'pages' };
+
+  it('keeps the measure in the content in effect on each date', () => {
+    const recurrence = replaceContentForward(
+      createRecurrence({ measure: pages }),
+      {
+        text: 'Current',
+        bold: false,
+        priority: false,
+        categoryTagId: null,
+        children: [],
+        measure: { target: 30, unit: 'pages' },
+      },
+      '2026-11-16',
+    );
+
+    expect(getContentAt(recurrence, '2026-11-15').measure).toEqual(pages);
+    expect(getContentAt(recurrence, '2026-11-16').measure).toEqual({
+      target: 30,
+      unit: 'pages',
+    });
+  });
+
+  it('treats content written before measures as unmeasured', () => {
+    const legacyChild = {
+      id: 'child',
+      parentId: null,
+      text: 'Child',
+      bold: false,
+      priority: false,
+      sortRank: 'a0',
+    };
+    const legacy = createRecurrence({ children: [legacyChild] });
+
+    expect(getContentAt(legacy, '2026-11-06')).toEqual({
+      text: 'Current',
+      bold: false,
+      priority: false,
+      categoryTagId: null,
+      children: [{ ...legacyChild, measure: null }],
+      measure: null,
+    });
+    expect(
+      isSameRecurrenceContent(legacy, {
+        ...legacy,
+        measure: null,
+        children: [{ ...legacyChild, measure: null }],
+      }),
+    ).toBe(true);
+    expect(
+      isSameRecurrenceContent(legacy, {
+        ...legacy,
+        children: [{ ...legacyChild, measure: pages }],
+      }),
+    ).toBe(false);
+    expect(isSameRecurrenceContent(legacy, { ...legacy, measure: pages })).toBe(
+      false,
+    );
+  });
+
+  it('exposes the quantities of the main activity and of each subtask', () => {
+    const [occurrence] = getOccurrencesForDate({
+      date: '2026-11-06',
+      recurrences: [createRecurrence({ measure: pages })],
+      responses: [
+        createResponse({
+          quantity: { ...pages, value: 10 },
+          status: 'not_done',
+        }),
+        createResponse({
+          id: 'child-response',
+          itemId: 'child',
+          quantity: { target: 5, unit: 'min', value: 5 },
+        }),
+        createResponse({ id: 'binary-child', itemId: 'other' }),
+      ],
+    });
+
+    expect(occurrence.quantity).toEqual({ ...pages, value: 10 });
+    expect(occurrence.childQuantities).toEqual({
+      child: { target: 5, unit: 'min', value: 5 },
+    });
+    expect(occurrence.childStatuses).toEqual({ child: 'done', other: 'done' });
+  });
+
+  it('has no quantity for a binary answer', () => {
+    const [occurrence] = getOccurrencesForDate({
+      date: '2026-11-06',
+      recurrences: [createRecurrence()],
+      responses: [createResponse()],
+    });
+
+    expect(occurrence.quantity).toBeNull();
+    expect(occurrence.childQuantities).toEqual({});
+  });
+});
+
 describe('getOccurrencesForDate', () => {
   const child: RecurrenceChild = {
     id: 'child',

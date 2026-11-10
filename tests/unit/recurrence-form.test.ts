@@ -7,6 +7,10 @@ import {
   createFormFromRule,
   draftItemsToChildren,
   childrenToDraftItems,
+  collectEditorMeasures,
+  createMeasureDraft,
+  findMeasuredGroups,
+  readMeasureDraft,
 } from '@/features/recurring/recurrence-form';
 import {
   formatRecurrenceFrequency,
@@ -145,8 +149,96 @@ describe('recurrence form', () => {
         bold: true,
         priority: true,
         sortRank: 'a0',
+        measure: null,
       },
     ]);
+  });
+
+  it('attaches the measure of each subtask by id', () => {
+    const drafts = childrenToDraftItems([
+      {
+        id: 'a',
+        parentId: null,
+        text: 'Stretch',
+        bold: false,
+        priority: false,
+        sortRank: 'a0',
+      },
+    ]);
+
+    expect(
+      draftItemsToChildren(drafts, { a: { target: 10, unit: 'min' } })[0]
+        .measure,
+    ).toEqual({ target: 10, unit: 'min' });
+  });
+});
+
+describe('measure drafts', () => {
+  it('starts disabled without a measure', () => {
+    expect(createMeasureDraft(null, 'pt-BR')).toEqual({
+      enabled: false,
+      target: '',
+      unit: '',
+    });
+  });
+
+  it('shows the target with the decimal separator of the locale', () => {
+    expect(createMeasureDraft({ target: 5.5, unit: 'km' }, 'pt-BR')).toEqual({
+      enabled: true,
+      target: '5,5',
+      unit: 'km',
+    });
+    expect(createMeasureDraft({ target: 5.5, unit: 'km' }, 'en').target).toBe(
+      '5.5',
+    );
+  });
+
+  it('reads a localized target and trims the unit', () => {
+    expect(
+      readMeasureDraft({ enabled: true, target: '5,5', unit: ' km ' }),
+    ).toEqual({ measure: { target: 5.5, unit: 'km' } });
+    expect(readMeasureDraft({ enabled: false, target: 'x', unit: '' })).toEqual(
+      { measure: null },
+    );
+  });
+
+  it.each([
+    [{ enabled: true, target: '0', unit: 'km' }, 'target'],
+    [{ enabled: true, target: 'abc', unit: 'km' }, 'target'],
+    [{ enabled: true, target: '1,0001', unit: 'km' }, 'target'],
+    [{ enabled: true, target: '5', unit: '  ' }, 'unit'],
+  ] as const)('rejects %j', (draft, error) => {
+    expect(readMeasureDraft(draft)).toEqual({ error });
+  });
+
+  it('finds measured items that received subtasks', () => {
+    const drafts = childrenToDraftItems([
+      {
+        id: 'group',
+        parentId: null,
+        text: 'Meditate',
+        bold: false,
+        priority: false,
+        sortRank: 'a0',
+      },
+      {
+        id: 'inner',
+        parentId: 'group',
+        text: 'Breathe',
+        bold: false,
+        priority: false,
+        sortRank: 'a0',
+      },
+    ]);
+    const enabled = { enabled: true, target: '5', unit: 'min' };
+
+    expect(
+      findMeasuredGroups(drafts, {
+        group: enabled,
+        inner: enabled,
+        gone: enabled,
+      }),
+    ).toEqual(['group']);
   });
 });
 
@@ -203,5 +295,97 @@ describe('recurrence labels', () => {
     } as Recurrence;
 
     expect(formatRecurrenceFrequency(paused, en)).toBe('Last day of the month');
+  });
+});
+
+describe('collectEditorMeasures', () => {
+  const items = childrenToDraftItems([
+    {
+      id: 'group',
+      parentId: null,
+      text: 'Meditate',
+      bold: false,
+      priority: false,
+      sortRank: 'a0',
+    },
+    {
+      id: 'inner',
+      parentId: 'group',
+      text: 'Breathe',
+      bold: false,
+      priority: false,
+      sortRank: 'a0',
+    },
+  ]);
+  const off = { enabled: false, target: '', unit: '' };
+
+  it('reads the activity measure without subtasks', () => {
+    expect(
+      collectEditorMeasures({
+        childDrafts: {},
+        items: [],
+        measureDraft: { enabled: true, target: '20', unit: 'páginas' },
+      }),
+    ).toEqual({
+      errors: null,
+      measures: { childMeasures: {}, measure: { target: 20, unit: 'páginas' } },
+    });
+  });
+
+  it('keeps the activity measure blocked while it has subtasks', () => {
+    expect(
+      collectEditorMeasures({
+        childDrafts: {},
+        items,
+        measureDraft: { enabled: true, target: '20', unit: 'páginas' },
+      }).errors,
+    ).toEqual({ blocked: true, children: {}, root: undefined });
+  });
+
+  it('reads leaf measures and reports invalid ones by id', () => {
+    expect(
+      collectEditorMeasures({
+        childDrafts: { inner: { enabled: true, target: '5,5', unit: 'min' } },
+        items,
+        measureDraft: off,
+      }),
+    ).toEqual({
+      errors: null,
+      measures: {
+        childMeasures: { inner: { target: 5.5, unit: 'min' } },
+        measure: null,
+      },
+    });
+    expect(
+      collectEditorMeasures({
+        childDrafts: { inner: { enabled: true, target: '0', unit: 'min' } },
+        items,
+        measureDraft: off,
+      }).errors,
+    ).toEqual({
+      blocked: false,
+      children: { inner: 'target' },
+      root: undefined,
+    });
+  });
+
+  it('blocks a measured item that received subtasks', () => {
+    expect(
+      collectEditorMeasures({
+        childDrafts: { group: { enabled: true, target: '5', unit: 'min' } },
+        items,
+        measureDraft: off,
+      }).errors,
+    ).toEqual({ blocked: true, children: {}, root: undefined });
+  });
+
+  it('reports an invalid activity measure', () => {
+    expect(
+      collectEditorMeasures({
+        childDrafts: {},
+        items: [],
+        measureDraft: { enabled: true, target: '20', unit: '' },
+      }).errors,
+    ).toEqual({ blocked: false, children: {}, root: 'unit' });
   });
 });

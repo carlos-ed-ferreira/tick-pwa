@@ -66,6 +66,7 @@ function answer(
 function compute({
   createdDate = '2026-11-01',
   endDate = '2026-11-09',
+  itemId = null,
   responses = [],
   startDate = '2026-11-01',
   subject = recurrence(),
@@ -73,6 +74,7 @@ function compute({
 }: {
   createdDate?: LocalDateString;
   endDate?: LocalDateString;
+  itemId?: string | null;
   responses?: RecurrenceResponse[];
   startDate?: LocalDateString;
   subject?: Recurrence;
@@ -81,6 +83,7 @@ function compute({
   return computeRecurrencePerformance({
     createdDate,
     endDate,
+    itemId,
     recurrence: subject,
     responses,
     startDate,
@@ -193,7 +196,11 @@ describe('computeRecurrencePerformance', () => {
       responses: [answer('2026-11-03', 'done')],
     });
 
-    expect(result.days[0]).toEqual({ date: '2026-11-03', status: 'done' });
+    expect(result.days[0]).toEqual({
+      date: '2026-11-03',
+      quantity: null,
+      status: 'done',
+    });
     expect(result.unregistered).toBe(5);
   });
 
@@ -227,7 +234,9 @@ describe('computeRecurrencePerformance', () => {
       responses: [answer('2026-11-04', 'not_done')],
     });
 
-    expect(result.days).toEqual([{ date: '2026-11-04', status: 'not_done' }]);
+    expect(result.days).toEqual([
+      { date: '2026-11-04', quantity: null, status: 'not_done' },
+    ]);
     expect(result.unregistered).toBe(0);
   });
 
@@ -285,6 +294,136 @@ describe('computeRecurrencePerformance', () => {
   });
 });
 
+describe('quantitative performance', () => {
+  const pages = { target: 20, unit: 'páginas' };
+  const measured = (
+    date: LocalDateString,
+    value: number,
+    overrides: Partial<RecurrenceResponse> = {},
+  ) =>
+    answer(date, value >= 20 ? 'done' : 'not_done', {
+      quantity: { ...pages, value },
+      ...overrides,
+    });
+
+  it('counts partial results apart and gives them no credit in the rate', () => {
+    const result = compute({
+      responses: [
+        measured('2026-11-01', 10),
+        measured('2026-11-02', 20),
+        measured('2026-11-03', 30),
+        measured('2026-11-04', 0),
+      ],
+      endDate: '2026-11-04',
+      today: '2026-11-04',
+    });
+
+    expect(result).toMatchObject({ done: 2, notDone: 1, partial: 1 });
+    expect(result.rate).toBe(50);
+    expect(result.days.map((day) => day.status)).toEqual([
+      'partial',
+      'done',
+      'done',
+      'not_done',
+    ]);
+    expect(result.days[0].quantity).toEqual({ ...pages, value: 10 });
+    expect(result.quantities).toEqual([
+      {
+        capped: 50,
+        count: 4,
+        done: 2,
+        expected: 80,
+        partial: 1,
+        progress: 62.5,
+        realized: 60,
+        unit: 'páginas',
+        zero: 1,
+      },
+    ]);
+  });
+
+  it('keeps a partial result today as progress, not as a failure', () => {
+    const result = compute({ responses: [measured('2026-11-09', 5)] });
+
+    expect(result.days.at(-1)).toMatchObject({
+      date: '2026-11-09',
+      status: 'partial',
+    });
+    expect(result.pending).toBe(0);
+  });
+
+  it('never turns old binary answers into quantities', () => {
+    const result = compute({
+      responses: [answer('2026-11-01', 'done'), measured('2026-11-02', 10)],
+      endDate: '2026-11-02',
+      today: '2026-11-02',
+    });
+
+    expect(result).toMatchObject({ done: 1, partial: 1 });
+    expect(result.quantities[0]).toMatchObject({ count: 1, realized: 10 });
+  });
+
+  it('uses the target recorded with each answer', () => {
+    const result = compute({
+      responses: [
+        measured('2026-11-01', 20),
+        answer('2026-11-02', 'not_done', {
+          quantity: { target: 30, unit: 'páginas', value: 20 },
+        }),
+      ],
+      endDate: '2026-11-02',
+      today: '2026-11-02',
+    });
+
+    expect(result.days.map((day) => day.status)).toEqual(['done', 'partial']);
+    expect(result.quantities[0]).toMatchObject({ expected: 50, realized: 40 });
+  });
+
+  it('follows a subtask only on the days it existed', () => {
+    const child = {
+      id: 'child',
+      parentId: null,
+      text: 'Stretch',
+      bold: false,
+      priority: false,
+      sortRank: 'a0',
+      measure: { target: 10, unit: 'min' },
+    };
+    const subject = recurrence({
+      children: [child],
+      contentHistory: [
+        {
+          text: 'Stretch',
+          bold: false,
+          priority: false,
+          categoryTagId: null,
+          children: [],
+          until: '2026-11-05',
+        },
+      ],
+    });
+    const result = compute({
+      subject,
+      itemId: 'child',
+      responses: [
+        answer('2026-11-06', 'not_done', {
+          itemId: 'child',
+          quantity: { target: 10, unit: 'min', value: 7 },
+        }),
+        answer('2026-11-06', 'done'),
+      ],
+    });
+
+    expect(result.days.map((day) => [day.date, day.status])).toEqual([
+      ['2026-11-05', 'unregistered'],
+      ['2026-11-06', 'partial'],
+      ['2026-11-07', 'unregistered'],
+      ['2026-11-08', 'unregistered'],
+      ['2026-11-09', 'pending'],
+    ]);
+  });
+});
+
 describe('summarizeRecurrencePerformance', () => {
   it('adds the activities without double counting', () => {
     const first = compute({ responses: [answer('2026-11-01', 'done')] });
@@ -305,6 +444,24 @@ describe('summarizeRecurrencePerformance', () => {
       pending: 2,
     });
     expect(summary.rate).toBeCloseTo((2 / 3) * 100);
+  });
+
+  it('adds the partial results to the answered total', () => {
+    const summary = summarizeRecurrencePerformance([
+      compute({
+        responses: [
+          answer('2026-11-01', 'not_done', {
+            quantity: { target: 20, unit: 'p', value: 5 },
+          }),
+          answer('2026-11-02', 'done'),
+        ],
+        endDate: '2026-11-02',
+        today: '2026-11-02',
+      }),
+    ]);
+
+    expect(summary).toMatchObject({ done: 1, partial: 1, rate: 50 });
+    expect(summary.coverage).toBe(100);
   });
 
   it('has no rate or coverage for an empty list', () => {

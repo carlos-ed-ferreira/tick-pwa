@@ -9,10 +9,15 @@ import type {
   GoalGroup,
   GoalStep,
   Recurrence,
+  RecurrenceMeasure,
+  RecurrenceQuantity,
   RecurrenceResponse,
   SyncEntityType,
 } from '@/lib/domain';
-import { normalizeTaskCompletionValues } from '@/lib/domain';
+import {
+  normalizeTaskCompletionValues,
+  validateRecurrenceMeasure,
+} from '@/lib/domain';
 
 export type RemoteEntityTable =
   | 'category_tags'
@@ -114,6 +119,7 @@ export interface RemoteRecurrence extends RemoteBaseRow {
   children: unknown;
   schedule: unknown;
   content_history: unknown;
+  measure?: unknown;
 }
 
 export interface RemoteRecurrenceResponse extends RemoteBaseRow {
@@ -121,6 +127,9 @@ export interface RemoteRecurrenceResponse extends RemoteBaseRow {
   date: string;
   item_id: string | null;
   status: string;
+  quantity?: number | string | null;
+  target?: number | string | null;
+  unit?: string | null;
 }
 
 const remoteTableNames: Record<SyncEntityType, RemoteEntityTable> = {
@@ -288,6 +297,7 @@ const serializeRecurrence: RemoteSerializer<Recurrence> = (
   children: recurrence.children,
   schedule: recurrence.schedule,
   content_history: recurrence.contentHistory,
+  measure: recurrence.measure ?? null,
 });
 
 const serializeRecurrenceResponse: RemoteSerializer<RecurrenceResponse> = (
@@ -299,6 +309,9 @@ const serializeRecurrenceResponse: RemoteSerializer<RecurrenceResponse> = (
   date: response.date,
   item_id: response.itemId,
   status: response.status,
+  quantity: response.quantity?.value ?? null,
+  target: response.quantity?.target ?? null,
+  unit: response.quantity?.unit ?? null,
 });
 
 const remoteSerializers: Record<SyncEntityType, RemoteSerializer<never>> = {
@@ -424,6 +437,31 @@ function toArray<T>(value: unknown): T[] {
   return Array.isArray(value) ? (value as T[]) : [];
 }
 
+function toMeasure(value: unknown): RecurrenceMeasure | null {
+  if (typeof value !== 'object' || value === null) {
+    return null;
+  }
+
+  const { target, unit } = value as Record<string, unknown>;
+  const measure = { target: Number(target), unit: String(unit ?? '') };
+
+  return typeof unit === 'string' && validateRecurrenceMeasure(measure) === null
+    ? measure
+    : null;
+}
+
+function toQuantity(row: RemoteRecurrenceResponse): RecurrenceQuantity | null {
+  if (row.quantity == null || row.target == null || row.unit == null) {
+    return null;
+  }
+
+  return {
+    target: Number(row.target),
+    unit: row.unit,
+    value: Number(row.quantity),
+  };
+}
+
 export function recurrenceFromRemote(
   scope: AppScope,
   row: RemoteRecurrence,
@@ -437,6 +475,7 @@ export function recurrenceFromRemote(
     children: toArray(row.children),
     schedule: toArray(row.schedule),
     contentHistory: toArray(row.content_history),
+    measure: toMeasure(row.measure),
   };
 }
 
@@ -450,6 +489,7 @@ export function recurrenceResponseFromRemote(
     date: row.date as RecurrenceResponse['date'],
     itemId: row.item_id,
     status: row.status as RecurrenceResponse['status'],
+    quantity: toQuantity(row),
   };
 }
 
