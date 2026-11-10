@@ -144,6 +144,15 @@ export interface RecurrenceScheduleSegment {
   rule: RecurrenceRule | null;
 }
 
+export interface RecurrenceMeasure {
+  target: number;
+  unit: string;
+}
+
+export interface RecurrenceQuantity extends RecurrenceMeasure {
+  value: number;
+}
+
 export interface RecurrenceChild {
   id: string;
   parentId: string | null;
@@ -151,6 +160,7 @@ export interface RecurrenceChild {
   bold: boolean;
   priority: boolean;
   sortRank: string;
+  measure?: RecurrenceMeasure | null;
 }
 
 export interface RecurrenceContent {
@@ -159,6 +169,7 @@ export interface RecurrenceContent {
   priority: boolean;
   categoryTagId: string | null;
   children: RecurrenceChild[];
+  measure?: RecurrenceMeasure | null;
 }
 
 export interface RecurrenceContentSnapshot extends RecurrenceContent {
@@ -177,6 +188,7 @@ export interface RecurrenceResponse extends BaseEntity {
   date: LocalDateString;
   itemId: string | null;
   status: RecurrenceResponseStatus;
+  quantity?: RecurrenceQuantity | null;
 }
 
 export interface RecurrenceOccurrence {
@@ -185,6 +197,8 @@ export interface RecurrenceOccurrence {
   date: LocalDateString;
   status: RecurrenceResponseStatus | null;
   childStatuses: Record<string, RecurrenceResponseStatus>;
+  quantity: RecurrenceQuantity | null;
+  childQuantities: Record<string, RecurrenceQuantity>;
 }
 
 export interface Goal extends BaseEntity {

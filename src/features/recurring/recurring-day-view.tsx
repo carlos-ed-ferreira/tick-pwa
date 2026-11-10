@@ -8,7 +8,7 @@ import {
   taskListSurfaceClassName,
   toast,
 } from '@/components/ui';
-import { setRecurrenceResponse } from '@/lib/db';
+import { setRecurrenceQuantity, setRecurrenceResponse } from '@/lib/db';
 import {
   ALL_CATEGORY_TAB_ID,
   buildCategoryTabs,
@@ -16,6 +16,7 @@ import {
   filterRowsByCategoryTab,
   getOccurrencesForDate,
   resolveActiveCategoryTab,
+  type AppScope,
   type LocalDateString,
   type Recurrence,
   type RecurrenceOccurrence,
@@ -33,6 +34,7 @@ import { formatRecurringDate } from './recurrence-format';
 import {
   RecurringOccurrence,
   type RecurringAnswerHandler,
+  type RecurringQuantityHandler,
 } from './recurring-occurrence';
 
 const dayArrowClassName =
@@ -101,22 +103,18 @@ function RecurringDayToolbar({
   );
 }
 
-function useRecurringAnswer(today: LocalDateString): RecurringAnswerHandler {
+function useRecurringWriters(today: LocalDateString): {
+  onAnswer: RecurringAnswerHandler;
+  onRecordQuantity: RecurringQuantityHandler;
+} {
   const { dictionary, scope } = useAppContext();
 
-  return (occurrence, itemId, status) => {
+  function run(write: (scope: AppScope) => Promise<boolean>) {
     if (!scope) {
       return;
     }
 
-    void setRecurrenceResponse({
-      date: occurrence.date,
-      itemId,
-      recurrenceId: occurrence.recurrence.id,
-      scope,
-      status,
-      today,
-    })
+    void write(scope)
       .then((saved) => {
         if (!saved) {
           toast.error(dictionary.recurring.saveFailed);
@@ -126,6 +124,31 @@ function useRecurringAnswer(today: LocalDateString): RecurringAnswerHandler {
         console.error('Failed to record a recurrence answer.', error);
         toast.error(dictionary.recurring.saveFailed);
       });
+  }
+
+  return {
+    onAnswer: (occurrence, itemId, status) =>
+      run((current) =>
+        setRecurrenceResponse({
+          date: occurrence.date,
+          itemId,
+          recurrenceId: occurrence.recurrence.id,
+          scope: current,
+          status,
+          today,
+        }),
+      ),
+    onRecordQuantity: (occurrence, itemId, value) =>
+      run((current) =>
+        setRecurrenceQuantity({
+          date: occurrence.date,
+          itemId,
+          recurrenceId: occurrence.recurrence.id,
+          scope: current,
+          today,
+          value,
+        }),
+      ),
   };
 }
 
@@ -172,12 +195,12 @@ function RecurringOccurrenceList({
   canAnswer,
   header,
   occurrences,
-  onAnswer,
+  writers,
 }: {
   canAnswer: boolean;
   header: ReactNode;
   occurrences: RecurrenceOccurrence[];
-  onAnswer: RecurringAnswerHandler;
+  writers: ReturnType<typeof useRecurringWriters>;
 }) {
   const { dictionary } = useAppContext();
   const {
@@ -217,7 +240,8 @@ function RecurringOccurrenceList({
               canAnswer={canAnswer}
               categoryTagMap={categoryTagMap}
               occurrence={occurrence}
-              onAnswer={onAnswer}
+              onAnswer={writers.onAnswer}
+              onRecordQuantity={writers.onRecordQuantity}
             />
           ))}
         </div>
@@ -240,7 +264,7 @@ export function RecurringDayBody({
   onDateChange: (date: LocalDateString) => void;
 }) {
   const { dictionary } = useAppContext();
-  const handleAnswer = useRecurringAnswer(today);
+  const writers = useRecurringWriters(today);
   const occurrences = useMemo(
     () => getOccurrencesForDate({ date, recurrences, responses }),
     [date, recurrences, responses],
@@ -261,7 +285,7 @@ export function RecurringDayBody({
         </div>
       }
       occurrences={occurrences}
-      onAnswer={handleAnswer}
+      writers={writers}
     />
   );
 }

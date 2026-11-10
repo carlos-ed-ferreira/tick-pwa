@@ -3,6 +3,7 @@ export * from './category-tabs';
 export * from './id';
 export * from './recurrence';
 export * from './recurrence-performance';
+export * from './recurrence-quantity';
 export * from './sort-rank';
 export * from './task-completion';
 export * from './types';

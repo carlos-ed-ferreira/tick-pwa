@@ -4,6 +4,7 @@ import type {
   Recurrence,
   RecurrenceContent,
   RecurrenceOccurrence,
+  RecurrenceQuantity,
   RecurrenceResponse,
   RecurrenceResponseStatus,
   RecurrenceRule,
@@ -310,7 +311,11 @@ export function pickRecurrenceContent(
     bold: content.bold,
     priority: content.priority,
     categoryTagId: content.categoryTagId,
-    children: content.children,
+    children: content.children.map((child) => ({
+      ...child,
+      measure: child.measure ?? null,
+    })),
+    measure: content.measure ?? null,
   };
 }
 
@@ -363,6 +368,28 @@ function compareByCreation(left: Recurrence, right: Recurrence): number {
   );
 }
 
+function collectChildAnswers(responses: readonly RecurrenceResponse[]): {
+  childQuantities: Record<string, RecurrenceQuantity>;
+  childStatuses: Record<string, RecurrenceResponseStatus>;
+} {
+  const childStatuses: Record<string, RecurrenceResponseStatus> = {};
+  const childQuantities: Record<string, RecurrenceQuantity> = {};
+
+  for (const response of responses) {
+    if (response.itemId === null) {
+      continue;
+    }
+
+    childStatuses[response.itemId] = response.status;
+
+    if (response.quantity) {
+      childQuantities[response.itemId] = response.quantity;
+    }
+  }
+
+  return { childQuantities, childStatuses };
+}
+
 export function getOccurrencesForDate({
   date,
   recurrences,
@@ -383,9 +410,10 @@ export function getOccurrencesForDate({
       const ownResponses = activeResponses.filter(
         (response) => response.recurrenceId === recurrence.id,
       );
-      const status =
-        ownResponses.find((response) => response.itemId === null)?.status ??
-        null;
+      const rootResponse = ownResponses.find(
+        (response) => response.itemId === null,
+      );
+      const status = rootResponse?.status ?? null;
       const rule = getRuleAt(recurrence.schedule, date);
       const isScheduled = rule !== null && matchesRule(rule, date);
 
@@ -393,13 +421,8 @@ export function getOccurrencesForDate({
         return [];
       }
 
-      const childStatuses: Record<string, RecurrenceResponseStatus> = {};
-
-      for (const response of ownResponses) {
-        if (response.itemId !== null) {
-          childStatuses[response.itemId] = response.status;
-        }
-      }
+      const { childQuantities, childStatuses } =
+        collectChildAnswers(ownResponses);
 
       return [
         {
@@ -408,6 +431,8 @@ export function getOccurrencesForDate({
           date,
           status,
           childStatuses,
+          quantity: rootResponse?.quantity ?? null,
+          childQuantities,
         },
       ];
     });

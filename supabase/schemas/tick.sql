@@ -215,6 +215,129 @@ create table public.goal_steps (
     references public.category_tags (id, user_id) on delete set null (category_tag_id)
 );
 
+create or replace function public.is_valid_recurrence_measure(measure jsonb)
+returns boolean
+language sql
+immutable
+set search_path = ''
+as $$
+  select
+    jsonb_typeof(measure) = 'object'
+    and jsonb_typeof(measure -> 'target') = 'number'
+    and jsonb_typeof(measure -> 'unit') = 'string'
+    and (measure ->> 'target')::numeric > 0
+    and (measure ->> 'target')::numeric <= 1000000
+    and scale((measure ->> 'target')::numeric) <= 3
+    and char_length(btrim(measure ->> 'unit')) between 1 and 24;
+$$;
+
+create or replace function public.has_valid_recurrence_child_measures(children jsonb)
+returns boolean
+language sql
+immutable
+set search_path = ''
+as $$
+  select not exists (
+    select 1
+    from jsonb_array_elements(children) as child
+    where jsonb_typeof(child) = 'object'
+      and child ? 'measure'
+      and jsonb_typeof(child -> 'measure') <> 'null'
+      and not public.is_valid_recurrence_measure(child -> 'measure')
+  );
+$$;
+
+create or replace function public.merge_recurrence_child_measures(
+  next_children jsonb,
+  previous_children jsonb
+)
+returns jsonb
+language sql
+immutable
+set search_path = ''
+as $$
+  select coalesce(
+    jsonb_agg(
+      case
+        when jsonb_typeof(child) <> 'object' or child ? 'measure' then child
+        else child || jsonb_build_object(
+          'measure',
+          coalesce(
+            (
+              select previous -> 'measure'
+              from jsonb_array_elements(coalesce(previous_children, '[]'::jsonb)) as previous
+              where previous ->> 'id' = child ->> 'id'
+              limit 1
+            ),
+            'null'::jsonb
+          )
+        )
+      end
+      order by position
+    ),
+    '[]'::jsonb
+  )
+  from jsonb_array_elements(next_children) with ordinality as entry(child, position);
+$$;
+
+create or replace function public.merge_recurrence_history_measures(
+  next_history jsonb,
+  previous_history jsonb,
+  previous_measure jsonb,
+  previous_children jsonb
+)
+returns jsonb
+language sql
+immutable
+set search_path = ''
+as $$
+  select coalesce(
+    jsonb_agg(
+      case
+        when jsonb_typeof(snapshot) <> 'object' or snapshot ? 'measure' then snapshot
+        else snapshot || jsonb_build_object(
+          'measure',
+          coalesce(
+            case when matched.prior is null then previous_measure else matched.prior -> 'measure' end,
+            'null'::jsonb
+          ),
+          'children',
+          public.merge_recurrence_child_measures(
+            coalesce(snapshot -> 'children', '[]'::jsonb),
+            coalesce(matched.prior -> 'children', previous_children)
+          )
+        )
+      end
+      order by position
+    ),
+    '[]'::jsonb
+  )
+  from jsonb_array_elements(next_history) with ordinality as entry(snapshot, position)
+  left join lateral (
+    select prior
+    from jsonb_array_elements(coalesce(previous_history, '[]'::jsonb)) as prior
+    where prior ->> 'until' = snapshot ->> 'until'
+    limit 1
+  ) as matched on true;
+$$;
+
+create or replace function public.preserve_recurrence_measures()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  new.children := public.merge_recurrence_child_measures(new.children, old.children);
+  new.content_history := public.merge_recurrence_history_measures(
+    new.content_history,
+    old.content_history,
+    old.measure,
+    old.children
+  );
+  return new;
+end;
+$$;
+
 create table public.recurrences (
   id text primary key,
   user_id uuid not null references auth.users (id) on delete cascade,
@@ -225,6 +348,7 @@ create table public.recurrences (
   children jsonb not null default '[]'::jsonb,
   schedule jsonb not null default '[]'::jsonb,
   content_history jsonb not null default '[]'::jsonb,
+  measure jsonb,
   created_at timestamptz not null default timezone('utc', now()),
   updated_at timestamptz not null default timezone('utc', now()),
   deleted_at timestamptz,
@@ -234,6 +358,12 @@ create table public.recurrences (
   constraint recurrences_children_check check (jsonb_typeof(children) = 'array'),
   constraint recurrences_schedule_check check (jsonb_typeof(schedule) = 'array'),
   constraint recurrences_content_history_check check (jsonb_typeof(content_history) = 'array'),
+  constraint recurrences_measure_check check (
+    measure is null or public.is_valid_recurrence_measure(measure)
+  ),
+  constraint recurrences_children_measures_check check (
+    public.has_valid_recurrence_child_measures(children)
+  ),
   constraint recurrences_category_tag_fkey foreign key (category_tag_id, user_id)
     references public.category_tags (id, user_id) on delete set null (category_tag_id)
 );
@@ -245,12 +375,29 @@ create table public.recurrence_responses (
   date date not null,
   item_id text,
   status text not null,
+  quantity numeric(12, 3),
+  target numeric(12, 3),
+  unit text,
   created_at timestamptz not null default timezone('utc', now()),
   updated_at timestamptz not null default timezone('utc', now()),
   deleted_at timestamptz,
   client_updated_at timestamptz not null default timezone('utc', now()),
   revision bigint not null default 1,
   constraint recurrence_responses_status_check check (status in ('done', 'not_done')),
+  constraint recurrence_responses_quantity_check check (
+    (quantity is null and target is null and unit is null)
+    or (
+      quantity is not null
+      and target is not null
+      and unit is not null
+      and quantity >= 0
+      and quantity <= 1000000
+      and target > 0
+      and target <= 1000000
+      and char_length(btrim(unit)) between 1 and 24
+      and status = case when quantity >= target then 'done' else 'not_done' end
+    )
+  ),
   constraint recurrence_responses_id_owner_check check (id like 'rr:user:' || user_id::text || ':%'),
   constraint recurrence_responses_occurrence_key unique nulls not distinct (user_id, recurrence_id, date, item_id),
   constraint recurrence_responses_recurrence_fkey foreign key (recurrence_id, user_id)
@@ -745,6 +892,7 @@ begin
           children,
           schedule,
           content_history,
+          measure,
           deleted_at,
           client_updated_at
         )
@@ -758,6 +906,7 @@ begin
           coalesce(mutation_payload -> 'children', '[]'::jsonb),
           coalesce(mutation_payload -> 'schedule', '[]'::jsonb),
           coalesce(mutation_payload -> 'content_history', '[]'::jsonb),
+          nullif(mutation_payload -> 'measure', 'null'::jsonb),
           (mutation_payload ->> 'deleted_at')::timestamptz,
           coalesce(
             (mutation_payload ->> 'client_updated_at')::timestamptz,
@@ -775,6 +924,11 @@ begin
           children = coalesce(mutation_payload -> 'children', '[]'::jsonb),
           schedule = coalesce(mutation_payload -> 'schedule', '[]'::jsonb),
           content_history = coalesce(mutation_payload -> 'content_history', '[]'::jsonb),
+          measure = case
+            when mutation_payload ? 'measure'
+              then nullif(mutation_payload -> 'measure', 'null'::jsonb)
+            else measure
+          end,
           deleted_at = (mutation_payload ->> 'deleted_at')::timestamptz,
           client_updated_at = coalesce(
             (mutation_payload ->> 'client_updated_at')::timestamptz,
@@ -794,6 +948,9 @@ begin
           date,
           item_id,
           status,
+          quantity,
+          target,
+          unit,
           deleted_at,
           client_updated_at
         )
@@ -804,6 +961,9 @@ begin
           (mutation_payload ->> 'date')::date,
           mutation_payload ->> 'item_id',
           mutation_payload ->> 'status',
+          (mutation_payload ->> 'quantity')::numeric,
+          (mutation_payload ->> 'target')::numeric,
+          mutation_payload ->> 'unit',
           (mutation_payload ->> 'deleted_at')::timestamptz,
           coalesce(
             (mutation_payload ->> 'client_updated_at')::timestamptz,
@@ -816,6 +976,20 @@ begin
         update public.recurrence_responses
         set
           status = mutation_payload ->> 'status',
+          quantity = case
+            when mutation_payload ? 'quantity'
+              then (mutation_payload ->> 'quantity')::numeric
+            else quantity
+          end,
+          target = case
+            when mutation_payload ? 'target'
+              then (mutation_payload ->> 'target')::numeric
+            else target
+          end,
+          unit = case
+            when mutation_payload ? 'unit' then mutation_payload ->> 'unit'
+            else unit
+          end,
           deleted_at = (mutation_payload ->> 'deleted_at')::timestamptz,
           client_updated_at = coalesce(
             (mutation_payload ->> 'client_updated_at')::timestamptz,
@@ -889,6 +1063,8 @@ create trigger goal_steps_bump_revision before insert or update on public.goal_s
 for each row execute function public.bump_entity_revision();
 create trigger recurrences_bump_revision before insert or update on public.recurrences
 for each row execute function public.bump_entity_revision();
+create trigger recurrences_preserve_measures before update on public.recurrences
+for each row execute function public.preserve_recurrence_measures();
 create trigger recurrence_responses_bump_revision before insert or update on public.recurrence_responses
 for each row execute function public.bump_entity_revision();
 

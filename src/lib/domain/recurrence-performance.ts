@@ -1,18 +1,31 @@
-import { getRuleAt, isCalendarDate, matchesRule } from './recurrence';
+import {
+  getContentAt,
+  getRuleAt,
+  isCalendarDate,
+  matchesRule,
+} from './recurrence';
+import {
+  getQuantityOutcome,
+  summarizeQuantities,
+  type RecurrenceQuantitySummary,
+} from './recurrence-quantity';
 import type {
   LocalDateString,
   Recurrence,
+  RecurrenceQuantity,
   RecurrenceResponse,
   RecurrenceResponseStatus,
 } from './types';
 
 export type RecurrencePerformanceStatus =
   | RecurrenceResponseStatus
+  | 'partial'
   | 'unregistered'
   | 'pending';
 
 export interface RecurrencePerformanceDay {
   date: LocalDateString;
+  quantity: RecurrenceQuantity | null;
   status: RecurrencePerformanceStatus;
 }
 
@@ -20,6 +33,7 @@ export interface RecurrencePerformanceTotals {
   coverage: number | null;
   done: number;
   notDone: number;
+  partial: number;
   pending: number;
   rate: number | null;
   unregistered: number;
@@ -27,6 +41,27 @@ export interface RecurrencePerformanceTotals {
 
 export interface RecurrencePerformance extends RecurrencePerformanceTotals {
   days: RecurrencePerformanceDay[];
+  quantities: RecurrenceQuantitySummary[];
+}
+
+type PerformanceCounts = Omit<RecurrencePerformanceTotals, 'coverage' | 'rate'>;
+
+interface RecordedAnswer {
+  quantity: RecurrenceQuantity | null;
+  status: RecurrenceResponseStatus;
+}
+
+const countKeys: Record<RecurrencePerformanceStatus, keyof PerformanceCounts> =
+  {
+    done: 'done',
+    not_done: 'notDone',
+    partial: 'partial',
+    pending: 'pending',
+    unregistered: 'unregistered',
+  };
+
+function emptyCounts(): PerformanceCounts {
+  return { done: 0, notDone: 0, partial: 0, pending: 0, unregistered: 0 };
 }
 
 export type RecurrencePerformanceSort = 'name' | 'highest' | 'lowest';
@@ -59,10 +94,8 @@ function percent(part: number, total: number): number | null {
   return total === 0 ? null : (part / total) * 100;
 }
 
-function withRatios(
-  totals: Omit<RecurrencePerformanceTotals, 'coverage' | 'rate'>,
-): RecurrencePerformanceTotals {
-  const answered = totals.done + totals.notDone;
+function withRatios(totals: PerformanceCounts): RecurrencePerformanceTotals {
+  const answered = totals.done + totals.notDone + totals.partial;
 
   return {
     ...totals,
@@ -71,43 +104,78 @@ function withRatios(
   };
 }
 
-function getRootAnswers(
+function getItemAnswers(
   recurrence: Recurrence,
+  itemId: string | null,
   responses: readonly RecurrenceResponse[],
-): Map<LocalDateString, RecurrenceResponseStatus> {
-  const answers = new Map<LocalDateString, RecurrenceResponseStatus>();
+): Map<LocalDateString, RecordedAnswer> {
+  const answers = new Map<LocalDateString, RecordedAnswer>();
 
   for (const response of responses) {
     if (
       response.recurrenceId === recurrence.id &&
-      response.itemId === null &&
+      response.itemId === itemId &&
       response.deletedAt === null
     ) {
-      answers.set(response.date, response.status);
+      answers.set(response.date, {
+        quantity: response.quantity ?? null,
+        status: response.status,
+      });
     }
   }
 
   return answers;
 }
 
+function getAnswerStatus(answer: RecordedAnswer): RecurrencePerformanceStatus {
+  if (!answer.quantity) {
+    return answer.status;
+  }
+
+  const outcome = getQuantityOutcome(answer.quantity);
+
+  if (outcome === 'zero') {
+    return 'not_done';
+  }
+
+  return outcome;
+}
+
+function itemExistsOn(
+  recurrence: Recurrence,
+  itemId: string | null,
+  date: LocalDateString,
+): boolean {
+  return (
+    itemId === null ||
+    getContentAt(recurrence, date).children.some((child) => child.id === itemId)
+  );
+}
+
 function getDayStatus({
   answer,
   date,
+  itemId,
   recurrence,
   today,
 }: {
-  answer: RecurrenceResponseStatus | undefined;
+  answer: RecordedAnswer | undefined;
   date: LocalDateString;
+  itemId: string | null;
   recurrence: Recurrence;
   today: LocalDateString;
 }): RecurrencePerformanceStatus | null {
   if (answer) {
-    return answer;
+    return getAnswerStatus(answer);
   }
 
   const rule = getRuleAt(recurrence.schedule, date);
 
-  if (!rule || !matchesRule(rule, date)) {
+  if (
+    !rule ||
+    !matchesRule(rule, date) ||
+    !itemExistsOn(recurrence, itemId, date)
+  ) {
     return null;
   }
 
@@ -117,6 +185,7 @@ function getDayStatus({
 export function computeRecurrencePerformance({
   createdDate,
   endDate,
+  itemId = null,
   recurrence,
   responses,
   startDate,
@@ -124,46 +193,48 @@ export function computeRecurrencePerformance({
 }: {
   createdDate: LocalDateString;
   endDate: LocalDateString;
+  itemId?: string | null;
   recurrence: Recurrence;
   responses: readonly RecurrenceResponse[];
   startDate: LocalDateString;
   today: LocalDateString;
 }): RecurrencePerformance {
-  const answers = getRootAnswers(recurrence, responses);
+  const answers = getItemAnswers(recurrence, itemId, responses);
   const trackingStart = [...answers.keys()].reduce(earlierDate, createdDate);
   const first = toDayNumber(laterDate(startDate, trackingStart));
   const last = toDayNumber(earlierDate(endDate, today));
   const days: RecurrencePerformanceDay[] = [];
-  const totals = { done: 0, notDone: 0, pending: 0, unregistered: 0 };
+  const totals = emptyCounts();
 
   for (let dayNumber = first; dayNumber <= last; dayNumber += 1) {
     const date = toDate(dayNumber);
-    const status = getDayStatus({
-      answer: answers.get(date),
-      date,
-      recurrence,
-      today,
-    });
+    const answer = answers.get(date);
+    const status = getDayStatus({ answer, date, itemId, recurrence, today });
 
     if (status) {
-      days.push({ date, status });
-      totals[status === 'not_done' ? 'notDone' : status] += 1;
+      days.push({ date, quantity: answer?.quantity ?? null, status });
+      totals[countKeys[status]] += 1;
     }
   }
 
-  return { ...withRatios(totals), days };
+  return {
+    ...withRatios(totals),
+    days,
+    quantities: summarizeQuantities(
+      days.flatMap((day) => (day.quantity ? [day.quantity] : [])),
+    ),
+  };
 }
 
 export function summarizeRecurrencePerformance(
   performances: readonly RecurrencePerformance[],
 ): RecurrencePerformanceTotals {
-  const totals = { done: 0, notDone: 0, pending: 0, unregistered: 0 };
+  const totals = emptyCounts();
 
   for (const performance of performances) {
-    totals.done += performance.done;
-    totals.notDone += performance.notDone;
-    totals.pending += performance.pending;
-    totals.unregistered += performance.unregistered;
+    for (const key of Object.keys(totals) as (keyof PerformanceCounts)[]) {
+      totals[key] += performance[key];
+    }
   }
 
   return withRatios(totals);

@@ -10,12 +10,14 @@ import {
   type Recurrence,
   type RecurrenceCalendarStatus,
   type RecurrencePerformance,
+  type RecurrenceQuantity,
 } from '@/lib/domain';
 import { createMonthGrid } from '@/lib/time';
 import { useAppContext } from '@/providers';
 import { formatRecurringDate } from './recurrence-format';
 import {
   performanceStatusAppearance,
+  useDayQuantityText,
   useStatusLabel,
 } from './recurring-performance-parts';
 
@@ -26,6 +28,7 @@ type PerformanceRange = {
 
 const legendStatuses = [
   'done',
+  'partial',
   'not_done',
   'unregistered',
   'pending',
@@ -39,6 +42,7 @@ const cellToneClassName: Record<RecurrenceCalendarStatus, string> = {
   none: 'text-[#7b8da0]',
   not_done: 'bg-rose-400/[0.14] text-[#fff9f2]',
   outside: 'text-[#3e4955]',
+  partial: 'bg-amber-400/[0.14] text-[#fff9f2]',
   pending: 'bg-[#f0c38e]/[0.12] text-[#fff9f2]',
   unregistered: 'bg-white/[0.06] text-[#e5ebf3]',
 };
@@ -71,28 +75,49 @@ function getMonthWeeks(month: LocalDateString) {
   return days.slice(0, Math.ceil((lastDay + 1) / 7) * 7);
 }
 
+function useDayLabel() {
+  const { dictionary, locale } = useAppContext();
+  const getStatusLabel = useStatusLabel();
+  const formatQuantity = useDayQuantityText();
+
+  return (
+    date: LocalDateString,
+    status: RecurrenceCalendarStatus,
+    quantity: RecurrenceQuantity | null,
+  ) => {
+    const quantityText = formatQuantity(quantity);
+    const template = quantityText
+      ? dictionary.recurring.dayQuantityStatusLabel
+      : dictionary.recurring.dayStatusLabel;
+
+    return template
+      .replace('{date}', formatRecurringDate(date, locale))
+      .replace('{status}', getStatusLabel(status))
+      .replace('{quantity}', quantityText ?? '');
+  };
+}
+
 function CalendarCell({
   date,
   isSelected,
+  quantity,
   status,
   onSelect,
 }: {
   date: LocalDateString;
   isSelected: boolean;
+  quantity: RecurrenceQuantity | null;
   status: RecurrenceCalendarStatus;
   onSelect: (date: LocalDateString) => void;
 }) {
-  const { dictionary, locale } = useAppContext();
-  const getStatusLabel = useStatusLabel();
+  const getDayLabel = useDayLabel();
   const { Icon, className } = performanceStatusAppearance[status];
   const showsIcon = status !== 'none' && status !== 'outside';
 
   return (
     <button
       type="button"
-      aria-label={dictionary.recurring.dayStatusLabel
-        .replace('{date}', formatRecurringDate(date, locale))
-        .replace('{status}', getStatusLabel(status))}
+      aria-label={getDayLabel(date, status, quantity)}
       aria-pressed={isSelected}
       disabled={status === 'outside'}
       className={`touch-target flex h-10 flex-col items-center justify-center gap-0.5 rounded-lg text-xs font-medium tabular-nums transition hover:bg-white/[0.08] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[#f0c38e] disabled:cursor-default disabled:hover:bg-transparent ${cellToneClassName[status]} ${
@@ -154,24 +179,21 @@ function CalendarMonthNav({
 
 function SelectedDayResult({
   date,
+  quantity,
   status,
 }: {
   date: LocalDateString | null;
+  quantity: RecurrenceQuantity | null;
   status: RecurrenceCalendarStatus | undefined;
 }) {
-  const { dictionary, locale } = useAppContext();
-  const getStatusLabel = useStatusLabel();
+  const getDayLabel = useDayLabel();
 
   return (
     <p
       aria-live="polite"
       className="min-h-5 px-1 text-sm text-[#e5ebf3] first-letter:uppercase"
     >
-      {date && status
-        ? dictionary.recurring.dayStatusLabel
-            .replace('{date}', formatRecurringDate(date, locale))
-            .replace('{status}', getStatusLabel(status))
-        : null}
+      {date && status ? getDayLabel(date, status, quantity) : null}
     </p>
   );
 }
@@ -220,6 +242,10 @@ export function RecurringHistoryCalendar({
     resolveInitialMonth(months, range, today),
   );
   const grid = useMemo(() => getMonthWeeks(month), [month]);
+  const quantityByDate = useMemo(
+    () => new Map(performance.days.map((day) => [day.date, day.quantity])),
+    [performance.days],
+  );
   const statuses = useMemo(
     () =>
       getRecurrenceCalendarStatuses({
@@ -254,6 +280,7 @@ export function RecurringHistoryCalendar({
               key={day.date}
               date={day.date}
               isSelected={day.date === selectedDate}
+              quantity={quantityByDate.get(day.date) ?? null}
               status={statuses.get(day.date) ?? 'outside'}
               onSelect={onSelect}
             />
@@ -264,6 +291,9 @@ export function RecurringHistoryCalendar({
       </div>
       <SelectedDayResult
         date={selectedDate}
+        quantity={
+          selectedDate ? (quantityByDate.get(selectedDate) ?? null) : null
+        }
         status={selectedDate ? statuses.get(selectedDate) : undefined}
       />
       <CalendarLegend />

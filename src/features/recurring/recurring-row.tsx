@@ -4,7 +4,12 @@ import { Pause, Star } from 'lucide-react';
 import type { CSSProperties, ReactNode } from 'react';
 import { TaskTreeCategoryChip } from '@/components/app';
 import { Tooltip } from '@/components/ui';
-import { isRecurrencePaused, type Recurrence } from '@/lib/domain';
+import {
+  isRecurrencePaused,
+  type Recurrence,
+  type RecurrenceMeasure,
+} from '@/lib/domain';
+import { formatQuantity } from '@/lib/i18n';
 import { useAppContext } from '@/providers';
 import { formatRecurrenceFrequency } from './recurrence-format';
 
@@ -41,6 +46,18 @@ export function useRecurrenceFrequency(recurrence: Recurrence): string {
   return formatRecurrenceFrequency(recurrence, useAppContext().dictionary);
 }
 
+export function useMeasureSummary(
+  measure: RecurrenceMeasure | null | undefined,
+): string | null {
+  const { dictionary, locale } = useAppContext();
+
+  return measure
+    ? dictionary.recurring.measureSummary
+        .replace('{target}', formatQuantity(measure.target, locale))
+        .replace('{unit}', measure.unit)
+    : null;
+}
+
 export function PausedBadge() {
   const labels = useAppContext().dictionary.recurring;
 
@@ -61,6 +78,7 @@ export function RecurrenceIdentity({
 }) {
   const labels = useAppContext().dictionary.recurring;
   const frequency = useRecurrenceFrequency(recurrence);
+  const measureSummary = useMeasureSummary(recurrence.measure);
   const isPaused = isRecurrencePaused(recurrence.schedule);
 
   return (
@@ -91,7 +109,9 @@ export function RecurrenceIdentity({
       </span>
       <span className="flex min-w-0 items-center gap-2 text-xs text-[#aebac8]">
         {isPaused ? <PausedBadge /> : null}
-        <span className="truncate">{frequency}</span>
+        <span className="truncate">
+          {[frequency, measureSummary].filter(Boolean).join(' · ')}
+        </span>
       </span>
     </span>
   );

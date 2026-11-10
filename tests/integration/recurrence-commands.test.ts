@@ -95,7 +95,7 @@ describe('recurrence commands', () => {
 
       expect(recurrence.syncStatus).toBe('local');
       expect(recurrence.schedule).toEqual([{ from: null, rule: daily }]);
-      expect(recurrence.children).toEqual([child]);
+      expect(recurrence.children).toEqual([{ ...child, measure: null }]);
       expect(recurrence.contentHistory).toEqual([]);
       await expect(db.recurrences.count()).resolves.toBe(1);
       await expect(db.recurrenceResponses.count()).resolves.toBe(0);

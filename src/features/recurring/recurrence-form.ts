@@ -1,7 +1,12 @@
 import {
+  normalizeMeasureUnit,
+  parseQuantityInput,
+  validateRecurrenceMeasure,
   validateRecurrenceRule,
   type LocalDateString,
   type RecurrenceChild,
+  type RecurrenceMeasure,
+  type RecurrenceMeasureError,
   type RecurrenceRule,
   type RecurrenceRuleError,
   type RecurrenceWeekOrdinal,
@@ -11,6 +16,7 @@ import {
   filterBulkChecklistDraftItems,
   type BulkChecklistDraftItem,
 } from '@/features/calendar/bulk-checklist-draft';
+import { formatQuantity } from '@/lib/i18n';
 import {
   formatDateInputValue,
   getLocalDateWeekday,
@@ -168,6 +174,7 @@ export function childrenToDraftItems(
 
 export function draftItemsToChildren(
   items: BulkChecklistDraftItem[],
+  measures: Readonly<Record<string, RecurrenceMeasure | null>> = {},
 ): RecurrenceChild[] {
   return filterBulkChecklistDraftItems(items).map((item) => ({
     id: item.id,
@@ -176,5 +183,131 @@ export function draftItemsToChildren(
     bold: item.bold,
     priority: item.priority,
     sortRank: item.sortRank,
+    measure: measures[item.id] ?? null,
   }));
+}
+
+export interface MeasureDraft {
+  enabled: boolean;
+  target: string;
+  unit: string;
+}
+
+export type MeasureDraftResult =
+  | { measure: RecurrenceMeasure | null }
+  | { error: RecurrenceMeasureError };
+
+export function createMeasureDraft(
+  measure: RecurrenceMeasure | null | undefined,
+  locale: string,
+): MeasureDraft {
+  if (!measure) {
+    return { enabled: false, target: '', unit: '' };
+  }
+
+  return {
+    enabled: true,
+    target: formatQuantity(measure.target, locale),
+    unit: measure.unit,
+  };
+}
+
+export function readMeasureDraft(draft: MeasureDraft): MeasureDraftResult {
+  if (!draft.enabled) {
+    return { measure: null };
+  }
+
+  const target = parseQuantityInput(draft.target);
+  const measure = {
+    target: target ?? 0,
+    unit: normalizeMeasureUnit(draft.unit),
+  };
+  const error = target === null ? 'target' : validateRecurrenceMeasure(measure);
+
+  return error ? { error } : { measure };
+}
+
+export function findMeasuredGroups(
+  items: readonly BulkChecklistDraftItem[],
+  drafts: Readonly<Record<string, MeasureDraft>>,
+): string[] {
+  return items
+    .filter(
+      (item) =>
+        drafts[item.id]?.enabled &&
+        items.some((child) => child.parentId === item.id),
+    )
+    .map((item) => item.id);
+}
+
+export interface EditorMeasures {
+  childMeasures: Record<string, RecurrenceMeasure | null>;
+  measure: RecurrenceMeasure | null;
+}
+
+export interface EditorMeasureErrors {
+  blocked: boolean;
+  children: Record<string, RecurrenceMeasureError>;
+  root: RecurrenceMeasureError | undefined;
+}
+
+const disabledMeasureDraft: MeasureDraft = {
+  enabled: false,
+  target: '',
+  unit: '',
+};
+
+function readChildMeasures(
+  items: readonly BulkChecklistDraftItem[],
+  childDrafts: Readonly<Record<string, MeasureDraft>>,
+) {
+  const errors: Record<string, RecurrenceMeasureError> = {};
+  const measures: Record<string, RecurrenceMeasure | null> = {};
+
+  for (const item of items) {
+    const result = readMeasureDraft(
+      childDrafts[item.id] ?? disabledMeasureDraft,
+    );
+
+    if ('error' in result) {
+      errors[item.id] = result.error;
+    } else if (result.measure) {
+      measures[item.id] = result.measure;
+    }
+  }
+
+  return { errors, measures };
+}
+
+export function collectEditorMeasures({
+  childDrafts,
+  items,
+  measureDraft,
+}: {
+  childDrafts: Readonly<Record<string, MeasureDraft>>;
+  items: BulkChecklistDraftItem[];
+  measureDraft: MeasureDraft;
+}): { errors: EditorMeasureErrors | null; measures: EditorMeasures } {
+  const hasChildren = filterBulkChecklistDraftItems(items).length > 0;
+  const root = hasChildren ? { measure: null } : readMeasureDraft(measureDraft);
+  const children = readChildMeasures(items, childDrafts);
+  const errors: EditorMeasureErrors = {
+    blocked:
+      (measureDraft.enabled && hasChildren) ||
+      findMeasuredGroups(items, childDrafts).length > 0,
+    children: children.errors,
+    root: 'error' in root ? root.error : undefined,
+  };
+  const hasErrors =
+    errors.blocked ||
+    errors.root !== undefined ||
+    Object.keys(errors.children).length > 0;
+
+  return {
+    errors: hasErrors ? errors : null,
+    measures: {
+      childMeasures: children.measures,
+      measure: 'measure' in root ? root.measure : null,
+    },
+  };
 }

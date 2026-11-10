@@ -2,6 +2,7 @@
 
 import {
   CalendarRange,
+  ChartPie,
   CircleCheck,
   CircleDashed,
   CircleDot,
@@ -14,11 +15,15 @@ import type { ReactNode } from 'react';
 import { DatePicker } from '@/components/app';
 import { getProgressTone } from '@/features/calendar/calendar-progress-tone';
 import { neutralProgressTrackStyle } from '@/features/goals/goal-card-styles';
-import type {
-  RecurrenceCalendarStatus,
-  RecurrencePerformanceStatus,
-  RecurrencePerformanceTotals,
-  RecurrencePerformanceSort,
+import { formatQuantity } from '@/lib/i18n';
+import {
+  getQuantityProgress,
+  type RecurrenceCalendarStatus,
+  type RecurrenceQuantity,
+  type RecurrenceQuantitySummary,
+  type RecurrencePerformanceStatus,
+  type RecurrencePerformanceTotals,
+  type RecurrencePerformanceSort,
 } from '@/lib/domain';
 import { useAppContext } from '@/providers';
 import { RecurringPillGroup } from './recurring-pill-group';
@@ -36,27 +41,58 @@ export function formatRate(rate: number | null): string {
 
 export function useCountsLabel() {
   const labels = useAppContext().dictionary.recurring;
+  const doneLabel = (done: number) =>
+    done === 1
+      ? labels.doneCountOne
+      : labels.doneCount.replace('{count}', String(done));
 
-  return ({ done, notDone }: { done: number; notDone: number }) =>
-    labels.countsSummary
-      .replace(
-        '{done}',
-        done === 1
-          ? labels.doneCountOne
-          : labels.doneCount.replace('{count}', String(done)),
-      )
-      .replace(
-        '{notDone}',
-        notDone === 1
-          ? labels.notDoneCountOne
-          : labels.notDoneCount.replace('{count}', String(notDone)),
-      );
+  return ({
+    done,
+    notDone,
+    partial = 0,
+    quantitative = false,
+  }: {
+    done: number;
+    notDone: number;
+    partial?: number;
+    quantitative?: boolean;
+  }) =>
+    quantitative
+      ? labels.quantityCountsSummary
+          .replace('{done}', doneLabel(done))
+          .replace(
+            '{partial}',
+            partial === 1
+              ? labels.partialCountOne
+              : labels.partialCount.replace('{count}', String(partial)),
+          )
+          .replace(
+            '{zero}',
+            notDone === 1
+              ? labels.zeroCountOne
+              : labels.zeroCount.replace('{count}', String(notDone)),
+          )
+      : labels.countsSummary
+          .replace(
+            '{done}',
+            done === 1
+              ? labels.doneCountOne
+              : labels.doneCount.replace('{count}', String(done)),
+          )
+          .replace(
+            '{notDone}',
+            notDone === 1
+              ? labels.notDoneCountOne
+              : labels.notDoneCount.replace('{count}', String(notDone)),
+          );
 }
 
 export function PerformanceBar({
+  label,
   name,
   rate,
 }: {
+  label?: string;
   name: string;
   rate: number | null;
 }) {
@@ -76,7 +112,7 @@ export function PerformanceBar({
   return (
     <span
       role="progressbar"
-      aria-label={labels.rateLabel.replace('{name}', name)}
+      aria-label={label ?? labels.rateLabel.replace('{name}', name)}
       aria-valuemax={100}
       aria-valuemin={0}
       aria-valuenow={percent}
@@ -124,6 +160,7 @@ export const performanceStatusAppearance = {
   none: { Icon: Minus, className: 'text-[#5d6b7a]' },
   not_done: { Icon: CircleX, className: 'text-rose-300' },
   outside: { Icon: Minus, className: 'text-[#3e4955]' },
+  partial: { Icon: ChartPie, className: 'text-amber-300' },
   pending: { Icon: Clock, className: 'text-[#f0c38e]' },
   unregistered: { Icon: CircleDashed, className: 'text-[#aebac8]' },
 } satisfies Record<
@@ -139,6 +176,7 @@ export function useStatusLabel() {
     none: labels.statusNone,
     not_done: labels.statusNotDone,
     outside: labels.statusOutside,
+    partial: labels.statusPartial,
     pending: labels.statusPending,
     unregistered: labels.statusUnregistered,
   };
@@ -148,7 +186,7 @@ export function useStatusLabel() {
 
 function useSampleLabels(totals: RecurrencePerformanceTotals) {
   const labels = useAppContext().dictionary.recurring;
-  const answered = totals.done + totals.notDone;
+  const answered = totals.done + totals.notDone + totals.partial;
   const eligible = answered + totals.unregistered;
   const rate =
     answered === 0
@@ -229,12 +267,23 @@ export function PerformanceSummary({
           <RateValue className="text-3xl" rate={totals.coverage} />
         </PrimaryMetric>
       </div>
-      <dl className="grid grid-cols-4 gap-x-4 gap-y-2 touch:grid-cols-2">
+      <dl
+        className={`grid gap-x-4 gap-y-2 touch:grid-cols-2 ${
+          totals.partial > 0 ? 'grid-cols-5' : 'grid-cols-4'
+        }`}
+      >
         <SecondaryMetric
           label={labels.doneTitle}
           status="done"
           value={totals.done}
         />
+        {totals.partial > 0 ? (
+          <SecondaryMetric
+            label={labels.partialTitle}
+            status="partial"
+            value={totals.partial}
+          />
+        ) : null}
         <SecondaryMetric
           label={labels.notDoneTitle}
           status="not_done"
@@ -253,6 +302,60 @@ export function PerformanceSummary({
       </dl>
     </div>
   );
+}
+
+export function useDayQuantityText() {
+  const { dictionary, locale } = useAppContext();
+
+  return (quantity: RecurrenceQuantity | null) =>
+    quantity
+      ? `${dictionary.recurring.quantityProgress
+          .replace('{value}', formatQuantity(quantity.value, locale))
+          .replace('{target}', formatQuantity(quantity.target, locale))
+          .replace('{unit}', quantity.unit)} · ${Math.round(
+          getQuantityProgress(quantity) * 100,
+        )}%`
+      : null;
+}
+
+export function QuantitySummaryPanels({
+  name,
+  summaries,
+}: {
+  name: string;
+  summaries: readonly RecurrenceQuantitySummary[];
+}) {
+  const { dictionary, locale } = useAppContext();
+  const labels = dictionary.recurring;
+
+  return summaries.map((summary) => {
+    const format = (value: number) => formatQuantity(value, locale);
+
+    return (
+      <PrimaryMetric
+        key={summary.unit}
+        hint={labels.quantityExpected
+          .replace('{capped}', format(summary.capped))
+          .replace('{expected}', format(summary.expected))
+          .replace('{unit}', summary.unit)}
+        label={labels.quantityProgressTitle}
+      >
+        <span className="flex items-center gap-3">
+          <RateValue className="text-3xl" rate={summary.progress} />
+          <PerformanceBar
+            label={labels.quantityProgressLabel.replace('{name}', name)}
+            name={name}
+            rate={summary.progress}
+          />
+        </span>
+        <span className="text-sm text-[#e5ebf3]">
+          {labels.quantityRealized
+            .replace('{value}', format(summary.realized))
+            .replace('{unit}', summary.unit)}
+        </span>
+      </PrimaryMetric>
+    );
+  });
 }
 
 export function PerformancePeriodFilter({

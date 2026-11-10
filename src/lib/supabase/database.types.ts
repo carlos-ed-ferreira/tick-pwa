@@ -471,9 +471,12 @@ export type Database = {
           deleted_at: string | null;
           id: string;
           item_id: string | null;
+          quantity: number | null;
           recurrence_id: string;
           revision: number;
           status: string;
+          target: number | null;
+          unit: string | null;
           updated_at: string;
           user_id: string;
         };
@@ -484,9 +487,12 @@ export type Database = {
           deleted_at?: string | null;
           id: string;
           item_id?: string | null;
+          quantity?: number | null;
           recurrence_id: string;
           revision?: number;
           status: string;
+          target?: number | null;
+          unit?: string | null;
           updated_at?: string;
           user_id: string;
         };
@@ -497,9 +503,12 @@ export type Database = {
           deleted_at?: string | null;
           id?: string;
           item_id?: string | null;
+          quantity?: number | null;
           recurrence_id?: string;
           revision?: number;
           status?: string;
+          target?: number | null;
+          unit?: string | null;
           updated_at?: string;
           user_id?: string;
         };
@@ -523,6 +532,7 @@ export type Database = {
           created_at: string;
           deleted_at: string | null;
           id: string;
+          measure: Json | null;
           priority: boolean;
           revision: number;
           schedule: Json;
@@ -539,6 +549,7 @@ export type Database = {
           created_at?: string;
           deleted_at?: string | null;
           id: string;
+          measure?: Json | null;
           priority?: boolean;
           revision?: number;
           schedule?: Json;
@@ -555,6 +566,7 @@ export type Database = {
           created_at?: string;
           deleted_at?: string | null;
           id?: string;
+          measure?: Json | null;
           priority?: boolean;
           revision?: number;
           schedule?: Json;
@@ -606,6 +618,27 @@ export type Database = {
         Returns: Json;
       };
       current_user_has_app_access: { Args: never; Returns: boolean };
+      has_valid_recurrence_child_measures: {
+        Args: { children: Json };
+        Returns: boolean;
+      };
+      is_valid_recurrence_measure: {
+        Args: { measure: Json };
+        Returns: boolean;
+      };
+      merge_recurrence_child_measures: {
+        Args: { next_children: Json; previous_children: Json };
+        Returns: Json;
+      };
+      merge_recurrence_history_measures: {
+        Args: {
+          next_history: Json;
+          previous_children: Json;
+          previous_history: Json;
+          previous_measure: Json;
+        };
+        Returns: Json;
+      };
       purge_account_operation_receipts: {
         Args: { p_retention?: string; p_user_id?: string };
         Returns: number;

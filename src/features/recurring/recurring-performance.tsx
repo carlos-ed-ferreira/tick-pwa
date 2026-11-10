@@ -83,6 +83,7 @@ function PerformanceRow({
   onOpen: (recurrenceId: string) => void;
 }) {
   const { dictionary } = useAppContext();
+  const labels = dictionary.recurring;
   const formatCounts = useCountsLabel();
   const { performance, recurrence } = entry;
 
@@ -100,15 +101,39 @@ function PerformanceRow({
         <span className="flex min-w-0 flex-1 basis-56 touch:basis-full">
           <RecurrenceIdentity category={category} recurrence={recurrence} />
         </span>
-        <span className="flex w-80 shrink-0 items-center gap-3 touch:w-full">
-          <RateValue
-            className="w-12 shrink-0 text-right text-base touch:text-left"
-            rate={performance.rate}
-          />
-          <span className="w-32 shrink-0 text-xs whitespace-nowrap text-[#aebac8] tabular-nums">
-            {formatCounts(performance)}
+        <span className="flex w-96 shrink-0 flex-col gap-1 touch:w-full">
+          <span className="flex items-center gap-3">
+            <RateValue
+              className="w-12 shrink-0 text-right text-base touch:text-left"
+              rate={performance.rate}
+            />
+            <span className="w-44 shrink-0 text-xs whitespace-nowrap text-[#aebac8] tabular-nums">
+              {formatCounts({
+                ...performance,
+                quantitative: performance.quantities.length > 0,
+              })}
+            </span>
+            <PerformanceBar name={recurrence.text} rate={performance.rate} />
           </span>
-          <PerformanceBar name={recurrence.text} rate={performance.rate} />
+          {performance.quantities.map((summary) => (
+            <span key={summary.unit} className="flex items-center gap-3">
+              <RateValue
+                className="w-12 shrink-0 text-right text-xs touch:text-left"
+                rate={summary.progress}
+              />
+              <span className="w-44 shrink-0 truncate text-xs text-[#aebac8]">
+                {labels.quantityProgressTitle}
+              </span>
+              <PerformanceBar
+                label={labels.quantityProgressLabel.replace(
+                  '{name}',
+                  recurrence.text,
+                )}
+                name={recurrence.text}
+                rate={summary.progress}
+              />
+            </span>
+          ))}
         </span>
       </button>
     </RecurringRowSurface>
