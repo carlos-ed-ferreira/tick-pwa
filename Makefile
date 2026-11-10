@@ -175,6 +175,11 @@ production-secrets-status:
 main-ruleset-status:
 	gh api "repos/carlos-ed-ferreira/tick-pwa/rules/branches/main" --jq '.[] | select(.type == "required_status_checks") | .parameters.required_status_checks[].context'
 
+.PHONY: pr-checks-status
+
+pr-checks-status:
+	gh pr checks dev --repo carlos-ed-ferreira/tick-pwa $(args)
+
 production-release-status:
 	gh secret list --env production --repo carlos-ed-ferreira/tick-pwa --json name,updatedAt --jq '.[] | select(.name == "VERCEL_TOKEN" or .name == "VERCEL_PROJECT_ID" or .name == "VERCEL_TEAM_ID" or .name == "VERCEL_AUTOMATION_BYPASS_SECRET")'
 
@@ -248,6 +253,7 @@ help:
 	@printf "  %-26s %s\n" "make test-release-workflow" "Valida a ordem do pipeline e a configuracao Git da Vercel"
 	@printf "  %-26s %s\n" "make production-secrets-status" "Lista nomes e datas dos secrets de production, sem valores"
 	@printf "  %-26s %s\n" "make main-ruleset-status" "Lista os checks obrigatorios do ruleset da main"
+	@printf "  %-26s %s\n" "make pr-checks-status" "Consulta os checks do PR da dev; args=--required filtra obrigatorios"
 	@printf "  %-26s %s\n" "make production-release-status" "Consulta metadados dos secrets da API Vercel, sem valores"
 	@printf "  %-26s %s\n" "make backup-restore-prepare" "Baixa as imagens Postgres, Auth e Storage antes do restore"
 	@printf "  %-26s %s\n" "make test-backup-restore" "Testa restore sintetico em container Postgres isolado"

@@ -63,8 +63,14 @@ make publish
 ```
 
 O comando exige worktree limpo, prepara o PR, espera checks obrigatórios antes
-de armar squash automático, confirma merge e reconcilia `dev`. Sua mensagem
-informa o resultado da publicação. Depois do merge, captura o SHA efetivo do
+de armar squash automático, confirma merge e reconcilia `dev`. Quando o GitHub
+ainda não registra os checks obrigatórios, consulta novamente a cada 10 segundos
+por até cerca de uma hora. A ausência inicial não significa reprovação do CI.
+Check reprovado interrompe o comando; esgotar a espera pelo registro informa o
+link do PR e não solicita merge nem deploy. `make pr-checks-status` consulta os
+checks do PR da `dev`; `args=--required` filtra os obrigatórios. O comando de
+consulta retorna status diferente de zero também enquanto há checks pendentes.
+O comando informa o resultado da publicação. Depois do merge, captura o SHA efetivo do
 PR, espera o App CI de push da `main` daquele SHA e verifica novamente se ele
 continua na ponta da branch. A espera pelo CI é limitada a cerca de uma hora.
 CI reprovado ou SHA superado impede a solicitação de produção.

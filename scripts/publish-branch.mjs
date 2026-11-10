@@ -68,7 +68,7 @@ export async function publishDevelopmentBranch({
     pullRequest,
     execute,
   );
-  await waitForRequiredChecks(pullRequest, execute, wait);
+  await waitForRequiredChecks(pullRequest, execute, wait, write);
   await execute('gh', ['pr', 'merge', pullRequest, '--auto', '--squash']);
   await waitForMergedPullRequest(pullRequest, execute, wait);
   const mergedSha = (
@@ -196,8 +196,10 @@ async function finalizePullRequestNotifications(
   }
 }
 
-async function waitForRequiredChecks(pullRequest, execute, wait) {
-  for (let attempt = 0; attempt < 30; attempt += 1) {
+async function waitForRequiredChecks(pullRequest, execute, wait, write) {
+  write(`Aguardando os checks obrigatórios: ${pullRequest}`);
+
+  for (let attempt = 0; attempt < 360; attempt += 1) {
     try {
       await execute('gh', [
         'pr',
@@ -212,13 +214,19 @@ async function waitForRequiredChecks(pullRequest, execute, wait) {
       if (!isMissingRequiredChecksError(error)) {
         throw error;
       }
+
+      if (attempt === 0) {
+        write(
+          'O GitHub ainda não registrou os checks obrigatórios. Aguardando por até uma hora.',
+        );
+      }
     }
 
-    await wait(2_000);
+    await wait(10_000);
   }
 
   throw new Error(
-    'O GitHub não registrou os checks obrigatórios dentro de 60 segundos.',
+    `O GitHub não registrou os checks obrigatórios dentro de uma hora. Consulte ${pullRequest}. Nenhum merge ou deploy foi solicitado.`,
   );
 }
 

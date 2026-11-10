@@ -789,7 +789,9 @@ Execuções de produção são serializadas. Falhas abrem ou comentam issue
 
 `make publish` exige branch `dev` e worktree limpo, sincroniza a branch, cria
 ou reutiliza PR, silencia notificações desse PR e aguarda os checks obrigatórios
-antes de armar squash automático. Depois confirma o merge e reconcilia `dev`.
+antes de armar squash automático. Se os checks ainda não estiverem registrados,
+consulta novamente a cada 10 segundos por até cerca de uma hora, informando o
+link do PR. Depois confirma o merge e reconcilia `dev`.
 O comando captura o SHA do merge, espera o App CI de push desse SHA e solicita
 explicitamente o workflow de produção com um identificador único. Ele acompanha
 somente o run dessa solicitação e confirma publicação depois de `READY` e smoke
