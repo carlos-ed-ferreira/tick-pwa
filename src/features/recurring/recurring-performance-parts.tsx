@@ -1,7 +1,6 @@
 'use client';
 
 import {
-  CalendarRange,
   ChartPie,
   CircleCheck,
   CircleDashed,
@@ -377,10 +376,6 @@ export function PerformancePeriodFilter({
   return (
     <div className="flex flex-col gap-2">
       <div className="flex min-w-0 items-center gap-2">
-        <CalendarRange
-          aria-hidden="true"
-          className="size-4 shrink-0 text-[#f0c38e]"
-        />
         <RecurringPillGroup
           label={labels.periodLabel}
           options={options}
