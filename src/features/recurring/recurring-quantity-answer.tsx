@@ -202,6 +202,55 @@ function QuantityDialog({
   );
 }
 
+function QuantityRecordButton({
+  canAnswer,
+  measure,
+  quantity,
+  progress,
+  onClick,
+}: {
+  canAnswer: boolean;
+  measure: RecurrenceMeasure;
+  quantity: RecurrenceQuantity | null;
+  progress: number | null;
+  onClick: () => void;
+}) {
+  const labels = useAppContext().dictionary.recurring;
+  const text = useQuantityText(measure, quantity);
+  const status = quantity
+    ? statusByOutcome[getQuantityOutcome(quantity)]
+    : null;
+  const appearance = status ? performanceStatusAppearance[status] : null;
+  return (
+    <Tooltip
+      content={labels.recordQuantity}
+      className="shrink-0 touch:max-w-[75%]"
+    >
+      <button
+        type="button"
+        disabled={!canAnswer}
+        className="touch-target inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full px-2.5 text-xs font-medium whitespace-nowrap text-[#e5ebf3] tabular-nums transition hover:bg-white/[0.08] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e] disabled:cursor-not-allowed disabled:opacity-50 touch:h-auto touch:min-h-8 touch:max-w-full touch:grid touch:grid-cols-[auto_minmax(0,1fr)_auto] touch:px-1.5 touch:py-1 touch:text-[13px] touch:whitespace-normal"
+        onClick={onClick}
+      >
+        <span className="sr-only">{labels.recordQuantity}: </span>
+        {appearance ? (
+          <appearance.Icon
+            aria-hidden="true"
+            className={`size-3.5 touch:col-start-1 ${appearance.className}`}
+          />
+        ) : null}
+        <span className="contents touch:col-start-2 touch:flex touch:min-w-0 touch:flex-wrap touch:items-center touch:justify-end touch:gap-x-1">
+          <span className="min-w-0 touch:wrap-anywhere">{text}</span>
+          {progress !== null ? (
+            <span className="text-[#aebac8]">{`${progress}%`}</span>
+          ) : null}
+        </span>
+        <Pencil aria-hidden="true" className="size-3 touch:col-start-3" />
+      </button>
+    </Tooltip>
+  );
+}
+
 export function QuantityAnswer({
   canAnswer,
   measure,
@@ -217,45 +266,23 @@ export function QuantityAnswer({
 }) {
   const labels = useAppContext().dictionary.recurring;
   const [isOpen, setIsOpen] = useState(false);
-  const text = useQuantityText(measure, quantity);
   const progress = quantity
     ? Math.round(getQuantityProgress(quantity) * 100)
     : null;
-  const status = quantity
-    ? statusByOutcome[getQuantityOutcome(quantity)]
-    : null;
-  const appearance = status ? performanceStatusAppearance[status] : null;
 
   return (
     <>
-      <span className="flex w-40 shrink-0 items-center gap-2 touch:w-16">
+      <span className="flex w-40 shrink-0 items-center gap-2 touch:w-auto touch:min-w-0 touch:flex-1">
         <PerformanceBar
           label={labels.quantityProgressLabel.replace('{name}', name)}
           name={name}
           rate={progress}
         />
       </span>
-      <Tooltip content={labels.recordQuantity}>
-        <button
-          type="button"
-          disabled={!canAnswer}
-          className="touch-target inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full px-2.5 text-xs font-medium whitespace-nowrap text-[#e5ebf3] tabular-nums transition hover:bg-white/[0.08] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e] disabled:cursor-not-allowed disabled:opacity-50"
-          onClick={() => setIsOpen(true)}
-        >
-          <span className="sr-only">{labels.recordQuantity}: </span>
-          {appearance ? (
-            <appearance.Icon
-              aria-hidden="true"
-              className={`size-3.5 ${appearance.className}`}
-            />
-          ) : null}
-          {text}
-          {progress !== null ? (
-            <span className="text-[#aebac8]">{`${progress}%`}</span>
-          ) : null}
-          <Pencil aria-hidden="true" className="size-3 text-[#aebac8]" />
-        </button>
-      </Tooltip>
+      <QuantityRecordButton
+        {...{ canAnswer, measure, quantity, progress }}
+        onClick={() => setIsOpen(true)}
+      />
       {isOpen ? (
         <QuantityDialog
           measure={measure}

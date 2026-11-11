@@ -4,6 +4,7 @@ import {
   validateRecurrenceMeasure,
   validateRecurrenceRule,
   type LocalDateString,
+  type SupportedLocale,
   type RecurrenceChild,
   type RecurrenceMeasure,
   type RecurrenceMeasureError,
@@ -43,8 +44,9 @@ export type RecurrenceFormResult =
 
 export function createDefaultRecurrenceForm(
   today: LocalDateString,
+  locale: SupportedLocale = 'pt-BR',
 ): RecurrenceForm {
-  const todayInput = formatDateInputValue(today);
+  const todayInput = formatDateInputValue(today, locale);
 
   return {
     kind: 'interval',
@@ -62,8 +64,9 @@ export function createDefaultRecurrenceForm(
 export function createFormFromRule(
   rule: RecurrenceRule,
   today: LocalDateString,
+  locale: SupportedLocale = 'pt-BR',
 ): RecurrenceForm {
-  const form = createDefaultRecurrenceForm(today);
+  const form = createDefaultRecurrenceForm(today, locale);
 
   switch (rule.kind) {
     case 'interval':
@@ -71,7 +74,7 @@ export function createFormFromRule(
         ...form,
         kind: rule.kind,
         everyDays: String(rule.everyDays),
-        intervalAnchor: formatDateInputValue(rule.anchorDate),
+        intervalAnchor: formatDateInputValue(rule.anchorDate, locale),
       };
     case 'weekly':
       return {
@@ -80,7 +83,7 @@ export function createFormFromRule(
         everyWeeks: String(rule.everyWeeks),
         weekdays: rule.weekdays,
         weeklyAnchor: rule.anchorDate
-          ? formatDateInputValue(rule.anchorDate)
+          ? formatDateInputValue(rule.anchorDate, locale)
           : form.weeklyAnchor,
       };
     case 'monthly_day':
@@ -104,9 +107,10 @@ function parsePositiveInteger(value: string): number {
 function buildIntervalRule(
   form: RecurrenceForm,
   today: LocalDateString,
+  locale: SupportedLocale = 'pt-BR',
 ): unknown {
   const everyDays = parsePositiveInteger(form.everyDays);
-  const anchorDate = parseDateInputValue(form.intervalAnchor);
+  const anchorDate = parseDateInputValue(form.intervalAnchor, locale);
 
   return {
     kind: 'interval',
@@ -115,26 +119,31 @@ function buildIntervalRule(
   };
 }
 
-function buildWeeklyRule(form: RecurrenceForm): unknown {
+function buildWeeklyRule(
+  form: RecurrenceForm,
+  locale: SupportedLocale,
+): unknown {
   const everyWeeks = parsePositiveInteger(form.everyWeeks);
 
   return {
     kind: 'weekly',
     everyWeeks,
     weekdays: [...form.weekdays].sort(),
-    anchorDate: everyWeeks > 1 ? parseDateInputValue(form.weeklyAnchor) : null,
+    anchorDate:
+      everyWeeks > 1 ? parseDateInputValue(form.weeklyAnchor, locale) : null,
   };
 }
 
 function buildCandidateRule(
   form: RecurrenceForm,
   today: LocalDateString,
+  locale: SupportedLocale = 'pt-BR',
 ): unknown {
   switch (form.kind) {
     case 'interval':
-      return buildIntervalRule(form, today);
+      return buildIntervalRule(form, today, locale);
     case 'weekly':
-      return buildWeeklyRule(form);
+      return buildWeeklyRule(form, locale);
     case 'monthly_day':
       return { kind: 'monthly_day', day: parsePositiveInteger(form.day) };
     case 'monthly_last_day':
@@ -151,8 +160,9 @@ function buildCandidateRule(
 export function buildRuleFromForm(
   form: RecurrenceForm,
   today: LocalDateString,
+  locale: SupportedLocale = 'pt-BR',
 ): RecurrenceFormResult {
-  const candidate = buildCandidateRule(form, today);
+  const candidate = buildCandidateRule(form, today, locale);
   const error = validateRecurrenceRule(candidate);
 
   return error ? { error } : { rule: candidate as RecurrenceRule };

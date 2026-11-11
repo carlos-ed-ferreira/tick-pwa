@@ -110,7 +110,7 @@ export function LanguageSwitcher({ disabled = false }: { disabled?: boolean }) {
         onClick={() => (isOpen ? closeMenu() : openMenu())}
       >
         <LocaleFlagIcon locale={locale} />
-        <span>{LOCALE_SHORT_LABELS[locale]}</span>
+        <span className="touch:hidden">{LOCALE_SHORT_LABELS[locale]}</span>
         <ChevronDown
           aria-hidden="true"
           className={`size-3.5 opacity-70 transition ${isOpen ? 'rotate-180' : ''}`}

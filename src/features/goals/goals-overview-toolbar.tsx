@@ -28,7 +28,7 @@ export function GoalsOverviewToolbar({
   return (
     <div
       aria-label={dictionary.navigation.goals}
-      className="flex flex-wrap items-center gap-2 px-1 sm:px-0"
+      className="flex flex-wrap items-center gap-2 px-1 sm:px-0 touch:justify-between"
       role="toolbar"
     >
       <div className={compactPillTabListClassName}>
@@ -50,7 +50,7 @@ export function GoalsOverviewToolbar({
         ))}
       </div>
       <CategoryManagerAction
-        className={filledMediumPillControlClassName}
+        className={`${filledMediumPillControlClassName} touch:ml-auto`}
         surface="goal"
         title={dictionary.goals.editCategories}
       />

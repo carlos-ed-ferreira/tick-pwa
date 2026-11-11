@@ -27,7 +27,16 @@ import {
   type TaskCompletionSettings,
   type TaskCompletionValues,
 } from '@/lib/domain';
-import { formatDateInputValue, parseDateInputValue } from '@/lib/time';
+import {
+  formatDateInputValue,
+  parseDateInputValue,
+  formatShortDate,
+  formatScheduledTime,
+  parseTimeInput,
+  maskTimeInput,
+  isTimeInputComplete,
+} from '@/lib/time';
+import { useAppContext } from '@/providers';
 import { DatePicker } from './date-picker';
 import { TaskCompletionCheckbox } from './task-completion-checkbox';
 import { TaskTreeActionGroup } from './task-tree-action-group';
@@ -37,6 +46,7 @@ import { TaskTreeInlineActions } from './task-tree-inline-actions';
 import { getTaskTreeRowAvailability } from './task-tree-row-availability';
 import { TaskTreeMoreActionsMenu } from './task-tree-more-actions-menu';
 import { TaskTreeRowActionsSheet } from './task-tree-row-actions-sheet';
+import { TaskTreeRowMetadata } from './task-tree-row-metadata';
 import { TaskTreeRowLayout } from './task-tree-row-layout';
 import { TaskTreeSelectionButton } from './task-tree-selection-button';
 import {
@@ -112,11 +122,6 @@ function fromCompletionKey(key: string): TaskCompletionValues {
   return normalizeTaskCompletionValues(
     key === 'ignored' ? { ignored: true } : { markLevel: Number(key) },
   );
-}
-
-function formatShortDate(date: LocalDateString): string {
-  const [, month, day] = date.split('-');
-  return `${day}/${month}`;
 }
 
 function useOptimisticValue<TValue>(currentValue: TValue) {
@@ -286,6 +291,7 @@ export function TaskTreeEditableRow({
     null,
   );
   const [isDragging, setIsDragging] = useState(false);
+  const [isDragHandleVisible, setIsDragHandleVisible] = useState(false);
   const [isTextMultiline, setIsTextMultiline] = useState(false);
   const isTouchComposition = useTouchComposition();
   const effectivePreferences = resolveRowPreferences({
@@ -293,7 +299,10 @@ export function TaskTreeEditableRow({
     isTouchComposition,
     structureOnly,
   });
-  const normalizedScheduledTime = scheduledTime ?? '';
+  const { locale } = useAppContext();
+  const normalizedScheduledTime = scheduledTime
+    ? formatScheduledTime(scheduledTime, locale)
+    : '';
   const isSelectionMode = selection?.isSelectionMode === true;
   const [timeState, setTimeState] = useState({
     source: normalizedScheduledTime,
@@ -522,36 +531,16 @@ export function TaskTreeEditableRow({
     }
   }
 
-  function maskScheduledTimeInput(value: string): string {
-    const digits = value.replace(/\D/g, '').slice(0, 4);
-
-    if (digits.length < 2) {
-      return digits;
-    }
-
-    const hour = Math.min(Number(digits.slice(0, 2)), 23)
-      .toString()
-      .padStart(2, '0');
-
-    if (digits.length === 2) {
-      return hour;
-    }
-
-    const minuteDigits = digits.slice(2, 4);
-    const minute =
-      minuteDigits.length === 2
-        ? Math.min(Number(minuteDigits), 59).toString().padStart(2, '0')
-        : minuteDigits;
-
-    return `${hour}:${minute}`;
-  }
-
   async function saveScheduledTime() {
     if (!showScheduledTime || !onSaveTime) {
       return;
     }
 
-    const nextTime = timeText.length === 5 ? timeText : null;
+    const nextTime = parseTimeInput(timeText, locale);
+    setTimeState({
+      source: normalizedScheduledTime,
+      value: nextTime ? formatScheduledTime(nextTime, locale) : '',
+    });
 
     if (
       (scheduledTime ?? null) === nextTime ||
@@ -571,18 +560,17 @@ export function TaskTreeEditableRow({
   }
 
   function updateScheduledTime(value: string) {
-    const nextValue = maskScheduledTimeInput(value);
+    const nextValue = maskTimeInput(value, locale);
 
     setTimeState({
       source: normalizedScheduledTime,
       value: nextValue,
     });
 
-    if (nextValue.length !== 0 && nextValue.length !== 5) {
+    if (!isTimeInputComplete(value, locale)) {
       return;
     }
-
-    const nextTime = nextValue.length === 5 ? nextValue : null;
+    const nextTime = parseTimeInput(nextValue, locale);
 
     if (
       !onSaveTime ||
@@ -700,11 +688,11 @@ export function TaskTreeEditableRow({
     <input
       aria-label={labels.itemTime}
       disabled={availability.isEmptyDraft}
-      inputMode="numeric"
-      maxLength={5}
-      placeholder="00:00"
+      inputMode={locale === 'en' ? 'text' : 'numeric'}
+      maxLength={locale === 'en' ? 8 : 5}
+      placeholder={locale === 'en' ? '--:--' : '00:00'}
       value={timeText}
-      className="ml-2 h-6 w-[4rem] shrink-0 rounded-full bg-white/8 px-1.5 text-center text-xs font-medium tabular-nums text-[#fff9f2] outline-none transition placeholder:text-[#7b8da0] hover:bg-white/12 focus:inset-ring-hairline focus:inset-ring-[#f0c38e]/70 focus:bg-white/12 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e] touch:ml-0 touch:h-11 touch:w-20 touch:text-base"
+      className={`ml-2 h-6 ${locale === 'en' ? 'w-24' : 'w-[4rem]'} shrink-0 rounded-full bg-white/8 px-1.5 text-center text-xs font-medium tabular-nums text-[#fff9f2] outline-none transition placeholder:text-[#7b8da0] hover:bg-white/12 focus:inset-ring-hairline focus:inset-ring-[#f0c38e]/70 focus:bg-white/12 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e] touch:ml-0 touch:h-11 touch:w-28 touch:text-base`}
       spellCheck={false}
       autoCorrect="off"
       autoCapitalize="none"
@@ -715,10 +703,10 @@ export function TaskTreeEditableRow({
   const scheduledDateField = (
     <DatePicker
       label={labels.itemDate}
-      value={scheduledDate ? formatDateInputValue(scheduledDate) : ''}
+      value={scheduledDate ? formatDateInputValue(scheduledDate, locale) : ''}
       variant="trigger"
       onChange={(nextValue) => {
-        const nextDate = parseDateInputValue(nextValue);
+        const nextDate = parseDateInputValue(nextValue, locale);
 
         if (nextDate) {
           void onSaveDate?.(nextDate);
@@ -734,7 +722,7 @@ export function TaskTreeEditableRow({
           onClick={onClick}
         >
           {scheduledDate ? (
-            formatShortDate(scheduledDate)
+            formatShortDate(scheduledDate, locale)
           ) : (
             <CalendarDays aria-hidden="true" className="size-3.5 opacity-70" />
           )}
@@ -772,31 +760,37 @@ export function TaskTreeEditableRow({
         }}
         onDrop={handleDrop}
       >
-        <TaskTreeCollapseButton
-          collapseLabel={labels.collapseItem}
-          disabled={availability.isLocked}
-          expandLabel={labels.expandItem}
-          hasChildren={hasChildren}
-          isCollapsed={collapsed}
-          onClick={() => void onToggleCollapsed()}
-        />
+        <div className={hasChildren ? 'contents' : 'contents touch:hidden'}>
+          <TaskTreeCollapseButton
+            collapseLabel={labels.collapseItem}
+            disabled={availability.isLocked}
+            expandLabel={labels.expandItem}
+            hasChildren={hasChildren}
+            isCollapsed={collapsed}
+            onClick={() => void onToggleCollapsed()}
+          />
+        </div>
 
-        {effectivePreferences.drag ? (
-          <IconButton
-            aria-label={labels.dragItem}
-            className="tree-drag-handle cursor-grab rounded-full hover:bg-white/[0.08] hover:text-[#fff9f2] active:cursor-grabbing focus-visible:outline-[#f0c38e]"
-            disabled={isSelectionMode}
-            draggable={!isSelectionMode}
-            onDragEnd={() => {
-              setIsDragging(false);
-              setDropPosition(null);
-              activeTreeDrag = null;
-            }}
-            onDragStart={handleDragStart}
-            onPointerDown={startTouchDrag}
-          >
-            <GripVertical aria-hidden="true" className="size-4 opacity-70" />
-          </IconButton>
+        {effectivePreferences.drag &&
+        (!isTouchComposition || isDragHandleVisible) ? (
+          <div className="contents touch:order-2 touch:flex touch:shrink-0">
+            <IconButton
+              aria-label={labels.dragItem}
+              className="tree-drag-handle cursor-grab rounded-full hover:bg-white/[0.08] hover:text-[#fff9f2] active:cursor-grabbing focus-visible:outline-[#f0c38e]"
+              disabled={isSelectionMode}
+              draggable={!isSelectionMode}
+              onDragEnd={() => {
+                setIsDragging(false);
+                setIsDragHandleVisible(false);
+                setDropPosition(null);
+                activeTreeDrag = null;
+              }}
+              onDragStart={handleDragStart}
+              onPointerDown={startTouchDrag}
+            >
+              <GripVertical aria-hidden="true" className="size-4 opacity-70" />
+            </IconButton>
+          </div>
         ) : null}
 
         {structureOnly ? null : (
@@ -824,7 +818,7 @@ export function TaskTreeEditableRow({
 
         <div
           data-task-text-field
-          className={`flex min-w-0 flex-1 rounded-xl inset-ring-hairline inset-ring-transparent bg-transparent transition touch:order-last touch:basis-full focus-within:inset-ring-[#f0c38e]/28 focus-within:bg-white/[0.055] focus-within:shadow-sm ${
+          className={`flex min-w-0 flex-1 rounded-xl inset-ring-hairline inset-ring-transparent bg-transparent transition touch:flex-col touch:items-stretch touch:justify-center touch:py-1 focus-within:inset-ring-[#f0c38e]/28 focus-within:bg-white/[0.055] focus-within:shadow-sm ${
             isTextMultiline ? 'items-start pt-0.5 pb-0' : 'min-h-9 items-center'
           }`}
         >
@@ -834,9 +828,9 @@ export function TaskTreeEditableRow({
             rows={1}
             value={text}
             placeholder={labels.itemPlaceholder}
-            className={`min-w-0 w-full bg-transparent px-2 py-0 text-sm leading-5 outline-none placeholder:text-[#7b8da0] ${
+            className={`min-w-0 w-full bg-transparent px-2 py-0 text-sm leading-5 touch:text-base touch:leading-6 touch:px-1 outline-none placeholder:text-[#7b8da0] ${
               displayedChecked || displayedIgnored
-                ? 'text-[#7b8da0] opacity-75'
+                ? 'text-[#7b8da0] opacity-75 touch:text-muted touch:opacity-100'
                 : 'text-[#fff9f2]'
             } ${displayedBold ? 'font-bold' : 'font-normal'}`}
             onBlur={() => void flushEditableText()}
@@ -847,9 +841,16 @@ export function TaskTreeEditableRow({
             }}
             onKeyDown={(event) => void handleKeyDown(event)}
           />
+          {isTouchComposition ? (
+            <TaskTreeRowMetadata
+              category={selectedCategory}
+              scheduledTime={showScheduledTime ? scheduledTime : null}
+              scheduledDate={showScheduledDate ? scheduledDate : null}
+            />
+          ) : null}
         </div>
 
-        {selectedCategory ? (
+        {selectedCategory && !isTouchComposition ? (
           <TaskTreeCategoryChip
             colorHex={selectedCategory.colorHex}
             name={selectedCategory.name}
@@ -857,7 +858,8 @@ export function TaskTreeEditableRow({
         ) : null}
 
         <TaskTreeActionGroup>
-          {selection || (isDraft && !structureOnly) ? (
+          {(!isTouchComposition || isSelectionMode) &&
+          (selection || (isDraft && !structureOnly)) ? (
             <TaskTreeSelectionButton
               deselectLabel={labels.deselectItem}
               disabled={!selection}
@@ -893,6 +895,13 @@ export function TaskTreeEditableRow({
               dateTrigger={scheduledDateField}
               disabled={isSelectionMode}
               labels={labels}
+              onPrepareDrag={
+                effectivePreferences.drag
+                  ? () => setIsDragHandleVisible(true)
+                  : undefined
+              }
+              isSelected={selection?.isSelected}
+              onSelect={selection ? () => selection.onToggle(false) : undefined}
               priority={displayedPriority}
               showScheduledDate={showScheduledDate}
               showScheduledTime={showScheduledTime}

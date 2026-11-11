@@ -313,7 +313,7 @@ function PreferenceSettingRow({
   onSelect: (value: string) => void;
 }) {
   const choiceClassName =
-    'min-h-8 w-full whitespace-nowrap rounded-lg inset-ring-hairline px-2 py-1 text-xs font-medium transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e]';
+    'min-h-8 min-w-0 w-full whitespace-normal break-words rounded-lg inset-ring-hairline px-2 py-1 text-xs font-medium transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e]';
 
   return (
     <div
@@ -328,7 +328,11 @@ function PreferenceSettingRow({
         role="radiogroup"
         aria-label={label}
         className={`grid w-full gap-1 sm:w-[24rem] ${
-          choices.length > 3 ? 'grid-cols-5' : 'grid-cols-3'
+          choices.length > 3
+            ? 'grid-cols-5'
+            : choices.length === 2
+              ? 'grid-cols-2'
+              : 'grid-cols-3'
         }`}
       >
         {choices.map((choice) => {

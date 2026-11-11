@@ -3,6 +3,7 @@
 import { useCallback, useRef } from 'react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
 import { createPortal } from 'react-dom';
+import type { CSSProperties, Ref } from 'react';
 import { Checkbox, CheckboxIndicator } from '@/components/ui';
 import { useAnchoredMenu } from '@/hooks/use-anchored-menu';
 import {
@@ -153,87 +154,122 @@ export function TaskCompletionCheckbox({
   const menu =
     isOpen && menuStyle && typeof document !== 'undefined'
       ? createPortal(
-          <div
-            ref={menuRef}
-            aria-label={labels.chooseCompletionState}
-            role="menu"
-            className="modal-panel modal-panel--flat fixed z-60 grid gap-1 p-2 text-sm text-[#fff9f2] shadow-[0_24px_70px_rgba(5,8,13,0.44)]"
-            style={menuStyle}
-          >
-            {options.map((option) => {
-              const optionLabel = getTaskCompletionOptionLabel({
-                labels,
-                levels: completionSettings.levels,
-                values: option,
-              });
-              const isCurrent =
-                option.ignored === currentValues.ignored &&
-                option.markLevel === displayLevel;
-
-              return (
-                <button
-                  key={optionLabel}
-                  type="button"
-                  role="menuitemradio"
-                  aria-checked={isCurrent}
-                  className={`flex min-h-9 items-center gap-2 rounded-xl px-2 py-2 text-left transition hover:bg-[#f0c38e]/12 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e] ${
-                    isCurrent ? 'bg-[#f0c38e]/10' : ''
-                  }`}
-                  onClick={() => void selectOption(option)}
-                >
-                  <CheckboxIndicator
-                    checked={option.completed}
-                    indeterminate={option.ignored}
-                    level={option.markLevel}
-                    levels={completionSettings.levels}
-                  />
-                  <span className="truncate">{optionLabel}</span>
-                </button>
-              );
-            })}
-          </div>,
+          <TaskCompletionMenu
+            menuRef={menuRef}
+            labels={labels}
+            menuStyle={menuStyle}
+            options={options}
+            currentValues={currentValues}
+            displayLevel={displayLevel}
+            levels={completionSettings.levels}
+            onSelect={selectOption}
+          />,
           document.body,
         )
       : null;
 
   return (
     <div ref={containerRef} className="flex shrink-0 items-center">
-      <Checkbox
-        ref={triggerRef}
-        aria-label={
-          completionSettings.levels > 1
-            ? `${labels.toggleItem}: ${stateLabel}`
-            : labels.toggleItem
-        }
-        checked={state === 'completed'}
-        indeterminate={state === 'ignored'}
-        level={displayLevel}
-        levels={completionSettings.levels}
-        disabled={disabled}
-        onChange={() => {
-          if (skipNextToggleRef.current) {
-            skipNextToggleRef.current = false;
-            return;
+      <label className="touch-target inline-flex items-center justify-center touch:mx-3">
+        <Checkbox
+          ref={triggerRef}
+          aria-label={
+            completionSettings.levels > 1
+              ? `${labels.toggleItem}: ${stateLabel}`
+              : labels.toggleItem
           }
+          checked={state === 'completed'}
+          indeterminate={state === 'ignored'}
+          level={displayLevel}
+          levels={completionSettings.levels}
+          disabled={disabled}
+          onChange={() => {
+            if (skipNextToggleRef.current) {
+              skipNextToggleRef.current = false;
+              return;
+            }
 
-          void onToggle();
-        }}
-        onContextMenu={(event) => {
-          if (!hasPicker) {
-            return;
-          }
+            void onToggle();
+          }}
+          onContextMenu={(event) => {
+            if (!hasPicker) {
+              return;
+            }
 
-          event.preventDefault();
-          cancelLongPress();
-          openMenu();
-        }}
-        onPointerCancel={cancelLongPress}
-        onPointerDown={startLongPress}
-        onPointerLeave={cancelLongPress}
-        onPointerMove={trackLongPress}
-        onPointerUp={cancelLongPress}
-      />
+            event.preventDefault();
+            cancelLongPress();
+            openMenu();
+          }}
+          onPointerCancel={cancelLongPress}
+          onPointerDown={startLongPress}
+          onPointerLeave={cancelLongPress}
+          onPointerMove={trackLongPress}
+          onPointerUp={cancelLongPress}
+        />
+      </label>
       {menu}
+    </div>
+  );
+}
+
+function TaskCompletionMenu({
+  menuRef,
+  labels,
+  menuStyle,
+  options,
+  currentValues,
+  displayLevel,
+  levels,
+  onSelect,
+}: {
+  menuRef: Ref<HTMLDivElement>;
+  labels: TaskCompletionLabels;
+  menuStyle: CSSProperties;
+  options: TaskCompletionValues[];
+  currentValues: TaskCompletionValues;
+  displayLevel: number;
+  levels: number;
+  onSelect: (values: TaskCompletionValues) => Promise<void>;
+}) {
+  return (
+    <div
+      ref={menuRef}
+      aria-label={labels.chooseCompletionState}
+      role="menu"
+      className="modal-panel modal-panel--flat fixed z-60 grid gap-1 p-2 text-sm text-[#fff9f2] shadow-[0_24px_70px_rgba(5,8,13,0.44)]"
+      style={menuStyle}
+    >
+      {options.map((option) => {
+        const optionLabel = getTaskCompletionOptionLabel({
+          labels,
+          levels: levels,
+          values: option,
+        });
+        const isCurrent =
+          option.ignored === currentValues.ignored &&
+          option.markLevel === displayLevel;
+
+        return (
+          <button
+            key={optionLabel}
+            type="button"
+            role="menuitemradio"
+            aria-checked={isCurrent}
+            className={`flex min-h-9 items-center gap-2 rounded-xl px-2 py-2 text-left transition hover:bg-[#f0c38e]/12 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0c38e] ${
+              isCurrent ? 'bg-[#f0c38e]/10' : ''
+            }`}
+            onClick={() => void onSelect(option)}
+          >
+            <CheckboxIndicator
+              checked={option.completed}
+              indeterminate={option.ignored}
+              level={option.markLevel}
+              levels={levels}
+            />
+            <span className="truncate">{optionLabel}</span>
+          </button>
+        );
+      })}
     </div>
   );
 }

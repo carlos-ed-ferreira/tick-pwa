@@ -33,17 +33,17 @@ describe('DatePicker', () => {
     render(
       <DatePicker
         label="Start date"
-        placeholder="DD-MM-YYYY"
+        placeholder="MM/DD/YYYY"
         value=""
         onChange={onChange}
       />,
     );
 
     fireEvent.change(screen.getByLabelText('Start date'), {
-      target: { value: '15072026' },
+      target: { value: '07152026' },
     });
 
-    expect(onChange).toHaveBeenCalledWith('15-07-2026');
+    expect(onChange).toHaveBeenCalledWith('07/15/2026');
   });
 
   it('opens the shared calendar and selects a date', () => {
@@ -52,8 +52,8 @@ describe('DatePicker', () => {
     render(
       <DatePicker
         label="Start date"
-        placeholder="DD-MM-YYYY"
-        value="15-07-2026"
+        placeholder="MM/DD/YYYY"
+        value="07/15/2026"
         onChange={onChange}
       />,
     );
@@ -76,7 +76,7 @@ describe('DatePicker', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'July 20, 2026' }));
 
-    expect(onChange).toHaveBeenCalledWith('20-07-2026');
+    expect(onChange).toHaveBeenCalledWith('07/20/2026');
     expect(
       screen.queryByRole('dialog', { name: 'Select date' }),
     ).not.toBeInTheDocument();
@@ -87,7 +87,7 @@ describe('DatePicker', () => {
     render(
       <DatePicker
         label="Start date"
-        placeholder="DD-MM-YYYY"
+        placeholder="MM/DD/YYYY"
         value=""
         onChange={onChange}
       />,
@@ -113,8 +113,8 @@ describe('DatePicker', () => {
     render(
       <DatePicker
         label="End date"
-        placeholder="DD-MM-YYYY"
-        value="15-07-2026"
+        placeholder="MM/DD/YYYY"
+        value="07/15/2026"
         onChange={onChange}
       />,
     );
@@ -136,7 +136,7 @@ describe('DatePicker', () => {
     render(
       <DatePicker
         label="Step date"
-        value="15-07-2026"
+        value="07/15/2026"
         variant="trigger"
         onChange={onChange}
         renderTrigger={({ onClick, ariaLabel }) => (
@@ -157,14 +157,14 @@ describe('DatePicker', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'July 20, 2026' }));
 
-    expect(onChange).toHaveBeenCalledWith('20-07-2026');
+    expect(onChange).toHaveBeenCalledWith('07/20/2026');
   });
 
   it('does not show a clear action when no value is set', () => {
     render(
       <DatePicker
         label="Start date"
-        placeholder="DD-MM-YYYY"
+        placeholder="MM/DD/YYYY"
         value=""
         onChange={vi.fn()}
         onClear={vi.fn()}
@@ -188,8 +188,8 @@ describe('DatePicker', () => {
     render(
       <DatePicker
         label="Start date"
-        placeholder="DD-MM-YYYY"
-        value="15-07-2026"
+        placeholder="MM/DD/YYYY"
+        value="07/15/2026"
         onChange={vi.fn()}
         onClear={onClear}
       />,

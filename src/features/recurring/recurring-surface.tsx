@@ -132,10 +132,11 @@ function RecurringWorkspace({
   onCreate: () => void;
   onEdit: (recurrence: Recurrence) => void;
 }) {
-  const labels = useAppContext().dictionary.recurring;
+  const { dictionary, locale } = useAppContext();
+  const labels = dictionary.recurring;
   const [pickedDate, setPickedDate] = useState<LocalDateString | null>(null);
   const { location, navigate } = useRecurringLocation();
-  const filters = usePerformanceFilters(today);
+  const filters = usePerformanceFilters(today, locale);
   const { view } = location;
   const date = pickedDate ?? today;
   const regionLabels: Record<RecurringView, string> = {

@@ -109,8 +109,8 @@ test('uses the shared date picker in calendar forms', async ({
   const startDateInput = page.getByRole('textbox', {
     name: /start date|data inicial/i,
   });
-  await startDateInput.fill('15072026');
-  await expect(startDateInput).toHaveValue('15-07-2026');
+  await startDateInput.fill('07152026');
+  await expect(startDateInput).toHaveValue('07/15/2026');
 
   await page
     .getByRole('button', {
@@ -126,7 +126,7 @@ test('uses the shared date picker in calendar forms', async ({
   ).toHaveAttribute('aria-pressed', 'true');
 
   await page.getByRole('button', { name: 'July 20, 2026' }).click();
-  await expect(startDateInput).toHaveValue('20-07-2026');
+  await expect(startDateInput).toHaveValue('07/20/2026');
 });
 
 test('shows modal feedback as a toast notification', async ({
@@ -191,4 +191,79 @@ test('keeps the task text sharing the row on the pointer composition', async ({
   expect(rowBox).not.toBeNull();
   expect(fieldBox).not.toBeNull();
   expect(fieldBox!.width).toBeLessThan(rowBox!.width * 0.85);
+});
+
+test('preserves scheduled time while changing American and Brazilian formats', async ({
+  page,
+  isMobile,
+}) => {
+  await enterLocalMode(page);
+  await page.goto('/calendar?day=2026-11-11');
+  await page.getByRole('button', { name: labels.checklistEmpty }).click();
+  await firstChecklistInput(page).fill('Send the proposal');
+  await firstChecklistInput(page).press('Enter');
+  await expect(page.locator('[data-checklist-input="true"]')).toHaveCount(2);
+  await expect(
+    page.locator('[data-checklist-input="true"]').nth(1),
+  ).toBeFocused();
+  if (isMobile) {
+    await page
+      .locator('[data-tree-row]')
+      .first()
+      .getByRole('button', { name: 'Extra options', exact: true })
+      .click();
+  }
+  const time = page
+    .getByRole('textbox', { name: 'Task time', exact: true })
+    .first();
+  await time.fill('2:30PM');
+  await time.blur();
+  await expect(time).toHaveValue('2:30 PM');
+  const itemId = await firstChecklistInput(page).getAttribute('data-item-id');
+  await expect
+    .poll(() =>
+      page.evaluate(
+        (id) =>
+          new Promise<string | null>((resolve, reject) => {
+            const open = indexedDB.open('tick');
+            open.onerror = () => reject(open.error);
+            open.onsuccess = () => {
+              const database = open.result;
+              const request = database
+                .transaction('checklistItems', 'readonly')
+                .objectStore('checklistItems')
+                .get(id!);
+              request.onerror = () => {
+                database.close();
+                reject(request.error);
+              };
+              request.onsuccess = () => {
+                database.close();
+                resolve(request.result?.scheduledTime ?? null);
+              };
+            };
+          }),
+        itemId,
+      ),
+    )
+    .toBe('14:30');
+  if (isMobile) await page.keyboard.press('Escape');
+  await page.reload();
+  if (isMobile)
+    await expect(page.getByText('2:30 PM', { exact: true })).toBeVisible();
+  else await expect(time).toHaveValue('2:30 PM');
+  await page
+    .getByRole('button', { name: 'Language: English', exact: true })
+    .click();
+  await page
+    .getByRole('menuitemradio', { name: 'Português (Brasil)', exact: true })
+    .click();
+  if (isMobile)
+    await expect(page.getByText('14:30', { exact: true })).toBeVisible();
+  else
+    await expect(
+      page
+        .getByRole('textbox', { name: 'Horário da tarefa', exact: true })
+        .first(),
+    ).toHaveValue('14:30');
 });

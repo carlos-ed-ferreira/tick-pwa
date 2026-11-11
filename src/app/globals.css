@@ -38,7 +38,7 @@
 
 @media (pointer: coarse) and (max-width: 899.98px) {
   :root {
-    --app-bottom-nav-height: 3.25rem;
+    --app-bottom-nav-height: calc(3.25rem + env(safe-area-inset-bottom));
   }
 }
 

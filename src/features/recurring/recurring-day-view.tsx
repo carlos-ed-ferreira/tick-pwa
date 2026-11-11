@@ -77,7 +77,7 @@ function RecurringDayToolbar({
       <div className="flex shrink-0 touch:w-full touch:justify-center">
         <DatePicker
           label={dictionary.recurring.chooseDate}
-          value={formatDateInputValue(date)}
+          value={formatDateInputValue(date, locale)}
           variant="trigger"
           renderTrigger={({ isOpen, onClick }) => (
             <button
@@ -91,7 +91,7 @@ function RecurringDayToolbar({
             </button>
           )}
           onChange={(value) => {
-            const nextDate = parseDateInputValue(value);
+            const nextDate = parseDateInputValue(value, locale);
 
             if (nextDate) {
               onDateChange(nextDate);

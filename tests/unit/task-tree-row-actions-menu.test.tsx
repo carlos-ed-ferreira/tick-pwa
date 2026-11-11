@@ -317,7 +317,7 @@ describe('TaskTreeRowActionsMenu', () => {
 
     expect(checkbox).not.toBeChecked();
     expect(checkbox).toHaveClass('inset-ring-[#f0c38e]/55', 'bg-[#f0c38e]/12');
-    expect(extraOptions).toHaveClass('whitespace-nowrap');
+    expect(extraOptions).toHaveClass('whitespace-normal');
     expect(extraOptions.parentElement).toHaveClass('sm:w-[24rem]');
 
     fireEvent.click(checkbox);

@@ -39,18 +39,21 @@ export function AccountStatus() {
 
   if (authMode === 'guest') {
     return (
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="inline-flex min-h-7 items-center rounded-full bg-[#f0c38e]/14 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.24em] text-[#f7e8ce] shadow-sm shadow-[#f0c38e]/10">
+      <div className="flex flex-wrap items-center gap-2 touch:flex-nowrap touch:gap-2">
+        <span className="inline-flex min-h-7 items-center rounded-full bg-[#f0c38e]/14 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.24em] text-[#f7e8ce] shadow-sm shadow-[#f0c38e]/10 touch:bg-transparent touch:px-0 touch:py-0 touch:text-xs touch:normal-case touch:tracking-normal touch:text-muted touch:shadow-none">
           {dictionary.auth.localModeBadge}
         </span>
-        <button
-          className={filledPillControlClassName}
-          type="button"
-          onClick={openAuthEntry}
-        >
-          <Cloud aria-hidden="true" className="size-4 text-[#f0c38e]" />
-          {dictionary.auth.signInWithPassword}
-        </button>
+        <Tooltip content={dictionary.auth.signInWithPassword} whenTruncated>
+          <button
+            aria-label={dictionary.auth.signInWithPassword}
+            className={`${filledPillControlClassName} touch:px-3`}
+            type="button"
+            onClick={openAuthEntry}
+          >
+            <Cloud aria-hidden="true" className="size-4 text-[#f0c38e]" />
+            <span>{dictionary.auth.signInWithPassword}</span>
+          </button>
+        </Tooltip>
       </div>
     );
   }
