@@ -154,7 +154,7 @@ O Makefile é a interface única de operação; o catálogo executável está em
 
 Os targets de E2E em container usam a imagem oficial do Playwright com GNU Make, UID/GID local e nenhuma porta publicada. Use-os em Linux sem as bibliotecas do Chromium no host; mantenha a versão da imagem igual à dependência Playwright.
 
-`make test-account-browser` cria checkout e Supabase temporários nas portas 56320–56329 e app em 3102, usa rede host no container e uma conta sintética do seed. Não lê `.env` nem reseta o banco de trabalho. Os artefatos ficam em `.next/playwright-account-real-results`.
+`make test-account-browser` cria checkout e Supabase temporários nas portas 56320–56329 e app em 3102, usa rede host no container e uma conta sintética do seed. Não lê `.env` nem reseta o banco de trabalho. Os artefatos ficam em `.next/playwright-account-real-results`. Os cenários de conflito incluem latência controlada e aguardam a confirmação da RPC correspondente e o esvaziamento da outbox local antes de conferir convergência. O indicador visual possui atraso de apresentação e não é usado sozinho como confirmação de envio.
 
 Os comandos de dependências, diagnóstico, backup e publicação estão nos runbooks ligados abaixo. Diagnóstico é opcional e local; seu resultado não aprova capacidade de produção. Targets `supabase-prod-*` só executam no GitHub Actions; o wrapper os bloqueia fora dele.
 

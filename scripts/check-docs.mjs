@@ -1,4 +1,4 @@
-import { readdir, readFile, stat } from 'node:fs/promises';
+import { open, readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 
 async function filesUnder(directory) {
@@ -64,15 +64,19 @@ for (const file of files) {
         )
       : path.resolve(file);
     try {
-      await stat(target);
-      if (
-        fragment &&
-        target.endsWith('.md') &&
-        !anchors(await readFile(target, 'utf8')).has(
-          decodeURIComponent(fragment),
+      const targetFile = await open(target, 'r');
+      try {
+        if (
+          fragment &&
+          target.endsWith('.md') &&
+          !anchors(await targetFile.readFile('utf8')).has(
+            decodeURIComponent(fragment),
+          )
         )
-      )
-        errors.push(`${file}: ancora ausente: ${link}`);
+          errors.push(`${file}: ancora ausente: ${link}`);
+      } finally {
+        await targetFile.close();
+      }
     } catch {
       errors.push(`${file}: destino ausente: ${link}`);
     }

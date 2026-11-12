@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Page, type BrowserContext } from '@playwright/test';
 import { firstChecklistInput, labels } from '../e2e/helpers';
 
 async function signIn(page: Page, day: string) {
@@ -17,6 +17,65 @@ async function addTask(page: Page, title: string) {
   await page.getByRole('button', { name: labels.checklistEmpty }).click();
   await firstChecklistInput(page).fill(title);
   await firstChecklistInput(page).press('Enter');
+}
+
+async function resumeAndConfirmMutation(
+  context: BrowserContext,
+  page: Page,
+  entityType: string,
+  expected: Record<string, string>,
+) {
+  const acknowledged = page.waitForResponse((response) => {
+    const request = response.request();
+    if (
+      !response.url().endsWith('/rpc/apply_account_operation_batch') ||
+      request.method() !== 'POST' ||
+      response.status() !== 200
+    )
+      return false;
+    const body = request.postDataJSON() as {
+      p_mutations: Array<{
+        entity_type: string;
+        payload: Record<string, unknown>;
+      }>;
+    };
+    return body.p_mutations.some(
+      (mutation) =>
+        mutation.entity_type === entityType &&
+        Object.entries(expected).every(
+          ([key, value]) => mutation.payload[key] === value,
+        ),
+    );
+  });
+  await context.setOffline(false);
+  await acknowledged;
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          new Promise<number>((resolve, reject) => {
+            const open = indexedDB.open('tick');
+            open.onerror = () => reject(open.error);
+            open.onsuccess = () => {
+              const database = open.result;
+              const count = database
+                .transaction('syncOutbox', 'readonly')
+                .objectStore('syncOutbox')
+                .count();
+              count.onerror = () => {
+                database.close();
+                reject(count.error);
+              };
+              count.onsuccess = () => {
+                database.close();
+                resolve(count.result);
+              };
+            };
+          }),
+      ),
+    )
+    .toBe(0);
+  await expect(page.getByRole('status')).toHaveText('Synced');
 }
 
 test('persists a pending account edit through full browser closure and offline reopening with a real API', async ({
@@ -103,15 +162,29 @@ test('converges two independent account sessions after concurrent offline edits'
     await expect(firstChecklistInput(right)).toHaveValue(
       'Shared real API task',
     );
+    await right.route('**/rpc/apply_account_operation_batch', async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      await route.continue();
+    });
     await Promise.all([first.setOffline(true), second.setOffline(true)]);
     await firstChecklistInput(left).fill('First device edit');
     await firstChecklistInput(left).press('Tab');
     await firstChecklistInput(right).fill('Second device edit');
     await firstChecklistInput(right).press('Tab');
-    await first.setOffline(false);
-    await expect(left.getByRole('status')).toHaveText('Synced');
-    await second.setOffline(false);
-    await expect(right.getByRole('status')).toHaveText('Synced');
+    await Promise.all([
+      expect(
+        left.getByRole('button', { name: /saved locally, waiting to send/i }),
+      ).toBeVisible(),
+      expect(
+        right.getByRole('button', { name: /saved locally, waiting to send/i }),
+      ).toBeVisible(),
+    ]);
+    await resumeAndConfirmMutation(first, left, 'checklistItem', {
+      text: 'First device edit',
+    });
+    await resumeAndConfirmMutation(second, right, 'checklistItem', {
+      text: 'Second device edit',
+    });
     await left.getByRole('button', { name: /synced/i }).click();
     await expect(firstChecklistInput(left)).toHaveValue('Second device edit');
     await expect(firstChecklistInput(right)).toHaveValue('Second device edit');
@@ -161,10 +234,20 @@ test('converges the same recurring answer given offline by two sessions', async 
     await left.getByRole('button', { name: doneName, exact: true }).click();
     await right.getByRole('button', { name: notDoneName, exact: true }).click();
 
-    await first.setOffline(false);
-    await expect(left.getByRole('status')).toHaveText('Synced');
-    await second.setOffline(false);
-    await expect(right.getByRole('status')).toHaveText('Synced');
+    await Promise.all([
+      expect(
+        left.getByRole('button', { name: /saved locally, waiting to send/i }),
+      ).toBeVisible(),
+      expect(
+        right.getByRole('button', { name: /saved locally, waiting to send/i }),
+      ).toBeVisible(),
+    ]);
+    await resumeAndConfirmMutation(first, left, 'recurrenceResponse', {
+      status: 'done',
+    });
+    await resumeAndConfirmMutation(second, right, 'recurrenceResponse', {
+      status: 'not_done',
+    });
     await left.getByRole('button', { name: /synced/i }).click();
 
     for (const page of [left, right]) {
