@@ -3,15 +3,18 @@
 ## Autoridade e escopo
 
 Este arquivo rege agentes no repositório inteiro, salvo `AGENTS.md` mais
-específico. Leia primeiro o [README.md](README.md) para o estado real e o
-[REVIEW.md](REVIEW.md) para gates e critérios de revisão. O
+específico. O [README.md](README.md) apresenta o produto; o
+[guia de desenvolvimento](docs/development/DESENVOLVIMENTO.md) descreve o ambiente
+e o [REVIEW.md](REVIEW.md) define gates e critérios de revisão. O
 [arquivo temporário de trabalho](docs/planning/PENDENCIAS.md) concentra
 as pendências; não trate um item dele como garantia implementada.
 
 ## Antes de editar
 
+Em alterações com vários módulos, banco, autenticação, arquitetura ou rollout, apresente um plano curto e verificável. Ambiguidades de produto que mudem comportamento ou contratos precisam de esclarecimento; escolhas rotineiras de implementação seguem os padrões existentes e a autorização já concedida.
+
 1. Entenda o pedido e não amplie o escopo.
-2. Leia a arquitetura e os fluxos relevantes no README.
+2. Leia os documentos técnicos e as skills pertinentes na tabela abaixo.
 3. Localize a área, testes relacionados e implementações semelhantes.
 4. Procure primitives, componentes, hooks, helpers e comandos existentes.
 5. Identifique regras de negócio, escopos e dados afetados.
@@ -19,6 +22,21 @@ as pendências; não trate um item dele como garantia implementada.
 7. Verifique o worktree e preserve mudanças do usuário.
 8. Liste riscos de dados, segurança, offline, i18n e responsividade.
 9. Prefira uma mudança pequena, reversível e coerente.
+
+## Leitura por tarefa
+
+| Tarefa                                          | Referências                                                                                                                                                       |
+| ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Setup, comandos e ambiente local                | [Desenvolvimento](docs/development/DESENVOLVIMENTO.md)                                                                                                            |
+| Módulos, domínio e contratos de funcionalidades | [Arquitetura](docs/development/ARQUITETURA.md)                                                                                                                    |
+| Persistência, conta e offline                   | [Sincronização](docs/development/SINCRONIZACAO.md), [Modos de acesso](docs/development/MODOS-DE-ACESSO.md) e skill `local-first-change`                           |
+| Desenho, implementação ou revisão de UI         | [Skill de frontend](.agents/skills/frontend-design/SKILL.md) e suas referências                                                                                   |
+| Mudança comportamental                          | Skill `tdd-change` e matriz do REVIEW                                                                                                                             |
+| Textos traduzíveis                              | Skill `i18n-dictionary`                                                                                                                                           |
+| Dependências                                    | [Manutenção](docs/operations/DEPENDENCIAS.md) e skill `dependency-maintenance`                                                                                    |
+| Publicação, credenciais ou recuperação          | Documentos de `docs/operations`, começando pelo [ambiente](docs/operations/AMBIENTE-DE-PRODUCAO.md) e pelo [runbook de publicação](docs/operations/PUBLICACAO.md) |
+
+Consulte apenas o material pertinente ao escopo, sem tratar pendências como estado implementado. Os guias de `docs/guides` explicam o uso do aplicativo; contratos de implementação pertencem a `docs/development`.
 
 ## Interface de comandos
 
@@ -41,6 +59,8 @@ Essas operações só podem ser feitas quando o usuário pedir explicitamente a
 operação correspondente no turno atual. Autorização anterior não permanece para
 turnos seguintes. Inspeções Git somente leitura continuam permitidas.
 
+Não execute `git reset --hard`, `git clean -fd` ou descarte de alterações sem solicitação explícita.
+
 Não redesenhe áreas não relacionadas. Não crie uma arquitetura paralela para
 uma feature isolada.
 
@@ -62,24 +82,11 @@ uma skill em `.agents/skills/<nome>/SKILL.md` deve ter o equivalente em
 para os demais diretórios de agentes, como Codex. Depois de criar ou atualizar
 um espelho, mantenha as versões sincronizadas em alterações futuras.
 
-Todo texto que possa ser truncado visualmente deve expor seu conteúdo completo
-em um tooltip acessível por mouse e teclado. Use o primitive `Tooltip` do
-projeto e preserve o texto integral como conteúdo do tooltip; não dependa do
-atributo HTML `title`.
-
-Quando o tooltip apenas repete um texto já visível, use `whenTruncated` para
-que ele apareça somente enquanto o conteúdo estiver cortado. Tooltip que
-acrescenta informação, como rótulo de controle apenas com ícone, continua
-sempre visível.
-
-Tooltip de ação descreve somente a ação, como "Mais ações" ou "Atribuir
-categoria", sem identificar o item afetado no formato "ação: nome". A
-identificação do item, quando necessária para distinguir controles repetidos,
-fica no nome acessível. Só inclua o item no tooltip quando o usuário pedir.
+A skill `frontend-design` é a fonte dos procedimentos e padrões de UI, inclusive tooltips, composição de toque e acessibilidade. `REVIEW.md` é a fonte dos critérios de aprovação. Mantenha referências em vez de copiar essas regras entre documentos.
 
 ## Arquitetura e simplicidade
 
-Respeite as fronteiras documentadas no README e a direção das dependências.
+Respeite as fronteiras da [arquitetura](docs/development/ARQUITETURA.md) e a direção das dependências.
 Regra de domínio não pertence à UI. Escritas IndexedDB passam por comandos de
 `src/lib/db`; não escreva diretamente em tabelas Dexie a partir de componentes.
 Acesso Supabase pertence a `src/lib/supabase` ou ao contrato de servidor
@@ -158,9 +165,11 @@ Preserve GitHub Free, Vercel Hobby e Supabase Free no ambiente atual.
 Não migre dados guest incidentalmente durante login. Guest e contas convidadas
 permanecem em escopos independentes; entrar em uma conta não autoriza enviar os
 dados locais ao Supabase. O contrato está em
-`docs/planning/MODOS-DE-ACESSO.md`.
+`docs/development/MODOS-DE-ACESSO.md`.
 
 ## Banco, API e segurança
+
+Nunca use credenciais, URL ou anon key de produção no ambiente local. Não leia, exponha, registre ou versione valores de secrets e arquivos de ambiente reais; consulte os exemplos e o inventário de nomes, finalidades e consumidores.
 
 Trate `supabase/schemas/tick.sql` como fonte declarativa. Gere migrations por
 diff, revise o SQL e valide banco limpo, constraints, RLS, policies e
@@ -196,48 +205,9 @@ manualmente.
 
 ## UI, mobile e acessibilidade
 
-Projete mobile-first e depois expanda. Avalie touch targets, teclado virtual,
-overflow, scroll, conteúdo longo, loading, vazio, erro e desktop. Quando mobile
-precisar de composição diferente, preserve semântica e regra de negócio em vez
-de comprimir o desktop.
+Use a [skill de frontend](.agents/skills/frontend-design/SKILL.md) para desenho, implementação e revisão. Ela concentra os padrões de controles, superfícies, tipografia, tooltips, formulários, foco e adaptação ao toque. As regras detalhadas ficam em suas referências, sem uma segunda especificação neste arquivo.
 
-A adaptação mobile não pode alterar o desenho desktop existente. Use os sinais
-já adotados pelo projeto em vez de criar breakpoints novos:
-
-- `(pointer: coarse)`, por CSS ou pelo hook `useCoarsePointer`, para interação
-  e área de toque;
-- largura medida em runtime, para densidade, quando o layout já mede o
-  container;
-- a conjunção dos dois, pela variante `touch:` e pelo hook
-  `useTouchComposition`, para escolher composição de toque.
-
-Em código novo, escreva a base igual ao desenho desktop atual e use `touch:`
-como override; nunca escreva `sm:` e `touch:` na mesma propriedade. Composição
-mobile legada escrita com utilitários continua obrigada a restaurar o valor
-desktop atual a partir de `sm:`. Em qualquer caminho, nada pode mudar de 640px
-para cima com ponteiro fino. Alvo de toque
-mínimo é 44px em ponteiro grosso e deve ser obtido ampliando a área de acerto,
-com `touch-target`, sem aumentar o tamanho pintado do controle. Controle com
-desenho menor que 44px precisa de `touch-target`. Interação por arrasto precisa
-de caminho equivalente no toque; HTML5 drag and drop sozinho não atende.
-
-Botões seguem o padrão preenchido e sem borda descrito na Skill
-`frontend-design`: pill com texto, redondo só com ícone. Campos de formulário
-usam `FormField` ou `FormTextareaField`, com rótulo na borda.
-
-Reutilize primitives, tokens e padrões antes de criar componentes. Não force
-reutilização sem equivalência semântica. Preserve a linguagem visual e não
-redesenhe telas sem pedido.
-
-Prefira hierarquia, espaço, alinhamento e contraste a bordas. Evite caixas em
-excesso e cards aninhados. Containers de tarefas, etapas, metas e grupos usam
-superfície e sombra, sem borda padrão. Quando necessária, use os primitives de
-ring existentes; para traço, use `DashedRing`.
-
-Formulários controlados usam `noValidate` e feedback do app. Não use
-`window.alert`, `window.confirm` ou `window.prompt`. Inputs estruturados devem
-desabilitar assistência automática quando adequado. Preserve foco, teclado,
-semântica, nome acessível e contraste.
+Preserve a linguagem visual e o desenho desktop em adaptações mobile. Não redesenhe áreas sem pedido. Regra de negócio, dados e semântica devem ser os mesmos nas composições desktop e toque. Uma divergência existente não autoriza perpetuar o erro; registre a correção fora do escopo em PENDENCIAS e aplique os critérios do REVIEW às alterações solicitadas.
 
 ## i18n, datas e timezone
 
@@ -271,8 +241,9 @@ gates funcionais, de segurança e de integridade do REVIEW.
 
 ## Documentação e conclusão
 
-Atualize o README quando mudar estado real, setup, arquitetura, comandos,
-integrações ou operação. Atualize AGENTS quando mudar como o agente trabalha e
+Atualize o README quando mudar a apresentação ou as capacidades do produto.
+Setup e comandos ficam no guia de desenvolvimento; arquitetura e contratos,
+nos documentos técnicos; uso, nos guias; configuração e operação, nos runbooks. Atualize AGENTS quando mudar como o agente trabalha e
 REVIEW quando mudar gates. Atualize a Skill quando mudar seu procedimento e
 mantenha os espelhos sincronizados. Documentação detalhada fica em `docs/`.
 

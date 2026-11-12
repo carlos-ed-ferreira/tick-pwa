@@ -47,8 +47,9 @@ A Vercel usa uma conta pessoal no plano Hobby, sem time. `VERCEL_TOKEN`,
 cadastrados no environment GitHub `production`, com presença confirmada pelos
 metadados de secrets, assim como os outros cinco secrets abaixo: o environment
 tem oito secrets, listados por nome e data com `make production-secrets-status`.
-O Deploy Hook antigo foi removido do GitHub e revogado na Vercel em 2026-11-05,
-depois da primeira publicação validada pela API. Cadastro confirma a existência do nome; validade e escopo são conferidos
+Não há Deploy Hook ativo cadastrado para publicação: o hook anterior está
+revogado e a publicação usa somente a API. Cadastro confirma a existência do
+nome; validade e escopo são conferidos
 pelos respectivos consumidores. Os tokens de integração criados manualmente
 pelo proprietário, incluindo `VERCEL_TOKEN` e `SUPABASE_ACCESS_TOKEN`, estão
 configurados sem expiração automática, conforme informado pelo proprietário.
@@ -239,3 +240,15 @@ GitHub, Supabase ou Vercel. A conta local que executa `make publish` precisa
 ter permissão de disparo de Actions, além das permissões de PR e conteúdo.
 Durante instabilidade conhecida, avaliar adiamento de publicações com migration.
 Não limpar IndexedDB nem enfraquecer acesso para contornar falha de infraestrutura.
+
+## Consultas de configuração e estado
+
+O domínio canônico `tickapp.com.br` redireciona para `www.tickapp.com.br`. Previews não recebem configuração do Supabase de produção. A configuração de publicação e os critérios do SHA estão no [runbook de publicação](PUBLICACAO.md); os gates pertencem ao [REVIEW](../../REVIEW.md).
+
+```sh
+make production-release-status
+make production-secrets-status
+make main-ruleset-status
+```
+
+O primeiro comando consulta nomes e datas dos secrets da API Vercel; o segundo lista os secrets do environment `production`; o terceiro consulta os checks obrigatórios da `main`. Eles não exibem valores. Falhas do App CI em push na `main` abrem ou comentam issue `ci-failure` atribuída ao proprietário. Os valores das credenciais permanecem nos provedores e no cofre do proprietário.

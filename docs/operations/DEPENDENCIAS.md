@@ -4,7 +4,7 @@
 
 `package.json` declara dependências e overrides; `package-lock.json` fixa a
 resolução reproduzível. Os requisitos de Node e as versões principais estão
-no README. O Makefile é a interface de instalação, consulta, atualização e gates.
+no [guia de desenvolvimento](../development/DESENVOLVIMENTO.md). O Makefile é a interface de instalação, consulta, atualização e gates.
 
 ```sh
 make install-ci

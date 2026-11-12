@@ -107,21 +107,22 @@ de domínio rejeita UI, Dexie e Supabase; imports dinâmicos exigem revisão man
 
 ## Matriz de testes por tipo de mudança
 
-| Mudança                     | Evidência mínima                                                         |
-| --------------------------- | ------------------------------------------------------------------------ |
-| regra pura, data, validação | unit test RED/GREEN, typecheck e lint                                    |
-| comando Dexie               | integração com fake-indexeddb, escopo guest e user quando aplicável      |
-| auth/RLS                    | caso positivo, negativas entre usuários, pgTAP e integração              |
-| sync/local-first            | offline, reload, retry, duplicação, conflito, reconexão e dois usuários  |
-| migration Dexie             | upgrade desde a versão afetada e preservação de escopos                  |
-| migration Postgres          | reset limpo, lint, pgTAP, dry-run e compatibilidade de rollout           |
-| componente                  | unit/component, teclado, loading, vazio, erro e i18n                     |
-| fluxo visual                | E2E desktop e mobile, overflow e conteúdo longo, uma vez ao concluir     |
-| ajuste puramente visual     | testes existentes ajustados e `make check`; E2E se mudar layout          |
-| adaptação mobile            | `make test-e2e-mobile`, área de toque, toque em vez de hover e densidade |
-| PWA                         | build, instalação/fallback e atualização sem perda local                 |
-| bugfix                      | teste que falha sem a correção e passa com ela                           |
-| dependência                 | audit, lockfile revisado, gates completos e teste do caminho afetado     |
+| Mudança                     | Evidência mínima                                                                                                                                      |
+| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| documentação e skills       | `make check-docs`, formatação, links/âncoras, recursos e espelhos válidos; secrets quando aplicável; sem suíte do app se não houver mudança funcional |
+| regra pura, data, validação | unit test RED/GREEN, typecheck e lint                                                                                                                 |
+| comando Dexie               | integração com fake-indexeddb, escopo guest e user quando aplicável                                                                                   |
+| auth/RLS                    | caso positivo, negativas entre usuários, pgTAP e integração                                                                                           |
+| sync/local-first            | offline, reload, retry, duplicação, conflito, reconexão e dois usuários                                                                               |
+| migration Dexie             | upgrade desde a versão afetada e preservação de escopos                                                                                               |
+| migration Postgres          | reset limpo, lint, pgTAP, dry-run e compatibilidade de rollout                                                                                        |
+| componente                  | unit/component, teclado, loading, vazio, erro e i18n                                                                                                  |
+| fluxo visual                | E2E desktop e mobile, overflow e conteúdo longo, uma vez ao concluir                                                                                  |
+| ajuste puramente visual     | testes existentes ajustados e `make check`; E2E se mudar layout                                                                                       |
+| adaptação mobile            | `make test-e2e-mobile`, área de toque, toque em vez de hover e densidade                                                                              |
+| PWA                         | build, instalação/fallback e atualização sem perda local                                                                                              |
+| bugfix                      | teste que falha sem a correção e passa com ela                                                                                                        |
+| dependência                 | audit, lockfile revisado, gates completos e teste do caminho afetado                                                                                  |
 
 ## Local-first da conta autenticada
 
@@ -191,6 +192,8 @@ Acompanhamento de quotas é manual pelo proprietário, sem nova automação exig
 
 ## Revisão visual
 
+A fonte dos padrões de desenho e implementação é a [skill de frontend](.agents/skills/frontend-design/SKILL.md), com [padrões visuais](.agents/skills/frontend-design/references/PADROES-VISUAIS.md) e [mapa de telas](.agents/skills/frontend-design/references/MAPA-DE-TELAS.md). Esta seção define a evidência de aprovação, sem duplicar o procedimento da skill.
+
 Para UI alterada, registrar viewport mobile e desktop e verificar:
 
 - desenho desktop inalterado de 640px para cima;
@@ -204,6 +207,8 @@ Para UI alterada, registrar viewport mobile e desktop e verificar:
 - consistência com primitives, tokens e terminologia;
 - ausência de bordas, caixas e cards aninhados sem função;
 - composição de toque própria validada nos dois desenhos, sem alterar o desktop.
+
+Auditorias devem distinguir observação no navegador, reprodução com fixtures e inspeção estática. Estados não observados precisam ser explicitados; divergências fora do escopo entram em PENDENCIAS. Uma auditoria pode produzir achados sem alterar a UI, e sua execução não equivale à aprovação visual do aplicativo.
 
 Screenshot isolado não substitui interação. Mudança visual relevante deve ter
 evidência nos dois tamanhos; layout mobile próprio exige testes dos dois

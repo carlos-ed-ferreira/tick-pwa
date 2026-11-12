@@ -1,131 +1,46 @@
 ---
 name: frontend-design
 description: >-
-  Decidir o desenho visual de telas, fluxos e superfícies novas do Tick antes de implementar. Usar ao projetar layout, hierarquia, uso de cor, tipografia, densidade, estados e paleta.
+  Projetar, implementar ou revisar interfaces do Tick preservando os padrões visuais, os componentes, a acessibilidade e a composição desktop/toque. Usar em telas, componentes, formulários, menus, modais e interações visuais.
 ---
 
-# Frontend design
+# Frontend design do Tick
 
-Esta Skill cobre a decisão de desenho. A execução, o reuso de primitives, a
-acessibilidade e a validação final seguem a Skill `ui-consistency`.
+## Escolher as referências
 
-## Enquadrar antes de desenhar
+Leia [AGENTS](../../../AGENTS.md) para autoridade e limites e [REVIEW](../../../REVIEW.md#revisão-visual) para aceitação. Consulte os [padrões visuais](references/PADROES-VISUAIS.md) nas famílias afetadas e o [mapa de telas](references/MAPA-DE-TELAS.md) para localizar implementações equivalentes. A arquitetura está em [Arquitetura](../../../docs/development/ARQUITETURA.md).
 
-1. Nomear o objetivo da tela, a ação principal e a decisão que o usuário toma
-   nela.
-2. Listar os dados reais, incluindo o caso vazio, o caso denso e o texto longo.
-3. Ler as regras de UI em `../../../AGENTS.md` e os critérios de
-   `Revisão visual` em `../../../REVIEW.md`.
-4. Procurar tela equivalente já existente e reaproveitar sua estrutura antes de
-   propor uma nova.
+Esta skill reúne decisão de desenho, implementação e revisão. Na tarefa normal, examine o contexto afetado; a auditoria completa do sistema não é requisito para cada edição. Siga o escopo pedido e preserve o desenho desktop quando a mudança for de adaptação mobile.
 
-Não redesenhar áreas não solicitadas. Uma feature isolada não justifica uma
-linguagem visual paralela.
+## Enquadrar e decidir
 
-## Compor a hierarquia
+1. Identifique objetivo, ação principal, dados e contexto de uso da superfície.
+2. Localize o primitive, token ou composição equivalente antes de criar outro.
+3. Defina hierarquia, densidade, estados e diferenças desktop/toque com conteúdo real, inclusive vazio e texto longo.
+4. Registre escolhas que mudem composição, interação ou semântica. Uma exceção precisa de justificativa funcional; repetição acidental no código não cria um padrão.
 
-- Estabelecer a ordem de leitura com espaço, alinhamento, tamanho e contraste
-  antes de recorrer a borda, caixa ou card.
-- Containers de tarefas, etapas, metas e grupos usam superfície e sombra, sem
-  borda padrão: `card-surface`, `card-surface-soft`, `card-surface-strong`,
-  `modal-surface` e `modal-panel`.
-- Quando um traço for necessário, usar os rings existentes; para traço
-  interrompido, `DashedRing`.
-- Evitar cards aninhados e uma caixa por bloco de conteúdo.
-- Uma ação primária por contexto; o resto é secundário ou apenas ícone.
+## Implementar com o padrão existente
 
-## Decidir tipografia e densidade
+- Use o tema escuro único, a escala quente de âmbar e os neutros existentes.
+- Componha com superfícies e sombra; campos e seletores têm rings próprios. Evite caixas aninhadas que não representam um novo contexto.
+- Use controles preenchidos: pill com texto, redondo só com ícone. Escolha a variante por papel, não por preferência da tela.
+- Em formulários, use `FormField`/`FormTextareaField`, `noValidate` e feedback do app. Edição inline mantém input simples.
+- Todo texto truncável oferece conteúdo integral no `Tooltip`, acessível por mouse e teclado; use `whenTruncated` quando o tooltip repete o texto. Tooltip de ação descreve a ação; a identidade do item fica no nome acessível.
+- Reutilize sem forçar equivalência semântica. Extraia componentes por responsabilidade ou repetição real; uma tela isolada não justifica uma arquitetura paralela.
+- Preserve domínio e dados entre composições. Mudanças comportamentais seguem a skill [TDD](../tdd-change/SKILL.md); persistência segue [Local-first](../local-first-change/SKILL.md); textos novos seguem [i18n](../i18n-dictionary/SKILL.md).
 
-- Usar o primitive `Text` e suas variantes de `size`, `tone`, `weight` e
-  `leading` em vez de classes soltas.
-- Diferenciar nível por peso e tom antes de aumentar o tamanho.
-- Texto de apoio usa `tone="muted"`; não criar cinzas fora dos tokens.
-- Definir a densidade pelo conteúdo real, não pelo mockup vazio.
-- Todo texto que possa truncar expõe o conteúdo completo em `Tooltip` com
-  `whenTruncated`; rótulo apenas de ícone usa tooltip sempre visível.
+## Adaptar ao toque
 
-## Usar a paleta
+A base nova corresponde ao desktop atual; `touch:` aplica os overrides de composição. A consulta canônica é `(pointer: coarse) and (max-width: 899.98px)` em `useTouchComposition` e `globals.css`. Use `useCoarsePointer` para capacidade de interação e largura medida para densidade.
 
-O Tick tem um único tema, o escuro, independente da configuração do sistema. Os
-tokens de `src/app/globals.css` são a fonte da paleta. Restrições permanentes:
+Nunca misture `sm:` e `touch:` na mesma propriedade nova. Composições legadas continuam restaurando o desenho desktop por `sm:`. Preserve o desenho existente de 640px para cima com ponteiro fino.
 
-- o âmbar `#f0c38e` e sua escala quente são fixos;
-- escuros e neutros saem do hue 212°, complementar do âmbar;
-- roxo e teal não compõem a paleta base permitida;
-- rose de erro, emerald de sucesso, rampa de progresso, cores de categoria e a
-  marca Google ficam fora da paleta e não se alteram.
+`useTouchComposition` escolhe DOM diferente somente quando necessário e dentro de caixa com altura já fixada nos dois ramos; o chrome da página muda por CSS para evitar deslocamento na hidratação. Alvos menores que 44px usam `touch-target`, ampliando a área de acerto, não o tamanho pintado. Arrasto e hover precisam de alternativa no toque. Preserve safe areas, espaço do rodapé, rolagem e recuperação de foco.
 
-Ao derivar um tom novo, casar a luminância relativa WCAG do tom substituído, e
-não a lightness HSL, amortecendo a saturação nos extremos. Conferir contraste de
-texto, ícone e estado de foco.
+## Revisar e validar
 
-O `<main>` pinta `bg-background` sobre o gradiente do `body`; em `/calendar` e
-`/goals` o que aparece é o overlay radial da própria página. Ajustar o fundo
-dessas telas ali, não apenas no `body`.
+Compare a alteração com as referências da mesma família, diferenciando padrão, exceção e divergência. Exercite teclado, foco, toque, rolagem, dois idiomas, conteúdo longo e estados aplicáveis; screenshot isolada não comprova interação nem conta offline.
 
-## Desenhar controles
+Use a matriz do REVIEW para selecionar os gates. Durante ajustes comportamentais, use `make test-file files="<arquivos>"`; ao concluir implementação, `make check` uma vez. Layout ou fluxo alterado exige E2E desktop/mobile; adaptação ao toque inclui `make test-e2e-mobile`. Execute sem paralelismo com build/check. Mudança documental segue os gates documentais.
 
-- Botões são preenchidos e sem borda: pill quando têm texto e redondos quando
-  têm só ícone. Usar `filledPillControlClassName`, `filledRoundControlClassName`
-  e `FilledIconButton` de `src/components/ui`, com preenchimento neutro,
-  destaque em âmbar ou perigo em rose.
-- Ações de barra, como importar, criar e limpar, usam preenchimento
-  translúcido e o pill compacto: `filledCompactPillControlClassName` com
-  `filledControlNeutralClassName`, `filledControlAccentClassName` âmbar ou
-  `filledControlDangerClassName` rose. Âmbar sólido fica para a opção ativa de
-  pill tabs e para a ação primária de modal.
-- Controles preenchidos elevam levemente no hover, com
-  `hover:-translate-y-0.5` e `hover:shadow-md`.
-- Escolha entre opções exclusivas, como seções ou ativas e arquivadas, usa pill
-  tabs: `pillTabListClassName`, `pillTabClassName` e `activePillTabClassName`,
-  com a opção ativa em âmbar preenchido.
-- Ações de modal usam `ModalActionButton`, preenchido e sem borda; a ação
-  primária usa âmbar. O fechar do modal é redondo e preenchido.
-- Ícone-botão denso, como ações de linha e barra compacta, usa `IconButton`
-  com `rounded-full`, para o hover também ser redondo. O `IconButton` só aplica
-  `rounded-md` quando o `className` não define raio.
-  O tamanho vem da prop `size`, nunca de `size-*` no `className`; o lint rejeita
-  esse uso.
-- Voltar é pill com o texto curto do dicionário `actions.back`.
-- Campos de formulário usam `FormField` ou `FormTextareaField`, com o rótulo
-  recortado na borda, que funciona sobre qualquer superfície. Controle dentro
-  do campo, como o calendário do `DatePicker`, entra por `endAdornment`.
-  Edição inline em listas, como textos de tarefas e nomes de categorias,
-  mantém input simples, sem rótulo na borda.
-
-## Projetar os estados
-
-Desenhar, no mesmo passo, carregamento, vazio, sucesso, erro, indisponibilidade
-de rede e conteúdo excedente. O estado vazio explica o próximo passo. O erro
-oferece recuperação. Ação local confirma antes da rede e a falha remota precisa
-de feedback visível.
-
-Toda string nova entra nos dicionários `pt-BR` e `en` na mesma mudança; o
-desenho precisa caber no texto mais longo dos dois idiomas.
-
-## Desenhar mobile-first sem mover o desktop
-
-1. Resolver hierarquia, ação principal e alcance do polegar no viewport pequeno.
-2. Expandir para desktop preservando o desenho atual de 640px para cima.
-3. Escrever o utilitário novo com a base igual ao desktop atual e a variante
-   `touch:` como override; a consulta é
-   `(pointer: coarse) and (max-width: 899.98px)`, com fonte única em
-   `src/hooks/use-touch-composition.ts`. Nunca misturar `sm:` e `touch:` na
-   mesma propriedade.
-4. Usar `useTouchComposition` apenas quando o DOM precisar ser estruturalmente
-   outro, e só dentro de caixa cuja altura já esteja fixada nos dois ramos; o
-   chrome de página sai por CSS, para não deslocar o layout na hidratação.
-5. Reservar `useCoarsePointer` para afordância de toque pura e a largura medida
-   em runtime para densidade.
-6. Obter os 44px de alvo com `touch-target`, sem aumentar o desenho do controle.
-7. Dar caminho equivalente por toque a arrasto e a hover; menu ancorado que
-   dependa de hover vira folha inferior (`BottomSheet`) no toque.
-
-## Fechar a decisão
-
-Registrar as escolhas de hierarquia, tokens, estados e composição mobile antes
-de implementar; implementar pela Skill `ui-consistency`; validar com
-`make test-file` durante o trabalho e `make check` ao concluir e, quando o
-layout, a responsividade ou o fluxo de navegador forem afetados, rodar uma vez
-`make test-e2e` e `make test-e2e-mobile`; registrar a evidência visual exigida
-pelo REVIEW nos dois tamanhos.
+A evidência de uma auditoria fica na entrega e em artefatos temporários. Pendências reais entram somente em [PENDENCIAS](../../../docs/planning/PENDENCIAS.md), com origem, estado e critério de resolução. O mapa permanente descreve superfícies e regras atuais, sem histórico de resultados.

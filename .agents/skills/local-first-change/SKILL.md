@@ -12,7 +12,8 @@ Validar guest separadamente; seus testes não comprovam a conta offline.
 
 ## Delimitar o contrato
 
-1. Ler os fluxos atuais no `../../../README.md`, as regras em
+1. Ler os fluxos atuais em `../../../docs/development/SINCRONIZACAO.md`, os modos
+   em `../../../docs/development/MODOS-DE-ACESSO.md`, as regras em
    `../../../AGENTS.md` e a matriz local-first em `../../../REVIEW.md`.
 2. Mapear entidade, comando de `src/lib/db`, tabela Dexie, mapeador Supabase,
    tabela Postgres e testes existentes.
