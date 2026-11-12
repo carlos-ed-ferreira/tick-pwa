@@ -1,15 +1,15 @@
-# Guia e contrato da importação JSON de tarefas do calendário
+# Importação de tarefas por JSON
 
-Este documento descreve o uso da interface, o contrato de entrada, as
-validações e o comportamento local-first da importação JSON do calendário.
+[Apresentação do Tick](../../README.md) · [Tarefas do dia](TAREFAS-DO-DIA.md)
+
+Este guia descreve como inserir tarefas pelo calendário, o formato de entrada e as validações apresentadas pelo aplicativo.
 
 Permite adicionar tarefas a vários dias colando um JSON pronto, em vez de
 digitar tarefa por tarefa.
 
-Em `/calendar`, use o botão **Importar JSON** na barra de ações (ao lado de
-"Criar em lote" e "Limpar em lote"). O modal abre com um campo de texto: cole o
-JSON, confirme em **Importar** e o app valida, cria as categorias que faltarem e
-grava as tarefas nos dias informados.
+Em **Tarefas do dia**, no computador, use **Importar JSON** na barra de ações. No celular, abra **Opções do calendário** e escolha **Importar JSON**. Cole o JSON no campo e confirme em **Importar**. O app valida, cria as categorias que faltarem e grava as tarefas nos dias informados.
+
+O formato JSON é independente do idioma: datas usam `AAAA-MM-DD` e horários usam 24 horas. Em inglês, a interface pode mostrar mês/dia e AM/PM sem mudar esse contrato de importação.
 
 ## Formato recomendado
 
@@ -93,10 +93,8 @@ A categoria é informada pelo nome e pela cor:
 
 ## Modo local e modo com conta
 
-- **Sem conta**: tudo é gravado apenas no IndexedDB do dispositivo e nada é
-  enviado ao Supabase.
-- **Com conta**: as tarefas e as categorias criadas são gravadas primeiro no
-  cache local e depois enviadas ao Supabase, associadas ao usuário autenticado.
+- **Sem conta**: os dados ficam apenas neste navegador e dispositivo, sem cópia remota.
+- **Com conta**: as tarefas e categorias são salvas localmente e sincronizadas conforme o caminho habilitado para a conta. O [contrato técnico](../development/SINCRONIZACAO.md) descreve as diferenças de persistência e recuperação.
 
 Como os dois modos usam escopos separados, uma importação feita sem conta não
 aparece na conta autenticada, e vice-versa.

@@ -105,7 +105,9 @@ function RowAnswerControls({
   const answerProps = { canAnswer, name, status, onAnswer };
 
   return (
-    <span className="ml-1 flex shrink-0 items-center gap-1 touch:ml-auto">
+    <span
+      className={`ml-1 flex shrink-0 items-center gap-1 touch:ml-auto touch:gap-3 ${measure ? 'touch:ml-0 touch:w-full touch:px-2' : ''}`}
+    >
       {measure ? (
         <QuantityAnswer
           canAnswer={canAnswer}
@@ -168,29 +170,20 @@ function RecurringRow({
   return (
     <TaskTreeRowLayout
       categoryColorHex={category?.colorHex}
+      className="touch:flex-wrap touch:gap-y-1 touch:px-2 touch:py-2"
       depth={depth}
       isPriority={isPriority}
     >
-      <TaskTreeCollapseButton
-        collapseLabel={dictionary.dayEditor.collapseItem}
-        expandLabel={dictionary.dayEditor.expandItem}
-        hasChildren={hasChildren}
-        isCollapsed={isCollapsed}
-        onClick={onToggleCollapsed}
-      />
-      <span
-        className={`min-w-0 flex-1 px-2 py-1 text-sm whitespace-pre-wrap wrap-anywhere text-[#fff9f2] touch:order-last touch:basis-full ${
-          bold ? 'font-bold' : ''
-        }`}
-      >
-        {name}
-      </span>
-      {category ? (
-        <TaskTreeCategoryChip
-          colorHex={category.colorHex}
-          name={category.name}
+      <div className={hasChildren ? 'contents' : 'contents touch:hidden'}>
+        <TaskTreeCollapseButton
+          collapseLabel={dictionary.dayEditor.collapseItem}
+          expandLabel={dictionary.dayEditor.expandItem}
+          hasChildren={hasChildren}
+          isCollapsed={isCollapsed}
+          onClick={onToggleCollapsed}
         />
-      ) : null}
+      </div>
+      <OccurrenceIdentity name={name} bold={bold} category={category} />
       <RowAnswerControls
         canAnswer={canAnswer}
         measure={measure}
@@ -201,6 +194,36 @@ function RecurringRow({
         onRecordQuantity={onRecordQuantity}
       />
     </TaskTreeRowLayout>
+  );
+}
+
+function OccurrenceIdentity({
+  name,
+  bold,
+  category,
+}: {
+  name: string;
+  bold: boolean;
+  category?: { colorHex: string; name: string };
+}) {
+  return (
+    <div className="contents touch:flex touch:min-w-0 touch:flex-1 touch:items-center touch:justify-between touch:gap-2 touch:pl-2">
+      <span
+        className={`min-w-0 flex-1 px-2 py-1 text-sm whitespace-pre-wrap wrap-anywhere text-[#fff9f2] touch:px-0 touch:py-0 touch:text-base touch:leading-6 ${
+          bold ? 'font-bold' : ''
+        }`}
+      >
+        {name}
+      </span>
+      {category ? (
+        <div className="contents touch:flex touch:min-w-0 touch:max-w-[45%] touch:shrink-0">
+          <TaskTreeCategoryChip
+            colorHex={category.colorHex}
+            name={category.name}
+          />
+        </div>
+      ) : null}
+    </div>
   );
 }
 

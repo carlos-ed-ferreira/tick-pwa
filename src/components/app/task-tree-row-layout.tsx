@@ -10,6 +10,7 @@ import { toAlphaColor } from '@/lib/color';
 export function TaskTreeRowLayout({
   categoryColorHex,
   children,
+  className = '',
   depth,
   dropPosition,
   isDragging = false,
@@ -24,6 +25,7 @@ export function TaskTreeRowLayout({
 }: {
   categoryColorHex?: string;
   children: ReactNode;
+  className?: string;
   depth: number;
   dropPosition?: TreeMovePlacement | null;
   isDragging?: boolean;
@@ -36,21 +38,16 @@ export function TaskTreeRowLayout({
   onDrop?: DragEventHandler<HTMLDivElement>;
   parentId?: string | null;
 }) {
-  const style: CSSProperties = {
-    paddingLeft: `${depth * 14}px`,
-    backgroundColor: isSelected
-      ? 'rgba(240, 195, 142, 0.12)'
-      : categoryColorHex
-        ? toAlphaColor(categoryColorHex, 0.12)
-        : undefined,
-    boxShadow: isPriority
-      ? 'inset 4px 0 0 0 rgba(240, 195, 142, 1), inset 0 0 18px rgba(240, 195, 142, 0.12)'
-      : undefined,
-  };
+  const style = getRowStyle({
+    depth,
+    isSelected,
+    categoryColorHex,
+    isPriority,
+  });
 
   return (
     <div
-      className={`group relative flex min-h-11 min-w-0 items-center gap-1 rounded-lg touch:flex-wrap inset-ring-hairline inset-ring-transparent pr-1 transition hover:inset-ring-white/[0.08] hover:bg-white/[0.055] ${
+      className={`group relative flex min-h-11 min-w-0 items-center gap-1 rounded-lg touch:gap-1 touch:py-0.5 touch:pl-[min(var(--tree-row-indent),2.25rem)]! inset-ring-hairline inset-ring-transparent pr-1 transition hover:inset-ring-white/[0.08] hover:bg-white/[0.055] ${
         isDragging ? 'opacity-45' : ''
       } ${
         dropPosition === 'child'
@@ -58,7 +55,7 @@ export function TaskTreeRowLayout({
           : dropPosition
             ? 'bg-[#f0c38e]/[0.055]'
             : ''
-      } ${dropPosition ? 'z-10' : ''}`}
+      } ${dropPosition ? 'z-10' : ''} ${className}`}
       data-tree-row
       data-drop-position={dropPosition ?? undefined}
       {...{
@@ -88,4 +85,29 @@ export function TaskTreeRowLayout({
       {children}
     </div>
   );
+}
+
+function getRowStyle({
+  depth,
+  isSelected,
+  categoryColorHex,
+  isPriority,
+}: {
+  depth: number;
+  isSelected: boolean;
+  categoryColorHex?: string;
+  isPriority: boolean;
+}): CSSProperties {
+  return {
+    '--tree-row-indent': `${depth * 14}px`,
+    paddingLeft: `${depth * 14}px`,
+    backgroundColor: isSelected
+      ? 'rgba(240, 195, 142, 0.12)'
+      : categoryColorHex
+        ? toAlphaColor(categoryColorHex, 0.12)
+        : undefined,
+    boxShadow: isPriority
+      ? 'inset 4px 0 0 0 rgba(240, 195, 142, 1), inset 0 0 18px rgba(240, 195, 142, 0.12)'
+      : undefined,
+  } as CSSProperties;
 }

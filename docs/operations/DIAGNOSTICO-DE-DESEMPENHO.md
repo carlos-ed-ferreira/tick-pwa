@@ -1,4 +1,4 @@
-# Capacidade local da coorte de convidados
+# Diagnóstico de desempenho
 
 ## Escopo
 

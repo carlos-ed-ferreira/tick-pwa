@@ -6,6 +6,7 @@ import {
   getPerformanceRange,
   validatePerformanceRange,
   type LocalDateString,
+  type SupportedLocale,
   type PerformanceRangeError,
   type RecurrencePerformanceSort,
 } from '@/lib/domain';
@@ -28,9 +29,13 @@ export interface PerformanceFilters {
   setSort: (sort: RecurrencePerformanceSort) => void;
 }
 
-function resolveCustomRange(customStart: string, customEnd: string) {
-  const startDate = parseDateInputValue(customStart);
-  const endDate = parseDateInputValue(customEnd);
+function resolveCustomRange(
+  customStart: string,
+  customEnd: string,
+  locale: SupportedLocale,
+) {
+  const startDate = parseDateInputValue(customStart, locale);
+  const endDate = parseDateInputValue(customEnd, locale);
 
   if (!startDate || !endDate) {
     return { range: null, rangeError: 'invalid' as const };
@@ -45,27 +50,28 @@ function resolveCustomRange(customStart: string, customEnd: string) {
 
 export function usePerformanceFilters(
   today: LocalDateString,
+  locale: SupportedLocale = 'pt-BR',
 ): PerformanceFilters {
   const [period, setPeriodState] = useState<PerformancePeriod>('30');
-  const [customStart, setCustomStart] = useState('');
-  const [customEnd, setCustomEnd] = useState('');
+  const [customStart, setCustomStart] = useDateInput(locale);
+  const [customEnd, setCustomEnd] = useDateInput(locale);
   const [categoryTabId, setCategoryTabId] = useState(ALL_CATEGORY_TAB_ID);
   const [sort, setSort] = useState<RecurrencePerformanceSort>('name');
   const resolved = useMemo(
     () =>
       period === 'custom'
-        ? resolveCustomRange(customStart, customEnd)
+        ? resolveCustomRange(customStart, customEnd, locale)
         : {
             range: getPerformanceRange(Number(period), today),
             rangeError: null,
           },
-    [customEnd, customStart, period, today],
+    [customEnd, customStart, locale, period, today],
   );
 
   function setPeriod(next: PerformancePeriod) {
     if (next === 'custom' && period !== 'custom' && resolved.range) {
-      setCustomStart(formatDateInputValue(resolved.range.startDate));
-      setCustomEnd(formatDateInputValue(resolved.range.endDate));
+      setCustomStart(formatDateInputValue(resolved.range.startDate, locale));
+      setCustomEnd(formatDateInputValue(resolved.range.endDate, locale));
     }
 
     setPeriodState(next);
@@ -84,4 +90,16 @@ export function usePerformanceFilters(
     setSort,
     sort,
   };
+}
+
+function useDateInput(locale: SupportedLocale) {
+  const [input, setInput] = useState({ locale, value: '' });
+  const parsed = parseDateInputValue(input.value, input.locale);
+  const value =
+    input.locale !== locale && parsed
+      ? formatDateInputValue(parsed, locale)
+      : input.value;
+  const setValue = (nextValue: string) =>
+    setInput({ locale, value: nextValue });
+  return [value, setValue] as const;
 }

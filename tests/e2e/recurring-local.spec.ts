@@ -143,6 +143,111 @@ test('records a partial amount and keeps it after a reload', async ({
   ).toHaveAttribute('aria-valuenow', '50');
 });
 
+test('separates quantitative progress from recurrence names and categories on touch', async ({
+  page,
+  isMobile,
+}) => {
+  test.skip(!isMobile, 'covers the touch composition');
+  await openRecurring(page);
+  const activities = [
+    { name: 'Walking', target: '3', unit: 'km', category: true },
+    {
+      name: 'Read a chapter and write a short summary',
+      target: '20',
+      unit: 'pages with annotations',
+      category: false,
+    },
+  ];
+  for (const [index, activity] of activities.entries()) {
+    if (index > 0) await showView(page, recurringLabels.activities);
+    await page
+      .getByRole('button', { name: recurringLabels.newActivity })
+      .click();
+    const editor = page.getByRole('dialog');
+    await editor.getByLabel(recurringLabels.nameLabel).fill(activity.name);
+    await editor
+      .getByRole('button', { name: /^(measure an amount|medir quantidade)$/i })
+      .first()
+      .click();
+    await editor
+      .getByLabel(/^(minimum target|meta mínima)$/i)
+      .fill(activity.target);
+    await editor.getByLabel(/^(unit|unidade)$/i).fill(activity.unit);
+    if (activity.category) {
+      await editor
+        .getByRole('button', {
+          name: /^(assign category|atribuir categoria)$/i,
+        })
+        .click();
+      await page
+        .locator('.modal-panel--flat')
+        .getByRole('button', { name: /^(health|saúde)$/i })
+        .click();
+    }
+    await editor.getByRole('button', { name: recurringLabels.save }).click();
+    await expect(editor).toBeHidden();
+  }
+  await showView(page, recurringLabels.execute);
+  const day = page.getByRole('region', { name: recurringLabels.dayView });
+  const walking = day.getByRole('group', { name: 'Walking', exact: true });
+  for (const [index, activity] of activities.entries()) {
+    const row = day.getByRole('group', { name: activity.name, exact: true });
+    await row
+      .getByRole('button', { name: /^(record amount|registrar quantidade):/i })
+      .click();
+    const quantity = page.getByRole('dialog');
+    await quantity
+      .getByLabel(/^(amount done|quantidade realizada)$/i)
+      .fill(index === 0 ? '2.4' : '10');
+    await quantity.getByRole('button', { name: recurringLabels.save }).click();
+    await expect(row.getByRole('progressbar')).toHaveAttribute(
+      'aria-valuenow',
+      index === 0 ? '80' : '50',
+    );
+  }
+
+  for (const width of [320, 360, 390, 430, 768]) {
+    await page.setViewportSize({ width, height: 915 });
+    for (const activity of activities) {
+      const row = day.getByRole('group', { name: activity.name, exact: true });
+      const title = await row
+        .getByText(activity.name, { exact: true })
+        .boundingBox();
+      const bar = await row.getByRole('progressbar').boundingBox();
+      const record = await row
+        .getByRole('button', {
+          name: /^(record amount|registrar quantidade):/i,
+        })
+        .boundingBox();
+      expect(title).not.toBeNull();
+      expect(bar).not.toBeNull();
+      expect(record).not.toBeNull();
+      expect(bar!.width).toBeGreaterThan(24);
+      expect(bar!.y).toBeGreaterThanOrEqual(title!.y + title!.height);
+      expect(bar!.x + bar!.width + 8).toBeLessThanOrEqual(record!.x);
+      if (activity.category) {
+        const badge = await row.getByText(/^(health|saúde)$/i).boundingBox();
+        expect(title!.height).toBeLessThanOrEqual(24);
+        expect(title!.x + title!.width).toBeLessThanOrEqual(badge!.x);
+        expect(badge!.y + badge!.height).toBeLessThanOrEqual(bar!.y);
+      }
+    }
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBe(true);
+  }
+  await walking
+    .getByRole('button', { name: /^(record amount|registrar quantidade):/i })
+    .click();
+  await expect(
+    page
+      .getByRole('dialog')
+      .getByLabel(/^(amount done|quantidade realizada)$/i),
+  ).toHaveValue('2.4');
+});
+
 test('keeps the performance history in the address', async ({ page }) => {
   await openRecurring(page);
   await createDailyActivity(page, 'Stretch');

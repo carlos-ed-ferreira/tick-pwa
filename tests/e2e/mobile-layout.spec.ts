@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test';
 import {
   enterLocalMode,
   firstChecklistInput,
+  firstGoalStepInput,
   labels,
   openMonthGrid,
 } from './helpers';
@@ -24,6 +25,140 @@ test.describe('mobile layout', () => {
 
       expect(hasHorizontalScroll, `${path} overflows horizontally`).toBe(false);
     }
+  });
+
+  test('keeps short task and step text beside completion and actions across touch widths', async ({
+    page,
+  }) => {
+    await enterLocalMode(page);
+    await page.getByRole('button', { name: labels.checklistEmpty }).tap();
+    await firstChecklistInput(page).fill('Read a chapter');
+    await firstChecklistInput(page).press('Enter');
+
+    const assertCompactRow = async (attribute: string) => {
+      const row = page
+        .locator('[data-tree-row]')
+        .filter({ has: page.locator(`[${attribute}="true"]`) })
+        .first();
+      await expect(row.locator(`[${attribute}="true"]`)).toHaveValue(
+        'Read a chapter',
+      );
+      const geometry = await row.evaluate((element) => {
+        const text = element.querySelector('textarea')!.getBoundingClientRect();
+        const checkbox = element
+          .querySelector('input[type="checkbox"]')!
+          .getBoundingClientRect();
+        const bounds = element.getBoundingClientRect();
+        return {
+          height: bounds.height,
+          textCenter: text.y + text.height / 2,
+          checkboxCenter: checkbox.y + checkbox.height / 2,
+        };
+      });
+      expect(geometry.height).toBeLessThanOrEqual(64);
+      expect(
+        Math.abs(geometry.textCenter - geometry.checkboxCenter),
+      ).toBeLessThanOrEqual(2);
+      expect(
+        await page.evaluate(
+          () => document.documentElement.scrollWidth <= innerWidth,
+        ),
+      ).toBe(true);
+    };
+
+    for (const width of [320, 360, 390, 430, 768]) {
+      await page.setViewportSize({ width, height: 915 });
+      await assertCompactRow('data-checklist-input');
+    }
+
+    await page.getByRole('link', { name: labels.goalsLink }).tap();
+    await page.getByRole('button', { name: labels.createGoal }).first().tap();
+    await page.getByRole('button', { name: labels.goalStepEmpty }).tap();
+    await firstGoalStepInput(page).fill('Read a chapter');
+    await firstGoalStepInput(page).press('Enter');
+    for (const width of [320, 360, 390, 430, 768]) {
+      await page.setViewportSize({ width, height: 915 });
+      await assertCompactRow('data-goal-step-input');
+    }
+  });
+
+  test('wraps long task titles without pushing controls or losing content', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 320, height: 640 });
+    await enterLocalMode(page);
+    await page.getByRole('button', { name: labels.checklistEmpty }).tap();
+    const title =
+      'Prepare a detailed presentation with references, examples and next steps for the community project';
+    await firstChecklistInput(page).fill(title);
+    await firstChecklistInput(page).press('Enter');
+    const input = firstChecklistInput(page);
+    await expect(input).toHaveValue(title);
+    const size = await input.evaluate((element) => ({
+      height: element.clientHeight,
+      content: element.scrollHeight,
+    }));
+    expect(size.height).toBeGreaterThan(24);
+    expect(size.content).toBeLessThanOrEqual(size.height + 1);
+    await page.getByRole('checkbox').first().tap();
+    await expect(page.getByRole('checkbox').first()).toBeChecked();
+    await page.reload();
+    await expect(firstChecklistInput(page)).toHaveValue(title);
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBe(true);
+  });
+
+  test('keeps category actions aligned and preference labels inside their buttons', async ({
+    page,
+  }) => {
+    await enterLocalMode(page);
+    await page.getByRole('button', { name: labels.checklistEmpty }).tap();
+    await firstChecklistInput(page).fill('Plan the week');
+    await firstChecklistInput(page).press('Enter');
+    for (const width of [320, 412, 768]) {
+      await page.setViewportSize({ width, height: 915 });
+      const signIn = page.getByRole('button', { name: 'Sign in', exact: true });
+      await expect(signIn.locator('span')).toBeVisible();
+      const categories = page.getByRole('button', { name: labels.categories });
+      const aligned = await categories.evaluate((button) => {
+        const parent = button.parentElement!.getBoundingClientRect();
+        return (
+          Math.abs(button.getBoundingClientRect().right - parent.right) <= 1
+        );
+      });
+      expect(aligned).toBe(true);
+      await page
+        .getByRole('button', { name: labels.configureTaskPreferences })
+        .tap();
+      const radios = page
+        .getByRole('radiogroup', { name: 'Task view', exact: true })
+        .getByRole('radio');
+      await expect(radios).toHaveCount(2);
+      for (const radio of await radios.all()) {
+        expect(
+          await radio.evaluate(
+            (button) =>
+              button.scrollWidth <= button.clientWidth &&
+              button.scrollHeight <= button.clientHeight,
+          ),
+        ).toBe(true);
+      }
+      await page.keyboard.press('Escape');
+    }
+    await page.goto('/goals');
+    const categories = page.getByRole('button', { name: labels.categories });
+    expect(
+      await categories.evaluate(
+        (button) =>
+          Math.abs(
+            button.getBoundingClientRect().right -
+              button.parentElement!.getBoundingClientRect().right,
+          ) <= 1,
+      ),
+    ).toBe(true);
   });
 
   test('opens the calendar on the week composition', async ({ page }) => {
@@ -112,7 +247,7 @@ test.describe('mobile layout', () => {
     await expect(page.locator('.calendar-day-cell')).toHaveCount(42);
   });
 
-  test('gives the task text its own line in the touch composition', async ({
+  test('keeps long task text between completion and actions', async ({
     page,
   }) => {
     await enterLocalMode(page);
@@ -130,7 +265,17 @@ test.describe('mobile layout', () => {
 
     expect(rowBox).not.toBeNull();
     expect(fieldBox).not.toBeNull();
-    expect(fieldBox!.width).toBeGreaterThan(rowBox!.width * 0.85);
+    const checkboxBox = await row.getByRole('checkbox').boundingBox();
+    const menuBox = await row
+      .getByRole('button', { name: labels.rowExtraOptions })
+      .boundingBox();
+    expect(checkboxBox).not.toBeNull();
+    expect(menuBox).not.toBeNull();
+    expect(fieldBox!.width).toBeGreaterThan(rowBox!.width * 0.65);
+    expect(checkboxBox!.x + checkboxBox!.width).toBeLessThanOrEqual(
+      fieldBox!.x,
+    );
+    expect(fieldBox!.x + fieldBox!.width).toBeLessThanOrEqual(menuBox!.x + 1);
   });
 
   test('expands icon control hit areas to the touch minimum', async ({
@@ -183,6 +328,13 @@ test.describe('mobile layout', () => {
     await input.fill('Mobile drag');
     await input.press('Enter');
 
+    await page
+      .getByRole('button', { name: labels.rowExtraOptions })
+      .first()
+      .tap();
+    await page
+      .getByRole('button', { name: /^(drag task|arrastar tarefa)$/i })
+      .tap();
     const dragHandle = page.locator('.tree-drag-handle').first();
     await expect(dragHandle).toBeVisible();
     await expect(dragHandle).toHaveCSS('touch-action', 'none');

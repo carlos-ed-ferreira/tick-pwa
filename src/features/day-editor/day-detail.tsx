@@ -86,7 +86,7 @@ export function DayDetail({
     <section className="grid gap-5 pt-4 touch:gap-3 touch:pt-2 sm:pt-5 lg:pt-6">
       <header className="flex flex-col gap-3 px-1 sm:grid sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-2 sm:px-0">
         <div className="flex min-w-0 flex-wrap items-center gap-2 sm:flex-nowrap">
-          <h2 className="min-w-0 truncate text-2xl font-semibold touch:text-lg">
+          <h2 className="min-w-0 text-2xl font-semibold touch:text-lg">
             {title}
           </h2>
           {entry ? (

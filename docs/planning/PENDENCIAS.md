@@ -186,3 +186,48 @@ A cobertura global medida permanece abaixo dos objetivos de 80% de linhas e
 Performance continua acompanhada pelo uso real. Os benchmarks existentes são
 diagnóstico opcional; não há gate novo de p95/p99, capacidade, margem estatística
 ou regressão percentual obrigatório a implementar.
+
+## Interface e acessibilidade
+
+### UI-01 — Remover interação aninhada nos cards de metas e grupos
+
+**P2 · confirmado na auditoria local e no código.** Origem: `make audit-ui`, visão geral preenchida de metas, e `src/features/goals/goal-card.tsx` / `goal-group-card.tsx`.
+
+Os cards usam `article` com `role="button"` e contêm controles interativos para ações próprias. O axe identifica `nested-interactive` (serious) e `aria-allowed-role` (minor). A tela vazia não reproduz o caso.
+
+- [ ] Separar a ação de abrir o card dos controles internos com semântica válida, preservando mouse, teclado, toque e organização dos cards.
+- [ ] Cobrir a visão preenchida com metas e grupos no E2E de acessibilidade, em desktop/mobile e nos dois idiomas.
+- [ ] Encerrar quando não houver esses achados e todos os controles forem alcançáveis e acionáveis independentemente.
+
+### UI-02 — Expor o título integral dos modais quando truncado
+
+**P2 · confirmado no código; reprodução com título longo a concluir.** Origem: `src/components/ui/dialog.tsx`, heading com `truncate` sem `Tooltip`.
+
+- [ ] Usar o primitive Tooltip com `whenTruncated`, preservando `aria-labelledby`, foco e o texto integral.
+- [ ] Validar título longo em 320px, mouse e teclado, sem tooltip redundante quando o título couber.
+
+### UI-03 — Localizar o fallback offline
+
+**P2 · confirmado no código e na inspeção visual.** Origem: `src/app/~offline/page.tsx` e captura do fallback nos dois idiomas.
+
+Os textos do fallback permanecem fixos em inglês. A padronização deve considerar que a rota é usada quando faltam recursos em cache.
+
+- [ ] Definir o carregamento do idioma disponível nesse contexto e usar textos tipados nos dicionários pt-BR/en, preservando o funcionamento offline.
+- [ ] Encerrar quando a rota exibir o idioma esperado e continuar funcionando sem rede, sem alterar o contrato de dados.
+
+### UI-04 — Revisar o título principal das páginas internas
+
+**P3 · confirmado pelo axe na auditoria local.** Origem: telas de calendário, dia, metas e recorrentes; regra `page-has-heading-one` (moderate).
+
+- [ ] Definir um heading principal semântico por página e preservar a hierarquia de seções e a aparência atual.
+- [ ] Validar com leitor de árvore acessível e axe nas telas preenchidas e vazias, sem headings decorativos ou duplicados.
+
+### UI-05 — Completar a observação dos estados transitórios e do teclado físico
+
+**P3 · validação visual pendente.** Origem: cobertura declarada por `make audit-ui` e componentes `AuthGate`, `Dialog` e campos de formulário.
+
+A auditoria com navegador cobre acesso, erros de validação e autorização simulada. Loading transitório, armazenamento indisponível e o teclado virtual de um aparelho físico não foram observados visualmente; leitura do código ou testes de guest não comprovam esses estados.
+
+- [ ] Reproduzir loading e indisponibilidade de armazenamento em perfil isolado com mecanismo determinístico, sem modificar a interface de produção.
+- [ ] Verificar teclado virtual em aparelho real: foco, campo visível, rolagem da folha/modal, ações acessíveis e recuperação de foco.
+- [ ] Registrar a evidência na entrega correspondente e remover este item quando os três cenários forem comprovados; não confundir autorização simulada com conta real ou convergência remota.

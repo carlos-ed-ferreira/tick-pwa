@@ -58,7 +58,7 @@ export function CalendarTaskTransferAction({
   }, []);
 
   async function handleTransfer(transfer: 'move' | 'duplicate'): Promise<void> {
-    const targetDate = parseDateInputValue(targetDateInput);
+    const targetDate = parseDateInputValue(targetDateInput, locale);
 
     if (!targetDate) {
       toast.error(dictionary.calendar.transferInvalidDate);

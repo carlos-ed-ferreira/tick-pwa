@@ -805,14 +805,14 @@ describe('RecurringSurface', () => {
         name: 'End date',
       });
 
-      expect(start.value).toBe('31-10-2026');
-      fireEvent.change(start, { target: { value: '07-11-2026' } });
+      expect(start.value).toBe('10/31/2026');
+      fireEvent.change(start, { target: { value: '11/07/2026' } });
       expect(within(performance).getByRole('alert').textContent).toBe(
         dictionary.recurring.rangeOrder,
       );
 
-      fireEvent.change(start, { target: { value: '30-09-2026' } });
-      fireEvent.change(end, { target: { value: '01-10-2026' } });
+      fireEvent.change(start, { target: { value: '09/30/2026' } });
+      fireEvent.change(end, { target: { value: '10/01/2026' } });
       expect(within(performance).queryByRole('alert')).toBeNull();
       expect(within(performance).getAllByText('100%')).toHaveLength(3);
     });
@@ -1052,7 +1052,7 @@ describe('RecurringSurface', () => {
       );
       fireEvent.change(
         within(detail).getByRole('textbox', { name: 'End date' }),
-        { target: { value: '15-12-2026' } },
+        { target: { value: '12/15/2026' } },
       );
 
       const calendar = within(detail).getByRole('region', {
@@ -1874,7 +1874,7 @@ describe('RecurringSurface', () => {
 
       await within(dialog).findByText(dictionary.recurring.errorAnchor);
 
-      fireEvent.change(anchor, { target: { value: '02-11-2026' } });
+      fireEvent.change(anchor, { target: { value: '11/02/2026' } });
       save(dialog);
 
       await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());

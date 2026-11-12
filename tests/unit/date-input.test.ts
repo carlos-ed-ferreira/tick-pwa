@@ -20,6 +20,15 @@ describe('date input helpers', () => {
     expect(parseDateInputValue('10012026')).toBe('2026-01-10');
   });
 
+  it('uses American month-first dates in English without changing local days', () => {
+    expect(formatDateInputValue('2026-11-21', 'en')).toBe('11/21/2026');
+    expect(maskDateInput('11212026', 'en')).toBe('11/21/2026');
+    expect(parseDateInputValue('11/21/2026', 'en')).toBe('2026-11-21');
+    expect(parseDateInputValue('02/29/2028', 'en')).toBe('2028-02-29');
+    expect(parseDateInputValue('02/29/2026', 'en')).toBeNull();
+    expect(parseDateInputValue('21/11/2026', 'en')).toBeNull();
+  });
+
   it('rejects incomplete or invalid dates', () => {
     expect(parseDateInputValue('10-11-202')).toBeNull();
     expect(parseDateInputValue('31-02-2026')).toBeNull();

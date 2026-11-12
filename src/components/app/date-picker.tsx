@@ -51,12 +51,12 @@ export function DatePicker({
   onChange: (value: string) => void;
   onClear?: () => void;
 }) {
-  const { dictionary, timezonePreference } = useAppContext();
+  const { dictionary, locale, timezonePreference } = useAppContext();
   const fieldRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const popoverRef = useRef<HTMLDivElement | null>(null);
   const popoverId = useId();
-  const selectedDate = parseDateInputValue(value);
+  const selectedDate = parseDateInputValue(value, locale);
   const today = getTodayKey(timezonePreference.timezone);
   const [isOpen, setIsOpen] = useState(false);
   const [monthDate, setMonthDate] = useState<LocalDateString>(
@@ -165,7 +165,7 @@ export function DatePicker({
   }, [isOpen]);
 
   function selectDate(date: LocalDateString) {
-    onChange(formatDateInputValue(date));
+    onChange(formatDateInputValue(date, locale));
     setMonthDate(date);
     setIsOpen(false);
     inputRef.current?.focus();
@@ -259,8 +259,8 @@ export function DatePicker({
           </IconButton>
         }
         onChange={(event) => {
-          const nextValue = maskDateInput(event.target.value);
-          const nextDate = parseDateInputValue(nextValue);
+          const nextValue = maskDateInput(event.target.value, locale);
+          const nextDate = parseDateInputValue(nextValue, locale);
 
           if (nextDate) {
             setMonthDate(nextDate);

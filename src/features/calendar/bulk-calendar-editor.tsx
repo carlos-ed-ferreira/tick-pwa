@@ -73,7 +73,7 @@ export function BulkCalendarEditor({
   open: boolean;
   onClose: () => void;
 }) {
-  const { dictionary, scope, timezonePreference } = useAppContext();
+  const { dictionary, locale, scope, timezonePreference } = useAppContext();
   const isCreateMode = mode === 'create';
   const [draftItems, setDraftItems] = useState<BulkChecklistDraftItem[]>([]);
   const [startDateInput, setStartDateInput] = useState('');
@@ -114,8 +114,8 @@ export function BulkCalendarEditor({
       return null;
     }
 
-    const startDate = parseDateInputValue(startDateInput);
-    const endDate = parseDateInputValue(endDateInput);
+    const startDate = parseDateInputValue(startDateInput, locale);
+    const endDate = parseDateInputValue(endDateInput, locale);
 
     if (!startDate || !endDate) {
       toast.error(dictionary.calendar.bulkInvalidDates);
@@ -144,10 +144,8 @@ export function BulkCalendarEditor({
       startDate,
     };
   }, [
-    dictionary.calendar.bulkInvalidDates,
-    dictionary.calendar.bulkInvalidRange,
-    dictionary.calendar.bulkNoMatchingDates,
-    dictionary.calendar.bulkRequiredDates,
+    locale,
+    dictionary.calendar,
     endDateInput,
     selectedWeekdays,
     startDateInput,

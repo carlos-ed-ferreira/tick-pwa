@@ -24,6 +24,7 @@ import {
   filledMediumPillControlClassName,
   filledMediumRoundControlClassName,
   Input,
+  Tooltip,
 } from '@/components/ui';
 import {
   CategoryAssignmentMenu,
@@ -148,7 +149,7 @@ export function GoalGroupDetailHeader({
           <GoalGroupTitleEditor autoFocus={false} group={group} />
           {groupCategory && !groupCategory.useOwnName ? (
             <span
-              className="inline-flex min-h-9 max-w-full shrink-0 items-center rounded-full inset-ring-hairline inset-ring-(--chip-edge) px-3 py-1 text-sm font-medium text-[#f7e8ce] shadow-sm shadow-[#253241]/10"
+              className="inline-flex min-h-9 max-w-full shrink-0 items-center rounded-full inset-ring-hairline inset-ring-(--chip-edge) px-3 py-1 text-sm font-medium text-[#f7e8ce] shadow-sm shadow-[#253241]/10 touch:min-h-7 touch:px-2 touch:text-xs"
               style={
                 {
                   '--chip-edge': toAlphaColor(groupCategory.colorHex, 0.6),
@@ -307,11 +308,11 @@ export function GoalDetailHeader({
       {!isArchived ? (
         <DatePicker
           label={dictionary.goals.dueDateLabel}
-          value={goal.dueDate ? formatDateInputValue(goal.dueDate) : ''}
+          value={goal.dueDate ? formatDateInputValue(goal.dueDate, locale) : ''}
           variant="trigger"
           onChange={(nextValue) => {
             if (!scope) return;
-            const nextDate = parseDateInputValue(nextValue);
+            const nextDate = parseDateInputValue(nextValue, locale);
 
             if (nextDate) {
               void updateGoalDueDate({
@@ -376,24 +377,16 @@ export function GoalDetailHeader({
 
   return (
     <>
-      <header className="flex flex-col gap-3 px-1 sm:grid sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-2 sm:px-0">
-        <div className="flex min-w-0 flex-wrap items-center gap-2 sm:flex-nowrap">
-          <GoalTitleEditor goal={goal} />
-          {goalCategory && !goalCategory.useOwnName ? (
-            <span
-              className="inline-flex min-h-9 max-w-full shrink-0 items-center rounded-full inset-ring-hairline inset-ring-(--chip-edge) px-3 py-1 text-sm font-medium text-[#f7e8ce] shadow-sm shadow-[#253241]/10"
-              style={
-                {
-                  '--chip-edge': toAlphaColor(goalCategory.colorHex, 0.6),
-                  backgroundColor: toAlphaColor(goalCategory.colorHex, 0.14),
-                } as CSSProperties
-              }
-            >
-              <span className="truncate">{goalCategory.name}</span>
-            </span>
-          ) : null}
+      <header className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-0 touch:grid-cols-[auto_minmax(0,1fr)_auto] touch:items-start">
+        <div className="flex min-w-0 flex-nowrap items-center gap-2 touch:contents">
+          <div className="contents touch:flex touch:min-w-0 touch:items-center touch:gap-2">
+            <GoalTitleEditor goal={goal} />
+            {goalCategory && !goalCategory.useOwnName ? (
+              <GoalCategoryBadge category={goalCategory} />
+            ) : null}
+          </div>
           {goal.dueDate ? (
-            <span className="inline-flex min-h-9 max-w-full shrink-0 items-center gap-1.5 rounded-full inset-ring-hairline inset-ring-white/15 bg-white/5 px-3 py-1 text-sm font-medium text-[#f8f3ea] shadow-sm shadow-[#253241]/10">
+            <span className="inline-flex min-h-9 max-w-full shrink-0 items-center gap-1.5 touch:order-2 touch:col-span-3 touch:w-fit rounded-full inset-ring-hairline inset-ring-white/15 bg-white/5 px-3 py-1 text-sm font-medium text-[#f8f3ea] shadow-sm shadow-[#253241]/10">
               <CalendarDays
                 aria-hidden="true"
                 className="size-3.5 opacity-70"
@@ -411,7 +404,7 @@ export function GoalDetailHeader({
         </div>
         <button
           type="button"
-          className={`${filledMediumPillControlClassName} w-fit`}
+          className={`${filledMediumPillControlClassName} w-fit touch:order-first touch:shrink-0`}
           onClick={onBack}
         >
           <ArrowLeft aria-hidden="true" className="size-4" />
@@ -479,20 +472,49 @@ function GoalTitleEditor({ goal }: { goal: Goal }) {
   const titleMeasurement = editableTitle || ' ';
 
   return (
-    <span className="relative inline-block min-w-0 max-w-full shrink align-middle">
-      <span
-        aria-hidden="true"
-        className="invisible block max-w-full overflow-hidden whitespace-pre rounded-md px-2 py-1 text-2xl font-semibold"
-      >
-        {titleMeasurement}
+    <Tooltip
+      content={editableTitle}
+      whenTruncated
+      className="min-w-0 max-w-full touch:flex-1"
+    >
+      <span className="relative inline-block min-w-0 max-w-full shrink align-middle touch:w-full">
+        <span
+          aria-hidden="true"
+          className="invisible block max-w-full overflow-hidden whitespace-pre rounded-md px-2 py-1 text-2xl font-semibold touch:text-lg"
+        >
+          {titleMeasurement}
+        </span>
+        <Input
+          aria-label={dictionary.goals.renameGoal}
+          className="absolute inset-0 h-full w-full rounded-md bg-transparent px-2 py-1 text-2xl font-semibold touch:text-lg text-[#fff9f2] outline-none transition focus:bg-white/[0.04] focus:inset-ring-hairline focus:inset-ring-[#f0c38e]/35"
+          value={editableTitle}
+          onBlur={() => void flushTitle()}
+          onChange={(event) => setTitle(event.target.value.toUpperCase())}
+        />
       </span>
-      <Input
-        aria-label={dictionary.goals.renameGoal}
-        className="absolute inset-0 h-full w-full rounded-md bg-transparent px-2 py-1 text-2xl font-semibold text-[#fff9f2] outline-none transition focus:bg-white/[0.04] focus:inset-ring-hairline focus:inset-ring-[#f0c38e]/35"
-        value={editableTitle}
-        onBlur={() => void flushTitle()}
-        onChange={(event) => setTitle(event.target.value.toUpperCase())}
-      />
-    </span>
+    </Tooltip>
+  );
+}
+
+function GoalCategoryBadge({ category }: { category: CategoryTag }) {
+  return (
+    <Tooltip
+      content={category.name}
+      whenTruncated
+      className="min-w-0 max-w-full touch:max-w-[45%] touch:shrink-0"
+    >
+      <span
+        tabIndex={0}
+        className="inline-flex min-h-9 max-w-full shrink-0 items-center rounded-full inset-ring-hairline inset-ring-(--chip-edge) px-3 py-1 text-sm font-medium text-[#f7e8ce] shadow-sm shadow-[#253241]/10 touch:min-h-7 touch:px-2 touch:text-xs"
+        style={
+          {
+            '--chip-edge': toAlphaColor(category.colorHex, 0.6),
+            backgroundColor: toAlphaColor(category.colorHex, 0.14),
+          } as CSSProperties
+        }
+      >
+        <span className="truncate">{category.name}</span>
+      </span>
+    </Tooltip>
   );
 }

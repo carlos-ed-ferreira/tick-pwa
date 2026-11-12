@@ -21,6 +21,7 @@ import {
   isSameRecurrenceContent,
   type AppScope,
   type LocalDateString,
+  type SupportedLocale,
   type Recurrence,
   type RecurrenceContent,
   type RecurrenceRule,
@@ -199,24 +200,26 @@ function ApplyChangesDialog({
 function createInitialForm(
   recurrence: Recurrence | null,
   today: LocalDateString,
+  locale: SupportedLocale,
 ): RecurrenceForm {
   const rule = recurrence ? getLatestRule(recurrence.schedule) : null;
 
   return rule
-    ? createFormFromRule(rule, today)
-    : createDefaultRecurrenceForm(today);
+    ? createFormFromRule(rule, today, locale)
+    : createDefaultRecurrenceForm(today, locale);
 }
 
 function readRuleResult(
   form: RecurrenceForm,
   isPaused: boolean,
   today: LocalDateString,
+  locale: SupportedLocale,
 ): { error: RecurrenceRuleError | null; rule: RecurrenceRule | undefined } {
   if (isPaused) {
     return { error: null, rule: undefined };
   }
 
-  const result = buildRuleFromForm(form, today);
+  const result = buildRuleFromForm(form, today, locale);
 
   return 'error' in result
     ? { error: result.error, rule: undefined }
@@ -279,9 +282,15 @@ function readEditorSubmission(
     | 'text'
   >,
   today: LocalDateString,
+  locale: SupportedLocale,
 ) {
   const name = draft.text.trim();
-  const { error, rule } = readRuleResult(draft.form, draft.isPaused, today);
+  const { error, rule } = readRuleResult(
+    draft.form,
+    draft.isPaused,
+    today,
+    locale,
+  );
   const { errors, measures } = collectEditorMeasures(draft);
   const update: PendingUpdate | null =
     name && !error && !errors
@@ -323,6 +332,7 @@ function useMeasureDrafts(recurrence: Recurrence | null) {
 }
 
 function useEditorDraft(recurrence: Recurrence | null, today: LocalDateString) {
+  const { locale } = useAppContext();
   const [text, setText] = useState(recurrence?.text ?? '');
   const measures = useMeasureDrafts(recurrence);
   const [format, setFormat] = useState<EditorFormat>({
@@ -333,7 +343,9 @@ function useEditorDraft(recurrence: Recurrence | null, today: LocalDateString) {
   const [items, setItems] = useState(() =>
     childrenToDraftItems(recurrence?.children ?? []),
   );
-  const [form, setForm] = useState(() => createInitialForm(recurrence, today));
+  const [form, setForm] = useState(() =>
+    createInitialForm(recurrence, today, locale),
+  );
 
   return {
     ...measures,
@@ -360,7 +372,7 @@ function useRecurringEditor({
   today: LocalDateString;
   onClose: () => void;
 }) {
-  const { dictionary, scope } = useAppContext();
+  const { dictionary, locale, scope } = useAppContext();
   const labels = dictionary.recurring;
   const draft = useEditorDraft(recurrence, today);
   const [nameError, setNameError] = useState<string | null>(null);
@@ -392,7 +404,7 @@ function useRecurringEditor({
   }
 
   function submit() {
-    const submission = readEditorSubmission(draft, today);
+    const submission = readEditorSubmission(draft, today, locale);
 
     setNameError(submission.name ? null : labels.nameRequired);
     setRuleError(submission.ruleError);

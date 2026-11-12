@@ -1,7 +1,13 @@
 'use client';
 
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
 import { IconButton } from '@/components/ui';
 import type { DayItemPreview } from '@/features/calendar/use-month-day-previews';
 import type { DailyEntry, LocalDateString } from '@/lib/domain';
@@ -58,6 +64,55 @@ export function CalendarWeekStrip({
   onShiftWeek: (weekOffset: number) => void;
 }) {
   const { dictionary } = useAppContext();
+  const { stripRef, dayWidth } = useCalendarWeekLayout(activeDay);
+
+  const isCompact = getCalendarWeekDensity(dayWidth) === 'compact';
+  const visibleCategoryLimit = getVisibleCategoryLimit(dayWidth);
+
+  return (
+    <div className="flex items-center gap-1 px-2 pt-2 pb-1">
+      <WeekArrowButton
+        label={dictionary.calendar.previousWeek}
+        onClick={() => onShiftWeek(-1)}
+      >
+        <ChevronLeft aria-hidden="true" className="size-4" />
+      </WeekArrowButton>
+      <div className="min-w-0 flex-1 overflow-x-auto py-1">
+        <div
+          ref={stripRef}
+          role="tablist"
+          aria-label={dictionary.calendar.week}
+          className="calendar-week-strip relative grid min-w-[20.75rem] grid-cols-7 gap-1"
+        >
+          {week.map((day, dayIndex) => (
+            <WeekDay
+              key={day.date}
+              categoryTagMap={categoryTagMap}
+              date={day.date}
+              dayPreview={dayPreviews.get(day.date) ?? null}
+              entry={entryMap.get(day.date) ?? null}
+              inCurrentMonth={day.inCurrentMonth}
+              isCompact={isCompact}
+              isSelected={activeDay === day.date}
+              isToday={todayKey === day.date}
+              visibleCategoryLimit={visibleCategoryLimit}
+              weekdayLabel={dictionary.calendar.weekdays[dayIndex]}
+              onSelectDay={onSelectDay}
+            />
+          ))}
+        </div>
+      </div>
+      <WeekArrowButton
+        label={dictionary.calendar.nextWeek}
+        onClick={() => onShiftWeek(1)}
+      >
+        <ChevronRight aria-hidden="true" className="size-4" />
+      </WeekArrowButton>
+    </div>
+  );
+}
+
+function useCalendarWeekLayout(activeDay: LocalDateString) {
   const stripRef = useRef<HTMLDivElement | null>(null);
   const [dayWidth, setDayWidth] = useState(0);
 
@@ -85,48 +140,30 @@ export function CalendarWeekStrip({
     return () => observer.disconnect();
   }, []);
 
-  const isCompact = getCalendarWeekDensity(dayWidth) === 'compact';
-  const visibleCategoryLimit = getVisibleCategoryLimit(dayWidth);
+  useEffect(() => {
+    const selected = stripRef.current?.querySelector<HTMLElement>(
+      '[aria-selected="true"]',
+    );
+    const container = stripRef.current?.parentElement;
+    if (
+      selected &&
+      container &&
+      container.scrollWidth > container.clientWidth
+    ) {
+      const left =
+        selected.getBoundingClientRect().left -
+        container.getBoundingClientRect().left +
+        container.scrollLeft;
+      container.scrollTo({
+        left: Math.max(
+          0,
+          left - (container.clientWidth - selected.offsetWidth) / 2,
+        ),
+      });
+    }
+  }, [activeDay, dayWidth]);
 
-  return (
-    <div className="flex items-center gap-1 px-2 pt-2 pb-1">
-      <WeekArrowButton
-        label={dictionary.calendar.previousWeek}
-        onClick={() => onShiftWeek(-1)}
-      >
-        <ChevronLeft aria-hidden="true" className="size-4" />
-      </WeekArrowButton>
-      <div
-        ref={stripRef}
-        role="tablist"
-        aria-label={dictionary.calendar.week}
-        className="calendar-week-strip grid min-w-0 flex-1 grid-cols-7 gap-1"
-      >
-        {week.map((day, dayIndex) => (
-          <WeekDay
-            key={day.date}
-            categoryTagMap={categoryTagMap}
-            date={day.date}
-            dayPreview={dayPreviews.get(day.date) ?? null}
-            entry={entryMap.get(day.date) ?? null}
-            inCurrentMonth={day.inCurrentMonth}
-            isCompact={isCompact}
-            isSelected={activeDay === day.date}
-            isToday={todayKey === day.date}
-            visibleCategoryLimit={visibleCategoryLimit}
-            weekdayLabel={dictionary.calendar.weekdays[dayIndex]}
-            onSelectDay={onSelectDay}
-          />
-        ))}
-      </div>
-      <WeekArrowButton
-        label={dictionary.calendar.nextWeek}
-        onClick={() => onShiftWeek(1)}
-      >
-        <ChevronRight aria-hidden="true" className="size-4" />
-      </WeekArrowButton>
-    </div>
-  );
+  return { stripRef, dayWidth };
 }
 
 function WeekDay({
@@ -184,7 +221,7 @@ function WeekDay({
       } ${inCurrentMonth ? '' : 'opacity-55'}`}
       onClick={() => onSelectDay(date)}
     >
-      <span className="text-[0.6rem] font-medium uppercase leading-none tracking-[0.12em] text-[#8fa0b3]">
+      <span className="text-[11px] font-medium uppercase leading-none tracking-wide text-muted">
         {weekdayLabel}
       </span>
       <span
@@ -200,7 +237,7 @@ function WeekDay({
       </span>
       {entry && entry.itemCount > 0 ? (
         <span
-          className="calendar-chip px-1.5 py-px text-[0.6rem] font-semibold leading-none tabular-nums"
+          className="calendar-chip px-1 py-0.5 text-[11px] font-semibold leading-none tabular-nums"
           style={progressTone.badgeStyle}
         >
           {entry.completedCount}/{entry.itemCount}

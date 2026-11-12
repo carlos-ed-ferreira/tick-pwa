@@ -113,7 +113,7 @@ export function TreeListPanel({
         {hasRows ? (
           <div
             data-tree-list-toolbar="true"
-            className="flex flex-wrap items-center justify-between gap-2 px-1 pt-2 touch:sticky touch:bottom-0 touch:z-10 touch:rounded-lg touch:bg-surface/85 touch:pb-1 touch:backdrop-blur-md"
+            className="flex flex-wrap items-center justify-between gap-2 px-1 pt-2 touch:sticky touch:bottom-0 touch:z-10 touch:pb-1"
           >
             <div className="flex items-center gap-1.5">
               <button

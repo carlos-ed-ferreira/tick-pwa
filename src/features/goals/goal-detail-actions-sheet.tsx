@@ -23,7 +23,9 @@ export function GoalDetailActionsSheet({ children }: { children: ReactNode }) {
         title={dictionary.navigation.moreOptions}
         onClose={() => setIsOpen(false)}
       >
-        <div className="flex flex-wrap items-center gap-3 px-1">{children}</div>
+        <div className="grid items-center gap-3 px-1 [&_button[aria-label]:has(>svg:only-child)]:w-full [&_button[aria-label]:has(>svg:only-child)]:justify-start [&_button[aria-label]:has(>svg:only-child)]:gap-3 [&_button[aria-label]:has(>svg:only-child)]:px-3 [&_button[aria-label]:has(>svg:only-child)]:after:content-[attr(aria-label)]">
+          {children}
+        </div>
       </BottomSheet>
     </>
   );

@@ -1,6 +1,8 @@
 'use client';
 
 import {
+  CheckSquare,
+  GripVertical,
   ArrowDown,
   ArrowUp,
   IndentDecrease,
@@ -25,6 +27,9 @@ export interface TaskTreeRowActionsSheetLabels {
   cancel: string;
   clearCategory: string;
   deleteItem: string;
+  dragItem: string;
+  selectItem: string;
+  deselectItem: string;
   indentItem: string;
   itemDate: string;
   itemTime: string;
@@ -54,6 +59,9 @@ export function TaskTreeRowActionsSheet({
   showScheduledTime,
   surface,
   timeField,
+  isSelected = false,
+  onSelect,
+  onPrepareDrag,
   onAdd,
   onAssignCategory,
   onDelete,
@@ -76,6 +84,9 @@ export function TaskTreeRowActionsSheet({
   showScheduledTime: boolean;
   surface: CategoryTagSurface;
   timeField: ReactNode;
+  isSelected?: boolean;
+  onSelect?: () => void;
+  onPrepareDrag?: () => void;
   onAdd: () => Promise<void> | void;
   onAssignCategory: (categoryTagId: string | null) => Promise<void> | void;
   onDelete: () => Promise<void> | void;
@@ -120,56 +131,35 @@ export function TaskTreeRowActionsSheet({
           </div>
         ) : null}
 
-        {isVisible('add') ? (
+        {onSelect ? (
           <BottomSheetAction
-            ariaLabel={labels.addChild}
-            icon={<Plus aria-hidden="true" className="size-4" />}
-            disabled={!availability.canEditContent}
-            onSelect={() => runAction(onAdd)}
+            icon={<CheckSquare aria-hidden="true" className="size-4" />}
+            onSelect={() => runAction(onSelect)}
           >
-            {labels.addChild}
+            {isSelected ? labels.deselectItem : labels.selectItem}
           </BottomSheetAction>
         ) : null}
-        {isVisible('moveUp') ? (
+        {onPrepareDrag ? (
           <BottomSheetAction
-            ariaLabel={labels.moveItemUp}
-            disabled={!availability.canMoveUp}
-            icon={<ArrowUp aria-hidden="true" className="size-4" />}
-            onSelect={() => runAction(onMoveUp)}
+            icon={<GripVertical aria-hidden="true" className="size-4" />}
+            onSelect={() => runAction(onPrepareDrag)}
           >
-            {labels.moveItemUp}
+            {labels.dragItem}
           </BottomSheetAction>
         ) : null}
-        {isVisible('moveDown') ? (
-          <BottomSheetAction
-            ariaLabel={labels.moveItemDown}
-            disabled={!availability.canMoveDown}
-            icon={<ArrowDown aria-hidden="true" className="size-4" />}
-            onSelect={() => runAction(onMoveDown)}
-          >
-            {labels.moveItemDown}
-          </BottomSheetAction>
-        ) : null}
-        {isVisible('outdent') ? (
-          <BottomSheetAction
-            ariaLabel={labels.outdentItem}
-            disabled={!availability.canOutdent}
-            icon={<IndentDecrease aria-hidden="true" className="size-4" />}
-            onSelect={() => runAction(onOutdent)}
-          >
-            {labels.outdentItem}
-          </BottomSheetAction>
-        ) : null}
-        {isVisible('indent') ? (
-          <BottomSheetAction
-            ariaLabel={labels.indentItem}
-            disabled={!availability.canIndent}
-            icon={<IndentIncrease aria-hidden="true" className="size-4" />}
-            onSelect={() => runAction(onIndent)}
-          >
-            {labels.indentItem}
-          </BottomSheetAction>
-        ) : null}
+        <TaskTreeStructureActions
+          {...{
+            actionPreferences,
+            availability,
+            labels,
+            onAdd,
+            onMoveUp,
+            onMoveDown,
+            onIndent,
+            onOutdent,
+            runAction,
+          }}
+        />
         {isVisible('priority') ? (
           <BottomSheetAction
             ariaLabel={priority ? labels.unmarkPriority : labels.markPriority}
@@ -252,4 +242,89 @@ export function TaskTreeRowActionsSheet({
 
 function DatePickerSlot({ children }: { children: ReactNode }) {
   return <div className="flex min-w-0 flex-1 items-center">{children}</div>;
+}
+
+type StructureActionsProps = Pick<
+  Parameters<typeof TaskTreeRowActionsSheet>[0],
+  | 'actionPreferences'
+  | 'availability'
+  | 'labels'
+  | 'onAdd'
+  | 'onMoveUp'
+  | 'onMoveDown'
+  | 'onIndent'
+  | 'onOutdent'
+> & {
+  runAction: (action: () => Promise<void> | void) => void;
+};
+
+function TaskTreeStructureActions({
+  actionPreferences,
+  availability,
+  labels,
+  onAdd,
+  onMoveUp,
+  onMoveDown,
+  onIndent,
+  onOutdent,
+  runAction,
+}: StructureActionsProps) {
+  return (
+    <>
+      {[
+        {
+          key: 'add',
+          label: labels.addChild,
+          icon: Plus,
+          enabled: availability.canEditContent,
+          run: onAdd,
+        },
+        {
+          key: 'moveUp',
+          label: labels.moveItemUp,
+          icon: ArrowUp,
+          enabled: availability.canMoveUp,
+          run: onMoveUp,
+        },
+        {
+          key: 'moveDown',
+          label: labels.moveItemDown,
+          icon: ArrowDown,
+          enabled: availability.canMoveDown,
+          run: onMoveDown,
+        },
+        {
+          key: 'outdent',
+          label: labels.outdentItem,
+          icon: IndentDecrease,
+          enabled: availability.canOutdent,
+          run: onOutdent,
+        },
+        {
+          key: 'indent',
+          label: labels.indentItem,
+          icon: IndentIncrease,
+          enabled: availability.canIndent,
+          run: onIndent,
+        },
+      ]
+        .filter(
+          (action) =>
+            actionPreferences[
+              action.key as keyof TaskTreeRowActionPreferences
+            ] !== 'hidden',
+        )
+        .map(({ key, label, icon: Icon, enabled, run }) => (
+          <BottomSheetAction
+            key={key}
+            ariaLabel={label}
+            disabled={!enabled}
+            icon={<Icon aria-hidden="true" className="size-4" />}
+            onSelect={() => runAction(run)}
+          >
+            {label}
+          </BottomSheetAction>
+        ))}
+    </>
+  );
 }

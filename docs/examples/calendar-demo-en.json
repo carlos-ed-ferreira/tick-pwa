@@ -1,0 +1,67 @@
+{
+  "days": [
+    {
+      "date": "2026-11-11",
+      "items": [
+        {
+          "text": "Send the visual identity proposal",
+          "category": {
+            "name": "Work",
+            "color": "#7db4f0"
+          },
+          "time": "14:30",
+          "children": [
+            {
+              "text": "Review scope and deliverables",
+              "category": {
+                "name": "Work",
+                "color": "#7db4f0"
+              },
+              "time": "09:00"
+            },
+            {
+              "text": "Estimate hours and budget",
+              "category": {
+                "name": "Work",
+                "color": "#7db4f0"
+              },
+              "time": "10:00"
+            },
+            {
+              "text": "Check the final PDF",
+              "category": {
+                "name": "Work",
+                "color": "#7db4f0"
+              }
+            }
+          ],
+          "priority": true
+        },
+        {
+          "text": "Pick up the package at reception",
+          "category": {
+            "name": "Personal",
+            "color": "#c6a0ec"
+          },
+          "time": "12:00"
+        },
+        {
+          "text": "Dentist appointment",
+          "category": {
+            "name": "Health",
+            "color": "#8ed5b0"
+          },
+          "time": "17:30"
+        },
+        {
+          "text": "Gather course application documents",
+          "category": {
+            "name": "Education",
+            "color": "#f0c38e"
+          },
+          "time": "19:00"
+        }
+      ]
+    }
+  ]
+}

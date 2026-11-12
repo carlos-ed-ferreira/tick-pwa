@@ -211,6 +211,9 @@ backup-artifacts:
 	gh api "repos/carlos-ed-ferreira/tick-pwa/actions/runs/$(run)/artifacts" --jq '.artifacts[] | {name, size_in_bytes, expired, expires_at}'
 
 help:
+	@printf "  %-26s %s\n" "make check-docs" "Valida links, ancoras e espelhos das skills locais"
+	@printf "  %-26s %s\n" "make audit-ui" "Audita superficies locais e grava evidencias temporarias em .next/ui-audit"
+	@printf "  %-26s %s\n" "make screenshots" "Gera capturas do README com dados ficticios em navegador isolado"
 	@printf "  %-26s %s\n" "make test-account-browser" "Testa conta em Chromium e API real temporaria isolada"
 	@printf "  %-26s %s\n" "make supabase-status-json" "Status local estruturado para ferramentas"
 	@printf "  %-26s %s\n" "make test-e2e-account-real" "Executa ensaios na conta sintetica isolada preparada"
@@ -369,6 +372,11 @@ dev: install
 build: require-npm
 	$(NPM) run build
 
+.PHONY: screenshots
+
+screenshots: build
+	node scripts/capture-screenshots.mjs
+
 start: require-npm
 	$(NPM) run start $(args)
 
@@ -519,3 +527,13 @@ supabase-prod-db-push: require-npm
 
 clean: require-npm
 	$(NPM) run clean
+
+.PHONY: audit-ui
+
+audit-ui: build
+	SCREENSHOT_OUTPUT_DIR=.next/ui-audit SCREENSHOT_REVIEW=1 SCREENSHOT_AUDIT=1 node scripts/capture-screenshots.mjs
+
+.PHONY: check-docs
+
+check-docs: require-npm
+	node scripts/check-docs.mjs

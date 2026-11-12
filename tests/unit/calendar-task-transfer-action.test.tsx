@@ -25,7 +25,7 @@ vi.mock('@/providers', () => ({
         cancel: 'Cancel',
       },
       calendar: {
-        bulkDatePlaceholder: 'DD-MM-YYYY',
+        bulkDatePlaceholder: 'MM/DD/YYYY',
         nextMonth: 'Next month',
         openDatePicker: 'Open date picker for {label}',
         previousMonth: 'Previous month',
@@ -36,7 +36,7 @@ vi.mock('@/providers', () => ({
           'Choose the destination date to move or duplicate all tasks from this day.',
         transferDialogTitle: 'Move or duplicate day tasks',
         transferDuplicate: 'Duplicate tasks',
-        transferInvalidDate: 'Enter a valid date in DD-MM-YYYY.',
+        transferInvalidDate: 'Enter a valid date in MM/DD/YYYY.',
         transferItem: 'Move or duplicate day',
         transferMove: 'Move tasks',
         transferSameDate: 'Choose a different date for this day.',
@@ -114,7 +114,7 @@ describe('CalendarTaskTransferAction', () => {
     fireEvent.click(moveButton);
 
     expect(toastErrorMock).toHaveBeenCalledWith(
-      'Enter a valid date in DD-MM-YYYY.',
+      'Enter a valid date in MM/DD/YYYY.',
     );
     expect(onMoveToDate).not.toHaveBeenCalled();
     expect(onDuplicateToDate).not.toHaveBeenCalled();
@@ -136,7 +136,7 @@ describe('CalendarTaskTransferAction', () => {
       screen.getByRole('button', { name: 'Move or duplicate day' }),
     );
     fireEvent.change(screen.getByLabelText('Destination date'), {
-      target: { value: '22052026' },
+      target: { value: '05222026' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Duplicate tasks' }));
 
@@ -149,7 +149,7 @@ describe('CalendarTaskTransferAction', () => {
       screen.getByRole('button', { name: 'Move or duplicate day' }),
     );
     fireEvent.change(screen.getByLabelText('Destination date'), {
-      target: { value: '22052026' },
+      target: { value: '05222026' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Move tasks' }));
 
@@ -175,7 +175,7 @@ describe('CalendarTaskTransferAction', () => {
     input.focus();
     expect(input).toHaveFocus();
 
-    fireEvent.change(input, { target: { value: '22052026' } });
+    fireEvent.change(input, { target: { value: '05222026' } });
 
     expect(input).toHaveFocus();
   });

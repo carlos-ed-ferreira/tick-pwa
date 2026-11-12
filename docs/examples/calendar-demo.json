@@ -1,0 +1,769 @@
+{
+  "days": [
+    {
+      "date": "2026-09-30",
+      "items": [
+        {
+          "text": "Enviar nota fiscal de setembro",
+          "category": {
+            "name": "Trabalho",
+            "color": "#7db4f0"
+          }
+        },
+        {
+          "text": "Conferir o extrato do mês",
+          "category": {
+            "name": "Pessoal",
+            "color": "#c6a0ec"
+          }
+        }
+      ]
+    },
+    {
+      "date": "2026-10-03",
+      "items": [
+        {
+          "text": "Receber a entrega da estante",
+          "category": {
+            "name": "Casa",
+            "color": "#d9b58b"
+          },
+          "time": "10:00"
+        }
+      ]
+    },
+    {
+      "date": "2026-10-05",
+      "items": [
+        {
+          "text": "Reunião de briefing com o estúdio",
+          "category": {
+            "name": "Trabalho",
+            "color": "#7db4f0"
+          },
+          "time": "09:00"
+        },
+        {
+          "text": "Organizar referências do projeto",
+          "category": {
+            "name": "Trabalho",
+            "color": "#7db4f0"
+          }
+        }
+      ]
+    },
+    {
+      "date": "2026-10-08",
+      "items": [
+        {
+          "text": "Retirar os resultados dos exames",
+          "category": {
+            "name": "Saúde",
+            "color": "#8ed5b0"
+          },
+          "time": "16:00"
+        }
+      ]
+    },
+    {
+      "date": "2026-10-12",
+      "items": [
+        {
+          "text": "Almoço em família",
+          "category": {
+            "name": "Pessoal",
+            "color": "#c6a0ec"
+          },
+          "time": "12:30"
+        },
+        {
+          "text": "Reservar as datas da viagem",
+          "category": {
+            "name": "Pessoal",
+            "color": "#c6a0ec"
+          }
+        }
+      ]
+    },
+    {
+      "date": "2026-10-16",
+      "items": [
+        {
+          "text": "Apresentar a primeira proposta",
+          "category": {
+            "name": "Trabalho",
+            "color": "#7db4f0"
+          },
+          "time": "14:00"
+        },
+        {
+          "text": "Anotar os ajustes solicitados",
+          "category": {
+            "name": "Trabalho",
+            "color": "#7db4f0"
+          }
+        },
+        {
+          "text": "Comparar programas de pós-graduação",
+          "category": {
+            "name": "Formação",
+            "color": "#f0c38e"
+          }
+        },
+        {
+          "text": "Agendar manutenção do filtro",
+          "category": {
+            "name": "Casa",
+            "color": "#d9b58b"
+          }
+        }
+      ]
+    },
+    {
+      "date": "2026-10-20",
+      "items": [
+        {
+          "text": "Enviar arquivos para aprovação",
+          "category": {
+            "name": "Trabalho",
+            "color": "#7db4f0"
+          }
+        }
+      ]
+    },
+    {
+      "date": "2026-10-23",
+      "items": [
+        {
+          "text": "Consulta de rotina",
+          "category": {
+            "name": "Saúde",
+            "color": "#8ed5b0"
+          },
+          "time": "08:30"
+        },
+        {
+          "text": "Conferir o contrato do próximo projeto",
+          "category": {
+            "name": "Trabalho",
+            "color": "#7db4f0"
+          }
+        },
+        {
+          "text": "Buscar encomenda",
+          "category": {
+            "name": "Pessoal",
+            "color": "#c6a0ec"
+          }
+        }
+      ]
+    },
+    {
+      "date": "2026-10-26",
+      "items": [
+        {
+          "text": "Fechar orçamento de novembro",
+          "category": {
+            "name": "Trabalho",
+            "color": "#7db4f0"
+          }
+        },
+        {
+          "text": "Solicitar o histórico escolar",
+          "category": {
+            "name": "Formação",
+            "color": "#f0c38e"
+          }
+        }
+      ]
+    },
+    {
+      "date": "2026-10-28",
+      "items": [
+        {
+          "text": "Exportar arquivos finais",
+          "category": {
+            "name": "Trabalho",
+            "color": "#7db4f0"
+          }
+        },
+        {
+          "text": "Conferir nomes e versões",
+          "category": {
+            "name": "Trabalho",
+            "color": "#7db4f0"
+          }
+        },
+        {
+          "text": "Enviar material ao estúdio",
+          "category": {
+            "name": "Trabalho",
+            "color": "#7db4f0"
+          }
+        },
+        {
+          "text": "Renovar o seguro residencial",
+          "category": {
+            "name": "Pessoal",
+            "color": "#c6a0ec"
+          }
+        }
+      ]
+    },
+    {
+      "date": "2026-10-30",
+      "items": [
+        {
+          "text": "Emitir nota fiscal do projeto",
+          "category": {
+            "name": "Trabalho",
+            "color": "#7db4f0"
+          }
+        }
+      ]
+    },
+    {
+      "date": "2026-10-31",
+      "items": [
+        {
+          "text": "Medir o espaço do home office",
+          "category": {
+            "name": "Casa",
+            "color": "#d9b58b"
+          }
+        },
+        {
+          "text": "Pesquisar cadeiras e luminárias",
+          "category": {
+            "name": "Casa",
+            "color": "#d9b58b"
+          }
+        }
+      ]
+    },
+    {
+      "date": "2026-11-02",
+      "items": [
+        {
+          "text": "Almoço com a família",
+          "category": {
+            "name": "Pessoal",
+            "color": "#c6a0ec"
+          },
+          "time": "12:30"
+        }
+      ]
+    },
+    {
+      "date": "2026-11-03",
+      "items": [
+        {
+          "text": "Alinhar escopo com o novo cliente",
+          "category": {
+            "name": "Trabalho",
+            "color": "#7db4f0"
+          },
+          "time": "10:00"
+        },
+        {
+          "text": "Separar referências para a proposta",
+          "category": {
+            "name": "Trabalho",
+            "color": "#7db4f0"
+          }
+        }
+      ]
+    },
+    {
+      "date": "2026-11-04",
+      "items": [
+        {
+          "text": "Conferir requisitos da inscrição",
+          "category": {
+            "name": "Formação",
+            "color": "#f0c38e"
+          }
+        },
+        {
+          "text": "Digitalizar o diploma",
+          "category": {
+            "name": "Formação",
+            "color": "#f0c38e"
+          }
+        },
+        {
+          "text": "Organizar certificados",
+          "category": {
+            "name": "Formação",
+            "color": "#f0c38e"
+          }
+        },
+        {
+          "text": "Retirar documento no cartório",
+          "category": {
+            "name": "Pessoal",
+            "color": "#c6a0ec"
+          },
+          "time": "15:00"
+        }
+      ]
+    },
+    {
+      "date": "2026-11-06",
+      "items": [
+        {
+          "text": "Enviar contrato para assinatura",
+          "category": {
+            "name": "Trabalho",
+            "color": "#7db4f0"
+          }
+        }
+      ]
+    },
+    {
+      "date": "2026-11-07",
+      "items": [
+        {
+          "text": "Visitar a loja de móveis",
+          "category": {
+            "name": "Casa",
+            "color": "#d9b58b"
+          },
+          "time": "10:30"
+        },
+        {
+          "text": "Comparar medidas das cadeiras",
+          "category": {
+            "name": "Casa",
+            "color": "#d9b58b"
+          }
+        }
+      ]
+    },
+    {
+      "date": "2026-11-09",
+      "items": [
+        {
+          "text": "Selecionar projetos para o portfólio",
+          "category": {
+            "name": "Trabalho",
+            "color": "#7db4f0"
+          }
+        },
+        {
+          "text": "Separar imagens em alta resolução",
+          "category": {
+            "name": "Trabalho",
+            "color": "#7db4f0"
+          }
+        },
+        {
+          "text": "Organizar autorizações de uso",
+          "category": {
+            "name": "Trabalho",
+            "color": "#7db4f0"
+          }
+        },
+        {
+          "text": "Solicitar carta de recomendação",
+          "category": {
+            "name": "Formação",
+            "color": "#f0c38e"
+          }
+        },
+        {
+          "text": "Conferir prazo das passagens",
+          "category": {
+            "name": "Pessoal",
+            "color": "#c6a0ec"
+          }
+        }
+      ]
+    },
+    {
+      "date": "2026-11-10",
+      "items": [
+        {
+          "text": "Reunião de acompanhamento",
+          "category": {
+            "name": "Trabalho",
+            "color": "#7db4f0"
+          },
+          "time": "09:30"
+        },
+        {
+          "text": "Confirmar entrega da luminária",
+          "category": {
+            "name": "Casa",
+            "color": "#d9b58b"
+          }
+        }
+      ]
+    },
+    {
+      "date": "2026-11-11",
+      "items": [
+        {
+          "text": "Enviar proposta de identidade visual",
+          "category": {
+            "name": "Trabalho",
+            "color": "#7db4f0"
+          },
+          "time": "14:30",
+          "children": [
+            {
+              "text": "Revisar escopo e entregáveis",
+              "category": {
+                "name": "Trabalho",
+                "color": "#7db4f0"
+              }
+            },
+            {
+              "text": "Calcular horas e orçamento",
+              "category": {
+                "name": "Trabalho",
+                "color": "#7db4f0"
+              }
+            },
+            {
+              "text": "Conferir o PDF final",
+              "category": {
+                "name": "Trabalho",
+                "color": "#7db4f0"
+              }
+            }
+          ],
+          "priority": true
+        },
+        {
+          "text": "Retirar encomenda na portaria",
+          "category": {
+            "name": "Pessoal",
+            "color": "#c6a0ec"
+          },
+          "time": "12:00"
+        },
+        {
+          "text": "Consulta odontológica",
+          "category": {
+            "name": "Saúde",
+            "color": "#8ed5b0"
+          },
+          "time": "17:30"
+        },
+        {
+          "text": "Separar documentos da pós",
+          "category": {
+            "name": "Formação",
+            "color": "#f0c38e"
+          },
+          "time": "19:00"
+        }
+      ]
+    },
+    {
+      "date": "2026-11-13",
+      "items": [
+        {
+          "text": "Enviar nota fiscal do adiantamento",
+          "category": {
+            "name": "Trabalho",
+            "color": "#7db4f0"
+          }
+        }
+      ]
+    },
+    {
+      "date": "2026-11-15",
+      "items": [
+        {
+          "text": "Almoço de aniversário",
+          "category": {
+            "name": "Pessoal",
+            "color": "#c6a0ec"
+          },
+          "time": "12:00"
+        },
+        {
+          "text": "Comprar presente",
+          "category": {
+            "name": "Pessoal",
+            "color": "#c6a0ec"
+          }
+        }
+      ]
+    },
+    {
+      "date": "2026-11-17",
+      "items": [
+        {
+          "text": "Fotografar os impressos do projeto",
+          "category": {
+            "name": "Trabalho",
+            "color": "#7db4f0"
+          },
+          "time": "09:00"
+        },
+        {
+          "text": "Selecionar as melhores imagens",
+          "category": {
+            "name": "Trabalho",
+            "color": "#7db4f0"
+          }
+        },
+        {
+          "text": "Revisar carta de intenção",
+          "category": {
+            "name": "Formação",
+            "color": "#f0c38e"
+          }
+        },
+        {
+          "text": "Receber a cadeira nova",
+          "category": {
+            "name": "Casa",
+            "color": "#d9b58b"
+          },
+          "time": "16:00"
+        }
+      ]
+    },
+    {
+      "date": "2026-11-18",
+      "items": [
+        {
+          "text": "Revisar textos dos estudos de caso",
+          "category": {
+            "name": "Trabalho",
+            "color": "#7db4f0"
+          }
+        }
+      ]
+    },
+    {
+      "date": "2026-11-20",
+      "items": [
+        {
+          "text": "Apresentar a identidade aprovada",
+          "category": {
+            "name": "Trabalho",
+            "color": "#7db4f0"
+          },
+          "time": "14:00"
+        },
+        {
+          "text": "Enviar orientações de uso",
+          "category": {
+            "name": "Trabalho",
+            "color": "#7db4f0"
+          }
+        },
+        {
+          "text": "Comparar hospedagens da viagem",
+          "category": {
+            "name": "Pessoal",
+            "color": "#c6a0ec"
+          }
+        }
+      ]
+    },
+    {
+      "date": "2026-11-21",
+      "items": [
+        {
+          "text": "Montar e ajustar o home office",
+          "category": {
+            "name": "Casa",
+            "color": "#d9b58b"
+          }
+        }
+      ]
+    },
+    {
+      "date": "2026-11-24",
+      "items": [
+        {
+          "text": "Conferir os documentos finais",
+          "category": {
+            "name": "Formação",
+            "color": "#f0c38e"
+          }
+        },
+        {
+          "text": "Enviar inscrição da pós",
+          "category": {
+            "name": "Formação",
+            "color": "#f0c38e"
+          }
+        }
+      ]
+    },
+    {
+      "date": "2026-11-26",
+      "items": [
+        {
+          "text": "Testar o portfólio no celular",
+          "category": {
+            "name": "Trabalho",
+            "color": "#7db4f0"
+          }
+        },
+        {
+          "text": "Revisar links e formulários",
+          "category": {
+            "name": "Trabalho",
+            "color": "#7db4f0"
+          }
+        },
+        {
+          "text": "Compartilhar o portfólio",
+          "category": {
+            "name": "Trabalho",
+            "color": "#7db4f0"
+          }
+        },
+        {
+          "text": "Confirmar a reserva da viagem",
+          "category": {
+            "name": "Pessoal",
+            "color": "#c6a0ec"
+          }
+        }
+      ]
+    },
+    {
+      "date": "2026-11-28",
+      "items": [
+        {
+          "text": "Levar embalagens para reciclagem",
+          "category": {
+            "name": "Casa",
+            "color": "#d9b58b"
+          }
+        }
+      ]
+    },
+    {
+      "date": "2026-11-30",
+      "items": [
+        {
+          "text": "Emitir notas fiscais do mês",
+          "category": {
+            "name": "Trabalho",
+            "color": "#7db4f0"
+          }
+        },
+        {
+          "text": "Conferir os aportes da reserva",
+          "category": {
+            "name": "Pessoal",
+            "color": "#c6a0ec"
+          }
+        }
+      ]
+    },
+    {
+      "date": "2026-12-01",
+      "items": [
+        {
+          "text": "Reunião de início do próximo projeto",
+          "category": {
+            "name": "Trabalho",
+            "color": "#7db4f0"
+          },
+          "time": "10:00"
+        },
+        {
+          "text": "Solicitar materiais ao cliente",
+          "category": {
+            "name": "Trabalho",
+            "color": "#7db4f0"
+          }
+        }
+      ]
+    },
+    {
+      "date": "2026-12-02",
+      "items": [
+        {
+          "text": "Retorno odontológico",
+          "category": {
+            "name": "Saúde",
+            "color": "#8ed5b0"
+          },
+          "time": "17:00"
+        }
+      ]
+    },
+    {
+      "date": "2026-12-04",
+      "items": [
+        {
+          "text": "Organizar referências do projeto",
+          "category": {
+            "name": "Trabalho",
+            "color": "#7db4f0"
+          }
+        },
+        {
+          "text": "Preparar cronograma de entregas",
+          "category": {
+            "name": "Trabalho",
+            "color": "#7db4f0"
+          }
+        },
+        {
+          "text": "Comprar passagens",
+          "category": {
+            "name": "Pessoal",
+            "color": "#c6a0ec"
+          }
+        }
+      ]
+    },
+    {
+      "date": "2026-12-06",
+      "items": [
+        {
+          "text": "Almoço com amigos",
+          "category": {
+            "name": "Pessoal",
+            "color": "#c6a0ec"
+          },
+          "time": "13:00"
+        }
+      ]
+    },
+    {
+      "date": "2026-12-09",
+      "items": [
+        {
+          "text": "Conferir resultado da inscrição",
+          "category": {
+            "name": "Formação",
+            "color": "#f0c38e"
+          }
+        },
+        {
+          "text": "Separar documentos da matrícula",
+          "category": {
+            "name": "Formação",
+            "color": "#f0c38e"
+          }
+        }
+      ]
+    },
+    {
+      "date": "2026-12-11",
+      "items": [
+        {
+          "text": "Enviar primeira versão do projeto",
+          "category": {
+            "name": "Trabalho",
+            "color": "#7db4f0"
+          }
+        }
+      ]
+    }
+  ]
+}

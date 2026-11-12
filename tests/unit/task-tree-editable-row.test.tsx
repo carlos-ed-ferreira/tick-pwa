@@ -1022,7 +1022,7 @@ describe('TaskTreeEditableRow', () => {
     expect(targetRow).toHaveAttribute('data-drop-position', 'child');
   });
 
-  it('masks the optional calendar time input as 24-hour HH:mm', async () => {
+  it('masks the optional calendar time input as American time and saves canonical HH:mm', async () => {
     const callbacks = renderRow({
       scheduledTime: '',
       showScheduledTime: true,
@@ -1030,14 +1030,26 @@ describe('TaskTreeEditableRow', () => {
 
     const timeInput = screen.getByLabelText('Task time');
 
-    expect(timeInput).toHaveClass('h-6', 'w-[4rem]', 'px-1.5', 'ml-2');
+    expect(timeInput).toHaveClass('h-6', 'w-24', 'px-1.5', 'ml-2');
 
-    fireEvent.change(timeInput, { target: { value: '2961abc' } });
-    expect(timeInput).toHaveValue('23:59');
+    fireEvent.change(timeInput, { target: { value: '2:30 PM' } });
+    expect(timeInput).toHaveValue('2:30 PM');
 
     await waitFor(() => {
-      expect(callbacks.onSaveTime).toHaveBeenCalledWith('23:59');
+      expect(callbacks.onSaveTime).toHaveBeenCalledWith('14:30');
     });
+  });
+
+  it('normalizes American input on blur even when the stored time is unchanged', () => {
+    const callbacks = renderRow({
+      scheduledTime: '14:30',
+      showScheduledTime: true,
+    });
+    const input = screen.getByLabelText('Task time');
+    fireEvent.change(input, { target: { value: '2:30PM' } });
+    fireEvent.blur(input);
+    expect(input).toHaveValue('2:30 PM');
+    expect(callbacks.onSaveTime).not.toHaveBeenCalled();
   });
 
   it('does not render the calendar time input by default', () => {
@@ -1082,7 +1094,7 @@ describe('TaskTreeEditableRow', () => {
       name: 'Open date picker for Task date',
     });
 
-    expect(trigger).toHaveTextContent('15/07');
+    expect(trigger).toHaveTextContent('07/15');
 
     fireEvent.click(trigger);
     fireEvent.click(screen.getByRole('button', { name: 'July 20, 2026' }));
@@ -1216,9 +1228,53 @@ describe('TaskTreeEditableRow on touch', () => {
     expect(screen.queryByLabelText('Move item up')).toBeNull();
     expect(screen.queryByLabelText('Indent item')).toBeNull();
     expect(screen.queryByLabelText('Task time')).toBeNull();
-    expect(screen.getByLabelText('Drag item')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Drag item')).toBeNull();
     expect(screen.getByRole('checkbox')).toBeInTheDocument();
     expect(screen.getByLabelText('More actions')).toBeInTheDocument();
+  });
+
+  it('offers a drag handle from the touch sheet', () => {
+    stubPointerCapability(true);
+    renderRow();
+    expect(screen.queryByLabelText('Drag item')).toBeNull();
+    fireEvent.click(screen.getByLabelText('More actions'));
+    fireEvent.click(screen.getByRole('button', { name: 'Drag item' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(screen.getByLabelText('Drag item')).toHaveClass('tree-drag-handle');
+  });
+
+  it('shows saved time and date beside the task content on touch', () => {
+    stubPointerCapability(true);
+    renderRow({
+      ...touchRowOverrides,
+      scheduledTime: '09:30',
+      scheduledDate: '2026-11-20',
+    });
+
+    expect(screen.getByText('9:30 AM')).toBeInTheDocument();
+    expect(screen.getByText('11/20')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Task time')).toBeNull();
+  });
+
+  it('starts selection from the sheet and closes it', () => {
+    stubPointerCapability(true);
+    const onToggle = vi.fn();
+    renderRow({
+      selection: {
+        isSelected: false,
+        isSelectionMode: false,
+        onToggle,
+        onBulkAssignCategory: vi.fn(),
+        onBulkDelete: vi.fn(),
+        onBulkToggleChecked: vi.fn(),
+      },
+    });
+
+    expect(screen.queryByRole('button', { name: 'Select item' })).toBeNull();
+    fireEvent.click(screen.getByLabelText('More actions'));
+    fireEvent.click(screen.getByRole('button', { name: 'Select item' }));
+    expect(onToggle).toHaveBeenCalledWith(false);
+    expect(screen.queryByRole('dialog')).toBeNull();
   });
 
   it('exposes every row action inside the sheet', () => {
